@@ -1,6 +1,6 @@
 // src/pages/Dashboard/FrontendDashboard/CompanyOverview.jsx
 import React from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const cards = [
   { title: "Website Builder", path: "website-builder" },
@@ -9,7 +9,6 @@ const cards = [
 ];
 
 const CompanyOverview = () => {
-  const { companyId } = useParams();
   const navigate = useNavigate();
 
   return (
@@ -23,9 +22,7 @@ const CompanyOverview = () => {
           <div
             key={card.title}
             className="cursor-pointer border border-gray-200 rounded-2xl p-6 shadow hover:shadow-lg transition bg-white"
-            onClick={() =>
-              navigate(`/dashboard/companies/${companyId}/${card.path}`)
-            }>
+            onClick={() => navigate(`/dashboard/${card.path}`)}>
             <h2 className="text-subtitle font-pmedium text-gray-800">
               {card.title}
             </h2>

@@ -108,10 +108,10 @@ const Sidebar = ({ drawerOpen, onCloseDrawer }) => {
       submenus: [
         {
           id: 2,
-          title: "Company",
+          title: "Company Settings",
           codeName: "Tec",
           icon: <FaLaptopCode />,
-          route: "/dashboard/companies",
+          route: "/dashboard",
         },
       ],
     },
