@@ -56,23 +56,28 @@ const Sidebar = ({ drawerOpen, onCloseDrawer }) => {
 
   // Menu items array (without DASHBOARD)
   const menuItems = [
-    {
-      name: "Tickets",
-      icon: <TiTicket />,
-    },
-    {
-      name: "Meetings",
-      icon: <MdMeetingRoom />,
-    },
-    {
-      name: "Tasks",
-      icon: <FaTasks />,
-    },
+    // {
+    //   name: "Tickets",
+    //   icon: <TiTicket />,
+    // },
+    // {
+    //   name: "Meetings",
+    //   icon: <MdMeetingRoom />,
+    // },
+    // {
+    //   name: "Tasks",
+    //   icon: <FaTasks />,
+    // },
 
-    {
-      name: "Performance",
-      icon: <FaTasks />,
-    },
+    // {
+    //   name: "Performance",
+    //   icon: <FaTasks />,
+    // },
+         {
+          name: "Services",
+          icon: <FaLaptopCode />,
+          route: "/services",
+        },
   ];
 
   const generalItems = [
@@ -115,6 +120,7 @@ const Sidebar = ({ drawerOpen, onCloseDrawer }) => {
         },
       ],
     },
+
   ];
 
   // const userDepartments = auth.user.departments.map((item) => item.name);
@@ -149,7 +155,7 @@ const Sidebar = ({ drawerOpen, onCloseDrawer }) => {
   };
 
   const isActive = (path) => location.pathname.startsWith(`${path}`);
-  const isAppsActive = (path) => location.pathname.startsWith(`/app/${path}`);
+  const isAppsActive = (path) => location.pathname.startsWith(`${path}`);
 
   return (
     <div className={`flex flex-col px-2  bg-gray`}>
@@ -252,7 +258,7 @@ const Sidebar = ({ drawerOpen, onCloseDrawer }) => {
               ))}
             </div>
             {/* menuitems */}
-            {/* <div className="pt-2  flex flex-col gap-2 w-full">
+             <div className="pt-2  flex flex-col gap-2 w-full">
               <SeperatorUnderline title={"Apps"} />
               {menuItems.map((item, index) => (
                 <div
@@ -280,7 +286,7 @@ const Sidebar = ({ drawerOpen, onCloseDrawer }) => {
                   )}
                 </div>
               ))}
-            </div> */}
+            </div> 
             {/* general */}
             {/* <div className="pt-2  flex flex-col gap-2 w-full">
               <SeperatorUnderline title={"General"} />

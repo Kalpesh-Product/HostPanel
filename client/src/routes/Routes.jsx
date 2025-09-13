@@ -142,6 +142,7 @@ import CompanyOverview from "../pages/Dashboard/FrontendDashboard/CompanyOvervie
 import NomadListing from "../pages/Dashboard/FrontendDashboard/NomadListing";
 import PocDetails from "../pages/Dashboard/FrontendDashboard/PocDetails";
 import NomadListingsOverview from "../pages/Dashboard/FrontendDashboard/NomadListingsOverview";
+import Services from "../pages/Services";
 
 export const routes = createBrowserRouter([
   {
@@ -265,6 +266,10 @@ export const routes = createBrowserRouter([
                 ],
               },
 
+              {
+                path: "services",
+                element: <Services />,
+              },
               {
                 path: "reports",
                 element: <Reports />,
