@@ -67,7 +67,7 @@ export const logout = async (req, res, next) => {
       return res.sendStatus(201);
     }
 
-    await User.findOneAndUpdate({ refreshToken }, { refreshToken: "" })
+    await Employee.findOneAndUpdate({ refreshToken }, { refreshToken: "" })
       .lean()
       .exec();
     res.clearCookie("clientCookie", {
