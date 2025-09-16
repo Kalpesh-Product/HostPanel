@@ -330,8 +330,9 @@ const LoginPage = () => {
                   <div className="flex flex-col justify-center w-full items-center gap-4 mt-4">
                     <Grid item xs={12}>
                       <div className="centerInPhone">
-                        {/* <button
+                        <button
                           disabled={loading}
+                          onClick={() => navigate("/dashboard")}
                           type="submit"
                           className="loginButtonStyling text-decoration-none text-subtitle w-40">
                           {loading ? (
@@ -339,14 +340,14 @@ const LoginPage = () => {
                           ) : (
                             "SIGN IN"
                           )}
-                        </button> */}
-                        <button
-                          // disabled={loading}
+                        </button>
+                        {/* <button
+                          disabled={loading}
                           type="button"
                           className="loginButtonStyling text-decoration-none text-subtitle w-40"
                           onClick={() => navigate("/dashboard")}>
                           SIGN IN
-                        </button>
+                        </button> */}
                       </div>
                     </Grid>
                     <p className="text-[0.9rem]">
