@@ -4,10 +4,10 @@ import useAuth from "../hooks/useAuth";
 export default function AuthLayout() {
   const { auth } = useAuth();
   const location = useLocation();
-  return <Outlet />
-  // return auth.accessToken ? (
-  //   <Outlet />
-  // ) : (
-  //   <Navigate to="/" state={{ from: location }} replace />
-  // );
+  // return <Outlet />
+  return auth.accessToken ? (
+    <Outlet />
+  ) : (
+    <Navigate to="/" state={{ from: location }} replace />
+  );
 }
