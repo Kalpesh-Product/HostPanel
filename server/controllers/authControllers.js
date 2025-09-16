@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import Employee from "../models/User.js";
 import bcrypt from "bcryptjs";
+import Company from "../models/Company.js";
 
 export const login = async (req, res, next) => {
   try {
@@ -13,6 +14,7 @@ export const login = async (req, res, next) => {
       return res.status(400).json({ message: "invalid data" });
 
     const user = await Employee.findOne({ email }).lean().exec();
+    const company = await Company.findOne({ _id: user.company }).lean().exec();
     if (!user) return res.status(404).json({ message: "No user found" });
 
     const isPasswordValid = bcrypt.compare(password, user.password);
@@ -43,7 +45,9 @@ export const login = async (req, res, next) => {
       maxAge: 15 * 24 * 60 * 60 * 1000,
     });
 
-    res.status(200).json({ user, accessToken });
+    res
+      .status(200)
+      .json({ user: { ...user, logo: company.logo }, accessToken });
   } catch (error) {
     next(error);
   }
