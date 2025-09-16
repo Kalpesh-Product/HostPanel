@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import Employee from "../models/User.js";
-import argon2 from "argon2";
+import bcrypt from "bcryptjs";
 
 export const login = async (req, res, next) => {
   try {
@@ -15,9 +15,9 @@ export const login = async (req, res, next) => {
     const user = await Employee.findOne({ email }).lean().exec();
     if (!user) return res.status(404).json({ message: "No user found" });
 
-    // const isPasswordValid = await argon2.verify(password, user.password);
-    // if (!isPasswordValid)
-    //   return res.status(400).json({ message: "invalid password" });
+    const isPasswordValid = bcrypt.compare(password, user.password);
+    if (!isPasswordValid)
+      return res.status(400).json({ message: "invalid password" });
 
     delete user.password;
     delete user.refreshToken;
@@ -44,6 +44,38 @@ export const login = async (req, res, next) => {
     });
 
     res.status(200).json({ user, accessToken });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const logout = async (req, res, next) => {
+  try {
+    const cookies = req.cookies;
+    if (!cookies?.clientCookie) {
+      return res.sendStatus(201);
+    }
+
+    const refreshToken = cookies?.clientCookie;
+    const user = await Employee.findOne({ refreshToken }).lean().exec();
+    if (!user) {
+      res.clearCookie("clientCookie", {
+        httpOnly: true,
+        sameSite: "None",
+        secure: true,
+      });
+      return res.sendStatus(201);
+    }
+
+    await User.findOneAndUpdate({ refreshToken }, { refreshToken: "" })
+      .lean()
+      .exec();
+    res.clearCookie("clientCookie", {
+      httpOnly: true,
+      sameSite: "None",
+      secure: true,
+    });
+    res.sendStatus(201);
   } catch (error) {
     next(error);
   }

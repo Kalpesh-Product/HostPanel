@@ -106,7 +106,7 @@ const LoginPage = () => {
   const firstAvailableRoute = hasAnySubmenus
     ? filteredModules.find((module) => module.submenus.length > 0).submenus[0]
         .route
-    : "/app/dashboard";
+    : "/dashboard";
 
   useEffect(() => {
     if (auth.accessToken) {
