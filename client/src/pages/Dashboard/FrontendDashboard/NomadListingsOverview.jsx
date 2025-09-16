@@ -4,23 +4,29 @@ import AgTable from "../../../components/AgTable";
 import PageFrame from "../../../components/Pages/PageFrame";
 import PrimaryButton from "../../../components/PrimaryButton";
 import { useNavigate, useParams } from "react-router-dom";
+import useAuth from "../../../hooks/useAuth";
 
 export default function NomadListingsOverview() {
   const axios = useAxiosPrivate();
   const navigate = useNavigate();
   const { companyId } = useParams();
+   const {auth} = useAuth()
+    const user = auth.user
 
   // ✅ Fetch listings of a company
   const { data: listings = [], isPending } = useQuery({
     queryKey: ["nomad-listings", companyId],
     queryFn: async () => {
-      const res = await axios.get(`/api/company/${companyId}/nomad-listings`);
-      return res.data || [];
+      // const res = await axios.get(`/api/company/${companyId}/nomad-listings`);
+       const res = await axios.get(`https://wononomadsbe.vercel.app/api/company/get-single-company-data/${user.companyId}`);
+
+       const data = [res.data]
+      return data || [];
     },
   });
 
   // ✅ Table data
-  const tableData = listings.map((item, index) => ({
+  const tableData = !isPending ? listings?.map((item, index) => ({
     srNo: index + 1,
     businessId: item.businessId,
     companyName: item.companyName,
@@ -29,7 +35,7 @@ export default function NomadListingsOverview() {
     country: item.country,
     ratings: item.ratings,
     totalReviews: item.totalReviews,
-  }));
+  })) : [];
 
   // ✅ Table columns
   const columns = [
