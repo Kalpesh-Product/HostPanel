@@ -1,9 +1,9 @@
 // src/pages/Dashboard/FrontendDashboard/PocDetails.jsx
 import React from "react";
 import PageFrame from "../../../components/Pages/PageFrame";
+import axios from "axios"
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 import { Avatar, TextField } from "@mui/material";
 import useAuth from "../../../hooks/useAuth";
 
@@ -44,46 +44,37 @@ async function fetchPocAxios(companyId, signal) {
     "https://wononomadsbe.vercel.app/api/poc/poc",
   ];
 
-  for (const url of ENDPOINTS) {
     try {
-      const res = await axios.post(
-        url,
-        { companyId },
-        {
-          signal,
-          headers: { "Content-Type": "application/json" },
-          timeout: 8000,
-        }
+      const res = await axios.get(
+        `https://wononomadsbe.vercel.app/api/poc/poc?companyId=${companyId}`,
+        { signal }
       );
       const data = res.data;
       return Array.isArray(data) && data.length ? data[0] : data || null;
     } catch (_err) {
       // try next url
     }
-  }
+  
   return null;
 }
 
 // ---------- component ----------
 const PocDetails = () => {
+
   const {auth} = useAuth()
   const user = auth.user
-  console.log("auth",auth)
-  const selectedCompany = useSelector((s) => s.company?.selectedCompany);
-  const companyId = getCompanyId(selectedCompany);
-  const pocFromCompany = selectedCompany?.poc || null; // instant fill if present
 
   const { data: fetchedPoc = null } = useQuery({
-    queryKey: ["pocDetails", companyId],
-    enabled: !!companyId && !pocFromCompany, // skip query if we already have POC in Redux
-    queryFn: ({ signal }) => fetchPocAxios(companyId, signal),
+    queryKey: ["pocDetails", user.companyId],
+    queryFn: ({ signal }) => fetchPocAxios(user.companyId, signal),
     placeholderData: null, // no loaders; we'll normalize below
     refetchOnWindowFocus: false,
     retry: 0,
     staleTime: 5 * 60 * 1000,
   });
 
-  const poc = pocFromCompany || fetchedPoc || placeholder;
+
+  const poc = fetchedPoc || placeholder;
 
   // Normalize for display
   const languagesArr =
@@ -116,11 +107,11 @@ const PocDetails = () => {
           <span className="text-title font-pmedium text-primary uppercase">
             POC Details
           </span>
-          {selectedCompany?.companyName && (
+          {user?.companyName && (
             <span className="text-sm text-gray-500">
               Company:{" "}
               <span className="font-pmedium text-gray-700">
-                {selectedCompany.companyName}
+                {user.companyName}
               </span>
             </span>
           )}
