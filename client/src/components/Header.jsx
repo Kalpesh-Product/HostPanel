@@ -118,7 +118,11 @@ const Header = ({
               <img
                 onClick={() => navigate("dashboard")}
                 className="w-[70%] h-full object-contain cursor-pointer"
-                src={WoNoLogo}
+                src={
+                  auth?.user?.logo
+                    ? auth.user.logo // ✅ dynamic logo from backend
+                    : WoNoLogo // ✅ fallback hardcoded logo
+                }
                 alt="logo"
               />
               {!isMobile && (
