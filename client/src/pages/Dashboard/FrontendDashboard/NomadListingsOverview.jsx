@@ -45,7 +45,7 @@ export default function NomadListingsOverview() {
 
   // ✅ Navigate to Add Listing form
   const handleAddClick = () => {
-    navigate(`/dashboard/companies/${companyId}/nomad-listings/add`);
+    navigate(`/dashboard/nomad-listings/add`);
   };
 
   return (
