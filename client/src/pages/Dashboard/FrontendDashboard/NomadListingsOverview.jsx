@@ -14,13 +14,16 @@ export default function NomadListingsOverview() {
   const { data: listings = [], isPending } = useQuery({
     queryKey: ["nomad-listings", companyId],
     queryFn: async () => {
-      const res = await axios.get(`/api/company/${companyId}/nomad-listings`);
-      return res.data || [];
+      // const res = await axios.get(`/api/company/${companyId}/nomad-listings`);
+       const res = await axios.get(`https://wononomadsbe.vercel.app/api/company/get-single-company-data/CMP0001`);
+
+       const data = [res.data]
+      return data || [];
     },
   });
 
   // ✅ Table data
-  const tableData = listings.map((item, index) => ({
+  const tableData = !isPending ? listings?.map((item, index) => ({
     srNo: index + 1,
     businessId: item.businessId,
     companyName: item.companyName,
@@ -29,7 +32,7 @@ export default function NomadListingsOverview() {
     country: item.country,
     ratings: item.ratings,
     totalReviews: item.totalReviews,
-  }));
+  })) : [];
 
   // ✅ Table columns
   const columns = [

@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Avatar, TextField } from "@mui/material";
+import useAuth from "../../../hooks/useAuth";
 
 // ---------- UI helpers ----------
 const ReadOnlyField = ({ label, value }) => (
@@ -65,6 +66,9 @@ async function fetchPocAxios(companyId, signal) {
 
 // ---------- component ----------
 const PocDetails = () => {
+  const {auth} = useAuth()
+  const user = auth.user
+  console.log("auth",auth)
   const selectedCompany = useSelector((s) => s.company?.selectedCompany);
   const companyId = getCompanyId(selectedCompany);
   const pocFromCompany = selectedCompany?.poc || null; // instant fill if present
