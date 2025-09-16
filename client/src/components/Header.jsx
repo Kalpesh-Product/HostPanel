@@ -249,11 +249,11 @@ const Header = ({
             {/* Sign Out Option */}
             <ListItem
               button
-              // onClick={handleSignOut}
-              onClick={() => {
-                navigate("/");
-                handlePopoverClose();
-              }}
+              onClick={handleSignOut}
+              // onClick={() => {
+              //   navigate("/");
+              //   handlePopoverClose();
+              // }}
               className="hover:text-red-600 transition-all duration-100 text-gray-500 cursor-pointer">
               <ListItemIcon>
                 <FiLogOut className="text-gray-500" />
