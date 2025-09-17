@@ -18,7 +18,7 @@ export default function NomadListingsOverview() {
     queryKey: ["nomad-listings", companyId],
     queryFn: async () => {
       // const res = await axios.get(`/api/company/${companyId}/nomad-listings`);
-       const res = await axios.get(`http://wononomadsbe.vercel.app/api/company/get-listings/${user.companyId}`);
+       const res = await axios.get(`https://wononomadsbe.vercel.app/api/company/get-listings/${user.companyId}`);
         
       return res.data || [];
     },
