@@ -73,23 +73,24 @@ const Sidebar = ({ drawerOpen, onCloseDrawer }) => {
     //   name: "Performance",
     //   icon: <FaTasks />,
     // },
-         {
-          name: "Services",
-          icon: <FaLaptopCode />,
-          route: "/services",
-        },
+    {
+      name: "Services",
+      icon: <FaLaptopCode />,
+      route: "/services",
+    },
   ];
 
   const generalItems = [
-    { name: "Calendar", icon: <FaRegCalendarAlt /> },
-    { name: "Access", icon: <SiAuthelia /> },
-    {
-      name: "Notifications",
-      icon: <IoMdNotifications />,
-    },
+    // { name: "Calendar", icon: <FaRegCalendarAlt /> },
+    // { name: "Access", icon: <SiAuthelia /> },
+    // {
+    //   name: "Notifications",
+    //   icon: <IoMdNotifications />,
+    // },
     {
       name: "Profile",
       icon: <FaUserTie />,
+      route: "profile",
     },
   ];
   const upcomingItems = [
@@ -120,7 +121,6 @@ const Sidebar = ({ drawerOpen, onCloseDrawer }) => {
         },
       ],
     },
-
   ];
 
   // const userDepartments = auth.user.departments.map((item) => item.name);
@@ -258,7 +258,7 @@ const Sidebar = ({ drawerOpen, onCloseDrawer }) => {
               ))}
             </div>
             {/* menuitems */}
-             <div className="pt-2  flex flex-col gap-2 w-full">
+            <div className="pt-2  flex flex-col gap-2 w-full">
               <SeperatorUnderline title={"Apps"} />
               {menuItems.map((item, index) => (
                 <div
@@ -270,15 +270,13 @@ const Sidebar = ({ drawerOpen, onCloseDrawer }) => {
                       : "text-gray-500"
                   } flex ${
                     isSidebarOpen ? "" : "justify-center"
-                  } items-center py-0 `}
-                >
+                  } items-center py-0 `}>
                   <div
                     className={`flex justify-center items-center w-9 h-9 ${
                       isAppsActive(item.route)
                         ? "bg-primary text-white rounded-md"
                         : ""
-                    } text-sm`}
-                  >
+                    } text-sm`}>
                     {item.icon}
                   </div>
                   {isSidebarOpen && (
@@ -286,9 +284,9 @@ const Sidebar = ({ drawerOpen, onCloseDrawer }) => {
                   )}
                 </div>
               ))}
-            </div> 
+            </div>
             {/* general */}
-            {/* <div className="pt-2  flex flex-col gap-2 w-full">
+            <div className="pt-2  flex flex-col gap-2 w-full">
               <SeperatorUnderline title={"General"} />
               {generalItems.map((item, index) => (
                 <div
@@ -300,15 +298,13 @@ const Sidebar = ({ drawerOpen, onCloseDrawer }) => {
                       : "text-gray-500"
                   } flex ${
                     isSidebarOpen ? "" : "justify-center"
-                  } items-center py-0 `}
-                >
+                  } items-center py-0 `}>
                   <div
                     className={`flex justify-center items-center w-9 h-9 ${
                       isAppsActive(item.route)
                         ? "bg-primary text-white rounded-md"
                         : ""
-                    } text-sm`}
-                  >
+                    } text-sm`}>
                     {item.icon}
                   </div>
                   {isSidebarOpen && (
@@ -316,7 +312,7 @@ const Sidebar = ({ drawerOpen, onCloseDrawer }) => {
                   )}
                 </div>
               ))}
-            </div> */}
+            </div>
             {/* coming soon */}
             {/* <div className="pt-2  flex flex-col gap-2 w-full">
               <SeperatorUnderline smallText title={"Coming-soon"} />

@@ -10,17 +10,17 @@ const ProfileLayout = () => {
   const tabs = [
     { label: "Profile", path: "my-profile" },
     { label: "Change Password", path: "change-password" },
-    { label: "Permissions", path: "permissions" },
-    { label: "HR", path: "HR" },
-    { label: "Assets", path: "my-assets" },
-    { label: "Meetings", path: "my-meetings" },
-    { label: "Ticket History", path: "tickets-history" },
+    // { label: "Permissions", path: "permissions" },
+    // { label: "HR", path: "HR" },
+    // { label: "Assets", path: "my-assets" },
+    // { label: "Meetings", path: "my-meetings" },
+    // { label: "Ticket History", path: "tickets-history" },
   ];
 
   // Redirect to "first tab" if the current path is "/module/first-page"
   useEffect(() => {
-    if (location.pathname === "/app/profile") {
-      navigate("/app/profile/my-profile", {
+    if (location.pathname === "/profile") {
+      navigate("/profile/my-profile", {
         replace: true,
       });
     }
@@ -56,8 +56,7 @@ const ProfileLayout = () => {
               backgroundColor: "#1E3D73",
               color: "white",
             },
-          }}
-        >
+          }}>
           {tabs.map((tab, index) => (
             <NavLink
               key={index}
@@ -71,8 +70,7 @@ const ProfileLayout = () => {
                 padding: "12px 16px",
                 display: "block",
                 backgroundColor: isActive ? "#1E3D73" : "white",
-              })}
-            >
+              })}>
               {tab.label}
             </NavLink>
           ))}

@@ -81,14 +81,16 @@ const UserDetails = () => {
   };
 
   const user = {
-    name: `${auth?.user?.firstName} ${auth?.user?.lastName}`,
+    // name: `${auth?.user?.firstName} ${auth?.user?.lastName}`,
+    name: `${auth?.user?.name}`,
     email: auth?.user?.email,
     designation: auth?.user?.designation,
     status: true,
     avatarColor: "#1976d2",
-    workLocation:
-      auth?.user?.company?.workLocations?.[0]?.buildingName ??
-      "Unknown Location",
+    // workLocation:
+    //   auth?.user?.company?.workLocations?.[0]?.buildingName ??
+    //   "Unknown Location",
+    workLocation: auth?.user?.address,
   };
 
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -144,12 +146,12 @@ const UserDetails = () => {
     mutation.mutate(data);
   };
 
-  if (isLoading || !userDetails)
-    return (
-      <div className="h-72 place-items-center">
-        <CircularProgress />
-      </div>
-    );
+  // if (isLoading || !userDetails)
+  //   return (
+  //     <div className="h-72 place-items-center">
+  //       <CircularProgress />
+  //     </div>
+  //   );
 
   const fields = [
     { name: "firstName", label: "First Name", disabled: false },
@@ -237,35 +239,35 @@ const UserDetails = () => {
         "pinCode",
       ],
     },
-    {
-      title: "Work Details",
-      fields: [
-        "employeeID",
-        "startDate",
-        "workLocation",
-        "employeeType",
-        "department",
-        "jobTitle",
-        "jobDescription",
-        "shift",
-        "workSchedulePolicy",
-        "attendanceSource",
-      ],
-    },
-    {
-      title: "Payroll & Verifications",
-      fields: [
-        "includeInPayroll",
-        "payrollBatch",
-        "professionalTaxExemption",
-        "includePF",
-        "pFContributionRate",
-        "employeePF",
-        "leavePolicy",
-        "holidayPolicy",
-        "pFAcNo",
-      ],
-    },
+    // {
+    //   title: "Work Details",
+    //   fields: [
+    //     "employeeID",
+    //     "startDate",
+    //     "workLocation",
+    //     "employeeType",
+    //     "department",
+    //     "jobTitle",
+    //     "jobDescription",
+    //     "shift",
+    //     "workSchedulePolicy",
+    //     "attendanceSource",
+    //   ],
+    // },
+    // {
+    //   title: "Payroll & Verifications",
+    //   fields: [
+    //     "includeInPayroll",
+    //     "payrollBatch",
+    //     "professionalTaxExemption",
+    //     "includePF",
+    //     "pFContributionRate",
+    //     "employeePF",
+    //     "leavePolicy",
+    //     "holidayPolicy",
+    //     "pFAcNo",
+    //   ],
+    // },
   ];
 
   return (
@@ -295,8 +297,7 @@ const UserDetails = () => {
                 height: "100%",
                 fontSize: "5rem",
               }}
-              src={previewUrl || auth?.user?.profilePicture?.url}
-            >
+              src={previewUrl || auth?.user?.profilePicture?.url}>
               {!previewUrl &&
                 !auth?.user?.profilePicture?.url &&
                 user.name?.charAt(0)}
@@ -313,8 +314,7 @@ const UserDetails = () => {
             <label
               htmlFor="fileUpload"
               // className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 p-6 rounded-md cursor-pointer transition">
-              className="flex flex-col items-start justify-center   rounded-md cursor-pointer transition"
-            >
+              className="flex flex-col items-start justify-center   rounded-md cursor-pointer transition">
               {previewUrl ? (
                 // <img
                 //   src={previewUrl}
@@ -342,8 +342,7 @@ const UserDetails = () => {
               <div className=" flex flex-col items-start gap-2">
                 <label
                   htmlFor="fileUpload"
-                  className="text-primary cursor-pointer underline"
-                >
+                  className="text-primary cursor-pointer underline">
                   Change Image
                 </label>
                 <button
@@ -353,8 +352,7 @@ const UserDetails = () => {
                     uploading
                       ? "bg-gray-400"
                       : "bg-primary hover:scale-[1.05] transition"
-                  }`}
-                >
+                  }`}>
                   {uploading ? "Uploading..." : "Save Image"}
                 </button>
               </div>
@@ -367,17 +365,17 @@ const UserDetails = () => {
               <div className="flex flex-col gap-4 text-gray-600">
                 <span className="capitalize">Email : </span>
                 <span className="capitalize">Phone: </span>
-                <span className="capitalize">Department : </span>
+                {/* <span className="capitalize">Department : </span> */}
                 <span className="capitalize">Work Location : </span>
               </div>
               <div className="flex flex-col gap-4 text-gray-500">
                 <span>{user.email}</span>
                 <span>{auth?.user?.phone ?? "N/A"}</span>
-                <span>
+                {/* <span>
                   {auth?.user?.departments?.length > 0
                     ? auth.user.departments[0].name
                     : "N/A"}
-                </span>
+                </span> */}
 
                 <span>{user.workLocation}</span>
               </div>
@@ -441,8 +439,7 @@ const UserDetails = () => {
                                   {...field}
                                   label={label}
                                   error={!!error}
-                                  helperText={error?.message}
-                                >
+                                  helperText={error?.message}>
                                   {options.map((opt) => (
                                     <MenuItem key={opt} value={opt}>
                                       {opt}
@@ -510,8 +507,7 @@ const UserDetails = () => {
                               href={value}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-600 underline ml-2"
-                            >
+                              className="text-blue-600 underline ml-2">
                               {label === "Leave Policy"
                                 ? "View Leave Policy"
                                 : label === "Holiday Policy"
