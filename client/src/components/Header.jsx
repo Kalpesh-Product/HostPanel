@@ -99,7 +99,7 @@ const Header = ({
   };
 
   const handleProfileClick = () => {
-    navigate("/app/profile");
+    navigate("/profile");
     handlePopoverClose();
   };
 
@@ -117,7 +117,7 @@ const Header = ({
             <div className={`w-48 flex items-center gap-16 h-full pl-4`}>
               <img
                 onClick={() => navigate("dashboard")}
-                className="w-[70%] h-full object-contain cursor-pointer"
+                className="w-[70%] h-12 object-contain cursor-pointer"
                 src={
                   auth?.user?.logo
                     ? auth.user.logo // ✅ dynamic logo from backend
@@ -128,8 +128,7 @@ const Header = ({
               {!isMobile && (
                 <button
                   onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                  className="p-2 text-gray-500 text-xl"
-                >
+                  className="p-2 text-gray-500 text-xl">
                   {isSidebarOpen ? <GiHamburgerMenu /> : <IoIosArrowForward />}
                 </button>
               )}
@@ -195,8 +194,7 @@ const Header = ({
           <div
             className="w-full relative"
             onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-          >
+            onMouseLeave={() => setIsHovered(false)}>
             {!isMobile && (
               <>
                 <h1 className="text-xl font-semibold text-start">
@@ -236,16 +234,14 @@ const Header = ({
         transformOrigin={{
           vertical: "top",
           horizontal: "center",
-        }}
-      >
+        }}>
         <div className="p-4 w-48">
           <List>
             {/* Profile Option */}
             <ListItem
               button
               onClick={handleProfileClick}
-              className="hover:text-primary transition-all duration-100 text-gray-500 cursor-pointer"
-            >
+              className="hover:text-primary transition-all duration-100 text-gray-500 cursor-pointer">
               <ListItemIcon>
                 <FaUserTie className="text-gray-500" />
               </ListItemIcon>
@@ -262,8 +258,7 @@ const Header = ({
               //   navigate("/");
               //   handlePopoverClose();
               // }}
-              className="hover:text-red-600 transition-all duration-100 text-gray-500 cursor-pointer"
-            >
+              className="hover:text-red-600 transition-all duration-100 text-gray-500 cursor-pointer">
               <ListItemIcon>
                 <FiLogOut className="text-gray-500" />
               </ListItemIcon>
@@ -280,8 +275,7 @@ const Header = ({
         anchorEl={notificationAnchorEl}
         onClose={() => setNotificationAnchorEl(null)}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-      >
+        transformOrigin={{ vertical: "top", horizontal: "right" }}>
         <div className="p-4 w-[30rem] max-h-[400px] overflow-y-auto">
           <div className="flex justify-between items-center mb-2">
             <div className="flex items-center gap-5 rounded-full">
@@ -290,14 +284,12 @@ const Header = ({
                 badgeContent={unseenCount > 9 ? "9+" : unseenCount}
                 color="error"
                 anchorOrigin={{ vertical: "top", horizontal: "right" }}
-                overlap="circular"
-              ></Badge>
+                overlap="circular"></Badge>
             </div>
             <IconButton
               size="small"
               onClick={onRefreshNotifications}
-              disabled={isRefreshingNotifications}
-            >
+              disabled={isRefreshingNotifications}>
               <HiOutlineRefresh
                 className={`${isRefreshingNotifications ? "animate-spin" : ""}`}
               />
@@ -399,8 +391,7 @@ const Header = ({
                           setNotificationAnchorEl(null);
                           navigate("/app/notifications");
                         }}
-                        className="text-primary text-content font-pregular hover:underline"
-                      >
+                        className="text-primary text-content font-pregular hover:underline">
                         View more
                       </button>
                     </div>
