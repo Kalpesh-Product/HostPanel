@@ -47,7 +47,7 @@ export const login = async (req, res, next) => {
 
     res
       .status(200)
-      .json({ user: { ...user, logo: company.logo }, accessToken });
+      .json({ user: { ...user, logo: company?.logo }, accessToken });
   } catch (error) {
     next(error);
   }

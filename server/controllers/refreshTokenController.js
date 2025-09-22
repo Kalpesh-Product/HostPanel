@@ -30,7 +30,7 @@ const refreshTokenController = async (req, res, next) => {
         delete user.refreshToken;
         res
           .status(200)
-          .json({ user: { ...user, logo: company.logo }, accessToken });
+          .json({ user: { ...user, logo: company?.logo }, accessToken });
       }
     );
   } catch (error) {
