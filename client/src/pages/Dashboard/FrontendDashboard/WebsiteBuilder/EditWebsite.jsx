@@ -43,7 +43,7 @@ const EditWebsite = () => {
   const { state } = useLocation();
   const formRef = useRef(null);
   const tenant = "spring";
-  const website = useSelector((state) => state.company.selectedCompany);
+  // const website = useSelector((state) => state.company.selectedCompany);
   //  const tpl = website || "";
   //  const isLoading = state.isLoading || false;
 
@@ -86,19 +86,19 @@ const EditWebsite = () => {
     },
   });
 
+  const { website } = useParams();
+
+  const formatCompanyName = (name) => {
+    if (!name) return "";
+    return name.toLowerCase().split("-")[0].replace(/\s+/g, "");
+  };
+
   const { data: tpl, isLoading } = useQuery({
-    queryKey: ["website-data"],
+    queryKey: ["website-data", website],
     queryFn: async () => {
-      const formatCompanyName = (name) => {
-        if (!name) return "";
-        return name.toLowerCase().split("-")[0].replace(/\s+/g, "");
-      };
-
-      const searchKey = formatCompanyName(website.companyName);
-
-      const response = await axios.get(`/api/editor/get-website/${searchKey}`);
-
-      return response.data;
+      const formatted = formatCompanyName(website);
+      const res = await axios.get(`/api/editor/get-website/${formatted}`);
+      return res.data;
     },
   });
 
@@ -156,11 +156,12 @@ const EditWebsite = () => {
       title: tpl?.title ?? "",
       subTitle: tpl?.subTitle ?? "",
       CTAButtonText: tpl?.CTAButtonText ?? "",
-      // about: tpl?.about ?? "",
+
       about:
         Array.isArray(tpl?.about) && tpl.about.length
           ? tpl.about.map((para) => ({ text: para }))
           : [{ text: "" }],
+
       productTitle: tpl?.productTitle ?? "",
       galleryTitle: tpl?.galleryTitle ?? "",
       testimonialTitle: tpl?.testimonialTitle ?? "",
@@ -172,6 +173,7 @@ const EditWebsite = () => {
       registeredCompanyName: tpl?.registeredCompanyName ?? "",
       copyrightText: tpl?.copyrightText ?? "",
 
+      // safely handle logo & images
       companyLogoExisting: tpl?.companyLogo ?? null,
       heroImagesExisting: Array.isArray(tpl?.heroImages) ? tpl.heroImages : [],
       galleryExisting: Array.isArray(tpl?.gallery) ? tpl.gallery : [],
@@ -201,12 +203,12 @@ const EditWebsite = () => {
               jobPosition: t?.jobPosition ?? "",
               testimony: t?.testimony ?? "",
               rating: t?.rating ?? 5,
-              image: t?.image ?? null,
+              image: t?.image ?? null, // backend didn’t return image → safe null
               file: null,
             }))
           : [defaultTestimonial],
     });
-  }, [tpl, reset]);
+  }, [tpl, isLoading, reset]);
 
   const values = watch();
 

@@ -25,8 +25,10 @@ import dayjs from "dayjs";
 import { filterPermissions } from "../../../utils/accessConfig";
 import useAuth from "../../../hooks/useAuth";
 import { PERMISSIONS } from "../../../constants/permissions";
+import { useSelector } from "react-redux";
 
 const FrontendDashboard = () => {
+  const website = useSelector((state) => state.company.selectedCompany);
   const { setIsSidebarOpen } = useSidebar();
   const [isReady, setIsReady] = useState(false);
   const [selectedFiscalYear, setSelectedFiscalYear] = useState("FY 2024-25");
@@ -463,6 +465,14 @@ const FrontendDashboard = () => {
     userPermissions
   );
 
+  const formatCompanyName = (name) => {
+    if (!name) return "";
+    return name.toLowerCase().split("-")[0].replace(/\s+/g, "");
+  };
+
+  const searchKey =
+    website?.searchKey || formatCompanyName(auth?.user?.companyName);
+
   const cardsConfigFrontend = [
     {
       route: "create-website",
@@ -470,9 +480,9 @@ const FrontendDashboard = () => {
       icon: <LuHardDriveUpload />,
     },
     {
-      route: "edit-website",
-      title: "Edit website",
-      icon: <LuHardDriveUpload />,
+      route: searchKey ? `edit-website/${searchKey}` : "websites/active",
+      title: "Edit Website",
+      icon: <MdRebaseEdit />,
     },
     {
       route: "leads",
