@@ -14,7 +14,7 @@ export const login = async (req, res, next) => {
       return res.status(400).json({ message: "invalid data" });
 
     const user = await Employee.findOne({ email }).lean().exec();
-    const company = await Company.findOne({ _id: user.company }).lean().exec();
+    const company = await Company.findOne({ companyId: user?.companyId }).lean().exec();
     if (!user) return res.status(404).json({ message: "No user found" });
 
     const isPasswordValid = bcrypt.compare(password, user.password);
@@ -47,7 +47,14 @@ export const login = async (req, res, next) => {
 
     res
       .status(200)
-      .json({ user: { ...user, logo: company?.logo }, accessToken });
+      .json({
+        user: {
+          ...user,
+          companyName: company?.companyName,
+          logo: company?.logo,
+        },
+        accessToken,
+      });
   } catch (error) {
     next(error);
   }

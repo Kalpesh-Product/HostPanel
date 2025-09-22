@@ -664,5 +664,3 @@ export const editTemplate = async (req, res, next) => {
     next(error);
   }
 };
-
-

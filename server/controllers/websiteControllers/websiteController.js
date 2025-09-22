@@ -101,7 +101,7 @@ export const getTemplates = async (req, res) => {
 };
 
 // 🔹 Fetch Pages of a Specific Template
-const getPages = async (req, res) => {
+export const getPages = async (req, res) => {
   try {
     const { templateName } = req.params;
 
