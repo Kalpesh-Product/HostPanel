@@ -186,20 +186,30 @@ export const routes = createBrowserRouter([
                       { path: "view-theme", element: <ViewTheme /> },
                       { path: "leads", element: <CompanyLeads /> },
                       { path: "live-demo", element: <PageDemo /> },
-                      { path: "create-website", element: <CreateWebsite /> },
+                      { path: "edit-website", element: <EditWebsite /> }, // no param
                       {
-                        path: "websites",
-                        element: <WebsitesLayout />,
-                        children: [
-                          { path: "active", element: <Websites /> },
-                          { path: "inactive", element: <InActiveWebsites /> },
-                          { path: ":website", element: <EditWebsite /> },
-                          {
-                            path: "inactive/:website",
-                            element: <EditWebsiteTemp />,
-                          },
-                        ],
+                        path: "edit-website/:website",
+                        element: <EditWebsite />,
+                      }, // with param
+
+                      {
+                        path: "edit-website/:website",
+                        element: <EditWebsite />,
                       },
+
+                      // {
+                      //   path: "websites",
+                      //   element: <WebsitesLayout />,
+                      //   children: [
+                      //     { path: "active", element: <Websites /> },
+                      //     { path: "inactive", element: <InActiveWebsites /> },
+                      //     { path: ":website", element: <EditWebsite /> },
+                      //     {
+                      //       path: "inactive/:website",
+                      //       element: <EditWebsiteTemp />,
+                      //     },
+                      //   ],
+                      // },
                       {
                         path: "edit-theme/:templateName/:pageName",
                         element: <EditTemplate />,

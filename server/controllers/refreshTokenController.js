@@ -10,7 +10,7 @@ const refreshTokenController = async (req, res, next) => {
     }
     const refreshToken = cookie?.clientCookie;
     const user = await Employee.findOne({ refreshToken }).lean().exec();
-    const company = await Company.findOne({ _id: user.company }).lean().exec();
+    const company = await Company.findOne({ companyId: user?.companyId }).lean().exec();
     if (!user) {
       return res.sendStatus(401);
     }
@@ -30,7 +30,14 @@ const refreshTokenController = async (req, res, next) => {
         delete user.refreshToken;
         res
           .status(200)
-          .json({ user: { ...user, logo: company?.logo }, accessToken });
+          .json({
+            user: {
+              ...user,
+              companyName: company?.companyName,
+              logo: company?.logo,
+            },
+            accessToken,
+          });
       }
     );
   } catch (error) {
