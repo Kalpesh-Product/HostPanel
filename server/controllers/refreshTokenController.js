@@ -10,7 +10,7 @@ const refreshTokenController = async (req, res, next) => {
     }
     const refreshToken = cookie?.clientCookie;
     const user = await Employee.findOne({ refreshToken }).lean().exec();
-    const company = await Company.findOne({ _id: user.company }).lean().exec();
+    const company = await Company.findOne({ _id: user?.company }).lean().exec();
     if (!user) {
       return res.sendStatus(401);
     }
