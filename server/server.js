@@ -6,6 +6,7 @@ import mongoose from "mongoose";
 import authRoutes from "./routes/authRoutes.js";
 import { corsConfig } from "./config/corsConfig.js";
 import verifyJwt from "./middlewares/verifyJwt.js";
+import websiteTemplateRoutes from "./routes/websiteTemplateRoutes.js";
 
 const app = express();
 dotenv.config();
@@ -18,13 +19,11 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/api/auth",  authRoutes);
-app.get("/",verifyJwt, (req, res) => {
-  res.send("API is running....");
-});
+app.use("/api/auth", authRoutes);
+app.use("/api/editor", verifyJwt, websiteTemplateRoutes);
 
 mongoose.connection.once("open", () => {
-    console.log("connected to mongoDB")
+  console.log("connected to mongoDB");
   app.listen(PORT, () => {
     console.log(`server is running on PORT ${PORT}`);
   });
