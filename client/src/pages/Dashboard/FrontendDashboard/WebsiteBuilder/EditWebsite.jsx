@@ -43,9 +43,9 @@ const EditWebsite = () => {
   const { state } = useLocation();
   const formRef = useRef(null);
   const tenant = "spring";
-  const tpl = state.website;
-
-  const isLoading = state.isLoading;
+  const website = useSelector((state) => state.company.selectedCompany);
+  //  const tpl = website || "";
+  //  const isLoading = state.isLoading || false;
 
   const {
     control,
@@ -83,6 +83,22 @@ const EditWebsite = () => {
       deletedGalleryImageIds: [],
       deletedProductImages: [], // [{ productId, imageId }]
       deletedTestimonialImageIds: [], // [imageId]
+    },
+  });
+
+  const { data: tpl, isLoading } = useQuery({
+    queryKey: ["website-data"],
+    queryFn: async () => {
+      const formatCompanyName = (name) => {
+        if (!name) return "";
+        return name.toLowerCase().split("-")[0].replace(/\s+/g, "");
+      };
+
+      const searchKey = formatCompanyName(website.companyName);
+
+      const response = await axios.get(`/api/editor/get-website/${searchKey}`);
+
+      return response.data;
     },
   });
 
@@ -190,7 +206,7 @@ const EditWebsite = () => {
             }))
           : [defaultTestimonial],
     });
-  }, [isLoading, tpl, reset]);
+  }, [tpl, reset]);
 
   const values = watch();
 
@@ -219,7 +235,7 @@ const EditWebsite = () => {
     fd.append("title", vals.title || "");
     fd.append("subTitle", vals.subTitle || "");
     fd.append("CTAButtonText", vals.CTAButtonText || "");
-  
+
     fd.append("productTitle", vals.productTitle || "");
     fd.append("galleryTitle", vals.galleryTitle || "");
     fd.append("testimonialTitle", vals.testimonialTitle || "");
@@ -232,7 +248,7 @@ const EditWebsite = () => {
     fd.append("copyrightText", vals.copyrightText || "");
 
     // NEW: keep-lists for hero & gallery (computed from remaining existing arrays)
-      fd.append("about", JSON.stringify(vals.about.map((a) => a.text)));
+    fd.append("about", JSON.stringify(vals.about.map((a) => a.text)));
     const heroKeepIds = (vals.heroImagesExisting || []).map((x) => x.id);
     const galleryKeepIds = (vals.galleryExisting || []).map((x) => x.id);
     fd.append("heroImageIds", JSON.stringify(heroKeepIds));
@@ -343,8 +359,7 @@ const EditWebsite = () => {
         <form
           ref={formRef}
           encType="multipart/form-data"
-          onSubmit={handleSubmit(onSubmit)}
-        >
+          onSubmit={handleSubmit(onSubmit)}>
           <div className="grid grid-cols-2 sm:grid-cols-1 md:grid-cols-2 gap-4">
             {/* HERO / COMPANY */}
             <div>
@@ -467,7 +482,6 @@ const EditWebsite = () => {
                     />
                   )}
                 />
-              
               </div>
             </div>
 
@@ -477,19 +491,16 @@ const EditWebsite = () => {
                 <span className="text-subtitle font-pmedium">About</span>
               </div>
               <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4 ">
-
                 {aboutFields.map((field, index) => (
                   <div
                     key={field.id}
-                    className="rounded-xl border border-borderGray p-4 mb-3"
-                  >
+                    className="rounded-xl border border-borderGray p-4 mb-3">
                     <div className="flex items-center justify-between mb-3">
                       <span className="font-pmedium">Para #{index + 1}</span>
                       <button
                         type="button"
                         onClick={() => removeAbout(index)}
-                        className="text-sm text-red-600"
-                      >
+                        className="text-sm text-red-600">
                         Remove
                       </button>
                     </div>
@@ -517,8 +528,7 @@ const EditWebsite = () => {
                   <button
                     type="button"
                     onClick={() => appendAbout({ text: "" })}
-                    className="text-sm text-primary"
-                  >
+                    className="text-sm text-primary">
                     + Add Para
                   </button>
                 </div>
@@ -547,15 +557,13 @@ const EditWebsite = () => {
                 {productFields.map((field, index) => (
                   <div
                     key={field.id}
-                    className="rounded-xl border border-borderGray p-4 mb-3"
-                  >
+                    className="rounded-xl border border-borderGray p-4 mb-3">
                     <div className="flex items-center justify-between mb-3">
                       <span className="font-pmedium">Product #{index + 1}</span>
                       <button
                         type="button"
                         onClick={() => removeProduct(index)}
-                        className="text-sm text-red-600"
-                      >
+                        className="text-sm text-red-600">
                         Remove
                       </button>
                     </div>
@@ -675,8 +683,7 @@ const EditWebsite = () => {
                   <button
                     type="button"
                     onClick={() => appendProduct({ ...defaultProduct })}
-                    className="text-sm text-primary"
-                  >
+                    className="text-sm text-primary">
                     + Add Product
                   </button>
                 </div>
@@ -753,8 +760,7 @@ const EditWebsite = () => {
                 {testimonialFields.map((field, index) => (
                   <div
                     key={field.id}
-                    className="rounded-xl border border-borderGray p-4 mb-3"
-                  >
+                    className="rounded-xl border border-borderGray p-4 mb-3">
                     <div className="flex items-center justify-between mb-3">
                       <span className="font-pmedium">
                         Testimonial #{index + 1}
@@ -762,8 +768,7 @@ const EditWebsite = () => {
                       <button
                         type="button"
                         onClick={() => removeTestimonial(index)}
-                        className="text-sm text-red-600"
-                      >
+                        className="text-sm text-red-600">
                         Remove
                       </button>
                     </div>
@@ -772,7 +777,6 @@ const EditWebsite = () => {
                       <Controller
                         name={`testimonials.${index}.name`}
                         control={control}
-                        rules={{ required: "Name is required" }}
                         render={({ field }) => (
                           <TextField
                             {...field}
@@ -806,7 +810,6 @@ const EditWebsite = () => {
                       <Controller
                         name={`testimonials.${index}.rating`}
                         control={control}
-                        rules={{ required: "Rating is required" }}
                         render={({ field }) => (
                           <TextField
                             {...field}
@@ -825,7 +828,6 @@ const EditWebsite = () => {
                       <Controller
                         name={`testimonials.${index}.testimony`}
                         control={control}
-                        rules={{ required: "Testimony is required" }}
                         render={({ field }) => (
                           <TextField
                             {...field}
@@ -879,8 +881,7 @@ const EditWebsite = () => {
                   <button
                     type="button"
                     onClick={() => appendTestimonial({ ...defaultTestimonial })}
-                    className="text-sm text-primary"
-                  >
+                    className="text-sm text-primary">
                     + Add Testimonial
                   </button>
                 </div>
@@ -1050,8 +1051,7 @@ const ExistingImagesGrid = ({ items = [], onDelete }) => {
       {list.map((img) => (
         <div
           key={img.id}
-          className="relative rounded-lg overflow-hidden border"
-        >
+          className="relative rounded-lg overflow-hidden border">
           <img src={img.url} alt="" className="w-full h-36 object-cover" />
           <div className="px-2 py-1 text-xs truncate">
             {img.id?.split("/").pop()}
@@ -1060,8 +1060,7 @@ const ExistingImagesGrid = ({ items = [], onDelete }) => {
             type="button"
             className="absolute bottom-2 right-2 bg-white/90 hover:bg-white p-2 rounded-full shadow"
             onClick={() => onDelete(img)}
-            title="Delete"
-          >
+            title="Delete">
             <FiTrash2 />
           </button>
         </div>
