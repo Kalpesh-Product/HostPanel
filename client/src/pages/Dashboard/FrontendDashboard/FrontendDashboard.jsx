@@ -470,7 +470,7 @@ const FrontendDashboard = () => {
       icon: <LuHardDriveUpload />,
     },
     {
-      route: "websites",
+      route: "edit-website",
       title: "Edit website",
       icon: <LuHardDriveUpload />,
     },
@@ -479,7 +479,6 @@ const FrontendDashboard = () => {
       title: "Leads",
       icon: <LuHardDriveUpload />,
     },
-
   ];
 
   const allowedCards = filterPermissions(cardsConfigFrontend, userPermissions);

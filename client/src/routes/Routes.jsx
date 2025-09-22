@@ -187,6 +187,7 @@ export const routes = createBrowserRouter([
                       { path: "leads", element: <CompanyLeads /> },
                       { path: "live-demo", element: <PageDemo /> },
                       { path: "create-website", element: <CreateWebsite /> },
+                      { path: "edit-website", element: <EditWebsite /> },
                       {
                         path: "websites",
                         element: <WebsitesLayout />,
