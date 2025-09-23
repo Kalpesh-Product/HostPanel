@@ -191,7 +191,10 @@ export const routes = createBrowserRouter([
                         path: "edit-website/:website",
                         element: <EditWebsite />,
                       }, // with param
-
+                      {
+                        path: "create-website",
+                        element: <CreateWebsite />,
+                      },
                       {
                         path: "edit-website/:website",
                         element: <EditWebsite />,
