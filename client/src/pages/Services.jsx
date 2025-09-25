@@ -2,8 +2,10 @@ import { Box, Checkbox, FormHelperText } from "@mui/material";
 import { useMutation } from "@tanstack/react-query";
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
-import { toast } from "sonner"; // ✅ keep consistent with your other forms
-import PrimaryButton from "../components/PrimaryButton"; // if you already have this
+import { toast } from "sonner";
+import PrimaryButton from "../components/PrimaryButton";
+import useAuth from "../hooks/useAuth";
+// import axios from "../utils/axios";
 
 const Services = () => {
   const { control, handleSubmit, reset } = useForm({
@@ -11,10 +13,13 @@ const Services = () => {
       selectedServices: [],
     },
   });
+  const { auth } = useAuth();
+
+  console.log("auth state : ", auth?.user);
 
   const { mutate: register, isLoading: isRegisterLoading } = useMutation({
     mutationFn: async (fd) => {
-      console.log("Submitting services array:", fd.selectedServices);
+      console.log("Final Payload:", fd);
       // const response = await axios.post("/api/company/services", fd);
       // return response.data;
     },
@@ -27,16 +32,17 @@ const Services = () => {
     },
   });
 
-  const onSubmit = (data) => {
-    // 👉 here `data.selectedServices` is the final array
-    console.log("Selected Services:", data.selectedServices);
-    register(data);
-  };
-
   const serviceOptions = [
     {
       category: "Addon Apps (Coming Soon)",
-      items: ["Tickets", "Meetings", "Tasks", "Performance", "Visitors", "Assets"],
+      items: [
+        "Tickets",
+        "Meetings",
+        "Tasks",
+        "Performance",
+        "Visitors",
+        "Assets",
+      ],
     },
     {
       category: "Addon Modules (Coming Soon)",
@@ -44,9 +50,40 @@ const Services = () => {
     },
   ];
 
+  const mandatoryServices = [
+    "Website Builder",
+    "Lead Generation",
+    "Automated Google Sheets",
+  ];
+
+  const onSubmit = (data) => {
+    // 👉 Transform array into apps/modules structure
+    const apps = serviceOptions[0].items.map((app) => ({
+      appName: app,
+      isActive: data.selectedServices.includes(app),
+    }));
+
+    const modules = serviceOptions[1].items.map((mod) => ({
+      moduleName: mod,
+      isActive: data.selectedServices.includes(mod),
+    }));
+
+    const payload = {
+      companyId: auth?.user?.companyId || "CMP0001", // replace with dynamic companyId if available
+      selectedServices: {
+        apps,
+        modules,
+      },
+    };
+
+    register(payload);
+  };
+
   return (
     <div className="p-4">
-      <h2 className="font-pmedium text-title text-primary ">Please Select Your Services</h2>
+      <h2 className="font-pmedium text-title text-primary ">
+        Please Select Your Services
+      </h2>
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <Controller
@@ -54,13 +91,6 @@ const Services = () => {
           control={control}
           defaultValue={["Website Builder", "Lead Generation"]}
           render={({ field, fieldState }) => {
-            const mandatoryServices = [
-              "Website Builder",
-              "Lead Generation",
-              "Automated Google Sheets",
-            ];
-
-            // Always include mandatory services
             const valueWithMandatory = Array.from(
               new Set([...(field.value || []), ...mandatoryServices])
             );
@@ -74,7 +104,7 @@ const Services = () => {
                   ? valueWithMandatory.filter((s) => s !== service)
                   : [...valueWithMandatory, service];
 
-                field.onChange(newValue); // update form
+                field.onChange(newValue);
               };
 
               return (
@@ -96,7 +126,6 @@ const Services = () => {
                   }}
                 >
                   <span className="font-medium">{service}</span>
-
                   <Checkbox
                     checked={isSelected}
                     disabled={isMandatory}
@@ -114,7 +143,9 @@ const Services = () => {
                 {/* Mandatory Section */}
                 <h3 className="font-semibold mb-2">Your Activated Services</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-                  {mandatoryServices.map((service) => renderCard(service, true))}
+                  {mandatoryServices.map((service) =>
+                    renderCard(service, true)
+                  )}
                 </div>
 
                 {/* Other Categories */}
@@ -128,7 +159,9 @@ const Services = () => {
                 ))}
 
                 {fieldState.error && (
-                  <FormHelperText error>{fieldState.error.message}</FormHelperText>
+                  <FormHelperText error>
+                    {fieldState.error.message}
+                  </FormHelperText>
                 )}
               </Box>
             );
