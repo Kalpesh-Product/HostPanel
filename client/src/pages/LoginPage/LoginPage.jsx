@@ -137,6 +137,7 @@ const LoginPage = () => {
       });
       console.log(response.data.user);
       toast.success("Successfully logged in");
+      navigate("/dashboard")
     } catch (error) {
       toast.error(error.response?.data.message);
     } finally {
@@ -342,7 +343,7 @@ const LoginPage = () => {
                       <div className="centerInPhone">
                         <button
                           disabled={loading}
-                          onClick={() => navigate("/dashboard")}
+                          onClick={handleLogin}
                           type="submit"
                           className="loginButtonStyling text-decoration-none text-subtitle w-40"
                         >
