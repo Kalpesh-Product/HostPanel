@@ -4,7 +4,7 @@ export const getServices = async (req, res, next) => {
   try {
     const { companyId } = req.query;
     const response = await axios.get(
-      `http://localhost:5000/api/hosts/company?companyId=${companyId}`
+      `https://wonomasterbe.vercel.app/api/hosts/company?companyId=${companyId}`
     );
 
     const company = response.data;
@@ -57,7 +57,7 @@ export const updateServices = async (req, res, next) => {
     }
 
     const response = await axios.patch(
-      `http://localhost:5000/api/hosts/update-services`,
+      `https://wonomasterbe.vercel.app/api/hosts/update-services`,
       { companyId, selectedServices }
     );
 

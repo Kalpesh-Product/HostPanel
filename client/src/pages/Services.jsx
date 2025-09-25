@@ -1,10 +1,11 @@
 import { Box, Checkbox, FormHelperText } from "@mui/material";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import PrimaryButton from "../components/PrimaryButton";
 import useAuth from "../hooks/useAuth";
+import useAxiosPrivate from "../hooks/useAxiosPrivate";
 // import axios from "../utils/axios";
 
 const Services = () => {
@@ -13,15 +14,31 @@ const Services = () => {
       selectedServices: [],
     },
   });
+  const axios = useAxiosPrivate();
   const { auth } = useAuth();
 
+ 
   console.log("auth state : ", auth?.user);
+
+  //  const {
+  //   data: services = [],
+  //   isLoading,
+  //   isFetching,
+  // } = useQuery({
+  //   queryKey: ["services"],
+  //   queryFn: async () => {
+  //     const res = await axios.get(
+  //       `/api/services/get-services?companyId=${companyId}`
+  //     );
+  //     return res.data;
+  //   },
+  // });
 
   const { mutate: register, isLoading: isRegisterLoading } = useMutation({
     mutationFn: async (fd) => {
       console.log("Final Payload:", fd);
-      // const response = await axios.post("/api/company/services", fd);
-      // return response.data;
+      const response = await axios.patch("/api/services/update-services", fd);
+      return response.data;
     },
     onSuccess: () => {
       toast.success("Services submitted successfully");
