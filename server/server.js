@@ -7,6 +7,7 @@ import authRoutes from "./routes/authRoutes.js";
 import { corsConfig } from "./config/corsConfig.js";
 import verifyJwt from "./middlewares/verifyJwt.js";
 import websiteTemplateRoutes from "./routes/websiteTemplateRoutes.js";
+import serviceRoutes from "./routes/serviceRoutes.js";
 
 const app = express();
 dotenv.config();
@@ -21,6 +22,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/editor", verifyJwt, websiteTemplateRoutes);
+app.use("/api/services", verifyJwt, serviceRoutes);
 
 mongoose.connection.once("open", () => {
   console.log("connected to mongoDB");
