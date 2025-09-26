@@ -1,14 +1,14 @@
 import { Box, Checkbox, FormHelperText } from "@mui/material";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import React from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import React, { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import PrimaryButton from "../components/PrimaryButton";
 import useAuth from "../hooks/useAuth";
 import useAxiosPrivate from "../hooks/useAxiosPrivate";
-// import axios from "../utils/axios";
 
 const Services = () => {
+  const queryClient = useQueryClient();
   const { control, handleSubmit, reset } = useForm({
     defaultValues: {
       selectedServices: [],
@@ -17,22 +17,46 @@ const Services = () => {
   const axios = useAxiosPrivate();
   const { auth } = useAuth();
 
- 
-  console.log("auth state : ", auth?.user);
+  const companyId = auth?.user?.companyId || "CMP0001";
 
-  //  const {
-  //   data: services = [],
-  //   isLoading,
-  //   isFetching,
-  // } = useQuery({
-  //   queryKey: ["services"],
-  //   queryFn: async () => {
-  //     const res = await axios.get(
-  //       `/api/services/get-services?companyId=${companyId}`
-  //     );
-  //     return res.data;
-  //   },
-  // });
+  // 🔹 Fetch existing services
+  const {
+    data: servicesData,
+    isLoading,
+    isFetching,
+  } = useQuery({
+    queryKey: ["services", companyId],
+    enabled: !!companyId,
+    queryFn: async () => {
+      const res = await axios.get(
+        `/api/services/get-services?companyId=${companyId}`
+      );
+      return res.data;
+    },
+  });
+
+  // 🔹 Hydrate form when services are fetched
+  useEffect(() => {
+    if (servicesData?.selectedServices) {
+      const {
+        defaults = [],
+        apps = [],
+        modules = [],
+      } = servicesData.selectedServices;
+
+      const activeDefaults = defaults
+        .filter((d) => d.isActive)
+        .map((d) => "Website Builder"); // map your default keys if needed
+      const activeApps = apps.filter((a) => a.isActive).map((a) => a.appName);
+      const activeModules = modules
+        .filter((m) => m.isActive)
+        .map((m) => m.moduleName);
+
+      reset({
+        selectedServices: [...activeDefaults, ...activeApps, ...activeModules],
+      });
+    }
+  }, [servicesData, reset]);
 
   const { mutate: register, isLoading: isRegisterLoading } = useMutation({
     mutationFn: async (fd) => {
@@ -42,7 +66,8 @@ const Services = () => {
     },
     onSuccess: () => {
       toast.success("Services submitted successfully");
-      reset();
+      // 🔹 Refetch latest services so they get disabled
+      queryClient.invalidateQueries({ queryKey: ["services", companyId] });
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || "Something went wrong");
@@ -74,7 +99,6 @@ const Services = () => {
   ];
 
   const onSubmit = (data) => {
-    // 👉 Transform array into apps/modules structure
     const apps = serviceOptions[0].items.map((app) => ({
       appName: app,
       isActive: data.selectedServices.includes(app),
@@ -86,7 +110,7 @@ const Services = () => {
     }));
 
     const payload = {
-      companyId: auth?.user?.companyId || "CMP0001", // replace with dynamic companyId if available
+      companyId,
       selectedServices: {
         apps,
         modules,
@@ -106,7 +130,6 @@ const Services = () => {
         <Controller
           name="selectedServices"
           control={control}
-          defaultValue={["Website Builder", "Lead Generation"]}
           render={({ field, fieldState }) => {
             const valueWithMandatory = Array.from(
               new Set([...(field.value || []), ...mandatoryServices])
@@ -115,8 +138,19 @@ const Services = () => {
             const renderCard = (service, isMandatory) => {
               const isSelected = valueWithMandatory.includes(service);
 
+              // 🔹 New: mark as disabled if it's pre-activated from backend
+              const isPreSelected =
+                servicesData?.selectedServices &&
+                (servicesData.selectedServices.apps?.some(
+                  (a) => a.appName === service && a.isActive
+                ) ||
+                  servicesData.selectedServices.modules?.some(
+                    (m) => m.moduleName === service && m.isActive
+                  ) ||
+                  mandatoryServices.includes(service)); // defaults
+
               const handleToggle = () => {
-                if (isMandatory) return;
+                if (isMandatory || isPreSelected) return; // 🔹 block toggle
                 const newValue = isSelected
                   ? valueWithMandatory.filter((s) => s !== service)
                   : [...valueWithMandatory, service];
@@ -133,19 +167,19 @@ const Services = () => {
                     borderColor: isSelected ? "primary.main" : "divider",
                     borderRadius: 2,
                     p: 2,
-                    cursor: isMandatory ? "not-allowed" : "pointer",
+                    cursor:
+                      isMandatory || isPreSelected ? "not-allowed" : "pointer",
                     userSelect: "none",
                     boxShadow: isSelected ? 3 : 0,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    opacity: isMandatory ? 0.8 : 1,
-                  }}
-                >
+                    opacity: isMandatory || isPreSelected ? 0.8 : 1,
+                  }}>
                   <span className="font-medium">{service}</span>
                   <Checkbox
                     checked={isSelected}
-                    disabled={isMandatory}
+                    disabled={isMandatory || isPreSelected} // 🔹 disable pre-selected
                     onChange={(e) => {
                       e.stopPropagation();
                       handleToggle();
@@ -157,7 +191,6 @@ const Services = () => {
 
             return (
               <Box sx={{ mt: 2 }} className="col-span-1 lg:col-span-2">
-                {/* Mandatory Section */}
                 <h3 className="font-semibold mb-2">Your Activated Services</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
                   {mandatoryServices.map((service) =>
@@ -165,7 +198,6 @@ const Services = () => {
                   )}
                 </div>
 
-                {/* Other Categories */}
                 {serviceOptions.map((group) => (
                   <Box key={group.category} sx={{ mb: 4 }}>
                     <h3 className="font-semibold mb-2">{group.category}</h3>
