@@ -43,7 +43,7 @@ export const requestServices = async (req, res, next) => {
 
     const { apps = [], modules = [] } = requestedServices;
 
-    if (!apps.length && !modules.length) {
+    if (!apps.length || !modules.length) {
       return res
         .status(400)
         .json({ message: "At least one of apps or modules must be provided" });

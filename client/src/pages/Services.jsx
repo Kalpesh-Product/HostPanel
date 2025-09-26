@@ -61,7 +61,7 @@ const Services = () => {
   const { mutate: register, isLoading: isRegisterLoading } = useMutation({
     mutationFn: async (fd) => {
       console.log("Final Payload:", fd);
-      const response = await axios.patch("/api/services/update-services", fd);
+      const response = await axios.patch("/api/services/request-services", fd);
       return response.data;
     },
     onSuccess: () => {
@@ -99,15 +99,13 @@ const Services = () => {
   ];
 
   const onSubmit = (data) => {
-    const apps = serviceOptions[0].items.map((app) => ({
-      appName: app,
-      isActive: data.selectedServices.includes(app),
-    }));
+    const apps = data.selectedServices
+      .filter((service) => serviceOptions[0].items.includes(service))
+      .map((app) => ({ appName: app }));
 
-    const modules = serviceOptions[1].items.map((mod) => ({
-      moduleName: mod,
-      isActive: data.selectedServices.includes(mod),
-    }));
+    const modules = data.selectedServices
+      .filter((service) => serviceOptions[1].items.includes(service))
+      .map((mod) => ({ moduleName: mod }));
 
     const payload = {
       companyId,
