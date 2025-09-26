@@ -17,7 +17,7 @@ export const getServices = async (req, res, next) => {
 
 export const requestServices = async (req, res, next) => {
   try {
-    const { companyId, requestedServices = {} } = req.body;
+    const { companyId, selectedServices = {} } = req.body;
 
     const serviceOptions = [
       {
@@ -41,9 +41,9 @@ export const requestServices = async (req, res, next) => {
       return res.status(400).json({ message: "companyId is required" });
     }
 
-    const { apps = [], modules = [] } = requestedServices;
+    const { apps = [], modules = [] } = selectedServices;
 
-    if (!apps.length || !modules.length) {
+    if (!apps.length && !modules.length) {
       return res
         .status(400)
         .json({ message: "At least one of apps or modules must be provided" });
@@ -79,9 +79,12 @@ export const requestServices = async (req, res, next) => {
 
     apps.forEach((app) => {
       if (appsMap.has(app.appName)) {
-        appsMap.get(app.appName).isRequested = true;
+        appsMap.get(app.appName).isRequested = app.isRequested;
       } else {
-        company.selectedServices.apps.push({ ...app, isRequested: true });
+        company.selectedServices.apps.push({
+          ...app,
+          isRequested: app.isRequested,
+        });
       }
     });
 
