@@ -1,15 +1,13 @@
 import axios from "axios";
+import HostCompany from "../models/Company.js";
 
 export const getServices = async (req, res, next) => {
   try {
     const { companyId } = req.query;
-    const response = await axios.get(
-      `https://wonomasterbe.vercel.app/api/hosts/company?companyId=${companyId}`
-    );
 
-    const company = response.data;
+    const company = await HostCompany.findOne({ companyId });
 
-    if (!company) throw new Error("Company not found");
+    if (!company) return res.status(400).json({ message: "Company not found" });
 
     return res.status(200).json(company);
   } catch (error) {
@@ -17,34 +15,42 @@ export const getServices = async (req, res, next) => {
   }
 };
 
-const serviceOptions = [
-  {
-    items: [
-      "Tickets",
-      "Meetings",
-      "Tasks",
-      "Performance",
-      "Visitors",
-      "Assets",
-    ],
-  },
-  {
-    items: ["Finance", "Sales", "HR", "Admin", "Maintenance", "IT"],
-  },
-];
-
-export const updateServices = async (req, res, next) => {
+export const requestServices = async (req, res, next) => {
   try {
-    const { companyId, selectedServices } = req.body;
+    const { companyId, requestedServices = {} } = req.body;
 
+    const serviceOptions = [
+      {
+        items: [
+          "Tickets",
+          "Meetings",
+          "Tasks",
+          "Performance",
+          "Visitors",
+          "Assets",
+        ],
+      },
+      {
+        items: ["Finance", "Sales", "HR", "Admin", "Maintenance", "IT"],
+      },
+    ];
     const validApps = new Set(serviceOptions[0].items);
     const validModules = new Set(serviceOptions[1].items);
 
-    // validate incoming apps/modules
-    const invalidApps = selectedServices.apps.filter(
-      (a) => !validApps.has(a.appName)
-    );
-    const invalidModules = selectedServices.modules.filter(
+    if (!companyId) {
+      return res.status(400).json({ message: "companyId is required" });
+    }
+
+    const { apps = [], modules = [] } = requestedServices;
+
+    if (!apps.length && !modules.length) {
+      return res
+        .status(400)
+        .json({ message: "At least one of apps or modules must be provided" });
+    }
+
+    const invalidApps = apps.filter((a) => !validApps.has(a.appName));
+    const invalidModules = modules.filter(
       (m) => !validModules.has(m.moduleName)
     );
 
@@ -56,16 +62,43 @@ export const updateServices = async (req, res, next) => {
       });
     }
 
-    const response = await axios.patch(
-      `https://wonomasterbe.vercel.app/api/hosts/update-services`,
-      { companyId, selectedServices }
+    const company = await HostCompany.findOne({ companyId });
+    if (!company) return res.status(404).json({ message: "Company not found" });
+
+    // Initialize selectedServices fully before mapping
+    if (!company.selectedServices) {
+      company.selectedServices = { apps: [], modules: [] };
+    }
+
+    const appsMap = new Map(
+      (company?.selectedServices?.apps || []).map((a) => [a.appName, a])
+    );
+    const modulesMap = new Map(
+      (company.selectedServices.modules || []).map((m) => [m.moduleName, m])
     );
 
-    const company = response.data;
+    apps.forEach((app) => {
+      if (appsMap.has(app.appName)) {
+        appsMap.get(app.appName).isRequested = true;
+      } else {
+        company.selectedServices.apps.push({ ...app, isRequested: true });
+      }
+    });
 
-    if (!company) throw new Error("Company not found");
+    modules.forEach((mod) => {
+      if (modulesMap.has(mod.moduleName)) {
+        modulesMap.get(mod.moduleName).isRequested = true;
+      } else {
+        company.selectedServices.modules.push({ ...mod, isRequested: true });
+      }
+    });
 
-    return res.status(200).json({ message: "Services added successfully" });
+    await company.save();
+
+    return res.status(200).json({
+      message: "Request submitted successfully",
+      selectedServices: company.selectedServices,
+    });
   } catch (error) {
     next(error);
   }

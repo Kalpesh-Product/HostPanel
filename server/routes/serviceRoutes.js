@@ -1,12 +1,12 @@
 import { Router } from "express";
 import {
   getServices,
-  updateServices,
+  requestServices,
 } from "../controllers/serviceControllers.js";
 
 const router = Router();
 
-router.patch("/update-services", updateServices);
+router.patch("/request-services", requestServices);
 router.get("/get-services", getServices);
 
 export default router;
