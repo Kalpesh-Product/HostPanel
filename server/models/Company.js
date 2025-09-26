@@ -41,8 +41,40 @@ const hostCompanySchema = new mongoose.Schema(
       trim: true,
     },
     selectedServices: {
-      type: [String],
-      default: [],
+      apps: {
+        type: [
+          {
+            appName: { type: String },
+            isActive: { type: Boolean, default: false },
+            isRequested: { type: Boolean, default: false },
+          },
+        ],
+        default: [],
+      },
+      modules: {
+        type: [
+          {
+            moduleName: { type: String },
+            isActive: { type: Boolean, default: false },
+            isRequested: { type: Boolean, default: false },
+          },
+        ],
+        default: [],
+      },
+      defaults: {
+        type: [
+          {
+            name: { type: String, required: true },
+            isActive: { type: Boolean, default: true },
+            isRequested: { type: Boolean, default: true },
+          },
+        ],
+        default: [
+          { name: "websiteBuilder", isActive: true, isRequested: true },
+          { name: "leadGeneration", isActive: true, isRequested: true },
+          { name: "automatedGoogleSheets", isActive: true, isRequested: true },
+        ],
+      },
     },
     isRegistered: {
       type: Boolean,
