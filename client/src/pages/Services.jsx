@@ -45,11 +45,13 @@ const Services = () => {
       } = servicesData.selectedServices;
 
       const activeDefaults = defaults
-        .filter((d) => d.isActive)
+        .filter((d) => d.isRequested)
         .map((d) => "Website Builder"); // map your default keys if needed
-      const activeApps = apps.filter((a) => a.isActive).map((a) => a.appName);
+      const activeApps = apps
+        .filter((a) => a.isRequested)
+        .map((a) => a.appName);
       const activeModules = modules
-        .filter((m) => m.isActive)
+        .filter((m) => m.isRequested)
         .map((m) => m.moduleName);
 
       reset({
@@ -101,11 +103,11 @@ const Services = () => {
   const onSubmit = (data) => {
     const apps = data.selectedServices
       .filter((service) => serviceOptions[0].items.includes(service))
-      .map((app) => ({ appName: app }));
+      .map((app) => ({ appName: app, isRequested: true }));
 
     const modules = data.selectedServices
       .filter((service) => serviceOptions[1].items.includes(service))
-      .map((mod) => ({ moduleName: mod }));
+      .map((mod) => ({ moduleName: mod, isRequested: true }));
 
     const payload = {
       companyId,
@@ -140,10 +142,10 @@ const Services = () => {
               const isPreSelected =
                 servicesData?.selectedServices &&
                 (servicesData.selectedServices.apps?.some(
-                  (a) => a.appName === service && a.isActive
+                  (a) => a.appName === service && a.isRequested
                 ) ||
                   servicesData.selectedServices.modules?.some(
-                    (m) => m.moduleName === service && m.isActive
+                    (m) => m.moduleName === service && m.isRequested
                   ) ||
                   mandatoryServices.includes(service)); // defaults
 
