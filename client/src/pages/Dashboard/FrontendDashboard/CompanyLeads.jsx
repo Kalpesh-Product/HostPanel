@@ -90,19 +90,59 @@ const CompanyLeads = () => {
     {
       field: "status",
       headerName: "Status",
-      cellRenderer: (params) => (
-        <TextField
-          select
-          size="small"
-          value={params.data.status || "Pending"}
-          onChange={(e) => handleStatusChange(params.data._id, e.target.value)}>
-          {["Pending", "Contacted", "Closed", "Rejected"].map((option) => (
-            <MenuItem key={option} value={option}>
-              {option}
-            </MenuItem>
-          ))}
-        </TextField>
-      ),
+      cellRenderer: (params) => {
+        const value = params.data.status || "Pending";
+
+        const statusStyles = {
+          Pending: { bg: "#FEF3C7", color: "#F59E0B" }, // amber
+          Contacted: { bg: "#DBEAFE", color: "#3B82F6" }, // blue
+          Closed: { bg: "#D1FAE5", color: "#10B981" }, // green
+          Rejected: { bg: "#FEE2E2", color: "#EF4444" }, // red
+        };
+
+        return (
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <TextField
+              select
+              size="small"
+              value={value}
+              onChange={(e) =>
+                handleStatusChange(params.data._id, e.target.value)
+              }
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "9999px",
+                  px: 1.5,
+                  fontWeight: 600,
+                  fontSize: "0.85rem",
+                  backgroundColor: statusStyles[value]?.bg,
+                  color: statusStyles[value]?.color,
+                  "& fieldset": { border: "none" },
+                },
+                "& .MuiSelect-select": {
+                  textAlign: "center", // center text inside dropdown
+                },
+              }}>
+              {["Pending", "Contacted", "Closed", "Rejected"].map((option) => (
+                <MenuItem
+                  key={option}
+                  value={option}
+                  sx={{
+                    justifyContent: "center",
+                    fontWeight: 600,
+                    fontSize: "0.85rem",
+                    borderRadius: "9999px",
+                    backgroundColor: statusStyles[option]?.bg,
+                    color: statusStyles[option]?.color,
+                    my: 0.5,
+                  }}>
+                  {option}
+                </MenuItem>
+              ))}
+            </TextField>
+          </div>
+        );
+      },
     },
     {
       field: "comment",
