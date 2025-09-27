@@ -14,34 +14,35 @@ import { toast } from "sonner";
 
 const CompanyLeads = () => {
   const selectedCompany = useSelector((state) => state.company.selectedCompany);
-  const axios = useAxiosPrivate();
+  const axiosPrivate = useAxiosPrivate();
   const { auth } = useAuth();
   const queryClient = useQueryClient();
 
   const [openModal, setOpenModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
 
-  // Fetch Leads
+  // 🔹 Fetch Leads
   const {
     data = [],
     isPending,
     isError,
   } = useQuery({
     queryKey: ["leadCompany"],
-    enabled: !!selectedCompany,
+    enabled: !!(selectedCompany || auth?.user?.companyId),
     queryFn: async () => {
-      const response = await axios.get(
-        `/api/leads/get-leads?companyId=${auth?.user?.companyId}`,
+      const companyId = selectedCompany?.companyId || auth?.user?.companyId;
+      const response = await axiosPrivate.get(
+        `/api/leads/get-leads?companyId=${companyId}`,
         { headers: { "Cache-Control": "no-cache" } }
       );
       return Array.isArray(response?.data) ? response.data : [];
     },
   });
 
-  // Mutation for updating lead
+  // 🔹 Mutation for updating lead
   const updateLeadMutation = useMutation({
     mutationFn: async (payload) => {
-      const res = await axios.patch("/api/leads/update-lead", payload);
+      const res = await axiosPrivate.patch("/api/leads/update-lead", payload);
       return res.data;
     },
     onSuccess: (data) => {
@@ -54,7 +55,7 @@ const CompanyLeads = () => {
     },
   });
 
-  // Comment Modal form
+  // 🔹 Comment Modal form
   const { control, handleSubmit, reset } = useForm({
     defaultValues: { comment: "" },
   });
@@ -76,6 +77,7 @@ const CompanyLeads = () => {
     updateLeadMutation.mutate({ leadId, status: newStatus });
   };
 
+  // 🔹 Table columns
   const columns = [
     { field: "srNo", headerName: "SrNo", width: 100 },
     { field: "fullName", headerName: "Lead Name" },
@@ -120,7 +122,7 @@ const CompanyLeads = () => {
                   "& fieldset": { border: "none" },
                 },
                 "& .MuiSelect-select": {
-                  textAlign: "center", // center text inside dropdown
+                  textAlign: "center",
                 },
               }}>
               {["Pending", "Contacted", "Closed", "Rejected"].map((option) => (
@@ -148,9 +150,11 @@ const CompanyLeads = () => {
       field: "comment",
       headerName: "Comment",
       cellRenderer: (params) => (
-        <IconButton onClick={() => handleOpenModal(params.data)}>
-          <MdOutlineRateReview />
-        </IconButton>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <IconButton onClick={() => handleOpenModal(params.data)}>
+            <MdOutlineRateReview />
+          </IconButton>
+        </div>
       ),
     },
   ];
@@ -164,7 +168,7 @@ const CompanyLeads = () => {
         <YearWiseTable data={data} tableTitle={"Leads"} columns={columns} />
       </PageFrame>
 
-      {/* Comment Modal */}
+      {/* 🔹 Comment Modal */}
       <MuiModal
         open={openModal}
         onClose={() => setOpenModal(false)}
