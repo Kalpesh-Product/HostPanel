@@ -165,7 +165,16 @@ const CompanyLeads = () => {
   return (
     <div className="p-4">
       <PageFrame>
-        <YearWiseTable data={data} tableTitle={"Leads"} columns={columns} />
+        {/* <YearWiseTable data={data} tableTitle={"Leads"} columns={columns} /> */}
+        <YearWiseTable
+          data={Array.isArray(data) ? data : []} // 👈 ensure array
+          tableTitle={"Something"}
+          columns={columns}
+        />
+
+        {Array.isArray(data) && data.length === 0 && (
+          <div className="text-center text-gray-500 py-4">No records found</div>
+        )}
       </PageFrame>
 
       {/* 🔹 Comment Modal */}
