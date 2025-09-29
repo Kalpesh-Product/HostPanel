@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import WebsiteTemplate from "../../models/website/WebsiteTemplate.js";
 import mongoose from "mongoose";
-import { uploadFileToS3 } from "../../config/s3config.js";
+import { deleteFileFromS3ByUrl, uploadFileToS3 } from "../../config/s3config.js";
 
 export const createTemplate = async (req, res, next) => {
   const session = await mongoose.startSession();
@@ -252,8 +252,16 @@ export const createTemplate = async (req, res, next) => {
 
     const savedTemplate = await template.save({ session });
 
-    await session.commitTransaction();
-    session.endSession();
+    const updateHostCompany = await HostCompany.findOneAndUpdate(
+      { companyName: req.body.companyName },
+      {
+        isWebsiteTemplate: true,
+      }
+    );
+
+    if (!updateHostCompany) {
+      return res.status(400).json({ message: "Failed to update company" });
+    }
 
     try {
       const updatedCompany = await axios.patch(
@@ -269,7 +277,9 @@ export const createTemplate = async (req, res, next) => {
           .status(400)
           .json({ message: "Failed to add website template link" });
       }
-      // }
+
+      await session.commitTransaction();
+      session.endSession();
     } catch (error) {
       if (error.response?.status !== 200) {
         return res.status(201).json({
@@ -301,7 +311,6 @@ export const getTemplate = async (req, res) => {
 
     const template = await WebsiteTemplate.findOne({
       searchKey,
-      isActive: true,
     });
 
     if (!template) {
@@ -381,12 +390,295 @@ export const activateTemplate = async (req, res) => {
   }
 };
 
+// export const editTemplate = async (req, res, next) => {
+//   const session = await mongoose.startSession();
+//   session.startTransaction();
+
+//   try {
+//     // --- parse body meta (JSON strings in multipart) ---
+//     let {
+//       products,
+//       testimonials,
+//       heroImageIds,
+//       galleryImageIds,
+//       companyLogoId,
+//       about,
+//       companyName,
+//     } = req.body;
+//     const company = companyName;
+
+//     // --- helpers ---
+//     const parseJson = (raw, fallback) => {
+//       try {
+//         if (raw === undefined) return fallback;
+//         return JSON.parse(raw);
+//       } catch {
+//         return fallback;
+//       }
+//     };
+
+//     // const deleteCloudinaryBatch = async (ids = []) => {
+//     //   await Promise.all(
+//     //     (ids || [])
+//     //       .filter(Boolean)
+//     //       .map((id) => handleFileDelete(id).catch(() => null))
+//     //   );
+//     // };
+
+//     // const uploadImages = async (files = [], folder) => {
+//     //   const out = [];
+//     //   for (const file of files) {
+//     //     const buffer = await sharp(file.buffer)
+//     //       .webp({ quality: 80 })
+//     //       .toBuffer();
+//     //     const base64 = `data:image/webp;base64,${buffer.toString("base64")}`;
+//     //     const up = await handleFileUpload(base64, folder);
+//     //     out.push({ id: up.public_id, url: up.secure_url });
+//     //   }
+//     //   return out;
+//     // };
+
+//     about = parseJson(about, []);
+//     companyLogoId = parseJson(companyLogoId, undefined);
+//     products = parseJson(products, []); // [{ _id?, type, name, cost, description, imageIds? }]
+//     testimonials = parseJson(testimonials, []); // [{ _id?, name, jobPosition, testimony, rating, imageId? }]
+//     const heroKeepIds = new Set(parseJson(heroImageIds, undefined)); // undefined => don't perform delete
+//     const galleryKeepIds = new Set(parseJson(galleryImageIds, undefined));
+
+//     // --- search key / template ---
+//     const formatCompanyName = (name) =>
+//       (name || "").toLowerCase().split("-")[0].replace(/\s+/g, "");
+
+//     const searchKey = formatCompanyName(req.body.companyName);
+//     const baseFolder = `WoNo${company}/template/${searchKey}`;
+
+//     const template = await WebsiteTemplate.findOne({ searchKey }).session(
+//       session
+//     );
+//     if (!template) {
+//       await session.abortTransaction();
+//       session.endSession();
+//       return res.status(404).json({ message: "Template not found" });
+//     }
+
+//     // --- map files by fieldname for convenience ---
+//     const filesByField = {};
+//     for (const f of req.files || []) {
+//       (filesByField[f.fieldname] ||= []).push(f);
+//     }
+
+//     // --- text fields merge ---
+//     Object.assign(template, {
+//       companyName: req.body.companyName ?? template.companyName,
+//       title: req.body.title ?? template.title,
+//       subTitle: req.body.subTitle ?? template.subTitle,
+//       CTAButtonText: req.body.CTAButtonText ?? template.CTAButtonText,
+//       about: Array.isArray(about) ? about : template.about,
+//       productTitle: req.body.productTitle ?? template.productTitle,
+//       galleryTitle: req.body.galleryTitle ?? template.galleryTitle,
+//       testimonialTitle: req.body.testimonialTitle ?? template.testimonialTitle,
+//       contactTitle: req.body.contactTitle ?? template.contactTitle,
+//       mapUrl: req.body.mapUrl ?? template.mapUrl,
+//       email: req.body.email ?? template.email,
+//       phone: req.body.phone ?? template.phone,
+//       address: req.body.address ?? template.address,
+//       registeredCompanyName:
+//         req.body.registeredCompanyName ?? template.registeredCompanyName,
+//       copyrightText: req.body.copyrightText ?? template.copyrightText,
+//     });
+
+//     // if (companyLogoId !== undefined) {
+//     //   const currentId = template.companyLogo?.id || null;
+//     //   // If client wants it gone (null) or changed (id mismatch), remove the old one
+//     //   if (currentId && currentId !== companyLogoId) {
+//     //     await handleFileDelete(currentId).catch(() => null);
+//     //     template.companyLogo = null;
+//     //   }
+//     // }
+
+//     // --- companyLogo (replace) ---
+//     if (filesByField.companyLogo?.[0]) {
+//       // delete old logo if any
+//       // if (template.companyLogo?.id) {
+//       //   await handleFileDelete(template.companyLogo.id).catch(() => null);
+//       // }
+//       const uploaded = await uploadImages(
+//         [filesByField.companyLogo[0]],
+//         `${baseFolder}/companyLogo`
+//       );
+//       template.companyLogo = uploaded[0];
+//     }
+
+//     // === HERO IMAGES ===
+//     // If client provided heroImageIds (the "keep list"), we will delete anything not in that list.
+//     if (heroKeepIds !== undefined) {
+//       const current = template.heroImages || [];
+//       const toDelete = current
+//         .filter((img) => !heroKeepIds.has(img.id))
+//         .map((img) => img.id);
+//       if (toDelete.length) {
+//         await deleteCloudinaryBatch(toDelete);
+//         template.heroImages = current.filter((img) => heroKeepIds.has(img.id));
+//       }
+//     }
+//     // Append any new hero files
+//     if (filesByField.heroImages?.length) {
+//       const uploaded = await uploadImages(
+//         filesByField.heroImages,
+//         `${baseFolder}/heroImages`
+//       );
+//       template.heroImages = [...(template.heroImages || []), ...uploaded];
+//     }
+
+//     // === GALLERY ===
+//     if (galleryKeepIds !== undefined) {
+//       const current = template.gallery || [];
+//       const toDelete = current
+//         .filter((img) => !galleryKeepIds.has(img.id))
+//         .map((img) => img.id);
+//       if (toDelete.length) {
+//         await deleteCloudinaryBatch(toDelete);
+//         template.gallery = current.filter((img) => galleryKeepIds.has(img.id));
+//       }
+//     }
+//     if (filesByField.gallery?.length) {
+//       const uploaded = await uploadImages(
+//         filesByField.gallery,
+//         `${baseFolder}/gallery`
+//       );
+//       template.gallery = [...(template.gallery || []), ...uploaded];
+//     }
+
+//     // === PRODUCTS ===
+//     // Build index of existing products by _id for O(1) merge
+//     const existingProductIdx = new Map(
+//       (template.products || []).map((p, i) => [String(p._id), i])
+//     );
+
+//     for (let i = 0; i < (products || []).length; i++) {
+//       const p = products[i];
+
+//       // files for this payload index
+//       const pFiles = filesByField[`productImages_${i}`] || [];
+//       const uploaded = pFiles.length
+//         ? await uploadImages(
+//             pFiles,
+//             `${baseFolder}/productImages/${p?._id || "new"}`
+//           )
+//         : [];
+
+//       if (p?._id && existingProductIdx.has(String(p._id))) {
+//         // merge existing
+//         const idx = existingProductIdx.get(String(p._id));
+//         const target = template.products[idx];
+
+//         // delete phase if imageIds keep-list provided
+//         if (Array.isArray(p.imageIds)) {
+//           const keepSet = new Set(p.imageIds);
+//           const toDelete = (target.images || [])
+//             .filter((img) => !keepSet.has(img.id))
+//             .map((img) => img.id);
+//           if (toDelete.length) {
+//             await deleteCloudinaryBatch(toDelete);
+//             target.images = (target.images || []).filter((img) =>
+//               keepSet.has(img.id)
+//             );
+//           }
+//         }
+
+//         // merge fields
+//         target.type = p.type ?? target.type;
+//         target.name = p.name ?? target.name;
+//         target.cost = p.cost ?? target.cost;
+//         target.description = p.description ?? target.description;
+//         // append uploads
+//         target.images = [...(target.images || []), ...uploaded];
+//       } else {
+//         // new product
+//         template.products.push({
+//           type: p.type,
+//           name: p.name,
+//           cost: p.cost,
+//           description: p.description,
+//           images: uploaded,
+//         });
+//       }
+//     }
+
+//     // === TESTIMONIALS ===
+//     const existingTestimonialIdx = new Map(
+//       (template.testimonials || []).map((t, i) => [String(t._id), i])
+//     );
+
+//     for (let i = 0; i < (testimonials || []).length; i++) {
+//       const t = testimonials[i];
+
+//       // per-index file
+//       const tFiles = filesByField[`testimonialImages_${i}`] || [];
+//       const uploaded = tFiles.length
+//         ? await uploadImages(
+//             tFiles,
+//             `${baseFolder}/testimonialImages/${t?._id || "new"}`
+//           )
+//         : [];
+
+//       if (t?._id && existingTestimonialIdx.has(String(t._id))) {
+//         const idx = existingTestimonialIdx.get(String(t._id));
+//         const target = template.testimonials[idx];
+
+//         // delete/keep single image by imageId presence
+//         // if ("imageId" in t) {
+//         //   const keepId = t.imageId || null; // could be null to remove
+//         //   const currentId = target?.image?.id || null;
+//         //   if (currentId && currentId !== keepId) {
+//         //     await handleFileDelete(currentId).catch(() => null);
+//         //     target.image = null;
+//         //   }
+//         // }
+
+//         // merge fields
+//         target.name = t.name ?? target.name;
+//         target.jobPosition = t.jobPosition ?? target.jobPosition;
+//         target.testimony = t.testimony ?? target.testimony;
+//         target.rating = t.rating ?? target.rating;
+
+//         // prefer newly uploaded file if provided
+//         if (uploaded[0]) {
+//           target.image = uploaded[0];
+//         }
+//       } else {
+//         // new testimonial
+//         template.testimonials.push({
+//           name: t.name,
+//           jobPosition: t.jobPosition,
+//           testimony: t.testimony,
+//           rating: t.rating,
+//           image:
+//             uploaded[0] ||
+//             (t.imageId
+//               ? { id: t.imageId, url: t.imageUrl || undefined }
+//               : undefined),
+//         });
+//       }
+//     }
+
+//     await template.save({ session });
+//     await session.commitTransaction();
+//     session.endSession();
+
+//     res.status(200).json({ message: "Template updated", template });
+//   } catch (error) {
+//     await session.abortTransaction();
+//     session.endSession();
+//     next(error);
+//   }
+// };
+
 export const editTemplate = async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    // --- parse body meta (JSON strings in multipart) ---
     let {
       products,
       testimonials,
@@ -396,6 +688,7 @@ export const editTemplate = async (req, res, next) => {
       about,
       companyName,
     } = req.body;
+
     const company = companyName;
 
     // --- helpers ---
@@ -408,35 +701,50 @@ export const editTemplate = async (req, res, next) => {
       }
     };
 
-    // const deleteCloudinaryBatch = async (ids = []) => {
-    //   await Promise.all(
-    //     (ids || [])
-    //       .filter(Boolean)
-    //       .map((id) => handleFileDelete(id).catch(() => null))
-    //   );
-    // };
+    const deleteS3Batch = async (items = []) => {
+      await Promise.all(
+        (items || [])
+          .filter((img) => img?.url)
+          .map((img) =>
+            deleteFileFromS3ByUrl(img.url).catch((e) => {
+              console.warn("S3 delete failed:", e.message);
+              return null;
+            })
+          )
+      );
+    };
 
-    // const uploadImages = async (files = [], folder) => {
-    //   const out = [];
-    //   for (const file of files) {
-    //     const buffer = await sharp(file.buffer)
-    //       .webp({ quality: 80 })
-    //       .toBuffer();
-    //     const base64 = `data:image/webp;base64,${buffer.toString("base64")}`;
-    //     const up = await handleFileUpload(base64, folder);
-    //     out.push({ id: up.public_id, url: up.secure_url });
-    //   }
-    //   return out;
-    // };
+    const uploadImages = async (files = [], folder) => {
+      const arr = [];
+      for (const file of files) {
+        const buffer = await sharp(file.buffer)
+          .webp({ quality: 80 })
+          .toBuffer();
 
+        const route = `${folder}/${Date.now()}_${file.originalname.replace(
+          /\s+/g,
+          "_"
+        )}`;
+
+        const url = await uploadFileToS3(route, {
+          buffer,
+          mimetype: "image/webp",
+        });
+
+        arr.push({ url }); // only store url
+      }
+      return arr;
+    };
+
+    // --- normalize body ---
     about = parseJson(about, []);
     companyLogoId = parseJson(companyLogoId, undefined);
-    products = parseJson(products, []); // [{ _id?, type, name, cost, description, imageIds? }]
-    testimonials = parseJson(testimonials, []); // [{ _id?, name, jobPosition, testimony, rating, imageId? }]
-    const heroKeepIds = new Set(parseJson(heroImageIds, undefined)); // undefined => don't perform delete
+    products = parseJson(products, []);
+    testimonials = parseJson(testimonials, []);
+    const heroKeepIds = new Set(parseJson(heroImageIds, undefined));
     const galleryKeepIds = new Set(parseJson(galleryImageIds, undefined));
 
-    // --- search key / template ---
+    // --- template ---
     const formatCompanyName = (name) =>
       (name || "").toLowerCase().split("-")[0].replace(/\s+/g, "");
 
@@ -452,13 +760,13 @@ export const editTemplate = async (req, res, next) => {
       return res.status(404).json({ message: "Template not found" });
     }
 
-    // --- map files by fieldname for convenience ---
+    // --- map files ---
     const filesByField = {};
     for (const f of req.files || []) {
       (filesByField[f.fieldname] ||= []).push(f);
     }
 
-    // --- text fields merge ---
+    // --- merge text fields ---
     Object.assign(template, {
       companyName: req.body.companyName ?? template.companyName,
       title: req.body.title ?? template.title,
@@ -478,21 +786,19 @@ export const editTemplate = async (req, res, next) => {
       copyrightText: req.body.copyrightText ?? template.copyrightText,
     });
 
-    // if (companyLogoId !== undefined) {
-    //   const currentId = template.companyLogo?.id || null;
-    //   // If client wants it gone (null) or changed (id mismatch), remove the old one
-    //   if (currentId && currentId !== companyLogoId) {
-    //     await handleFileDelete(currentId).catch(() => null);
-    //     template.companyLogo = null;
-    //   }
-    // }
+    // === COMPANY LOGO ===
+    if (companyLogoId !== undefined) {
+      const currentUrl = template.companyLogo?.url || null;
+      if (currentUrl && currentUrl !== companyLogoId) {
+        await deleteFileFromS3ByUrl(currentUrl).catch(() => null);
+        template.companyLogo = null;
+      }
+    }
 
-    // --- companyLogo (replace) ---
     if (filesByField.companyLogo?.[0]) {
-      // delete old logo if any
-      // if (template.companyLogo?.id) {
-      //   await handleFileDelete(template.companyLogo.id).catch(() => null);
-      // }
+      if (template.companyLogo?.url) {
+        await deleteFileFromS3ByUrl(template.companyLogo.url).catch(() => null);
+      }
       const uploaded = await uploadImages(
         [filesByField.companyLogo[0]],
         `${baseFolder}/companyLogo`
@@ -501,18 +807,15 @@ export const editTemplate = async (req, res, next) => {
     }
 
     // === HERO IMAGES ===
-    // If client provided heroImageIds (the "keep list"), we will delete anything not in that list.
     if (heroKeepIds !== undefined) {
       const current = template.heroImages || [];
-      const toDelete = current
-        .filter((img) => !heroKeepIds.has(img.id))
-        .map((img) => img.id);
+      const toDelete = current.filter((img) => !heroKeepIds.has(img.url));
       if (toDelete.length) {
-        await deleteCloudinaryBatch(toDelete);
-        template.heroImages = current.filter((img) => heroKeepIds.has(img.id));
+        await deleteS3Batch(toDelete);
+        template.heroImages = current.filter((img) => heroKeepIds.has(img.url));
       }
     }
-    // Append any new hero files
+
     if (filesByField.heroImages?.length) {
       const uploaded = await uploadImages(
         filesByField.heroImages,
@@ -524,14 +827,13 @@ export const editTemplate = async (req, res, next) => {
     // === GALLERY ===
     if (galleryKeepIds !== undefined) {
       const current = template.gallery || [];
-      const toDelete = current
-        .filter((img) => !galleryKeepIds.has(img.id))
-        .map((img) => img.id);
+      const toDelete = current.filter((img) => !galleryKeepIds.has(img.url));
       if (toDelete.length) {
-        await deleteCloudinaryBatch(toDelete);
-        template.gallery = current.filter((img) => galleryKeepIds.has(img.id));
+        await deleteS3Batch(toDelete);
+        template.gallery = current.filter((img) => galleryKeepIds.has(img.url));
       }
     }
+
     if (filesByField.gallery?.length) {
       const uploaded = await uploadImages(
         filesByField.gallery,
@@ -541,15 +843,12 @@ export const editTemplate = async (req, res, next) => {
     }
 
     // === PRODUCTS ===
-    // Build index of existing products by _id for O(1) merge
     const existingProductIdx = new Map(
       (template.products || []).map((p, i) => [String(p._id), i])
     );
 
     for (let i = 0; i < (products || []).length; i++) {
       const p = products[i];
-
-      // files for this payload index
       const pFiles = filesByField[`productImages_${i}`] || [];
       const uploaded = pFiles.length
         ? await uploadImages(
@@ -559,33 +858,28 @@ export const editTemplate = async (req, res, next) => {
         : [];
 
       if (p?._id && existingProductIdx.has(String(p._id))) {
-        // merge existing
         const idx = existingProductIdx.get(String(p._id));
         const target = template.products[idx];
 
-        // delete phase if imageIds keep-list provided
         if (Array.isArray(p.imageIds)) {
           const keepSet = new Set(p.imageIds);
-          const toDelete = (target.images || [])
-            .filter((img) => !keepSet.has(img.id))
-            .map((img) => img.id);
+          const toDelete = (target.images || []).filter(
+            (img) => !keepSet.has(img.url)
+          );
           if (toDelete.length) {
-            await deleteCloudinaryBatch(toDelete);
+            await deleteS3Batch(toDelete);
             target.images = (target.images || []).filter((img) =>
-              keepSet.has(img.id)
+              keepSet.has(img.url)
             );
           }
         }
 
-        // merge fields
         target.type = p.type ?? target.type;
         target.name = p.name ?? target.name;
         target.cost = p.cost ?? target.cost;
         target.description = p.description ?? target.description;
-        // append uploads
         target.images = [...(target.images || []), ...uploaded];
       } else {
-        // new product
         template.products.push({
           type: p.type,
           name: p.name,
@@ -603,8 +897,6 @@ export const editTemplate = async (req, res, next) => {
 
     for (let i = 0; i < (testimonials || []).length; i++) {
       const t = testimonials[i];
-
-      // per-index file
       const tFiles = filesByField[`testimonialImages_${i}`] || [];
       const uploaded = tFiles.length
         ? await uploadImages(
@@ -617,38 +909,28 @@ export const editTemplate = async (req, res, next) => {
         const idx = existingTestimonialIdx.get(String(t._id));
         const target = template.testimonials[idx];
 
-        // delete/keep single image by imageId presence
-        // if ("imageId" in t) {
-        //   const keepId = t.imageId || null; // could be null to remove
-        //   const currentId = target?.image?.id || null;
-        //   if (currentId && currentId !== keepId) {
-        //     await handleFileDelete(currentId).catch(() => null);
-        //     target.image = null;
-        //   }
-        // }
+        if ("imageId" in t) {
+          const keepUrl = t.imageId || null;
+          const currentUrl = target?.image?.url || null;
+          if (currentUrl && currentUrl !== keepUrl) {
+            await deleteFileFromS3ByUrl(currentUrl).catch(() => null);
+            target.image = null;
+          }
+        }
 
-        // merge fields
         target.name = t.name ?? target.name;
         target.jobPosition = t.jobPosition ?? target.jobPosition;
         target.testimony = t.testimony ?? target.testimony;
         target.rating = t.rating ?? target.rating;
 
-        // prefer newly uploaded file if provided
-        if (uploaded[0]) {
-          target.image = uploaded[0];
-        }
+        if (uploaded[0]) target.image = uploaded[0];
       } else {
-        // new testimonial
         template.testimonials.push({
           name: t.name,
           jobPosition: t.jobPosition,
           testimony: t.testimony,
           rating: t.rating,
-          image:
-            uploaded[0] ||
-            (t.imageId
-              ? { id: t.imageId, url: t.imageUrl || undefined }
-              : undefined),
+          image: uploaded[0] || null,
         });
       }
     }

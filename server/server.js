@@ -9,6 +9,7 @@ import verifyJwt from "./middlewares/verifyJwt.js";
 import websiteTemplateRoutes from "./routes/websiteTemplateRoutes.js";
 import serviceRoutes from "./routes/serviceRoutes.js";
 import leadsRoutes from "./routes/leadsRoutes.js";
+import listingRoutes from "./routes/listingRoutes.js";
 
 const app = express();
 dotenv.config();
@@ -25,6 +26,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/editor", verifyJwt, websiteTemplateRoutes);
 app.use("/api/services", verifyJwt, serviceRoutes);
 app.use("/api/leads", verifyJwt, leadsRoutes);
+app.use("/api/listings", verifyJwt, listingRoutes);
 
 mongoose.connection.once("open", () => {
   console.log("connected to mongoDB");
