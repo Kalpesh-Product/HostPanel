@@ -143,6 +143,7 @@ import NomadListing from "../pages/Dashboard/FrontendDashboard/NomadListing";
 import PocDetails from "../pages/Dashboard/FrontendDashboard/PocDetails";
 import NomadListingsOverview from "../pages/Dashboard/FrontendDashboard/NomadListingsOverview";
 import Services from "../pages/Services";
+import EditNomadListing from "../pages/Dashboard/FrontendDashboard/EditNomadListing";
 
 export const routes = createBrowserRouter([
   {
@@ -176,6 +177,10 @@ export const routes = createBrowserRouter([
                   {
                     path: "nomad-listings/add",
                     element: <NomadListing />,
+                  },
+                  {
+                    path: "nomad-listings/:listingId",
+                    element: <EditNomadListing />,
                   },
                   {
                     path: "website-builder",

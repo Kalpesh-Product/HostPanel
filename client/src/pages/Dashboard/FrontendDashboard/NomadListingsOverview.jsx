@@ -1,77 +1,149 @@
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import AgTable from "../../../components/AgTable";
 import PageFrame from "../../../components/Pages/PageFrame";
-import PrimaryButton from "../../../components/PrimaryButton";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import useAuth from "../../../hooks/useAuth";
+import { toast } from "sonner";
+import { queryClient } from "../../../main";
+import StatusChip from "../../../components/StatusChip";
+import ThreeDotMenu from "../../../components/ThreeDotMenu";
 
 export default function NomadListingsOverview() {
   const axios = useAxiosPrivate();
   const navigate = useNavigate();
-  const { companyId } = useParams();
-   const {auth} = useAuth()
-    const user = auth.user
+  const location = useLocation();
+  const { auth } = useAuth();
+  const user = auth?.user;
+
+  const companyId = user?.companyId || "";
+  const companyName = user?.companyName || "";
 
   // ✅ Fetch listings of a company
   const { data: listings = [], isPending } = useQuery({
     queryKey: ["nomad-listings", companyId],
+    enabled: !!companyId,
     queryFn: async () => {
-      // const res = await axios.get(`/api/company/${companyId}/nomad-listings`);
-       const res = await axios.get(`https://wononomadsbe.vercel.app/api/company/get-listings/${user.companyId}`);
-        
+      const res = await axios.get(
+        `https://wononomadsbe.vercel.app/api/company/get-listings/${companyId}`
+      );
       return res.data || [];
     },
   });
 
+  // ✅ Toggle status mutation
+  const { mutate: toggleStatus } = useMutation({
+    mutationFn: async (data) => {
+      const response = await axios.patch("/api/hosts/activate-product", data);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || "Status updated");
+      queryClient.invalidateQueries({ queryKey: ["nomad-listings"] });
+    },
+    onError: (error) => {
+      console.error("Toggle error", error);
+      toast.error("Failed to update status");
+    },
+  });
+
   // ✅ Table data
-  const tableData = !isPending ? listings?.map((item, index) => ({
-    srNo: index + 1,
-    businessId: item.businessId,
-    companyName: item.companyName,
-    city: item.city,
-    state: item.state,
-    country: item.country,
-    ratings: item.ratings,
-    totalReviews: item.totalReviews,
-  })) : [];
+  const tableData = !isPending
+    ? listings?.map((item, index) => ({
+        ...item,
+        srNo: index + 1,
+        businessId: item.businessId,
+        companyName: item.companyName,
+        companyType: item.companyType,
+        city: item.city,
+        state: item.state,
+        country: item.country,
+        ratings: item.ratings,
+        totalReviews: item.totalReviews,
+      }))
+    : [];
 
   // ✅ Table columns
   const columns = [
     { headerName: "SR NO", field: "srNo", width: 100 },
-    { headerName: "Business ID", field: "businessId", flex: 1 },
     { headerName: "Company Name", field: "companyName", flex: 1 },
-    { headerName: "City", field: "city", flex: 1 },
-    { headerName: "State", field: "state", flex: 1 },
-    { headerName: "Country", field: "country", flex: 1 },
-    { headerName: "Ratings", field: "ratings", flex: 1 },
-    { headerName: "Total Reviews", field: "totalReviews", flex: 1 },
+    { headerName: "Company Type", field: "companyType", flex: 1 },
+    {
+      headerName: "Status",
+      field: "isActive",
+      flex: 1,
+      cellRenderer: (params) => (
+        <StatusChip status={params.value ? "Active" : "Inactive"} />
+      ),
+    },
+    {
+      headerName: "Actions",
+      field: "actions",
+      flex: 1,
+      cellRenderer: (params) => (
+        <ThreeDotMenu
+          rowId={params.data.id}
+          menuItems={[
+            {
+              label: "Edit",
+              onClick: () => {
+                sessionStorage.setItem("companyId", companyId);
+                sessionStorage.setItem(
+                  "companyName",
+                  params?.data?.companyName || ""
+                );
+                sessionStorage.setItem(
+                  "businessId",
+                  params?.data?.businessId || ""
+                );
+
+                navigate(`/dashboard/nomad-listings/edit`, {
+                  state: {
+                    website: params.data,
+                    companyId,
+                    isLoading: isPending,
+                  },
+                });
+              },
+            },
+            params?.data?.isActive
+              ? {
+                  label: "Mark As Inactive",
+                  onClick: () =>
+                    toggleStatus({
+                      businessId: params?.data?.businessId,
+                      status: false,
+                    }),
+                }
+              : {
+                  label: "Mark As Active",
+                  onClick: () =>
+                    toggleStatus({
+                      businessId: params?.data?.businessId,
+                      status: true,
+                    }),
+                },
+          ]}
+        />
+      ),
+    },
   ];
 
   // ✅ Navigate to Add Listing form
   const handleAddClick = () => {
-    navigate(`/dashboard/nomad-listings/add`);
+    navigate(`/dashboard/nomad-listings/add`, { state: { companyId } });
   };
 
   return (
     <div className="p-4 flex flex-col gap-4">
       <PageFrame>
-        {/* ✅ PrimaryButton above table */}
-        {/* <div className="flex justify-end pb-4">
-          <PrimaryButton
-            type="button"
-            title="Add Listing"
-            handleSubmit={handleAddClick}
-          />
-        </div> */}
-
         <AgTable
           data={tableData}
           columns={columns}
           search
           tableTitle="Nomad Listings"
           loading={isPending}
-          buttonTitle="Add Listing"
+          buttonTitle="Add Product"
           handleClick={handleAddClick}
         />
       </PageFrame>
