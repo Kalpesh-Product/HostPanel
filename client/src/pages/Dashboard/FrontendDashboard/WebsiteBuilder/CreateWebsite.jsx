@@ -9,6 +9,9 @@ import { toast } from "sonner";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import UploadMultipleFilesInput from "../../../../components/UploadMultipleFilesInput";
 import UploadFileInput from "../../../../components/UploadFileInput";
+import { useEffect } from "react";
+import { useSelector } from "react-redux";
+import useAuth from "../../../../hooks/useAuth";
 
 const defaultProduct = {
   type: "",
@@ -27,16 +30,19 @@ const defaultTestimonial = {
 const CreateWebsite = () => {
   const axios = useAxiosPrivate();
   const formRef = useRef(null);
+  const { auth } = useAuth();
 
   const {
     control,
     handleSubmit,
     reset,
     watch,
+    getValues, // ✅ add this
     formState: { errors },
   } = useForm({
     defaultValues: {
       // hero/company
+      companyId: "", // ✅ change from businessId
       companyName: "",
       title: "",
       subTitle: "",
@@ -65,6 +71,18 @@ const CreateWebsite = () => {
       copyrightText: "",
     },
   });
+
+  const selectedCompany = useSelector((state) => state.company.selectedCompany);
+
+  useEffect(() => {
+    if (auth?.user) {
+      reset({
+        ...getValues(),
+        companyId: auth.user.companyId, // ✅ from token
+        companyName: auth.user.companyName, // ✅ also from token
+      });
+    }
+  }, [auth, reset, getValues]);
 
   const {
     fields: aboutFields,
@@ -128,6 +146,9 @@ const CreateWebsite = () => {
     (values.testimonials || []).forEach((t, i) => {
       if (t?.file) fd.append(`testimonialImages_${i}`, t.file);
     });
+
+    // ✅ Add companyId here
+    fd.set("companyId", values.companyId || auth?.user?.companyId || "");
 
     // const srcFromIframe = raw.match(/src=["']([^"']+)["']/i)?.[1];
     // const srcUrl = values.mapUrl.split(" ")[1].split(" ")[1];

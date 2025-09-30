@@ -1,7 +1,12 @@
 import sharp from "sharp";
 import WebsiteTemplate from "../../models/website/WebsiteTemplate.js";
 import mongoose from "mongoose";
-import { deleteFileFromS3ByUrl, uploadFileToS3 } from "../../config/s3config.js";
+import {
+  deleteFileFromS3ByUrl,
+  uploadFileToS3,
+} from "../../config/s3config.js";
+
+import HostCompany from "./../../models/Company.js";
 
 export const createTemplate = async (req, res, next) => {
   const session = await mongoose.startSession();
@@ -252,15 +257,30 @@ export const createTemplate = async (req, res, next) => {
 
     const savedTemplate = await template.save({ session });
 
-    const updateHostCompany = await HostCompany.findOneAndUpdate(
-      { companyName: req.body.companyName },
-      {
-        isWebsiteTemplate: true,
-      }
+    // ✅ DEBUG: log what frontend actually sent
+    console.log("DEBUG req.body.businessId:", req.body.businessId);
+    console.log("DEBUG full req.body:", req.body);
+
+    let updateHostCompany = await HostCompany.findOneAndUpdate(
+      { companyId: req.body.companyId },
+      { isWebsiteTemplate: true },
+      { new: true }
     );
 
     if (!updateHostCompany) {
-      return res.status(400).json({ message: "Failed to update company" });
+      // 👇 Insert if missing
+      updateHostCompany = await HostCompany.create({
+        companyId: req.body.companyId,
+        companyName: req.body.companyName,
+        websiteLink: "",
+        companyCity: req.body.companyCity || "Panaji", // fallback defaults
+        companyState: req.body.companyState || "Goa",
+        companyCountry: req.body.companyCountry || "India",
+        logo: req.body.logo || "",
+        selectedServices: { defaults: [] },
+        isWebsiteTemplate: true,
+        isRegistered: true,
+      });
     }
 
     try {
@@ -282,9 +302,9 @@ export const createTemplate = async (req, res, next) => {
       session.endSession();
     } catch (error) {
       if (error.response?.status !== 200) {
-        return res.status(201).json({
+        return res.status(207).json({
           message:
-            "Website created but failed to add link.Check if the company is listed in Nomads.",
+            "Website created but failed to add link. Check if the company is listed in Nomads.",
           template,
         });
       }
