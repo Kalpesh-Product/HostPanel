@@ -76,7 +76,14 @@ const hostCompanySchema = new mongoose.Schema(
         ],
       },
     },
+    logo: {
+      type: String,
+    },
     isRegistered: {
+      type: Boolean,
+      default: false,
+    },
+    isWebsiteTemplate: {
       type: Boolean,
       default: false,
     },

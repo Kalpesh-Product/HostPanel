@@ -52,6 +52,7 @@ export const login = async (req, res, next) => {
         ...user,
         companyName: company?.companyName,
         logo: company?.logo,
+        isWebsiteTemplate: company?.isWebsiteTemplate,
       },
       accessToken,
     });

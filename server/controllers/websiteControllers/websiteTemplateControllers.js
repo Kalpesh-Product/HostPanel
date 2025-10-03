@@ -1,7 +1,307 @@
 import sharp from "sharp";
 import WebsiteTemplate from "../../models/website/WebsiteTemplate.js";
 import mongoose from "mongoose";
-import { deleteFileFromS3ByUrl, uploadFileToS3 } from "../../config/s3config.js";
+import {
+  deleteFileFromS3ByUrl,
+  uploadFileToS3,
+} from "../../config/s3config.js";
+import HostCompany from "../../models/Company.js";
+import axios from "axios";
+
+// export const createTemplate = async (req, res, next) => {
+//   const session = await mongoose.startSession();
+//   session.startTransaction();
+
+//   try {
+//     const { company } = req.query;
+
+//     // `products` might arrive as a JSON string in multipart. Normalize it.
+
+//     let { products, testimonials, about } = req.body;
+//     // about = JSON.parse(about || "[]");
+//     // products = JSON.parse(products || "[]");
+//     // testimonials = JSON.parse(testimonials || "[]");
+
+//     const safeParse = (val, fallback) => {
+//       try {
+//         return typeof val === "string" ? JSON.parse(val) : val || fallback;
+//       } catch {
+//         return fallback;
+//       }
+//     };
+
+//     about = safeParse(about, []);
+//     products = safeParse(products, []);
+//     testimonials = safeParse(testimonials, []);
+
+//     for (const k of Object.keys(req.body)) {
+//       if (/^(products|testimonials)\.\d+\./.test(k)) delete req.body[k];
+//     }
+
+//     const formatCompanyName = (name) => {
+//       if (!name) return "";
+//       return name.toLowerCase().split("-")[0].replace(/\s+/g, "");
+//     };
+
+//     const searchKey = formatCompanyName(req.body.companyName);
+//     const baseFolder = `WoNo${company}/template/${searchKey}`;
+
+//     if (searchKey === "") {
+//       await session.abortTransaction();
+//       session.endSession();
+//       return res.status(400).json({ message: "Provide a valid company name" });
+//     }
+
+//     let template = await WebsiteTemplate.findOne({ searchKey }).session(
+//       session
+//     );
+
+//     if (template) {
+//       await session.abortTransaction();
+//       session.endSession();
+//       return res
+//         .status(400)
+//         .json({ message: "Template for this company already exists" });
+//     }
+
+//     template = new WebsiteTemplate({
+//       searchKey,
+//       companyId: req.body?.companyId,
+//       companyName: req.body.companyName,
+//       title: req.body.title,
+//       subTitle: req.body.subTitle,
+//       CTAButtonText: req.body.CTAButtonText,
+//       about: about,
+//       productTitle: req.body?.productTitle,
+//       galleryTitle: req.body?.galleryTitle,
+//       testimonialTitle: req.body.testimonialTitle,
+//       contactTitle: req.body.contactTitle,
+//       mapUrl: req.body.mapUrl,
+//       email: req.body.websiteEmail,
+//       phone: req.body.phone,
+//       address: req.body.address,
+//       registeredCompanyName: req.body.registeredCompanyName,
+//       copyrightText: req.body.copyrightText,
+//       products: [],
+//       testimonials: [],
+//     });
+
+//     // Helper: upload an array of multer files to a folder
+//     // const uploadImages = async (files = [], folder) => {
+//     //   const arr = [];
+//     //   for (const file of files) {
+//     //     const buffer = await sharp(file.buffer)
+//     //       .webp({ quality: 80 })
+//     //       .toBuffer();
+//     //     const base64Image = `data:image/webp;base64,${buffer.toString(
+//     //       "base64"
+//     //     )}`;
+//     //     const uploadResult = await handleFileUpload(base64Image, folder);
+//     //     arr.push({ id: uploadResult.public_id, url: uploadResult.secure_url });
+//     //   }
+//     //   return arr;
+//     // };
+
+//     const uploadImages = async (files = [], folder) => {
+//       const arr = [];
+//       for (const file of files) {
+//         const buffer = await sharp(file.buffer)
+//           .webp({ quality: 80 })
+//           .toBuffer();
+
+//         const route = `${folder}/${Date.now()}_${file.originalname.replace(
+//           /\s+/g,
+//           "_"
+//         )}`;
+//         const url = await uploadFileToS3(route, {
+//           buffer,
+//           mimetype: "image/webp",
+//         });
+//         arr.push({ url });
+//       }
+//       return arr;
+//     };
+
+//     if (req.body.companyLogo) {
+//       template.companyLogo = { url: req.body.companyLogo.url };
+//     }
+
+//     if (req.body.heroImages) {
+//       template.heroImages = req.body.heroImages.map((img) => ({
+//         url: img.url,
+//       }));
+//     }
+
+//     if (req.body.gallery) {
+//       template.gallery = req.body.gallery.map((img) => ({
+//         url: img.url,
+//       }));
+//     }
+
+//     // if (req.body.products) {
+//     //   // template.products = req.body.products.map((img) => ({
+//     //   //   url: img.url,
+//     //   // }));
+//     //   template.products = req.body.products;
+//     // }
+
+//     if (Array.isArray(products) && products.length) {
+//       template.products = products;
+//     }
+
+//     // if (req.body.testimonials) {
+//     //   template.testimonials = req.body.testimonials.map((img) => ({
+//     //     url: img.url,
+//     //   }));
+//     // }
+
+//     if (req.body.testimonials) {
+//       const parsedTestimonials = Array.isArray(req.body.testimonials)
+//         ? req.body.testimonials
+//         : safeParse(req.body.testimonials, []);
+
+//       template.testimonials = parsedTestimonials.map((t) =>
+//         t?.url ? { url: t.url } : {}
+//       );
+//     }
+
+//     // Multer.any puts files in req.files (array). Build a quick index by fieldname.
+//     const filesByField = {};
+//     for (const f of req.files || []) {
+//       if (!filesByField[f.fieldname]) filesByField[f.fieldname] = [];
+//       filesByField[f.fieldname].push(f);
+//     }
+
+//     // companyLogo
+//     // companyLogo (ensure it's a single file)
+//     if (filesByField.companyLogo && filesByField.companyLogo[0]) {
+//       const logoFile = filesByField.companyLogo[0];
+//       const buffer = await sharp(logoFile.buffer)
+//         .webp({ quality: 80 })
+//         .toBuffer();
+//       const route = `${baseFolder}/companyLogo/${Date.now()}_${
+//         logoFile.originalname
+//       }`;
+//       const url = await uploadFileToS3(route, {
+//         buffer,
+//         mimetype: "image/webp",
+//       });
+//       template.companyLogo = { url };
+//     }
+
+//     // heroImages
+//     if (filesByField.heroImages?.length) {
+//       template.heroImages = await uploadImages(
+//         filesByField.heroImages,
+//         `${baseFolder}/heroImages`
+//       );
+//     }
+
+//     // gallery
+//     if (filesByField.gallery?.length) {
+//       template.gallery = await uploadImages(
+//         filesByField.gallery,
+//         `${baseFolder}/gallery`
+//       );
+//     }
+
+//     if (Array.isArray(products) && products.length) {
+//       for (let i = 0; i < products.length; i++) {
+//         const p = products[i] || {};
+//         const pFiles = filesByField[`productImages_${i}`] || [];
+//         const uploaded = await uploadImages(
+//           pFiles,
+//           `${baseFolder}/productImages/${i}`
+//         );
+
+//         template.products.push({
+//           type: p.type,
+//           name: p.name,
+//           cost: p.cost,
+//           description: p.description,
+//           images: uploaded,
+//         });
+//       }
+//     }
+
+//     // TESTIMONIALS: objects + flat testimonialImages array (zip by index)
+//     let tUploads = [];
+//     if (filesByField.testimonialImages?.length) {
+//       // Preferred new path: single field 'testimonialImages' with N files in order
+//       tUploads = await uploadImages(
+//         filesByField.testimonialImages,
+//         `${baseFolder}/testimonialImages`
+//       );
+//     } else {
+//       // Back-compat: testimonialImages_${i}
+//       for (let i = 0; i < testimonials.length; i++) {
+//         const tFiles = filesByField[`testimonialImages_${i}`] || [];
+//         const uploaded = await uploadImages(
+//           tFiles,
+//           `${baseFolder}/testimonialImages/${i}`
+//         );
+//         tUploads[i] = uploaded[0]; // one file per testimonial
+//       }
+//     }
+
+//     // template.testimonials = (testimonials || []).map((t, i) => ({
+//     template.testimonials = (
+//       Array.isArray(testimonials) ? testimonials : []
+//     ).map((t, i) => ({
+//       image: tUploads[i], // may be undefined if fewer images provided
+//       name: t.name,
+//       jobPosition: t.jobPosition,
+//       testimony: t.testimony,
+//       rating: t.rating,
+//     }));
+
+//     const savedTemplate = await template.save({ session });
+
+//     const updateHostCompany = await HostCompany.findOneAndUpdate(
+//       { companyName: req.body.companyName },
+//       {
+//         isWebsiteTemplate: true,
+//       }
+//     );
+
+//     if (!updateHostCompany) {
+//       return res.status(400).json({ message: "Failed to update company" });
+//     }
+
+//     try {
+//       const updatedCompany = await axios.patch(
+//         "https://wononomadsbe.vercel.app/api/company/update-company",
+//         {
+//           companyName: req.body.companyName,
+//           link: `https://${savedTemplate.searchKey}.wono.co/`,
+//         }
+//       );
+
+//       if (!updatedCompany) {
+//         return res
+//           .status(400)
+//           .json({ message: "Failed to add website template link" });
+//       }
+
+//       await session.commitTransaction();
+//       session.endSession();
+//     } catch (error) {
+//       if (error.response?.status !== 200) {
+//         return res.status(201).json({
+//           message:
+//             "Website created but failed to add link.Check if the company is listed in Nomads.",
+//           template,
+//         });
+//       }
+//     }
+
+//     return res.status(201).json({ message: "Template created", template });
+//   } catch (error) {
+//     await session.abortTransaction();
+//     session.endSession();
+//     next(error);
+//   }
+// };
 
 export const createTemplate = async (req, res, next) => {
   const session = await mongoose.startSession();
@@ -252,20 +552,24 @@ export const createTemplate = async (req, res, next) => {
 
     const savedTemplate = await template.save({ session });
 
+    if (!savedTemplate) {
+      return res.status(400).json({ message: "Failed to create template" });
+    }
+
     const updateHostCompany = await HostCompany.findOneAndUpdate(
-      { companyName: req.body.companyName },
+      { companyName: req.body.companyName }, //can't use company Id as the nomads signup can't send any company Id
       {
         isWebsiteTemplate: true,
       }
     );
 
     if (!updateHostCompany) {
-      return res.status(400).json({ message: "Failed to update company" });
+      return res.status(400).json({ message: "Company not found" });
     }
 
     try {
       const updatedCompany = await axios.patch(
-        "https://wononomadsbe.vercel.app/api/company/update-company",
+        "https://wononomadsbe.vercel.app/api/company/add-template-link",
         {
           companyName: req.body.companyName,
           link: `https://${savedTemplate.searchKey}.wono.co/`,
@@ -277,15 +581,14 @@ export const createTemplate = async (req, res, next) => {
           .status(400)
           .json({ message: "Failed to add website template link" });
       }
-
       await session.commitTransaction();
       session.endSession();
     } catch (error) {
       if (error.response?.status !== 200) {
         return res.status(201).json({
           message:
-            "Website created but failed to add link.Check if the company is listed in Nomads.",
-          template,
+            "Failed to add link.Check if the company is listed in Nomads.",
+          error: error.message,
         });
       }
     }
