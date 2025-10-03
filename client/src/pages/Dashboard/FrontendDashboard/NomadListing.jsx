@@ -1,13 +1,12 @@
-import React, { useRef } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useRef } from "react";
+import { useForm, Controller, useFieldArray } from "react-hook-form";
 import {
   TextField,
   MenuItem,
-  CircularProgress,
-  Select,
-  InputLabel,
   FormControl,
+  InputLabel,
   OutlinedInput,
+  Select,
   Checkbox,
   ListItemText,
 } from "@mui/material";
@@ -17,9 +16,8 @@ import SecondaryButton from "../../../components/SecondaryButton";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
-import UploadFileInput from "../../../components/UploadFileInput";
 import UploadMultipleFilesInput from "../../../components/UploadMultipleFilesInput";
-import { Country, State, City } from "country-state-city";
+import useAuth from "../../../hooks/useAuth";
 
 // Dummy inclusions
 const inclusionOptions = [
@@ -38,45 +36,57 @@ const inclusionOptions = [
 // Dummy company types
 const companyTypes = ["Coworking", "Meeting Room", "Cafe", "Private Stay"];
 
+// ✅ Default review structure
+const defaultReview = {
+  name: "",
+  review: "",
+  rating: 5,
+};
+
 const NomadListing = () => {
   const axios = useAxiosPrivate();
   const formRef = useRef(null);
+
+  const { auth } = useAuth(); // <-- get auth info
+  const companyId = auth?.user?.companyId || ""; // <-- safe fallback
 
   const {
     control,
     handleSubmit,
     reset,
-    watch,
+    getValues,
     formState: { errors },
   } = useForm({
     defaultValues: {
-      businessId: `BIZ_${Date.now()}`, // auto generated
-      companyName: "",
-      registeredEntityName: "",
-      website: "",
-      address: "",
-      country: "",
-      state: "",
-      city: "",
-      about: "",
-      latitude: "",
-      longitude: "",
+      // businessId: `BIZ_${Date.now()}`,
+      companyId: companyId, // set default so RHF knows
+      companyType: "",
       ratings: "",
       totalReviews: "",
+      productName: "",
+      cost: "",
+      description: "",
+      latitude: "",
+      longitude: "",
       inclusions: [],
-      services: "",
-      companyType: "",
-      logo: null,
+      about: "",
+      address: "",
       images: [],
+      reviews: [defaultReview], // ✅ initialize with one review
+      mapUrl: "",
     },
   });
 
-  const selectedCountry = watch("country");
-  const selectedState = watch("state");
+  // ✅ Field Array for reviews
+  const {
+    fields: reviewFields,
+    append: appendReview,
+    remove: removeReview,
+  } = useFieldArray({ control, name: "reviews" });
 
   const { mutate: createCompany, isLoading } = useMutation({
     mutationFn: async (fd) => {
-      const res = await axios.post("/api/companies/create", fd, {
+      const res = await axios.post("/api/listings/add-company-listing", fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       return res.data;
@@ -90,14 +100,37 @@ const NomadListing = () => {
     },
   });
 
-  const onSubmit = (values, e) => {
-    const formEl = e?.target || formRef.current;
+  const onSubmit = (values) => {
+    const formEl = formRef.current;
     const fd = new FormData(formEl);
 
-    fd.set("businessId", values.businessId);
-    fd.set("inclusions", JSON.stringify(values.inclusions));
+    fd.set("companyId", companyId); // <-- always send from token
+    // fd.set("businessId", values.businessId);
+    fd.set("companyType", values.companyType);
+    fd.set("ratings", values.ratings);
+    fd.set("totalReviews", values.totalReviews);
+    fd.set("productName", values.productName);
+    fd.set("cost", values.cost);
+    fd.set("description", values.description);
+    fd.set("latitude", values.latitude);
+    fd.set("longitude", values.longitude);
+    fd.set("about", values.about);
+    fd.set("address", values.address);
+    fd.set("mapUrl", values.mapUrl);
 
-    if (values.logo) fd.append("logo", values.logo);
+    // ✅ inclusions as comma-separated string
+    const inclusionsArr = Array.isArray(values.inclusions)
+      ? values.inclusions
+      : [];
+    fd.set("inclusions", inclusionsArr.join(", "));
+
+    // ✅ reviews JSON
+    fd.set("reviews", JSON.stringify(values.reviews || []));
+    for (const key of Array.from(fd.keys())) {
+      if (/^reviews\.\d+\./.test(key)) fd.delete(key);
+    }
+
+    fd.delete("images");
     if (values.images?.length) {
       values.images.forEach((file) => fd.append("images", file));
     }
@@ -114,163 +147,27 @@ const NomadListing = () => {
   return (
     <div className="p-4">
       <PageFrame>
-        <div className="flex items-center justify-between pb-4">
-          <span className="text-title font-pmedium text-primary uppercase">
-            Nomad Listing
-          </span>
-        </div>
-
         <form
           ref={formRef}
           encType="multipart/form-data"
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={handleSubmit(onSubmit, () => onSubmit(getValues()))}
           className="grid grid-cols-2 gap-4">
-          {/* Company Name */}
+          {/* Product Name */}
           <Controller
-            name="companyName"
-            control={control}
-            rules={{ required: "Company Name is required" }}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                size="small"
-                label="Company Name"
-                helperText={errors?.companyName?.message}
-                error={!!errors.companyName}
-              />
-            )}
-          />
-
-          {/* Registered Entity */}
-          <Controller
-            name="registeredEntityName"
+            name="productName"
             control={control}
             render={({ field }) => (
-              <TextField
-                {...field}
-                size="small"
-                label="Registered Entity Name"
-              />
+              <TextField {...field} size="small" label="Product Name" />
             )}
           />
-
-          {/* Website */}
+          {/* Cost */}
           <Controller
-            name="website"
+            name="cost"
             control={control}
             render={({ field }) => (
-              <TextField {...field} size="small" label="Website" />
+              <TextField {...field} size="small" label="Cost" type="number" />
             )}
           />
-
-          {/* Ratings */}
-          <Controller
-            name="ratings"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                size="small"
-                label="Ratings"
-                type="number"
-              />
-            )}
-          />
-
-          {/* Total Reviews */}
-          <Controller
-            name="totalReviews"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                size="small"
-                label="Total Reviews"
-                type="number"
-              />
-            )}
-          />
-
-          {/* Country */}
-          <Controller
-            name="country"
-            control={control}
-            rules={{ required: "Country is required" }}
-            render={({ field }) => (
-              <TextField {...field} select size="small" label="Country">
-                {Country.getAllCountries().map((c) => (
-                  <MenuItem key={c.isoCode} value={c.name}>
-                    {c.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
-          />
-
-          {/* State */}
-          <Controller
-            name="state"
-            control={control}
-            render={({ field }) => (
-              <TextField {...field} select size="small" label="State">
-                {selectedCountry &&
-                  State.getStatesOfCountry(
-                    Country.getAllCountries().find(
-                      (c) => c.name === selectedCountry
-                    )?.isoCode
-                  ).map((s) => (
-                    <MenuItem key={s.isoCode} value={s.name}>
-                      {s.name}
-                    </MenuItem>
-                  ))}
-              </TextField>
-            )}
-          />
-
-          {/* City */}
-          <Controller
-            name="city"
-            control={control}
-            render={({ field }) => (
-              <TextField {...field} select size="small" label="City">
-                {selectedCountry &&
-                  selectedState &&
-                  City.getCitiesOfState(
-                    Country.getAllCountries().find(
-                      (c) => c.name === selectedCountry
-                    )?.isoCode,
-                    State.getStatesOfCountry(
-                      Country.getAllCountries().find(
-                        (c) => c.name === selectedCountry
-                      )?.isoCode
-                    ).find((s) => s.name === selectedState)?.isoCode
-                  ).map((city) => (
-                    <MenuItem key={city.name} value={city.name}>
-                      {city.name}
-                    </MenuItem>
-                  ))}
-              </TextField>
-            )}
-          />
-
-          {/* Latitude */}
-          <Controller
-            name="latitude"
-            control={control}
-            render={({ field }) => (
-              <TextField {...field} size="small" label="Latitude" />
-            )}
-          />
-
-          {/* Longitude */}
-          <Controller
-            name="longitude"
-            control={control}
-            render={({ field }) => (
-              <TextField {...field} size="small" label="Longitude" />
-            )}
-          />
-
           {/* Company Type */}
           <Controller
             name="companyType"
@@ -286,8 +183,7 @@ const NomadListing = () => {
               </TextField>
             )}
           />
-
-          {/* Inclusions - Multi select */}
+          {/* Inclusions */}
           <Controller
             name="inclusions"
             control={control}
@@ -309,33 +205,16 @@ const NomadListing = () => {
               </FormControl>
             )}
           />
-
-          {/* Services */}
-          <Controller
-            name="services"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                size="small"
-                label="Services"
-                multiline
-                minRows={2}
-                fullWidth
-              />
-            )}
-          />
-
-          {/* About */}
+          {/* Description */}
           <div className="col-span-2">
             <Controller
-              name="about"
+              name="description"
               control={control}
               render={({ field }) => (
                 <TextField
                   {...field}
                   size="small"
-                  label="About"
+                  label="Description"
                   multiline
                   minRows={3}
                   fullWidth
@@ -343,56 +222,200 @@ const NomadListing = () => {
               )}
             />
           </div>
-
-          {/* Address */}
-          <div className="col-span-2">
-            <Controller
-              name="address"
-              control={control}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  size="small"
-                  label="Address"
-                  multiline
-                  minRows={2}
-                  fullWidth
-                />
-              )}
-            />
-          </div>
-
-          {/* Logo Upload */}
+          {/* Ratings */}
           <Controller
-            name="logo"
+            name="ratings"
             control={control}
             render={({ field }) => (
-              <UploadFileInput
-                id="logo"
-                value={field.value}
-                label="Company Logo"
-                onChange={field.onChange}
+              <TextField
+                {...field}
+                size="small"
+                label="Ratings"
+                type="number"
               />
             )}
           />
-
-          {/* Images Upload */}
+          {/* Total Reviews */}
+          <Controller
+            name="totalReviews"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                size="small"
+                label="Total Reviews"
+                type="number"
+              />
+            )}
+          />
+          {/* Latitude */}
+          <Controller
+            name="latitude"
+            control={control}
+            render={({ field }) => (
+              <TextField {...field} size="small" label="Latitude" />
+            )}
+          />
+          {/* Longitude */}
+          <Controller
+            name="longitude"
+            control={control}
+            render={({ field }) => (
+              <TextField {...field} size="small" label="Longitude" />
+            )}
+          />
+          {/* About */}
+          <Controller
+            name="about"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                size="small"
+                label="About"
+                multiline
+                minRows={3}
+                fullWidth
+              />
+            )}
+          />
+          {/* Address */}
+          <Controller
+            name="address"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                size="small"
+                label="Address"
+                multiline
+                minRows={3}
+                fullWidth
+              />
+            )}
+          />
+          {/* Images */}
+          <Controller
+            name="images"
+            control={control}
+            render={({ field }) => (
+              <UploadMultipleFilesInput
+                {...field}
+                label="Product Images"
+                maxFiles={5}
+                allowedExtensions={["jpg", "jpeg", "png", "webp"]}
+                id="images"
+              />
+            )}
+          />
+          {/* Map URL */}
+          <Controller
+            name="mapUrl"
+            control={control}
+            rules={{
+              required: "Map URL is required",
+              validate: (val) => {
+                const MAP_EMBED_REGEX =
+                  /^https?:\/\/(www\.)?(google\.com|maps\.google\.com)\/maps\/embed(\/v1\/[a-z]+|\?pb=|\/?\?)/i;
+                const v = (val || "").trim();
+                return (
+                  MAP_EMBED_REGEX.test(v) ||
+                  "Enter a valid Google Maps embed URL"
+                );
+              },
+            }}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                size="small"
+                label="Embed Map URL"
+                fullWidth
+                helperText={errors?.mapUrl?.message}
+                error={!!errors.mapUrl}
+              />
+            )}
+          />
+          {/* Reviews */}
           <div className="col-span-2">
-            <Controller
-              name="images"
-              control={control}
-              render={({ field }) => (
-                <UploadMultipleFilesInput
-                  {...field}
-                  label="Company Images"
-                  maxFiles={5}
-                  allowedExtensions={["jpg", "jpeg", "png", "webp"]}
-                  id="images"
+            <div className="py-4 border-b border-gray-300">
+              <span className="text-lg font-medium text-primary">Reviews</span>
+            </div>
+            {reviewFields.map((field, index) => (
+              <div
+                key={field.id}
+                className="rounded-lg border border-gray-300 p-4 my-3">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-semibold">Review {index + 1}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeReview(index)}
+                    className="text-sm text-red-500">
+                    Remove
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Name */}
+                  <Controller
+                    name={`reviews.${index}.name`}
+                    control={control}
+                    rules={{ required: "Name is required" }}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        size="small"
+                        label="Reviewer Name"
+                        fullWidth
+                        helperText={errors?.reviews?.[index]?.name?.message}
+                        error={!!errors?.reviews?.[index]?.name}
+                      />
+                    )}
+                  />
+                  {/* Rating */}
+                  <Controller
+                    name={`reviews.${index}.rating`}
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        type="number"
+                        size="small"
+                        label="Rating (1-5)"
+                        fullWidth
+                        inputProps={{ min: 1, max: 5 }}
+                      />
+                    )}
+                  />
+                </div>
+                {/* Review text */}
+                <Controller
+                  name={`reviews.${index}.review`}
+                  control={control}
+                  rules={{ required: "Review is required" }}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      size="small"
+                      label="Review"
+                      fullWidth
+                      multiline
+                      minRows={3}
+                      helperText={errors?.reviews?.[index]?.review?.message}
+                      error={!!errors?.reviews?.[index]?.review}
+                      sx={{ mt: 2 }}
+                    />
+                  )}
                 />
-              )}
-            />
+              </div>
+            ))}
+            <div>
+              <button
+                type="button"
+                onClick={() => appendReview({ ...defaultReview })}
+                className="text-sm text-primary">
+                + Add Review
+              </button>
+            </div>
           </div>
-
           {/* Submit / Reset */}
           <div className="col-span-2 flex items-center justify-center gap-4">
             <PrimaryButton type="submit" title="Submit" isLoading={isLoading} />

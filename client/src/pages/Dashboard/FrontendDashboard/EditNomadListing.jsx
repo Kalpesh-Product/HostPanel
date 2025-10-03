@@ -145,9 +145,13 @@ const EditNomadListing = () => {
 
   const { mutate: saveListing, isLoading } = useMutation({
     mutationFn: async (fd) => {
-      const res = await axiosPriv.post("/api/companies/create", fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const res = await axiosPriv.patch(
+        "/api/listings/edit-company-listing",
+        fd,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
       return res.data;
     },
     onSuccess: () => {
@@ -163,9 +167,33 @@ const EditNomadListing = () => {
     const formEl = e?.target || formRef.current;
     const fd = new FormData(formEl);
 
+    // required IDs
+    fd.set("companyId", companyId);
     fd.set("businessId", values.businessId);
-    fd.set("inclusions", JSON.stringify(values.inclusions));
-    fd.set("reviews", JSON.stringify(values.reviews));
+
+    // normalize inclusions
+    const inclusionsArr = Array.isArray(values.inclusions)
+      ? values.inclusions
+      : typeof values.inclusions === "string"
+      ? values.inclusions
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
+    fd.set("inclusions", inclusionsArr.join(", "));
+
+    // normalize reviews
+    const mappedReviews = (values.reviews || []).map((r) => ({
+      name: r.name,
+      review: r.review,
+      starCount: Number(r.rating ?? 0),
+    }));
+    fd.set("reviews", JSON.stringify(mappedReviews));
+
+    // cleanup noise from RHF fieldArray
+    for (const key of Array.from(fd.keys())) {
+      if (/^reviews\.\d+\./.test(key)) fd.delete(key);
+    }
 
     if (values.images?.length) {
       values.images.forEach((file) => fd.append("images", file));
