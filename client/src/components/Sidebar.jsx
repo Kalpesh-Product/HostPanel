@@ -119,6 +119,13 @@ const Sidebar = ({ drawerOpen, onCloseDrawer }) => {
           icon: <FaLaptopCode />,
           route: "/dashboard",
         },
+        {
+          id: 3,
+          title: "Website Leads",
+          codeName: "Web",
+          icon: <SiAuthelia />,
+          route: "/dashboard/website-builder/leads",
+        },
       ],
     },
   ];
