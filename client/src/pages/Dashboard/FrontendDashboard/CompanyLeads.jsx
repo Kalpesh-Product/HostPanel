@@ -168,7 +168,7 @@ const CompanyLeads = () => {
         {/* <YearWiseTable data={data} tableTitle={"Leads"} columns={columns} /> */}
         <YearWiseTable
           data={Array.isArray(data) ? data : []} // 👈 ensure array
-          tableTitle={"Something"}
+          tableTitle={"Leads"}
           columns={columns}
         />
 
