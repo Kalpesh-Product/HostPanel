@@ -137,7 +137,7 @@ const LoginPage = () => {
       });
       console.log(response.data.user);
       toast.success("Successfully logged in");
-      navigate("/dashboard")
+      navigate("/dashboard");
     } catch (error) {
       toast.error(error.response?.data.message);
     } finally {
@@ -331,7 +331,8 @@ const LoginPage = () => {
 
                 <div className="mt-2 col-span-2 text-end">
                   <Link
-                    to="https://wono.co/forgot-password"
+                    // to="https://wono.co/forgot-password"
+                    to="/forgot-password"
                     className="hover:underline text-black"
                   >
                     Forgot Password?
