@@ -144,11 +144,21 @@ import PocDetails from "../pages/Dashboard/FrontendDashboard/PocDetails";
 import NomadListingsOverview from "../pages/Dashboard/FrontendDashboard/NomadListingsOverview";
 import Services from "../pages/Services";
 import EditNomadListing from "../pages/Dashboard/FrontendDashboard/EditNomadListing";
+import ForgotPassword from "../pages/LoginPage/ForgotPassword";
+import ResetPassword from "../pages/LoginPage/ResetPassword";
 
 export const routes = createBrowserRouter([
   {
     path: "/",
     element: <LoginPage />,
+  },
+  {
+    path: "/forgot-password",
+    element: <ForgotPassword />,
+  },
+  {
+    path: "/reset-password",
+    element: <ResetPassword />,
   },
 
   {
