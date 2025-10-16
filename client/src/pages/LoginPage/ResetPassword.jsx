@@ -331,7 +331,7 @@ const ResetPassword = () => {
                   </Grid>
                   <Grid item xs={12}>
                     <TextField
-                      label="ConfirmPassword"
+                      label="Confirm Password"
                       variant="standard"
                       type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
