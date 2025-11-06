@@ -151,7 +151,8 @@ const NomadListing = () => {
           ref={formRef}
           encType="multipart/form-data"
           onSubmit={handleSubmit(onSubmit, () => onSubmit(getValues()))}
-          className="grid grid-cols-2 gap-4">
+          className="grid grid-cols-2 gap-4"
+        >
           {/* Product Name */}
           <Controller
             name="productName"
@@ -190,14 +191,41 @@ const NomadListing = () => {
             render={({ field }) => (
               <FormControl size="small">
                 <InputLabel>Inclusions</InputLabel>
-                <Select
+                {/* <Select
                   {...field}
                   multiple
                   input={<OutlinedInput label="Inclusions" />}
-                  renderValue={(selected) => selected.join(", ")}>
+                  renderValue={(selected) => Array.isArray(selected) ? selected.join(", ") : selected}>
                   {inclusionOptions.map((option) => (
                     <MenuItem key={option} value={option}>
                       <Checkbox checked={field.value.indexOf(option) > -1} />
+                      <ListItemText primary={option} />
+                    </MenuItem>
+                  ))}
+                </Select> */}
+                <Select
+                  {...field}
+                  multiple
+                  value={
+                    Array.isArray(field.value)
+                      ? field.value
+                      : field.value
+                      ? [field.value]
+                      : []
+                  }
+                  input={<OutlinedInput label="Inclusions" />}
+                  renderValue={(selected) =>
+                    Array.isArray(selected) ? selected.join(", ") : ""
+                  }
+                >
+                  {inclusionOptions.map((option) => (
+                    <MenuItem key={option} value={option}>
+                      <Checkbox
+                        checked={
+                          Array.isArray(field.value) &&
+                          field.value.includes(option)
+                        }
+                      />
                       <ListItemText primary={option} />
                     </MenuItem>
                   ))}
@@ -302,7 +330,7 @@ const NomadListing = () => {
               <UploadMultipleFilesInput
                 {...field}
                 label="Product Images"
-                maxFiles={5}
+                maxFiles={12}
                 allowedExtensions={["jpg", "jpeg", "png", "webp"]}
                 id="images"
               />
@@ -343,13 +371,15 @@ const NomadListing = () => {
             {reviewFields.map((field, index) => (
               <div
                 key={field.id}
-                className="rounded-lg border border-gray-300 p-4 my-3">
+                className="rounded-lg border border-gray-300 p-4 my-3"
+              >
                 <div className="flex items-center justify-between mb-3">
                   <span className="font-semibold">Review {index + 1}</span>
                   <button
                     type="button"
                     onClick={() => removeReview(index)}
-                    className="text-sm text-red-500">
+                    className="text-sm text-red-500"
+                  >
                     Remove
                   </button>
                 </div>
@@ -411,7 +441,8 @@ const NomadListing = () => {
               <button
                 type="button"
                 onClick={() => appendReview({ ...defaultReview })}
-                className="text-sm text-primary">
+                className="text-sm text-primary"
+              >
                 + Add Review
               </button>
             </div>

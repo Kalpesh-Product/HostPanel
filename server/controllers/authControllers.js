@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import Employee from "../models/User.js";
+import HostUser from "../models/HostUser.js";
 import bcrypt from "bcryptjs";
 import Company from "../models/Company.js";
 
@@ -13,7 +13,8 @@ export const login = async (req, res, next) => {
     if (!emailRegex.test(email))
       return res.status(400).json({ message: "invalid data" });
 
-    const user = await Employee.findOne({ email }).lean().exec();
+    const user = await HostUser.findOne({ email }).lean().exec();
+
     const company = await Company.findOne({ companyId: user?.companyId })
       .lean()
       .exec();
@@ -38,7 +39,7 @@ export const login = async (req, res, next) => {
       { expiresIn: "15d" }
     );
 
-    await Employee.findOneAndUpdate({ email }, { refreshToken }).lean().exec();
+    await HostUser.findOneAndUpdate({ email }, { refreshToken }).lean().exec();
 
     res.cookie("clientCookie", refreshToken, {
       httpOnly: true,
@@ -69,7 +70,7 @@ export const logout = async (req, res, next) => {
     }
 
     const refreshToken = cookies?.clientCookie;
-    const user = await Employee.findOne({ refreshToken }).lean().exec();
+    const user = await HostUser.findOne({ refreshToken }).lean().exec();
     if (!user) {
       res.clearCookie("clientCookie", {
         httpOnly: true,
@@ -79,7 +80,7 @@ export const logout = async (req, res, next) => {
       return res.sendStatus(201);
     }
 
-    await Employee.findOneAndUpdate({ refreshToken }, { refreshToken: "" })
+    await HostUser.findOneAndUpdate({ refreshToken }, { refreshToken: "" })
       .lean()
       .exec();
     res.clearCookie("clientCookie", {

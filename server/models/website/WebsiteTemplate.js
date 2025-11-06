@@ -20,12 +20,10 @@ const templateSchema = new mongoose.Schema(
     title: { type: String, required: true },
     subTitle: { type: String, required: true },
     CTAButtonText: { type: String },
-    heroImages: [
-      {
-        id: { type: String },
-        url: { type: String },
-      },
-    ],
+    heroImages: {
+      type: [{ id: String, url: String }],
+      validate: [(v) => v.length <= 5, "Max 5 hero images allowed"],
+    },
     //about
     about: [{ type: String, required: true }],
     //products
@@ -36,21 +34,17 @@ const templateSchema = new mongoose.Schema(
         name: { type: String, required: true },
         cost: { type: String },
         description: { type: String, required: true },
-        images: [
-          {
-            id: { type: String },
-            url: { type: String },
-          },
-        ],
+        images: {
+          type: [{ id: String, url: String }],
+          validate: [(v) => v.length <= 10, "Max 10 product images allowed"],
+        },
       },
     ],
     galleryTitle: { type: String },
-    gallery: [
-      {
-        id: { type: String },
-        url: { type: String },
-      },
-    ],
+    gallery: {
+      type: [{ id: String, url: String }],
+      validate: [(v) => v.length <= 40, "Max 40 gallery images allowed"],
+    },
     //   //testimonials
     testimonialTitle: { type: String },
     testimonials: [

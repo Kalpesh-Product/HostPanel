@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const employeeSchema = new mongoose.Schema(
+const hostUserSchema = new mongoose.Schema(
   {
     company: {
       type: mongoose.Schema.Types.ObjectId,
@@ -53,5 +53,5 @@ const employeeSchema = new mongoose.Schema(
   }
 );
 
-const Employee = mongoose.model("Employee", employeeSchema);
-export default Employee;
+const HostUser = mongoose.model("HostUser", hostUserSchema);
+export default HostUser;
