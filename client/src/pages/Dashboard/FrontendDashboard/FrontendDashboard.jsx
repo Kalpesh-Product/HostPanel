@@ -37,7 +37,7 @@ const FrontendDashboard = () => {
 
   const navigate = useNavigate();
   const axios = useAxiosPrivate();
-  const isWebsiteTemplate = auth.user.isWebsiteTemplate
+  const isWebsiteTemplate = auth.user.isWebsiteTemplate;
 
   useEffect(() => {
     setIsSidebarOpen(true);
@@ -569,7 +569,7 @@ const FrontendDashboard = () => {
     //     <Card icon={config.icon} title={config.title} route={config.route} />
     //   )),
     // },
-     {
+    {
       layout: 2,
       widgets: allowedCards
         .filter((config) => {
@@ -612,7 +612,8 @@ const FrontendDashboard = () => {
               <Skeleton variant="text" width={200} height={30} />
               <Skeleton variant="rectangular" width="100%" height={300} />
             </Box>
-          }>
+          }
+        >
           {allowedExpenseGraph.map((config) => (
             <YearlyGraph
               data={config.data}

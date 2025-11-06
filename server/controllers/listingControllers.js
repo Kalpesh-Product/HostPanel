@@ -1,6 +1,6 @@
 import axios from "axios";
 import HostCompany from "../models/Company.js";
-import { uploadFileToS3 } from "../config/s3config.js";
+import { deleteFileFromS3ByUrl, uploadFileToS3 } from "../config/s3config.js";
 
 export const createCompanyListing = async (req, res) => {
   try {
@@ -33,7 +33,7 @@ export const createCompanyListing = async (req, res) => {
     }
 
     const listingData = {
-      companyName: company.companyName,
+      companyName: productName,
       companyId: company.companyId,
       logo: company.logo,
       city: company.companyCity,
@@ -43,7 +43,7 @@ export const createCompanyListing = async (req, res) => {
       companyType: companyType,
       ratings: ratings,
       totalReviews: totalReviews,
-      productName: productName,
+      // productName: productName,
       cost: cost,
       description: description,
       latitude: latitude,
@@ -82,6 +82,10 @@ export const createCompanyListing = async (req, res) => {
     if (req.files?.length > 0) {
       const imageFiles = req.files.filter((f) => f.fieldname === "images");
 
+      if (imageFiles.length > 10) {
+        return res.status(400).json({ message: "Maximum 10 images allowed" });
+      }
+
       if (imageFiles.length > 0) {
         const startIndex = listingData.images.length;
 
@@ -95,8 +99,9 @@ export const createCompanyListing = async (req, res) => {
             const uniqueKey = `${folderPath}/images/${sanitizeFileName(
               file.originalname
             )}`;
-            return uploadFileToS3(uniqueKey, file).then((url) => ({
-              url,
+            return uploadFileToS3(uniqueKey, file).then((data) => ({
+              url: data.url,
+              id: data.id,
               index: startIndex + i + 1,
             }));
           })
@@ -109,13 +114,23 @@ export const createCompanyListing = async (req, res) => {
       }
     }
 
-    const response = await axios.post(
-      "https://wononomadsbe.vercel.app/api/company/create-company",
-      listingData
-    );
+    try {
+      const response = await axios.post(
+        "https://wononomadsbe.vercel.app/api/company/create-company",
+        listingData
+      );
 
-    if (!response.data) {
-      return res.status(400).json({ message: "Failed to add listing" });
+      // const response = await axios.post(
+      //   "http://localhost:3001/api/company/create-company",
+      //   listingData
+      // );
+
+      if (response.status !== 201) {
+        return res.status(400).json({ message: "Failed to add listing" });
+      }
+    } catch (err) {
+      console.error("Upstream API failed:", err.response?.data || err.message);
+      throw err;
     }
 
     return res
@@ -145,21 +160,16 @@ export const editCompanyListing = async (req, res) => {
       existingImages = [],
     } = req.body;
 
-    if (!businessId) {
-      return res.status(400).json({ message: "Business ID missing" });
-    }
-    let parsedReviews;
-    if (typeof reviews === "string") {
-      parsedReviews = JSON.parse(reviews);
-    }
+    const parsedReviews =
+      typeof reviews === "string" ? JSON.parse(reviews) : reviews;
 
-    // Fetch base company info
+    // FIX: Search by both businessId and companyId
     const company = await HostCompany.findOne({
       companyId: req.body.companyId?.trim(),
     });
 
     if (!company) {
-      return res.status(400).json({ message: "Company not found" });
+      return res.status(404).json({ message: "Company not found" });
     }
 
     const updateData = {
@@ -167,7 +177,7 @@ export const editCompanyListing = async (req, res) => {
       companyType,
       ratings,
       totalReviews,
-      productName,
+      companyName: company.companyName,
       cost,
       description,
       latitude,
@@ -176,10 +186,10 @@ export const editCompanyListing = async (req, res) => {
       about,
       address,
       reviews: parsedReviews,
-      images: [...existingImages], // start with existing images
+      images: [...existingImages], // Start with existing images
     };
 
-    /** ---------------- IMAGE UPLOAD LOGIC ---------------- **/
+    // ---------- IMAGE UPLOAD (NO DELETION HERE) ----------
     const formatCompanyType = (type) => {
       const map = {
         hostel: "hostels",
@@ -190,54 +200,79 @@ export const editCompanyListing = async (req, res) => {
         coliving: "coliving",
         workation: "workation",
       };
-      const key = String(type || "").toLowerCase();
-      return map[key] || "unknown";
+      return map[String(type).toLowerCase()] || "unknown";
     };
 
     const pathCompanyType = formatCompanyType(companyType);
-
     const safeCompanyName =
       (company.companyName || "unnamed").replace(/[^\w\- ]+/g, "").trim() ||
       "unnamed";
-
     const folderPath = `nomads/${pathCompanyType}/${company.companyCountry}/${safeCompanyName}`;
 
-    if (req.files?.length > 0) {
+    if (req.files?.length) {
       const imageFiles = req.files.filter((f) => f.fieldname === "images");
 
-      if (imageFiles.length > 0) {
-        const sanitizeFileName = (name) =>
+      const totalImages = imageFiles.length + existingImages.length;
+      if (totalImages.length > 10) {
+        return res.status(400).json({ message: "Maximum 10 images allowed" });
+      }
+
+      if (imageFiles.length) {
+        const sanitize = (name) =>
           String(name || "file")
             .replace(/[/\\?%*:|"<>]/g, "_")
             .replace(/\s+/g, "_");
 
         const results = await Promise.allSettled(
-          imageFiles.map((file) => {
-            const uniqueKey = `${folderPath}/images/${sanitizeFileName(
-              file.originalname
-            )}`;
-            return uploadFileToS3(uniqueKey, file).then((url) => ({
-              url,
-            }));
+          imageFiles.map(async (file) => {
+            const key = `${folderPath}/images/${sanitize(file.originalname)}`;
+            const data = await uploadFileToS3(key, file);
+            return { url: data.url, id: data.id };
           })
         );
 
         const uploaded = results
           .filter((r) => r.status === "fulfilled")
           .map((r) => r.value);
-
         updateData.images.push(...uploaded);
+
+        console.log("✅ Total images after upload:", updateData.images.length);
       }
     }
 
-    /** ---------------- CALL REMOTE EDIT CONTROLLER ---------------- **/
-    const response = await axios.patch(
-      `https://wononomadsbe.vercel.app/api/company/update-company`,
-      updateData
-    );
+    // ---------- REMOTE UPDATE (NO DELETION YET) ----------
+    try {
+      const response = await axios.patch(
+        "https://wononomadsbe.vercel.app/api/company/update-company",
+        updateData
+      );
+      console.log("✅ Remote update success:", response.data);
+    } catch (err) {
+      console.error(
+        "❌ Remote update failed:",
+        err.response?.data || err.message
+      );
 
-    if (!response.data) {
-      return res.status(400).json({ message: "Failed to update listing" });
+      // If remote update fails, delete the newly uploaded images to maintain consistency
+      if (req.files?.length) {
+        const imageFiles = req.files.filter((f) => f.fieldname === "images");
+        if (imageFiles.length) {
+          console.log(
+            "🧹 Cleaning up newly uploaded images due to remote failure..."
+          );
+          const newlyUploadedUrls = updateData.images.slice(
+            existingImages.length
+          );
+          await Promise.allSettled(
+            newlyUploadedUrls.map((img) => deleteFileFromS3ByUrl(img.url))
+          );
+        }
+      }
+
+      return res.status(err.response?.status || 500).json({
+        message: "Remote company update failed",
+        detail: err.response?.data || err.message,
+      });
     }
 
     return res.status(200).json({
@@ -245,8 +280,11 @@ export const editCompanyListing = async (req, res) => {
       data: updateData,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
+    console.error("❌ Internal error:", error);
+    return res.status(500).json({
+      message: "Internal server error",
+      detail: error.message,
+    });
   }
 };
 

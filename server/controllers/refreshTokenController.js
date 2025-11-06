@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import Employee from "../models/User.js";
+import HostUser from "../models/HostUser.js";
 import Company from "../models/Company.js";
 
 const refreshTokenController = async (req, res, next) => {
@@ -9,7 +9,7 @@ const refreshTokenController = async (req, res, next) => {
       return res.sendStatus(401);
     }
     const refreshToken = cookie?.clientCookie;
-    const user = await Employee.findOne({ refreshToken }).lean().exec();
+    const user = await HostUser.findOne({ refreshToken }).lean().exec();
     const company = await Company.findOne({ companyId: user?.companyId })
       .lean()
       .exec();

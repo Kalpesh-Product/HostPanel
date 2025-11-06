@@ -194,7 +194,8 @@ const CreateWebsite = () => {
         <form
           ref={formRef}
           encType="multipart/form-data"
-          onSubmit={handleSubmit(onSubmit)}>
+          onSubmit={handleSubmit(onSubmit)}
+        >
           <div className="grid grid-cols-2 sm:grid-cols-1 md:grid-cols-2 gap-4">
             {/* HERO / COMPANY */}
             <div>
@@ -284,7 +285,7 @@ const CreateWebsite = () => {
                       {...field}
                       name="heroImages" // important so FormData picks the files
                       label="Hero Images"
-                      maxFiles={5}
+                      maxFiles={15}
                       allowedExtensions={["jpg", "jpeg", "png", "pdf", "webp"]}
                       id="heroImages"
                     />
@@ -328,13 +329,15 @@ const CreateWebsite = () => {
                 {aboutFields.map((field, index) => (
                   <div
                     key={field.id}
-                    className="rounded-xl border border-borderGray p-4 mb-3">
+                    className="rounded-xl border border-borderGray p-4 mb-3"
+                  >
                     <div className="flex items-center justify-between mb-3">
                       <span className="font-pmedium">Para #{index + 1}</span>
                       <button
                         type="button"
                         onClick={() => removeAbout(index)}
-                        className="text-sm text-red-600">
+                        className="text-sm text-red-600"
+                      >
                         Remove
                       </button>
                     </div>
@@ -361,7 +364,8 @@ const CreateWebsite = () => {
                   <button
                     type="button"
                     onClick={() => appendAbout({ text: "" })}
-                    className="text-sm text-primary">
+                    className="text-sm text-primary"
+                  >
                     + Add Para
                   </button>
                 </div>
@@ -390,13 +394,15 @@ const CreateWebsite = () => {
                 {productFields.map((field, index) => (
                   <div
                     key={field.id}
-                    className="rounded-xl border border-borderGray p-4 mb-3">
+                    className="rounded-xl border border-borderGray p-4 mb-3"
+                  >
                     <div className="flex items-center justify-between mb-3">
                       <span className="font-pmedium">Product #{index + 1}</span>
                       <button
                         type="button"
                         onClick={() => removeProduct(index)}
-                        className="text-sm text-red-600">
+                        className="text-sm text-red-600"
+                      >
                         Remove
                       </button>
                     </div>
@@ -501,7 +507,8 @@ const CreateWebsite = () => {
                   <button
                     type="button"
                     onClick={() => appendProduct({ ...defaultProduct })}
-                    className="text-sm text-primary">
+                    className="text-sm text-primary"
+                  >
                     + Add Product
                   </button>
                 </div>
@@ -535,7 +542,7 @@ const CreateWebsite = () => {
                       {...field}
                       name="gallery"
                       label="Gallery Images"
-                      maxFiles={10}
+                      maxFiles={46}
                       allowedExtensions={["jpg", "jpeg", "png", "pdf", "webp"]}
                       id="gallery"
                     />
@@ -566,7 +573,8 @@ const CreateWebsite = () => {
                 {testimonialFields.map((field, index) => (
                   <div
                     key={field.id}
-                    className="rounded-xl border border-borderGray p-4 mb-3">
+                    className="rounded-xl border border-borderGray p-4 mb-3"
+                  >
                     <div className="flex items-center justify-between mb-3">
                       <span className="font-pmedium">
                         Testimonial #{index + 1}
@@ -574,7 +582,8 @@ const CreateWebsite = () => {
                       <button
                         type="button"
                         onClick={() => removeTestimonial(index)}
-                        className="text-sm text-red-600">
+                        className="text-sm text-red-600"
+                      >
                         Remove
                       </button>
                     </div>
@@ -671,7 +680,8 @@ const CreateWebsite = () => {
                   <button
                     type="button"
                     onClick={() => appendTestimonial({ ...defaultTestimonial })}
-                    className="text-sm text-primary">
+                    className="text-sm text-primary"
+                  >
                     + Add Testimonial
                   </button>
                 </div>
