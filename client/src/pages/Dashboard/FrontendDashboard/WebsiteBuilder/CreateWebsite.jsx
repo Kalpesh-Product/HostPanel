@@ -221,7 +221,7 @@ const CreateWebsite = () => {
                 <Controller
                   name="title"
                   control={control}
-                  rules={{ required: "Title is required" }}
+                  // rules={{ required: "Title is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -236,7 +236,7 @@ const CreateWebsite = () => {
                 <Controller
                   name="subTitle"
                   control={control}
-                  rules={{ required: "Sub Title is required" }}
+                  // rules={{ required: "Sub Title is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -285,7 +285,7 @@ const CreateWebsite = () => {
                       {...field}
                       name="heroImages" // important so FormData picks the files
                       label="Hero Images"
-                      maxFiles={15}
+                      maxFiles={5}
                       allowedExtensions={["jpg", "jpeg", "png", "pdf", "webp"]}
                       id="heroImages"
                     />
@@ -344,7 +344,7 @@ const CreateWebsite = () => {
                     <Controller
                       name={`about.${index}.text`}
                       control={control}
-                      rules={{ required: "About paragraph is required" }}
+                      // rules={{ required: "About paragraph is required" }}
                       render={({ field }) => (
                         <TextField
                           {...field}
@@ -410,7 +410,7 @@ const CreateWebsite = () => {
                       <Controller
                         name={`products.${index}.type`}
                         control={control}
-                        rules={{ required: "Type is required" }}
+                        // rules={{ required: "Type is required" }}
                         render={({ field }) => (
                           <TextField
                             {...field}
@@ -427,7 +427,7 @@ const CreateWebsite = () => {
                       <Controller
                         name={`products.${index}.name`}
                         control={control}
-                        rules={{ required: "Name is required" }}
+                        // rules={{ required: "Name is required" }}
                         render={({ field }) => (
                           <TextField
                             {...field}
@@ -445,7 +445,7 @@ const CreateWebsite = () => {
                       <Controller
                         name={`products.${index}.cost`}
                         control={control}
-                        rules={{ required: "Cost is required" }}
+                        // rules={{ required: "Cost is required" }}
                         render={({ field }) => (
                           <TextField
                             {...field}
@@ -462,7 +462,7 @@ const CreateWebsite = () => {
                       <Controller
                         name={`products.${index}.description`}
                         control={control}
-                        rules={{ required: "Description is required" }}
+                        // rules={{ required: "Description is required" }}
                         render={({ field }) => (
                           <TextField
                             {...field}
@@ -487,7 +487,7 @@ const CreateWebsite = () => {
                           <UploadMultipleFilesInput
                             {...field}
                             label="Product Images"
-                            maxFiles={15}
+                            maxFiles={10}
                             allowedExtensions={[
                               "jpg",
                               "jpeg",
@@ -542,7 +542,7 @@ const CreateWebsite = () => {
                       {...field}
                       name="gallery"
                       label="Gallery Images"
-                      maxFiles={46}
+                      maxFiles={40}
                       allowedExtensions={["jpg", "jpeg", "png", "pdf", "webp"]}
                       id="gallery"
                     />
@@ -709,25 +709,25 @@ const CreateWebsite = () => {
                 <Controller
                   name="mapUrl"
                   control={control}
-                  rules={{
-                    required: "Map URL is required",
-                    validate: (val) => {
-                      const MAP_EMBED_REGEX =
-                        /^https?:\/\/(www\.)?(google\.com|maps\.google\.com)\/maps\/embed(\/v1\/[a-z]+|\?pb=|\/?\?)/i;
+                  // rules={{
+                  //   required: "Map URL is required",
+                  //   validate: (val) => {
+                  //     const MAP_EMBED_REGEX =
+                  //       /^https?:\/\/(www\.)?(google\.com|maps\.google\.com)\/maps\/embed(\/v1\/[a-z]+|\?pb=|\/?\?)/i;
 
-                      const v = (val || "").trim();
+                  //     const v = (val || "").trim();
 
-                      // If they pasted a full iframe, fail validation (or you can auto-extract)
-                      // if (/<\s*iframe/i.test(v)) {
-                      //   return 'Paste only the "src" URL from the embed code (not the full <iframe>).';
-                      // }
+                  //     // If they pasted a full iframe, fail validation (or you can auto-extract)
+                  //     // if (/<\s*iframe/i.test(v)) {
+                  //     //   return 'Paste only the "src" URL from the embed code (not the full <iframe>).';
+                  //     // }
 
-                      return (
-                        MAP_EMBED_REGEX.test(v) ||
-                        "Ewnter a valid Google Maps *embed* URL (e.g. https://www.google.com/maps/embed?pb=...)"
-                      );
-                    },
-                  }}
+                  //     return (
+                  //       MAP_EMBED_REGEX.test(v) ||
+                  //       "Ewnter a valid Google Maps *embed* URL (e.g. https://www.google.com/maps/embed?pb=...)"
+                  //     );
+                  //   },
+                  // }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -751,7 +751,7 @@ const CreateWebsite = () => {
                 <Controller
                   name="websiteEmail"
                   control={control}
-                  rules={{ required: "Email is required" }}
+                  // rules={{ required: "Email is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -766,7 +766,7 @@ const CreateWebsite = () => {
                 <Controller
                   name="phone"
                   control={control}
-                  rules={{ required: "Phone is required" }}
+                  // rules={{ required: "Phone is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -781,7 +781,7 @@ const CreateWebsite = () => {
                 <Controller
                   name="address"
                   control={control}
-                  rules={{ required: "Address is required" }}
+                  // rules={{ required: "Address is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -807,7 +807,7 @@ const CreateWebsite = () => {
                 <Controller
                   name="registeredCompanyName"
                   control={control}
-                  rules={{ required: "Registered company name is required" }}
+                  // rules={{ required: "Registered company name is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -822,7 +822,7 @@ const CreateWebsite = () => {
                 <Controller
                   name="copyrightText"
                   control={control}
-                  rules={{ required: "Copyright text is required" }}
+                  // rules={{ required: "Copyright text is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}

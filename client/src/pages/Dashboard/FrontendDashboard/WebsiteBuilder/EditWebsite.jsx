@@ -374,7 +374,7 @@ const EditWebsite = () => {
                 <Controller
                   name="companyName"
                   control={control}
-                  rules={{ required: "Company name is required" }}
+                  // rules={{ required: "Company name is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -389,7 +389,7 @@ const EditWebsite = () => {
                 <Controller
                   name="title"
                   control={control}
-                  rules={{ required: "Title is required" }}
+                  // rules={{ required: "Title is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -404,7 +404,7 @@ const EditWebsite = () => {
                 <Controller
                   name="subTitle"
                   control={control}
-                  rules={{ required: "Sub Title is required" }}
+                  // rules={{ required: "Sub Title is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -513,7 +513,7 @@ const EditWebsite = () => {
                     <Controller
                       name={`about.${index}.text`}
                       control={control}
-                      rules={{ required: "About paragraph is required" }}
+                      // rules={{ required: "About paragraph is required" }}
                       render={({ field }) => (
                         <TextField
                           {...field}
@@ -580,7 +580,7 @@ const EditWebsite = () => {
                       <Controller
                         name={`products.${index}.type`}
                         control={control}
-                        rules={{ required: "Type is required" }}
+                        // rules={{ required: "Type is required" }}
                         render={({ field }) => (
                           <TextField
                             {...field}
@@ -597,7 +597,7 @@ const EditWebsite = () => {
                       <Controller
                         name={`products.${index}.name`}
                         control={control}
-                        rules={{ required: "Name is required" }}
+                        // rules={{ required: "Name is required" }}
                         render={({ field }) => (
                           <TextField
                             {...field}
@@ -614,7 +614,7 @@ const EditWebsite = () => {
                       <Controller
                         name={`products.${index}.cost`}
                         control={control}
-                        rules={{ required: "Cost is required" }}
+                        // rules={{ required: "Cost is required" }}
                         render={({ field }) => (
                           <TextField
                             {...field}
@@ -631,7 +631,7 @@ const EditWebsite = () => {
                       <Controller
                         name={`products.${index}.description`}
                         control={control}
-                        rules={{ required: "Description is required" }}
+                        // rules={{ required: "Description is required" }}
                         render={({ field }) => (
                           <TextField
                             {...field}
@@ -921,17 +921,17 @@ const EditWebsite = () => {
                 <Controller
                   name="mapUrl"
                   control={control}
-                  rules={{
-                    required: "Map URL is required",
-                    validate: (val) => {
-                      const rgx =
-                        /^https?:\/\/(www\.)?(google\.com|maps\.google\.com)\/maps\/embed/i;
-                      const v = (val || "").trim();
-                      return (
-                        rgx.test(v) || "Enter a valid Google Maps embed URL"
-                      );
-                    },
-                  }}
+                  // rules={{
+                  //   required: "Map URL is required",
+                  //   validate: (val) => {
+                  //     const rgx =
+                  //       /^https?:\/\/(www\.)?(google\.com|maps\.google\.com)\/maps\/embed/i;
+                  //     const v = (val || "").trim();
+                  //     return (
+                  //       rgx.test(v) || "Enter a valid Google Maps embed URL"
+                  //     );
+                  //   },
+                  // }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -951,7 +951,7 @@ const EditWebsite = () => {
                 <Controller
                   name="email"
                   control={control}
-                  rules={{ required: "Email is required" }}
+                  // rules={{ required: "Email is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -966,7 +966,7 @@ const EditWebsite = () => {
                 <Controller
                   name="phone"
                   control={control}
-                  rules={{ required: "Phone is required" }}
+                  // rules={{ required: "Phone is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -981,7 +981,7 @@ const EditWebsite = () => {
                 <Controller
                   name="address"
                   control={control}
-                  rules={{ required: "Address is required" }}
+                  // rules={{ required: "Address is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -1021,7 +1021,7 @@ const EditWebsite = () => {
                 <Controller
                   name="copyrightText"
                   control={control}
-                  rules={{ required: "Copyright text is required" }}
+                  // rules={{ required: "Copyright text is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}

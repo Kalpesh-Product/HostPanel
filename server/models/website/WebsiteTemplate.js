@@ -7,6 +7,10 @@ const templateSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
     //hero
     companyLogo: {
       id: { type: String },
@@ -17,34 +21,40 @@ const templateSchema = new mongoose.Schema(
       type: String,
       // required: true
     },
-    title: { type: String, required: true },
-    subTitle: { type: String, required: true },
+    title: { type: String },
+    subTitle: { type: String },
     CTAButtonText: { type: String },
-    heroImages: {
-      type: [{ id: String, url: String }],
-      validate: [(v) => v.length <= 5, "Max 5 hero images allowed"],
-    },
+    heroImages: [
+      {
+        id: { type: String },
+        url: { type: String },
+      },
+    ],
     //about
-    about: [{ type: String, required: true }],
+    about: [{ type: String }],
     //products
     productTitle: { type: String },
     products: [
       {
-        type: { type: String, required: true },
-        name: { type: String, required: true },
+        type: { type: String },
+        name: { type: String },
         cost: { type: String },
-        description: { type: String, required: true },
-        images: {
-          type: [{ id: String, url: String }],
-          validate: [(v) => v.length <= 10, "Max 10 product images allowed"],
-        },
+        description: { type: String },
+        images: [
+          {
+            id: { type: String },
+            url: { type: String },
+          },
+        ],
       },
     ],
     galleryTitle: { type: String },
-    gallery: {
-      type: [{ id: String, url: String }],
-      validate: [(v) => v.length <= 40, "Max 40 gallery images allowed"],
-    },
+    gallery: [
+      {
+        id: { type: String },
+        url: { type: String },
+      },
+    ],
     //   //testimonials
     testimonialTitle: { type: String },
     testimonials: [
@@ -62,8 +72,8 @@ const templateSchema = new mongoose.Schema(
     // contact
     contactTitle: { type: String },
     mapUrl: { type: String },
-    email: { type: String, required: true },
-    phone: { type: String, required: true },
+    email: { type: String },
+    phone: { type: String },
     address: { type: String },
     //footer
     registeredCompanyName: { type: String },
