@@ -14,7 +14,7 @@ import hostUserRoutes from "./routes/hostUserRoutes.js";
 
 const app = express();
 dotenv.config();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5006;
 
 mongoose.connect(process.env.DB_URL);
 
