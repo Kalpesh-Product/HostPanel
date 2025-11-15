@@ -330,7 +330,7 @@ const NomadListing = () => {
               <UploadMultipleFilesInput
                 {...field}
                 label="Product Images"
-                maxFiles={12}
+                maxFiles={10}
                 allowedExtensions={["jpg", "jpeg", "png", "webp"]}
                 id="images"
               />

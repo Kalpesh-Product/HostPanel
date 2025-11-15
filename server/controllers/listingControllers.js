@@ -121,7 +121,7 @@ export const createCompanyListing = async (req, res) => {
       );
 
       // const response = await axios.post(
-      //   "http://localhost:3001/api/company/create-company",
+      //   "http://localhost:3000/api/company/create-company",
       //   listingData
       // );
 
@@ -129,15 +129,15 @@ export const createCompanyListing = async (req, res) => {
         return res.status(400).json({ message: "Failed to add listing" });
       }
     } catch (err) {
-      console.error("Upstream API failed:", err.response?.data || err.message);
-      throw err;
+      throw err.response?.data || err.message;
     }
 
     return res
       .status(201)
       .json({ message: "Listing added successfully", data: listingData });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.log("error", error);
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -218,6 +218,13 @@ export const editCompanyListing = async (req, res) => {
       }
 
       if (imageFiles.length) {
+        // if (imageFiles.length > 10) {
+        //   console.log("images ", imageFiles.length);
+        //   return res.status(400).json({
+        //     message: `A maximum of 10 images is allowed. You sent ${imageFiles.length}.`,
+        //   });
+        // }
+
         const sanitize = (name) =>
           String(name || "file")
             .replace(/[/\\?%*:|"<>]/g, "_")
@@ -243,7 +250,7 @@ export const editCompanyListing = async (req, res) => {
     // ---------- REMOTE UPDATE (NO DELETION YET) ----------
     try {
       const response = await axios.patch(
-        "https://wononomadsbe.vercel.app/api/company/update-company",
+        "https://wononomads.vercel.app/api/company/update-company",
         updateData
       );
       console.log("✅ Remote update success:", response.data);
@@ -269,9 +276,9 @@ export const editCompanyListing = async (req, res) => {
         }
       }
 
+      //Remote company update failed
       return res.status(err.response?.status || 500).json({
-        message: "Remote company update failed",
-        detail: err.response?.data || err.message,
+        message: err.response?.data.message || err.message,
       });
     }
 

@@ -19,7 +19,7 @@ const PORT = process.env.PORT || 5006;
 mongoose.connect(process.env.DB_URL);
 
 app.use(cors(corsConfig));
-app.use(express.json({ limit: "15mb" }));
+app.use(express.json({ limit: "50mb" }));
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 
