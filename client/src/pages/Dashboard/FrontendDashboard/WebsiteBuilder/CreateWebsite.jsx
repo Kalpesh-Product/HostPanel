@@ -284,7 +284,7 @@ const CreateWebsite = () => {
                     <UploadMultipleFilesInput
                       {...field}
                       name="heroImages" // important so FormData picks the files
-                      label="Hero Images"
+                      label="Carousel Images"
                       maxFiles={5}
                       allowedExtensions={["jpg", "jpeg", "png", "pdf", "webp"]}
                       id="heroImages"

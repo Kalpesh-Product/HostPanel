@@ -22,7 +22,7 @@ const Services = () => {
   // 🔹 Fetch existing services
   const {
     data: servicesData,
-    isLoading,
+    isPending,
     isFetching,
   } = useQuery({
     queryKey: ["services", companyId],
@@ -60,7 +60,7 @@ const Services = () => {
     }
   }, [servicesData, reset]);
 
-  const { mutate: register, isLoading: isRegisterLoading } = useMutation({
+  const { mutate: register, isPending: isRegisterLoading } = useMutation({
     mutationFn: async (fd) => {
       console.log("Final Payload:", fd);
       const response = await axios.patch("/api/services/request-services", fd);
@@ -175,7 +175,8 @@ const Services = () => {
                     alignItems: "center",
                     justifyContent: "space-between",
                     opacity: isMandatory || isPreSelected ? 0.8 : 1,
-                  }}>
+                  }}
+                >
                   <span className="font-medium">{service}</span>
                   <Checkbox
                     checked={isSelected}
@@ -222,7 +223,7 @@ const Services = () => {
             externalStyles=""
             title="Submit"
             type="submit"
-            isLoading={isRegisterLoading}
+            isPending={isRegisterLoading}
             disabled={isRegisterLoading}
           />
         </div>

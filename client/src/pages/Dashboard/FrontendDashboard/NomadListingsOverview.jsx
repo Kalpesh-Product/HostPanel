@@ -97,7 +97,7 @@ export default function NomadListingsOverview() {
                   params?.data?.businessId || ""
                 );
 
-                navigate(`/dashboard/nomad-listings/edit`, {
+                navigate(`/company-settings/nomad-listings/edit`, {
                   state: {
                     website: params.data,
                     companyId,
@@ -131,7 +131,7 @@ export default function NomadListingsOverview() {
 
   // ✅ Navigate to Add Listing form
   const handleAddClick = () => {
-    navigate(`/dashboard/nomad-listings/add`, { state: { companyId } });
+    navigate(`/company-settings/nomad-listings/add`, { state: { companyId } });
   };
 
   return (

@@ -135,7 +135,7 @@ import EditWebsite from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/Edi
 import Websites from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/Websites";
 import WebsitesLayout from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsitesLayout";
 import InActiveWebsites from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/InActiveWebsites";
-import EditWebsiteTemp from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/EditWebsiteTemp";
+
 import Companies from "../pages/Dashboard/FrontendDashboard/Companies";
 import CompanyLeads from "../pages/Dashboard/FrontendDashboard/CompanyLeads";
 import CompanyOverview from "../pages/Dashboard/FrontendDashboard/CompanyOverview";
@@ -178,7 +178,7 @@ export const routes = createBrowserRouter([
                 children: [
                   {
                     index: true, // login lands here
-                    element: <CompanyOverview />,
+                    element: <DashboardLayout />,
                   },
                   {
                     path: "nomad-listings",
@@ -215,19 +215,6 @@ export const routes = createBrowserRouter([
                         element: <EditWebsite />,
                       },
 
-                      // {
-                      //   path: "websites",
-                      //   element: <WebsitesLayout />,
-                      //   children: [
-                      //     { path: "active", element: <Websites /> },
-                      //     { path: "inactive", element: <InActiveWebsites /> },
-                      //     { path: ":website", element: <EditWebsite /> },
-                      //     {
-                      //       path: "inactive/:website",
-                      //       element: <EditWebsiteTemp />,
-                      //     },
-                      //   ],
-                      // },
                       {
                         path: "edit-theme/:templateName/:pageName",
                         element: <EditTemplate />,
@@ -294,6 +281,114 @@ export const routes = createBrowserRouter([
                 ],
               },
 
+              {
+                path: "company-settings",
+                // element: <CompanyOverview />,
+                children: [
+                  {
+                    index: true, // login lands here
+                    element: <CompanyOverview />,
+                  },
+                  {
+                    path: "nomad-listings",
+                    element: <NomadListingsOverview />,
+                  },
+                  {
+                    path: "nomad-listings/add",
+                    element: <NomadListing />,
+                  },
+                  {
+                    path: "nomad-listings/:listingId",
+                    element: <EditNomadListing />,
+                  },
+                  {
+                    path: "website-builder",
+                    element: <FrontendLayout />,
+                    children: [
+                      { index: true, element: <FrontendDashboard /> },
+                      { path: "select-theme", element: <ThemeGrid /> },
+                      { path: "view-theme", element: <ViewTheme /> },
+                      { path: "leads", element: <CompanyLeads /> },
+                      { path: "live-demo", element: <PageDemo /> },
+                      { path: "edit-website", element: <EditWebsite /> }, // no param
+                      {
+                        path: "edit-website/:website",
+                        element: <EditWebsite />,
+                      }, // with param
+                      {
+                        path: "create-website",
+                        element: <CreateWebsite />,
+                      },
+                      {
+                        path: "edit-website/:website",
+                        element: <EditWebsite />,
+                      },
+
+                      {
+                        path: "edit-theme/:templateName/:pageName",
+                        element: <EditTemplate />,
+                      },
+                      {
+                        path: "data",
+                        element: <FrontendData />,
+                        children: [
+                          {
+                            index: true,
+                            path: "leads",
+                            element: <FrontendLeads />,
+                          },
+                          {
+                            path: "asset-list",
+                            element: <DepartmentAssetCommon />,
+                          },
+                          {
+                            path: "website-issue-reports",
+                            element: <FrontendWebsiteIssueReports />,
+                          },
+                          {
+                            path: "monthly-invoice-reports",
+                            element: <MonthlyInvoiceCommon />,
+                          },
+                          { path: "vendor", element: <VendorTable /> },
+                          {
+                            path: "vendor/vendor-onboard",
+                            element: <Vendor />,
+                          },
+                          { path: "vendor/:id", element: <ViewVendor /> },
+                        ],
+                      },
+                      {
+                        path: "settings",
+                        element: <FrontendSettings />,
+                        children: [
+                          {
+                            path: "bulk-upload",
+                            element: <DepartmentWiseBulkUpload />,
+                          },
+                          { path: "sops", element: <SopUpload /> },
+                          { path: "policies", element: <PolicyUpload /> },
+                        ],
+                      },
+                      {
+                        path: "finance",
+                        element: <FrontendFinLayout />,
+                        children: [
+                          { path: "budget", element: <BudgetPage /> },
+                          {
+                            path: "payment-schedule",
+                            element: <PaymentScheduleCommon />,
+                          },
+                          { path: "voucher", element: <Reimbursement /> },
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    path: "poc-details",
+                    element: <PocDetails />,
+                  },
+                ],
+              },
               {
                 path: "services",
                 element: <Services />,
