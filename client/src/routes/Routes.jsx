@@ -135,7 +135,7 @@ import EditWebsite from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/Edi
 import Websites from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/Websites";
 import WebsitesLayout from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsitesLayout";
 import InActiveWebsites from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/InActiveWebsites";
-import EditWebsiteTemp from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/EditWebsiteTemp";
+
 import Companies from "../pages/Dashboard/FrontendDashboard/Companies";
 import CompanyLeads from "../pages/Dashboard/FrontendDashboard/CompanyLeads";
 import CompanyOverview from "../pages/Dashboard/FrontendDashboard/CompanyOverview";
@@ -215,19 +215,6 @@ export const routes = createBrowserRouter([
                         element: <EditWebsite />,
                       },
 
-                      // {
-                      //   path: "websites",
-                      //   element: <WebsitesLayout />,
-                      //   children: [
-                      //     { path: "active", element: <Websites /> },
-                      //     { path: "inactive", element: <InActiveWebsites /> },
-                      //     { path: ":website", element: <EditWebsite /> },
-                      //     {
-                      //       path: "inactive/:website",
-                      //       element: <EditWebsiteTemp />,
-                      //     },
-                      //   ],
-                      // },
                       {
                         path: "edit-theme/:templateName/:pageName",
                         element: <EditTemplate />,
@@ -337,19 +324,6 @@ export const routes = createBrowserRouter([
                         element: <EditWebsite />,
                       },
 
-                      // {
-                      //   path: "websites",
-                      //   element: <WebsitesLayout />,
-                      //   children: [
-                      //     { path: "active", element: <Websites /> },
-                      //     { path: "inactive", element: <InActiveWebsites /> },
-                      //     { path: ":website", element: <EditWebsite /> },
-                      //     {
-                      //       path: "inactive/:website",
-                      //       element: <EditWebsiteTemp />,
-                      //     },
-                      //   ],
-                      // },
                       {
                         path: "edit-theme/:templateName/:pageName",
                         element: <EditTemplate />,

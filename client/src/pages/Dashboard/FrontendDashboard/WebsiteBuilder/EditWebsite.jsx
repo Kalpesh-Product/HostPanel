@@ -12,7 +12,7 @@ import customParseFormat from "dayjs/plugin/customParseFormat";
 import UploadMultipleFilesInput from "../../../../components/UploadMultipleFilesInput";
 import UploadFileInput from "../../../../components/UploadFileInput";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { FiTrash2 } from "react-icons/fi";
+import { FiTrash2, FiX } from "react-icons/fi";
 
 dayjs.extend(customParseFormat);
 
@@ -1058,29 +1058,72 @@ const EditWebsite = () => {
 };
 
 const ExistingImagesGrid = ({ items = [], onDelete }) => {
+  const [previewImg, setPreviewImg] = useState(null);
   const list = Array.isArray(items) ? items : items ? [items] : [];
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-2">
-      {list.map((img) => (
-        <div
-          key={img.id}
-          className="relative rounded-lg overflow-hidden border"
-        >
-          <img src={img.url} alt="" className="w-full h-36 object-cover" />
-          <div className="px-2 py-1 text-xs truncate">
-            {img.id?.split("/").pop()}
-          </div>
-          <button
-            type="button"
-            className="absolute bottom-2 right-2 bg-white/90 hover:bg-white p-2 rounded-full shadow"
-            onClick={() => onDelete(img)}
-            title="Delete"
+    <>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-2">
+        {list.map((img) => (
+          <div
+            key={img.id}
+            className="relative rounded-lg overflow-hidden border group cursor-pointer"
+            onClick={() => setPreviewImg(img.url)}
           >
-            <FiTrash2 />
-          </button>
+            <img src={img.url} alt="" className="w-full h-36 object-cover" />
+
+            {/* Hover overlay */}
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-sm font-medium">
+              View Image
+            </div>
+
+            <div className="px-2 py-1 text-xs truncate bg-white/80 relative z-10">
+              {img.id?.split("/").pop()}
+            </div>
+
+            {/* Delete button */}
+            <button
+              type="button"
+              className="absolute bottom-2 right-2 bg-white/90 hover:bg-white p-2 rounded-full shadow z-20"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(img);
+              }}
+              title="Delete"
+            >
+              <FiTrash2 />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {/* Full screen modal */}
+      {previewImg && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+          onClick={() => setPreviewImg(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh]">
+            <img
+              src={previewImg}
+              alt=""
+              className="rounded-lg object-contain max-h-[90vh] mx-auto"
+            />
+
+            {/* X close icon */}
+            <button
+              className="absolute -top-4 -right-4 bg-white text-black p-2 rounded-full shadow text-lg flex items-center justify-center"
+              onClick={(e) => {
+                e.stopPropagation();
+                setPreviewImg(null);
+              }}
+            >
+              <FiX />
+            </button>
+          </div>
         </div>
-      ))}
-    </div>
+      )}
+    </>
   );
 };
 
