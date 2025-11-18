@@ -219,7 +219,7 @@ const EditWebsiteTemp = () => {
     fd.append("title", vals.title || "");
     fd.append("subTitle", vals.subTitle || "");
     fd.append("CTAButtonText", vals.CTAButtonText || "");
-  
+
     fd.append("productTitle", vals.productTitle || "");
     fd.append("galleryTitle", vals.galleryTitle || "");
     fd.append("testimonialTitle", vals.testimonialTitle || "");
@@ -232,7 +232,7 @@ const EditWebsiteTemp = () => {
     fd.append("copyrightText", vals.copyrightText || "");
 
     // NEW: keep-lists for hero & gallery (computed from remaining existing arrays)
-      fd.append("about", JSON.stringify(vals.about.map((a) => a.text)));
+    fd.append("about", JSON.stringify(vals.about.map((a) => a.text)));
     const heroKeepIds = (vals.heroImagesExisting || []).map((x) => x.id);
     const galleryKeepIds = (vals.galleryExisting || []).map((x) => x.id);
     fd.append("heroImageIds", JSON.stringify(heroKeepIds));
@@ -440,7 +440,8 @@ const EditWebsiteTemp = () => {
                 />
 
                 <div className="text-xs text-gray-500 mt-2">
-                  Existing hero images: {values.heroImagesExisting?.length || 0}
+                  Existing carousel images:{" "}
+                  {values.heroImagesExisting?.length || 0}
                 </div>
                 <ExistingImagesGrid
                   items={values.heroImagesExisting}
@@ -460,14 +461,13 @@ const EditWebsiteTemp = () => {
                     <UploadMultipleFilesInput
                       {...field}
                       name="heroImages"
-                      label="Add Hero Images (max 10)"
+                      label="Add Carousel Images (max 10)"
                       maxFiles={10}
                       allowedExtensions={["jpg", "jpeg", "png", "webp", "pdf"]}
                       id="heroImages"
                     />
                   )}
                 />
-              
               </div>
             </div>
 
@@ -477,7 +477,6 @@ const EditWebsiteTemp = () => {
                 <span className="text-subtitle font-pmedium">About</span>
               </div>
               <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4 ">
-
                 {aboutFields.map((field, index) => (
                   <div
                     key={field.id}

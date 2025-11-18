@@ -458,7 +458,8 @@ const EditWebsite = () => {
                 />
 
                 <div className="text-xs text-gray-500 mt-2">
-                  Existing hero images: {values.heroImagesExisting?.length || 0}
+                  Existing carousel images:{" "}
+                  {values.heroImagesExisting?.length || 0}
                 </div>
                 <ExistingImagesGrid
                   items={values.heroImagesExisting}
@@ -478,7 +479,7 @@ const EditWebsite = () => {
                     <UploadMultipleFilesInput
                       {...field}
                       name="heroImages"
-                      label="Add Hero Images (max 5)"
+                      label="Add Carousel Images (max 5)"
                       maxFiles={5}
                       allowedExtensions={["jpg", "jpeg", "png", "webp", "pdf"]}
                       id="heroImages"

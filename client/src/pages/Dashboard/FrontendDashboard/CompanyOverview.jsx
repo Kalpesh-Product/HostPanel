@@ -22,7 +22,8 @@ const CompanyOverview = () => {
           <div
             key={card.title}
             className="cursor-pointer border border-gray-200 rounded-2xl p-6 shadow hover:shadow-lg transition bg-white"
-            onClick={() => navigate(`/dashboard/${card.path}`)}>
+            onClick={() => navigate(`/company-settings/${card.path}`)}
+          >
             <h2 className="text-subtitle font-pmedium text-gray-800">
               {card.title}
             </h2>
