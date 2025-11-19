@@ -254,15 +254,25 @@ const NomadListing = () => {
           <Controller
             name="ratings"
             control={control}
+            rules={{
+              min: {
+                value: 0,
+                message: "Rating cannot be negative",
+              },
+            }}
             render={({ field }) => (
               <TextField
                 {...field}
                 size="small"
                 label="Ratings"
                 type="number"
+                inputProps={{ min: 0 }}
+                error={!!errors.ratings}
+                helperText={errors?.ratings?.message}
               />
             )}
           />
+
           {/* Total Reviews */}
           <Controller
             name="totalReviews"
