@@ -23,12 +23,29 @@ export default function NomadListingsOverview() {
   const { data: listings = [], isPending } = useQuery({
     queryKey: ["nomad-listings", companyId],
     enabled: !!companyId,
+    // queryFn: async () => {
+    //   const res = await axios.get(
+    //     `https://wononomadsbe.vercel.app/api/company/get-listings/${companyId}`
+    //   );
+    //   return res.data || [];
+    // },
     queryFn: async () => {
       const res = await axios.get(
-        `https://wononomadsbe.vercel.app/api/company/get-listings/${companyId}`
+        `https://wononomadsbe.vercel.app/api/company/get-listings/${companyId}`,
+        {
+          headers: {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+          },
+          params: {
+            t: Date.now(), // cache buster
+          },
+        }
       );
       return res.data || [];
     },
+
     staleTime: 0,
     cacheTime: 0,
     refetchOnMount: "always",
