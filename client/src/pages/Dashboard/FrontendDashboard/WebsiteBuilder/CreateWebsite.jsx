@@ -183,6 +183,41 @@ const CreateWebsite = () => {
     reset();
   };
 
+  const resetFormToEmpty = () => {
+    formRef.current?.reset(); // clears native file inputs
+
+    reset({
+      companyId: auth?.user?.companyId || "",
+      companyName: auth?.user?.companyName || "",
+
+      title: "",
+      subTitle: "",
+      CTAButtonText: "",
+      companyLogo: null,
+      heroImages: [],
+      gallery: [],
+
+      about: [{ text: "" }],
+
+      productTitle: "",
+      products: [defaultProduct],
+
+      galleryTitle: "",
+
+      testimonialTitle: "",
+      testimonials: [defaultTestimonial],
+
+      contactTitle: "",
+      mapUrl: "",
+      websiteEmail: "",
+      phone: "",
+      address: "",
+
+      registeredCompanyName: "",
+      copyrightText: "",
+    });
+  };
+
   return (
     <div className="pb-2">
       <div className="p-4 flex flex-col gap-4">
@@ -213,11 +248,13 @@ const CreateWebsite = () => {
                       size="small"
                       label="Company Name"
                       fullWidth
+                      InputProps={{ readOnly: true }}
                       helperText={errors?.companyName?.message}
                       error={!!errors.companyName}
                     />
                   )}
                 />
+
                 <Controller
                   name="title"
                   control={control}
@@ -397,7 +434,7 @@ const CreateWebsite = () => {
                     className="rounded-xl border border-borderGray p-4 mb-3"
                   >
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-pmedium">Product #{index + 1}</span>
+                      <span className="font-pmedium">Product {index + 1}</span>
                       <button
                         type="button"
                         onClick={() => removeProduct(index)}
@@ -408,6 +445,23 @@ const CreateWebsite = () => {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Controller
+                        name={`products.${index}.name`}
+                        control={control}
+                        // rules={{ required: "Name is required" }}
+                        render={({ field }) => (
+                          <TextField
+                            {...field}
+                            size="small"
+                            label="Product Name"
+                            fullWidth
+                            helperText={
+                              errors?.products?.[index]?.name?.message
+                            }
+                            error={!!errors?.products?.[index]?.name}
+                          />
+                        )}
+                      />
+                      <Controller
                         name={`products.${index}.type`}
                         control={control}
                         // rules={{ required: "Type is required" }}
@@ -415,7 +469,7 @@ const CreateWebsite = () => {
                           <TextField
                             {...field}
                             size="small"
-                            label="Type"
+                            label="Product Type"
                             fullWidth
                             helperText={
                               errors?.products?.[index]?.type?.message
@@ -424,20 +478,23 @@ const CreateWebsite = () => {
                           />
                         )}
                       />
+
                       <Controller
-                        name={`products.${index}.name`}
+                        name={`products.${index}.description`}
                         control={control}
-                        // rules={{ required: "Name is required" }}
+                        // rules={{ required: "Description is required" }}
                         render={({ field }) => (
                           <TextField
                             {...field}
                             size="small"
-                            label="Name"
+                            label="Product Description"
                             fullWidth
+                            // multiline
+                            // minRows={3}
                             helperText={
-                              errors?.products?.[index]?.name?.message
+                              errors?.products?.[index]?.description?.message
                             }
-                            error={!!errors?.products?.[index]?.name}
+                            error={!!errors?.products?.[index]?.description}
                           />
                         )}
                       />
@@ -450,7 +507,7 @@ const CreateWebsite = () => {
                           <TextField
                             {...field}
                             size="small"
-                            label="Cost"
+                            label="Product Cost"
                             fullWidth
                             helperText={
                               errors?.products?.[index]?.cost?.message
@@ -459,27 +516,9 @@ const CreateWebsite = () => {
                           />
                         )}
                       />
-                      <Controller
-                        name={`products.${index}.description`}
-                        control={control}
-                        // rules={{ required: "Description is required" }}
-                        render={({ field }) => (
-                          <TextField
-                            {...field}
-                            size="small"
-                            label="Description"
-                            fullWidth
-                            multiline
-                            minRows={3}
-                            helperText={
-                              errors?.products?.[index]?.description?.message
-                            }
-                            error={!!errors?.products?.[index]?.description}
-                          />
-                        )}
-                      />
-                      {/* productImages_${index} (multiple) */}
-
+                    </div>
+                    {/* productImages_${index} (multiple) */}
+                    <div className="pt-4">
                       <Controller
                         name={`products.${index}.files`}
                         control={control}
@@ -845,7 +884,13 @@ const CreateWebsite = () => {
               title={"Submit"}
               isLoading={isCreateWebsiteLoading}
             />
-            <SecondaryButton handleSubmit={handleReset} title={"Reset"} />
+            <button
+              type="button"
+              onClick={resetFormToEmpty}
+              className="px-6 py-2 bg-gray-200 text-black rounded-md"
+            >
+              Reset
+            </button>
           </div>
         </form>
       </div>

@@ -349,6 +349,49 @@ const EditWebsite = () => {
     reset();
   };
 
+  const resetFormToEmpty = () => {
+    formRef.current?.reset(); // clears native inputs like file fields
+
+    reset({
+      companyName: "",
+      title: "",
+      subTitle: "",
+      CTAButtonText: "",
+      about: [{ text: "" }],
+
+      productTitle: "",
+      galleryTitle: "",
+      testimonialTitle: "",
+      contactTitle: "",
+      mapUrl: "",
+      email: "",
+      phone: "",
+      address: "",
+      registeredCompanyName: "",
+      copyrightText: "",
+
+      // existing images cleared
+      companyLogoExisting: null,
+      heroImagesExisting: [],
+      galleryExisting: [],
+
+      // new file fields cleared
+      companyLogo: null,
+      heroImages: [],
+      gallery: [],
+
+      // product & testimonials reset to one empty each
+      products: [defaultProduct],
+      testimonials: [defaultTestimonial],
+
+      // deletion queues reset
+      deletedHeroImageIds: [],
+      deletedGalleryImageIds: [],
+      deletedProductImages: [],
+      deletedTestimonialImageIds: [],
+    });
+  };
+
   // 5) Render
   return (
     <div className="pb-2">
@@ -1044,12 +1087,15 @@ const EditWebsite = () => {
               type="submit"
               title={isUpdating ? "Updating..." : "Submit"}
               isLoading={isUpdating}
+              disabled={isUpdating}
             />
-            <SecondaryButton
+            <button
               type="button"
-              handleSubmit={handleReset}
-              title="Reset"
-            />
+              onClick={resetFormToEmpty}
+              className="px-6 py-2 bg-gray-200 text-black rounded-md"
+            >
+              Reset
+            </button>
           </div>
         </form>
       </div>

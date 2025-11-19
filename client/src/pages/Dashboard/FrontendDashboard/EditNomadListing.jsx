@@ -77,7 +77,8 @@ const EditNomadListing = () => {
       about: "",
       address: "",
       images: [],
-      reviews: [defaultReview],
+      // reviews: [defaultReview],
+      reviews: [],
     },
   });
 
@@ -110,7 +111,8 @@ const EditNomadListing = () => {
       Array.isArray(src.reviews) && src.reviews.length
         ? src.reviews.map((r) => ({
             name: r.name || "",
-            review: r.review || r.testimony || "",
+            review: r.description || r.review || r.testimony || "",
+
             rating: Number(r.rating ?? 5),
           }))
         : [defaultReview];
@@ -207,6 +209,27 @@ const EditNomadListing = () => {
     const node = formRef.current;
     node && node.reset();
     reset();
+  };
+
+  const resetFormToEmpty = () => {
+    formRef.current?.reset(); // clears native inputs (files, etc.)
+
+    reset({
+      businessId: "",
+      companyType: "",
+      ratings: "",
+      totalReviews: "",
+      productName: "",
+      cost: "",
+      description: "",
+      latitude: "",
+      longitude: "",
+      inclusions: [],
+      about: "",
+      address: "",
+      images: [],
+      reviews: [defaultReview], // keep one empty review, or [] if you prefer
+    });
   };
 
   return (
@@ -462,7 +485,7 @@ const EditNomadListing = () => {
                 <Controller
                   name={`reviews.${index}.review`}
                   control={control}
-                  rules={{ required: "Review is required" }}
+                  // rules={{ required: "Review is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -493,7 +516,14 @@ const EditNomadListing = () => {
           {/* Submit / Reset */}
           <div className="col-span-2 flex items-center justify-center gap-4">
             <PrimaryButton type="submit" title="Submit" isLoading={isLoading} />
-            <SecondaryButton handleSubmit={handleReset} title="Reset" />
+            {/* <SecondaryButton handleSubmit={handleReset} title="Reset" /> */}
+            <button
+              type="button"
+              onClick={resetFormToEmpty}
+              className="px-6 py-2 bg-gray-200 text-black rounded-md"
+            >
+              Reset
+            </button>
           </div>
         </form>
       </PageFrame>
