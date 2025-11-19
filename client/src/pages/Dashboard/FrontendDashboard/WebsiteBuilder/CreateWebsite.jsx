@@ -213,11 +213,13 @@ const CreateWebsite = () => {
                       size="small"
                       label="Company Name"
                       fullWidth
+                      InputProps={{ readOnly: true }}
                       helperText={errors?.companyName?.message}
                       error={!!errors.companyName}
                     />
                   )}
                 />
+
                 <Controller
                   name="title"
                   control={control}
