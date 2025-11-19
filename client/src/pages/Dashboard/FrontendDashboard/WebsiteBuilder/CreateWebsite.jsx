@@ -183,6 +183,41 @@ const CreateWebsite = () => {
     reset();
   };
 
+  const resetFormToEmpty = () => {
+    formRef.current?.reset(); // clears native file inputs
+
+    reset({
+      companyId: auth?.user?.companyId || "",
+      companyName: auth?.user?.companyName || "",
+
+      title: "",
+      subTitle: "",
+      CTAButtonText: "",
+      companyLogo: null,
+      heroImages: [],
+      gallery: [],
+
+      about: [{ text: "" }],
+
+      productTitle: "",
+      products: [defaultProduct],
+
+      galleryTitle: "",
+
+      testimonialTitle: "",
+      testimonials: [defaultTestimonial],
+
+      contactTitle: "",
+      mapUrl: "",
+      websiteEmail: "",
+      phone: "",
+      address: "",
+
+      registeredCompanyName: "",
+      copyrightText: "",
+    });
+  };
+
   return (
     <div className="pb-2">
       <div className="p-4 flex flex-col gap-4">
@@ -847,7 +882,13 @@ const CreateWebsite = () => {
               title={"Submit"}
               isLoading={isCreateWebsiteLoading}
             />
-            <SecondaryButton handleSubmit={handleReset} title={"Reset"} />
+            <button
+              type="button"
+              onClick={resetFormToEmpty}
+              className="px-6 py-2 bg-gray-200 text-black rounded-md"
+            >
+              Reset
+            </button>
           </div>
         </form>
       </div>
