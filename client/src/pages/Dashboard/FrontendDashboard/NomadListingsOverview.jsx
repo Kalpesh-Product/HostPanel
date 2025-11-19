@@ -29,6 +29,10 @@ export default function NomadListingsOverview() {
       );
       return res.data || [];
     },
+    staleTime: 0,
+    cacheTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: false,
   });
 
   // ✅ Toggle status mutation

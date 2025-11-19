@@ -110,7 +110,8 @@ const EditNomadListing = () => {
       Array.isArray(src.reviews) && src.reviews.length
         ? src.reviews.map((r) => ({
             name: r.name || "",
-            review: r.review || r.testimony || "",
+            review: r.description || r.review || r.testimony || "",
+
             rating: Number(r.rating ?? 5),
           }))
         : [defaultReview];
@@ -462,7 +463,7 @@ const EditNomadListing = () => {
                 <Controller
                   name={`reviews.${index}.review`}
                   control={control}
-                  rules={{ required: "Review is required" }}
+                  // rules={{ required: "Review is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}

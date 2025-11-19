@@ -420,7 +420,7 @@ const NomadListing = () => {
                 <Controller
                   name={`reviews.${index}.review`}
                   control={control}
-                  rules={{ required: "Review is required" }}
+                  // rules={{ required: "Review is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
