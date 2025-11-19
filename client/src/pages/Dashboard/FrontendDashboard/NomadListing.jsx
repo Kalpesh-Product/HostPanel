@@ -49,6 +49,7 @@ const NomadListing = () => {
 
   const { auth } = useAuth(); // <-- get auth info
   const companyId = auth?.user?.companyId || ""; // <-- safe fallback
+  const companyName = auth?.user?.companyName || "";
 
   const {
     control,
@@ -105,6 +106,7 @@ const NomadListing = () => {
     const fd = new FormData(formEl);
 
     fd.set("companyId", companyId); // <-- always send from token
+    fd.set("companyName", companyName); // ← SEND THIS
     // fd.set("businessId", values.businessId);
     fd.set("companyType", values.companyType);
     fd.set("ratings", values.ratings);
@@ -142,6 +144,26 @@ const NomadListing = () => {
     const node = formRef.current;
     node && node.reset();
     reset();
+  };
+
+  const resetFormToEmpty = () => {
+    formRef.current?.reset(); // clears native inputs
+    reset({
+      companyType: "",
+      ratings: "",
+      totalReviews: "",
+      productName: "",
+      cost: "",
+      description: "",
+      latitude: "",
+      longitude: "",
+      inclusions: [],
+      about: "",
+      address: "",
+      images: [],
+      reviews: [defaultReview],
+      mapUrl: "",
+    });
   };
 
   return (
@@ -460,7 +482,14 @@ const NomadListing = () => {
           {/* Submit / Reset */}
           <div className="col-span-2 flex items-center justify-center gap-4">
             <PrimaryButton type="submit" title="Submit" isLoading={isLoading} />
-            <SecondaryButton handleSubmit={handleReset} title="Reset" />
+            {/* <SecondaryButton handleSubmit={handleReset} title="Reset" /> */}
+            <button
+              type="button"
+              onClick={resetFormToEmpty}
+              className="px-6 py-2 bg-gray-200 text-black rounded-md"
+            >
+              Reset
+            </button>
           </div>
         </form>
       </PageFrame>
