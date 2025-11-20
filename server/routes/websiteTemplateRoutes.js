@@ -1,5 +1,5 @@
 import { Router } from "express";
-import upload from "../config/multerConfig.js";
+import upload, { uploadImages } from "../config/multerConfig.js";
 
 import {
   createTemplate,
@@ -12,8 +12,8 @@ import {
 } from "../controllers/websiteControllers/websiteTemplateControllers.js";
 
 const router = Router();
-router.post("/create-website", upload.any(), createTemplate);
-router.patch("/edit-website", upload.any(), editTemplate);
+router.post("/create-website", uploadImages.any(), createTemplate);
+router.patch("/edit-website", uploadImages.any(), editTemplate);
 router.patch("/activate-website", activateTemplate);
 router.get("/get-website/:companyName", getTemplate);
 router.get("/get-websites", getTemplates);

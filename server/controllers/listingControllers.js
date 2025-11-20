@@ -9,7 +9,7 @@ export const createCompanyListing = async (req, res) => {
       companyType,
       ratings,
       totalReviews,
-      productName,
+      companyName,
       cost,
       description,
       latitude,
@@ -33,7 +33,7 @@ export const createCompanyListing = async (req, res) => {
     }
 
     const listingData = {
-      companyName: productName,
+      companyName: companyName,
       companyId: company.companyId,
       logo: company.logo,
       city: company.companyCity,
@@ -160,6 +160,8 @@ export const editCompanyListing = async (req, res) => {
       existingImages = [],
     } = req.body;
 
+    console.log("listing hit🔥");
+
     const parsedReviews =
       typeof reviews === "string" ? JSON.parse(reviews) : reviews;
 
@@ -218,13 +220,6 @@ export const editCompanyListing = async (req, res) => {
       }
 
       if (imageFiles.length) {
-        // if (imageFiles.length > 10) {
-        //   console.log("images ", imageFiles.length);
-        //   return res.status(400).json({
-        //     message: `A maximum of 10 images is allowed. You sent ${imageFiles.length}.`,
-        //   });
-        // }
-
         const sanitize = (name) =>
           String(name || "file")
             .replace(/[/\\?%*:|"<>]/g, "_")
@@ -250,7 +245,7 @@ export const editCompanyListing = async (req, res) => {
     // ---------- REMOTE UPDATE (NO DELETION YET) ----------
     try {
       const response = await axios.patch(
-        "https://wononomads.vercel.app/api/company/update-company",
+        "https://wononomadsbe.vercel.app/api/company/update-company",
         updateData
       );
       console.log("✅ Remote update success:", response.data);
@@ -292,6 +287,41 @@ export const editCompanyListing = async (req, res) => {
       message: "Internal server error",
       detail: error.message,
     });
+  }
+};
+
+export const activateProduct = async (req, res, next) => {
+  try {
+    const { businessId, status } = req.body;
+
+    if (!businessId) {
+      return res.status(400).json({
+        message: "Business Id missing",
+      });
+    }
+
+    if (typeof status !== "boolean") {
+      return res.status(400).json({
+        message: "Status must be true/false",
+      });
+    }
+
+    const response = await axios.patch(
+      "https://wononomadsbe.vercel.app/api/company/activate-product",
+      {
+        businessId,
+        status,
+      }
+    );
+
+    if (response.status !== 200) {
+      return res.status(400).json({ message: "Failed to activate product" });
+    }
+
+    const activeStatus = status ? "active" : "inactive";
+    return res.status(200).json({ message: `Marked as ${activeStatus}` });
+  } catch (error) {
+    next(error);
   }
 };
 

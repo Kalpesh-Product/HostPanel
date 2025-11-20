@@ -50,6 +50,7 @@ const EditNomadListing = () => {
   const location = useLocation();
   const navState = location?.state || {};
 
+  console.log("edit nomad listing");
   // Pull IDs from state or sessionStorage (works after refresh/back)
   const companyId =
     navState.companyId || sessionStorage.getItem("companyId") || "";
@@ -96,7 +97,7 @@ const EditNomadListing = () => {
     enabled: !!companyId && !!businessId,
     queryFn: async () => {
       const res = await axios.get(
-        `https://wononomadsbe.vercel.app/api/company/get-listings/${companyId}?companyType=${companyType}`
+        `http://localhost:3000/api/company/get-listings/${companyId}?companyType=${companyType}`
       );
       const all = Array.isArray(res.data) ? res.data : [];
       return all.find((x) => x.businessId === businessId) || null;
@@ -423,7 +424,7 @@ const EditNomadListing = () => {
                 <UploadMultipleFilesInput
                   {...field}
                   label="Upload New Images"
-                  maxFiles={11}
+                  maxFiles={10}
                   allowedExtensions={["jpg", "jpeg", "png", "webp"]}
                   id="images"
                 />
