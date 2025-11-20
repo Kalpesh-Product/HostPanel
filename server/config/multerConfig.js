@@ -3,6 +3,7 @@ import multer from "multer";
 const storage = multer.memoryStorage();
 // const upload = multer({ storage });
 
+//Multer config for website file uploads
 const upload = multer({
   storage,
   limits: {
@@ -24,4 +25,22 @@ const upload = multer({
   },
 });
 
+//Multer config for nomad listing images
+const uploadImages = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  // limits: { fileSize: 2 * 1024 }, // 2 KB
+  fileFilter: (req, file, cb) => {
+    if (
+      file.mimetype === "image/jpeg" ||
+      file.mimetype === "image/png" ||
+      file.mimetype === "image/webp"
+    ) {
+      return cb(null, true);
+    }
+    cb(new Error("Only .jpeg, .png, and .webp images are allowed"), false);
+  },
+});
+
+export { uploadImages };
 export default upload;
