@@ -1,19 +1,7 @@
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import {
-  TextField,
-  Select,
-  MenuItem,
-  Button,
-  Grid,
-  InputLabel,
-  FormControl,
-  Avatar,
-  CircularProgress,
-  Chip,
-} from "@mui/material";
-import DetalisFormatted from "../../components/DetalisFormatted";
+import { TextField, Avatar, CircularProgress } from "@mui/material";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
@@ -26,8 +14,6 @@ import {
   isAlphanumeric,
   noOnlyWhitespace,
   isValidEmail,
-  isValidPhoneNumber,
-  isValidPinCode,
 } from "../../utils/validators";
 
 const UserDetails = () => {
@@ -37,16 +23,11 @@ const UserDetails = () => {
   const empId = auth?.user?.empId ?? "";
 
   const [file, setFile] = useState(null);
-
   const [previewUrl, setPreviewUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
 
   const handleUpload = async () => {
-    if (!file) {
-      alert("Please select a file before uploading.");
-      return;
-    }
-
+    if (!file) return alert("Please select a file before uploading.");
     setUploading(true);
 
     const formData = new FormData();
@@ -105,12 +86,13 @@ const UserDetails = () => {
     formState: { errors },
   } = useForm({ mode: "onChange", defaultValues: {} });
 
-  // ⭐ FIX 1: Reset using auth.user (so name + address load)
+  // ⭐ email added to reset
   useEffect(() => {
     if (auth?.user) {
       reset({
         name: auth.user.name || "",
         address: auth.user.address || "",
+        email: auth.user.email || "",
       });
     }
   }, [auth?.user, reset]);
@@ -144,19 +126,19 @@ const UserDetails = () => {
     }
 
     const payload = { name: data.name, address: data.address };
-
     mutation.mutate(payload);
   };
 
   const fields = [
     { name: "name", label: "Full Name", disabled: false },
     { name: "address", label: "Work Address", disabled: false },
+    { name: "email", label: "Email", disabled: true }, // ⭐ new read-only field
   ];
 
   const sections = [
     {
       title: "Personal Information",
-      fields: ["name", "address"],
+      fields: ["name", "address", "email"], // ⭐ include email in section
     },
   ];
 
@@ -168,6 +150,7 @@ const UserDetails = () => {
         </span>
       </div>
 
+      {/* Header */}
       <div className="flex items-center gap-8 w-full border-2 border-gray-200 p-4 rounded-xl">
         <div className="flex gap-6 items-center w-full">
           <div className="w-40 h-40">
@@ -214,15 +197,6 @@ const UserDetails = () => {
               </div>
             )}
 
-            {/* {!previewUrl && (
-              <label
-                htmlFor="fileUpload"
-                className="text-content text-white bg-primary font-pregular mt-8 px-5 py-3 rounded-md hover:scale-[1.05] transition cursor-pointer"
-              >
-                Update Profile Image
-              </label>
-            )} */}
-
             <input
               id="fileUpload"
               type="file"
@@ -236,29 +210,18 @@ const UserDetails = () => {
             <div className="flex gap-2">
               <div className="flex flex-col gap-4 text-gray-600">
                 <span>Email : </span>
-                {/* <span>Phone: </span> */}
                 <span>Work Location : </span>
               </div>
               <div className="flex flex-col gap-4 text-gray-500">
                 <span>{user.email}</span>
-                {/* <span>{auth?.user?.phone ?? "N/A"}</span> */}
                 <span>{user.workLocation}</span>
               </div>
             </div>
           </div>
-
-          {/* <div className="h-40 flex flex-col justify-start items-start">
-            <Chip
-              label={user.status ? "Active" : "Inactive"}
-              sx={{
-                backgroundColor: user.status ? "green" : "grey",
-                color: "white",
-              }}
-            />
-          </div> */}
         </div>
       </div>
 
+      {/* Form */}
       <PageFrame>
         <form onSubmit={handleSubmit(onSubmit)}>
           {sections.map((section) => (
@@ -272,14 +235,7 @@ const UserDetails = () => {
                   const fieldConfig = fields.find((f) => f.name === fieldName);
                   if (!fieldConfig) return null;
 
-                  const {
-                    name,
-                    label,
-                    type,
-                    options,
-                    disabled: fieldDisabled,
-                  } = fieldConfig;
-
+                  const { name, label, disabled: fieldDisabled } = fieldConfig;
                   const isEditable = editMode && !fieldDisabled;
 
                   return (
@@ -288,7 +244,9 @@ const UserDetails = () => {
                         <Controller
                           name={name}
                           control={control}
-                          rules={{ required: `${label} is required` }}
+                          rules={{
+                            required: !fieldDisabled && `${label} is required`,
+                          }}
                           render={({ field, fieldState: { error } }) => (
                             <TextField
                               {...field}
@@ -301,7 +259,6 @@ const UserDetails = () => {
                           )}
                         />
                       ) : (
-                        // ⭐ FIX 2: Disabled field now uses Controller (so value loads)
                         <Controller
                           name={name}
                           control={control}
@@ -323,16 +280,17 @@ const UserDetails = () => {
             </div>
           ))}
 
+          {/* Buttons */}
           <div className="flex justify-center">
             {!editMode && (
               <PrimaryButton
                 title={"Edit"}
                 handleSubmit={() => {
-                  if (userDetails)
-                    reset({
-                      name: auth.user.name,
-                      address: auth.user.address,
-                    });
+                  reset({
+                    name: auth.user.name,
+                    address: auth.user.address,
+                    email: auth.user.email, // ⭐ ensure email resets
+                  });
                   setEditMode(true);
                 }}
               />
@@ -348,6 +306,7 @@ const UserDetails = () => {
                   reset({
                     name: auth.user.name,
                     address: auth.user.address,
+                    email: auth.user.email,
                   });
                   setEditMode(false);
                 }}
