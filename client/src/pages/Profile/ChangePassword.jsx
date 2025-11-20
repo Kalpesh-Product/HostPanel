@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import TextField from "@mui/material/TextField"; // Assuming you're using Material-UI for TextField
+import TextField from "@mui/material/TextField";
 import PrimaryButton from "../../components/PrimaryButton";
 import useAuth from "../../hooks/useAuth";
 import { toast } from "sonner";
@@ -9,11 +9,14 @@ import PageFrame from "../../components/Pages/PageFrame";
 const ChangePassword = ({ pageTitle }) => {
   const { auth } = useAuth();
   const axios = useAxiosPrivate();
+  const userId = auth?.user?._id;
+
   const [formData, setFormData] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
+
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [passwordVerified, setPasswordVerified] = useState(false);
@@ -23,23 +26,40 @@ const ChangePassword = ({ pageTitle }) => {
       ...prevData,
       [field]: value,
     }));
-    setErrorMessage(""); // Clear errors on input change
-    setSuccessMessage(""); // Clear success message on input change
+    setErrorMessage("");
+    setSuccessMessage("");
   };
 
   const handlePasswordCheck = async () => {
     try {
       if (!formData.currentPassword) {
-        setErrorMessage("Please provide your current password");
+        setErrorMessage("Please provide your current password.");
         return;
       }
-      const response = await axios.post("/api/users/check-password", {
-        currentPassword: formData.currentPassword,
-      });
-      toast.success(response.data.message);
+
+      if (!userId) {
+        setErrorMessage("User not found. Please re-login.");
+        return;
+      }
+
+      // 🔗 Verify current password
+      const res = await axios.patch(
+        `/api/profile/verify-password/${userId}`, // adjust base path if different
+        {
+          currentPassword: formData.currentPassword,
+        }
+      );
+
+      toast.success(res?.data?.message || "Password verified.");
       setPasswordVerified(true);
+      setErrorMessage("");
     } catch (error) {
-      toast.error(error.response.data.message);
+      const msg =
+        error?.response?.data?.message ||
+        "Failed to verify password. Please try again.";
+      setErrorMessage(msg);
+      toast.error(msg);
+      setPasswordVerified(false);
     }
   };
 
@@ -47,34 +67,59 @@ const ChangePassword = ({ pageTitle }) => {
     try {
       const { currentPassword, newPassword, confirmPassword } = formData;
 
-      // Validate inputs
       if (!currentPassword || !newPassword || !confirmPassword) {
         setErrorMessage("All fields are required.");
         return;
       }
+
+      if (!passwordVerified) {
+        setErrorMessage("Please verify your current password first.");
+        return;
+      }
+
       if (newPassword !== confirmPassword) {
         setErrorMessage("New password and confirm password do not match.");
         return;
       }
-      if (newPassword.length < 6) {
-        setErrorMessage("New password must be at least 6 characters long.");
+
+      // Match your own requirement text: 8 characters
+      if (newPassword.length < 8) {
+        setErrorMessage("New password must be at least 8 characters long.");
         return;
       }
 
-      // Simulate password change success
-      await axios.post("/api/users/update-password", {
-        newPassword: formData.newPassword,
-        confirmPassword: formData.confirmPassword,
-      });
+      if (!userId) {
+        setErrorMessage("User not found. Please re-login.");
+        return;
+      }
+
+      // 🔗 Change password
+      const res = await axios.patch(
+        `/api/profile/change-password/${userId}`, // adjust base path if different
+        {
+          currentPassword,
+          newPassword,
+          confirmPassword,
+        }
+      );
+
+      toast.success(res?.data?.message || "Password changed successfully.");
       setSuccessMessage("Password changed successfully!");
+
+      // Reset form & state
       setFormData({
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
       });
       setPasswordVerified(false);
+      setErrorMessage("");
     } catch (error) {
-      toast.error(error.response.data.message);
+      const msg =
+        error?.response?.data?.message ||
+        "Failed to change password. Please try again.";
+      setErrorMessage(msg);
+      toast.error(msg);
     }
   };
 
@@ -87,6 +132,7 @@ const ChangePassword = ({ pageTitle }) => {
             Change password
           </span>
         </div>
+
         <div>
           {/* Current Password Field */}
           <div className="mb-4 w-full flex justify-start items-center gap-4">
@@ -94,8 +140,7 @@ const ChangePassword = ({ pageTitle }) => {
               size="small"
               label="Current Password"
               type="password"
-              // disabled={passwordVerified}
-              disabled={true}
+              disabled={passwordVerified}
               sx={{ width: "49.3%" }}
               value={formData.currentPassword}
               onChange={(e) => handleChange("currentPassword", e.target.value)}
@@ -105,7 +150,7 @@ const ChangePassword = ({ pageTitle }) => {
               <PrimaryButton
                 title="Verify"
                 type="button"
-                disabled={true}
+                disabled={!formData.currentPassword}
                 handleSubmit={handlePasswordCheck}
               />
             )}
@@ -116,8 +161,8 @@ const ChangePassword = ({ pageTitle }) => {
             <TextField
               size="small"
               label="New Password"
-              disabled
               type="password"
+              disabled={!passwordVerified}
               value={formData.newPassword}
               onChange={(e) => handleChange("newPassword", e.target.value)}
               fullWidth
@@ -127,7 +172,7 @@ const ChangePassword = ({ pageTitle }) => {
               size="small"
               label="Confirm Password"
               type="password"
-              disabled
+              disabled={!passwordVerified}
               value={formData.confirmPassword}
               onChange={(e) => handleChange("confirmPassword", e.target.value)}
               fullWidth
@@ -143,7 +188,7 @@ const ChangePassword = ({ pageTitle }) => {
             )}
           </div>
 
-          <div className="flex flex-col gap-3 text-gray-500">
+          <div className="flex flex-col gap-3 text-gray-500 mt-4">
             <span className="text-subtitle">Password Requirements</span>
             <ul className="text-content list-disc pl-5">
               <li>Must be at least 8 characters long.</li>
@@ -157,7 +202,8 @@ const ChangePassword = ({ pageTitle }) => {
             <PrimaryButton
               title={"Submit"}
               handleSubmit={handlePasswordChange}
-              disabled={true}>
+              disabled={!passwordVerified}
+            >
               Change Password
             </PrimaryButton>
           </div>
