@@ -713,26 +713,28 @@ const EditWebsite = () => {
                         }
                       />
                     </div>
-                    {/* productImages_${finalIndex} */}
-                    <Controller
-                      name={`products.${index}.files`}
-                      control={control}
-                      render={({ field }) => (
-                        <UploadMultipleFilesInput
-                          {...field}
-                          label="Add Product Images"
-                          maxFiles={10}
-                          allowedExtensions={[
-                            "jpg",
-                            "jpeg",
-                            "png",
-                            "webp",
-                            "pdf",
-                          ]}
-                          id={`products.${index}.files`}
-                        />
-                      )}
-                    />
+                    <div className="pt-4">
+                      {/* productImages_${finalIndex} */}
+                      <Controller
+                        name={`products.${index}.files`}
+                        control={control}
+                        render={({ field }) => (
+                          <UploadMultipleFilesInput
+                            {...field}
+                            label="Add Product Images"
+                            maxFiles={10}
+                            allowedExtensions={[
+                              "jpg",
+                              "jpeg",
+                              "png",
+                              "webp",
+                              "pdf",
+                            ]}
+                            id={`products.${index}.files`}
+                          />
+                        )}
+                      />
+                    </div>
                   </div>
                 ))}
 
