@@ -7,7 +7,7 @@ const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: {
-    fileSize: 30 * 1024 * 1024, // 30 MB
+    fileSize: 5 * 1024 * 1024, // 5 MB
   },
 
   fileFilter: (req, file, cb) => {
@@ -28,8 +28,7 @@ const upload = multer({
 //Multer config for nomad listing images
 const uploadImages = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
-  // limits: { fileSize: 2 * 1024 }, // 2 KB
+  limits: { fileSize: 30 * 1024 * 1024 }, // 30 MB
   fileFilter: (req, file, cb) => {
     if (
       file.mimetype === "image/jpeg" ||
