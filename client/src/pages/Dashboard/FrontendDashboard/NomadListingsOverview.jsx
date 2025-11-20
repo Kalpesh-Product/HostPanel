@@ -55,7 +55,11 @@ export default function NomadListingsOverview() {
   // ✅ Toggle status mutation
   const { mutate: toggleStatus } = useMutation({
     mutationFn: async (data) => {
-      const response = await axios.patch("/api/hosts/activate-product", data);
+      console.log("data", data);
+      const response = await axios.patch(
+        "/api/listings/activate-product",
+        data
+      );
       return response.data;
     },
     onSuccess: (data) => {
