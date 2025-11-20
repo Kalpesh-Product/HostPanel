@@ -34,53 +34,53 @@ const LoginPage = () => {
           id: 4,
           title: "Finance Dashboard",
           codeName: "Finance",
-          route: "/app/dashboard",
+          route: "/app/company-settings",
         },
         {
           id: 5,
           title: "Sales Dashboard",
           codeName: "Sales",
-          route: "/app/dashboard",
+          route: "/app/company-settings",
         },
         {
           id: 3,
           title: "HR Dashboard",
           codeName: "HR",
-          route: "/app/dashboard",
+          route: "/app/company-settings",
         },
 
         {
           id: 2,
           title: "Frontend Dashboard",
           codeName: "Tec",
-          route: "/app/dashboard",
+          route: "/app/company-settings",
         },
 
         {
           id: 6,
           title: "Admin Dashboard",
           codeName: "Administration",
-          route: "/app/dashboard",
+          route: "/app/company-settings",
         },
 
         {
           id: 7,
           title: "Maintenance Dashboard",
           codeName: "Maintenance",
-          route: "/app/dashboard",
+          route: "/app/company-settings",
         },
         {
           id: 9,
           title: "IT Dashboard",
           codeName: "IT",
-          route: "/app/dashboard",
+          route: "/app/company-settings",
         },
 
         {
           id: 8,
           title: "Cafe Dashboard",
           codeName: "Cafe",
-          route: "/app/dashboard",
+          route: "/app/company-settings",
         },
       ],
     },
@@ -106,7 +106,7 @@ const LoginPage = () => {
   const firstAvailableRoute = hasAnySubmenus
     ? filteredModules.find((module) => module.submenus.length > 0).submenus[0]
         .route
-    : "/dashboard";
+    : "/company-settings";
 
   useEffect(() => {
     if (auth.accessToken) {
@@ -137,7 +137,7 @@ const LoginPage = () => {
       });
       console.log(response.data.user);
       toast.success("Successfully logged in");
-      navigate("/dashboard");
+      navigate("/company-settings");
     } catch (error) {
       toast.error(error.response?.data.message);
     } finally {
@@ -358,7 +358,7 @@ const LoginPage = () => {
                           disabled={loading}
                           type="button"
                           className="loginButtonStyling text-decoration-none text-subtitle w-40"
-                          onClick={() => navigate("/dashboard")}>
+                          onClick={() => navigate("/company-settings")}>
                           SIGN IN
                         </button> */}
                       </div>
