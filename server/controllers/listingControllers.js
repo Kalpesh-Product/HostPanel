@@ -319,7 +319,7 @@ export const activateProduct = async (req, res, next) => {
     }
 
     const activeStatus = status ? "active" : "inactive";
-    return res.status(200).json({ message: `Marked as ${activeStatus}` });
+    return res.status(200).json({ message: "Status updated" });
   } catch (error) {
     next(error);
   }
