@@ -350,10 +350,12 @@ const EditWebsite = () => {
   };
 
   const resetFormToEmpty = () => {
+    const currentCompanyName = watch("companyName"); // keep original
+
     formRef.current?.reset(); // clears native inputs like file fields
 
     reset({
-      companyName: "",
+      companyName: currentCompanyName, // <-- keep it
       title: "",
       subTitle: "",
       CTAButtonText: "",
@@ -417,7 +419,6 @@ const EditWebsite = () => {
                 <Controller
                   name="companyName"
                   control={control}
-                  // rules={{ required: "Company name is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -426,9 +427,11 @@ const EditWebsite = () => {
                       fullWidth
                       helperText={errors?.companyName?.message}
                       error={!!errors.companyName}
+                      InputProps={{ readOnly: true }} // <-- ADDED
                     />
                   )}
                 />
+
                 <Controller
                   name="title"
                   control={control}
@@ -622,23 +625,6 @@ const EditWebsite = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Controller
-                        name={`products.${index}.type`}
-                        control={control}
-                        // rules={{ required: "Type is required" }}
-                        render={({ field }) => (
-                          <TextField
-                            {...field}
-                            size="small"
-                            label="Type"
-                            fullWidth
-                            helperText={
-                              errors?.products?.[index]?.type?.message
-                            }
-                            error={!!errors?.products?.[index]?.type}
-                          />
-                        )}
-                      />
-                      <Controller
                         name={`products.${index}.name`}
                         control={control}
                         // rules={{ required: "Name is required" }}
@@ -646,7 +632,7 @@ const EditWebsite = () => {
                           <TextField
                             {...field}
                             size="small"
-                            label="Name"
+                            label="Product Name"
                             fullWidth
                             helperText={
                               errors?.products?.[index]?.name?.message
@@ -656,22 +642,23 @@ const EditWebsite = () => {
                         )}
                       />
                       <Controller
-                        name={`products.${index}.cost`}
+                        name={`products.${index}.type`}
                         control={control}
-                        // rules={{ required: "Cost is required" }}
+                        // rules={{ required: "Type is required" }}
                         render={({ field }) => (
                           <TextField
                             {...field}
                             size="small"
-                            label="Cost"
+                            label="Product Type"
                             fullWidth
                             helperText={
-                              errors?.products?.[index]?.cost?.message
+                              errors?.products?.[index]?.type?.message
                             }
-                            error={!!errors?.products?.[index]?.cost}
+                            error={!!errors?.products?.[index]?.type}
                           />
                         )}
                       />
+
                       <Controller
                         name={`products.${index}.description`}
                         control={control}
@@ -680,14 +667,32 @@ const EditWebsite = () => {
                           <TextField
                             {...field}
                             size="small"
-                            label="Description"
+                            label="Product Description"
                             fullWidth
-                            multiline
-                            minRows={3}
+                            // multiline
+                            // minRows={3}
                             helperText={
                               errors?.products?.[index]?.description?.message
                             }
                             error={!!errors?.products?.[index]?.description}
+                          />
+                        )}
+                      />
+
+                      <Controller
+                        name={`products.${index}.cost`}
+                        control={control}
+                        // rules={{ required: "Cost is required" }}
+                        render={({ field }) => (
+                          <TextField
+                            {...field}
+                            size="small"
+                            label="Product Cost"
+                            fullWidth
+                            helperText={
+                              errors?.products?.[index]?.cost?.message
+                            }
+                            error={!!errors?.products?.[index]?.cost}
                           />
                         )}
                       />
@@ -707,27 +712,27 @@ const EditWebsite = () => {
                           )
                         }
                       />
-                      {/* productImages_${finalIndex} */}
-                      <Controller
-                        name={`products.${index}.files`}
-                        control={control}
-                        render={({ field }) => (
-                          <UploadMultipleFilesInput
-                            {...field}
-                            label="Add Product Images"
-                            maxFiles={10}
-                            allowedExtensions={[
-                              "jpg",
-                              "jpeg",
-                              "png",
-                              "webp",
-                              "pdf",
-                            ]}
-                            id={`products.${index}.files`}
-                          />
-                        )}
-                      />
                     </div>
+                    {/* productImages_${finalIndex} */}
+                    <Controller
+                      name={`products.${index}.files`}
+                      control={control}
+                      render={({ field }) => (
+                        <UploadMultipleFilesInput
+                          {...field}
+                          label="Add Product Images"
+                          maxFiles={10}
+                          allowedExtensions={[
+                            "jpg",
+                            "jpeg",
+                            "png",
+                            "webp",
+                            "pdf",
+                          ]}
+                          id={`products.${index}.files`}
+                        />
+                      )}
+                    />
                   </div>
                 ))}
 
