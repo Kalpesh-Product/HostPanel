@@ -408,7 +408,7 @@ const EditWebsite = () => {
           encType="multipart/form-data"
           onSubmit={handleSubmit(onSubmit)}
         >
-          <div className="grid grid-cols-2 sm:grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:grid grid-cols-2 sm:grid-cols-1 md:grid-cols-2 gap-4">
             {/* HERO / COMPANY */}
             <div>
               <div className="py-4 border-b-default border-borderGray">
