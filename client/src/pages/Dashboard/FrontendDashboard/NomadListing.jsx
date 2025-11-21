@@ -34,7 +34,15 @@ const inclusionOptions = [
 ];
 
 // Dummy company types
-const companyTypes = ["Coworking", "Meeting Room", "Cafe", "Private Stay"];
+const companyTypes = [
+  "Coworking",
+  "Meeting Room",
+  "Cafe",
+  // "Private Stay",
+  "Workation",
+  "Coliving",
+  "Hostel",
+];
 
 // ✅ Default review structure
 const defaultReview = {
@@ -173,7 +181,7 @@ const NomadListing = () => {
           ref={formRef}
           encType="multipart/form-data"
           onSubmit={handleSubmit(onSubmit, () => onSubmit(getValues()))}
-          className="grid grid-cols-2 gap-4"
+          className="md:grid grid-cols-2 gap-4"
         >
           {/* Product Name */}
           {/* <Controller
@@ -191,29 +199,38 @@ const NomadListing = () => {
               <TextField {...field} size="small" label="Cost" type="number" />
             )}
           /> */}
-          {/* Company Type */}
-          <Controller
-            name="companyType"
-            control={control}
-            rules={{ required: "Company Type is required" }}
-            render={({ field }) => (
-              <TextField {...field} select size="small" label="Company Type">
-                {companyTypes.map((type) => (
-                  <MenuItem key={type} value={type.toLowerCase()}>
-                    {type}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
-          />
-          {/* Inclusions */}
-          <Controller
-            name="inclusions"
-            control={control}
-            render={({ field }) => (
-              <FormControl size="small">
-                <InputLabel>Inclusions</InputLabel>
-                {/* <Select
+          <div className="mb-4 md:mb-0">
+            {/* Company Type */}
+            <Controller
+              name="companyType"
+              control={control}
+              rules={{ required: "Company Type is required" }}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  select
+                  size="small"
+                  label="Company Type"
+                  fullWidth
+                >
+                  {companyTypes.map((type) => (
+                    <MenuItem key={type} value={type.toLowerCase()}>
+                      {type}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Inclusions */}
+            <Controller
+              name="inclusions"
+              control={control}
+              render={({ field }) => (
+                <FormControl size="small" fullWidth>
+                  <InputLabel>Inclusions</InputLabel>
+                  {/* <Select
                   {...field}
                   multiple
                   input={<OutlinedInput label="Inclusions" />}
@@ -225,36 +242,37 @@ const NomadListing = () => {
                     </MenuItem>
                   ))}
                 </Select> */}
-                <Select
-                  {...field}
-                  multiple
-                  value={
-                    Array.isArray(field.value)
-                      ? field.value
-                      : field.value
-                      ? [field.value]
-                      : []
-                  }
-                  input={<OutlinedInput label="Inclusions" />}
-                  renderValue={(selected) =>
-                    Array.isArray(selected) ? selected.join(", ") : ""
-                  }
-                >
-                  {inclusionOptions.map((option) => (
-                    <MenuItem key={option} value={option}>
-                      <Checkbox
-                        checked={
-                          Array.isArray(field.value) &&
-                          field.value.includes(option)
-                        }
-                      />
-                      <ListItemText primary={option} />
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-          />
+                  <Select
+                    {...field}
+                    multiple
+                    value={
+                      Array.isArray(field.value)
+                        ? field.value
+                        : field.value
+                        ? [field.value]
+                        : []
+                    }
+                    input={<OutlinedInput label="Inclusions" />}
+                    renderValue={(selected) =>
+                      Array.isArray(selected) ? selected.join(", ") : ""
+                    }
+                  >
+                    {inclusionOptions.map((option) => (
+                      <MenuItem key={option} value={option}>
+                        <Checkbox
+                          checked={
+                            Array.isArray(field.value) &&
+                            field.value.includes(option)
+                          }
+                        />
+                        <ListItemText primary={option} />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            />
+          </div>
           {/* Description */}
           {/* <div className="col-span-2">
             <Controller
@@ -272,129 +290,151 @@ const NomadListing = () => {
               )}
             />
           </div> */}
-          {/* Ratings */}
-          <Controller
-            name="ratings"
-            control={control}
-            rules={{
-              min: {
-                value: 0,
-                message: "Rating cannot be negative",
-              },
-            }}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                size="small"
-                label="Ratings"
-                type="number"
-                inputProps={{ min: 0 }}
-                error={!!errors.ratings}
-                helperText={errors?.ratings?.message}
-              />
-            )}
-          />
-
-          {/* Total Reviews */}
-          <Controller
-            name="totalReviews"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                size="small"
-                label="Total Reviews"
-                type="number"
-              />
-            )}
-          />
-          {/* Latitude */}
-          <Controller
-            name="latitude"
-            control={control}
-            render={({ field }) => (
-              <TextField {...field} size="small" label="Latitude" />
-            )}
-          />
-          {/* Longitude */}
-          <Controller
-            name="longitude"
-            control={control}
-            render={({ field }) => (
-              <TextField {...field} size="small" label="Longitude" />
-            )}
-          />
-          {/* About */}
-          <Controller
-            name="about"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                size="small"
-                label="About"
-                multiline
-                minRows={3}
-                fullWidth
-              />
-            )}
-          />
-          {/* Address */}
-          <Controller
-            name="address"
-            control={control}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                size="small"
-                label="Address"
-                multiline
-                minRows={3}
-                fullWidth
-              />
-            )}
-          />
-          {/* Images */}
-          <Controller
-            name="images"
-            control={control}
-            render={({ field }) => (
-              <UploadMultipleFilesInput
-                {...field}
-                label="Product Images"
-                maxFiles={10}
-                allowedExtensions={["jpg", "jpeg", "png", "webp"]}
-                id="images"
-              />
-            )}
-          />
-          {/* Map URL */}
-          <Controller
-            name="mapUrl"
-            control={control}
-            rules={{
-              required: "Map URL is required",
-              validate: (val) => {
-                const MAP_EMBED_REGEX =
-                  /^https?:\/\/(www\.)?(google\.com|maps\.google\.com)\/maps\/embed(\/v1\/[a-z]+|\?pb=|\/?\?)/i;
-                const v = (val || "").trim();
-                return (
-                  MAP_EMBED_REGEX.test(v) ||
-                  "Enter a valid Google Maps embed URL"
-                );
-              },
-            }}
-            render={({ field }) => (
-              <TextField
-                {...field}
-                size="small"
-                label="Embed Map URL"
-                fullWidth
-                helperText={errors?.mapUrl?.message}
-                error={!!errors.mapUrl}
-              />
-            )}
-          />
+          <div className="mb-4 md:mb-0">
+            {/* Ratings */}
+            <Controller
+              name="ratings"
+              control={control}
+              rules={{
+                min: {
+                  value: 0,
+                  message: "Rating cannot be negative",
+                },
+              }}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  size="small"
+                  label="Ratings"
+                  type="number"
+                  inputProps={{ min: 0 }}
+                  error={!!errors.ratings}
+                  helperText={errors?.ratings?.message}
+                  fullWidth
+                />
+              )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Total Reviews */}
+            <Controller
+              name="totalReviews"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  size="small"
+                  label="Total Reviews"
+                  type="number"
+                  fullWidth
+                />
+              )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Latitude */}
+            <Controller
+              name="latitude"
+              control={control}
+              render={({ field }) => (
+                <TextField {...field} size="small" label="Latitude" fullWidth />
+              )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Longitude */}
+            <Controller
+              name="longitude"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  size="small"
+                  label="Longitude"
+                  fullWidth
+                />
+              )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* About */}
+            <Controller
+              name="about"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  size="small"
+                  label="About"
+                  multiline
+                  minRows={3}
+                  fullWidth
+                />
+              )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Address */}
+            <Controller
+              name="address"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  size="small"
+                  label="Address"
+                  multiline
+                  minRows={3}
+                  fullWidth
+                />
+              )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Images */}
+            <Controller
+              name="images"
+              control={control}
+              render={({ field }) => (
+                <UploadMultipleFilesInput
+                  {...field}
+                  label="Product Images"
+                  maxFiles={10}
+                  allowedExtensions={["jpg", "jpeg", "png", "webp"]}
+                  id="images"
+                />
+              )}
+            />
+          </div>
+          <div className="mb-4 md:mb-0">
+            {/* Map URL */}
+            <Controller
+              name="mapUrl"
+              control={control}
+              rules={{
+                required: "Map URL is required",
+                validate: (val) => {
+                  const MAP_EMBED_REGEX =
+                    /^https?:\/\/(www\.)?(google\.com|maps\.google\.com)\/maps\/embed(\/v1\/[a-z]+|\?pb=|\/?\?)/i;
+                  const v = (val || "").trim();
+                  return (
+                    MAP_EMBED_REGEX.test(v) ||
+                    "Enter a valid Google Maps embed URL"
+                  );
+                },
+              }}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  size="small"
+                  label="Embed Map URL"
+                  fullWidth
+                  helperText={errors?.mapUrl?.message}
+                  error={!!errors.mapUrl}
+                />
+              )}
+            />
+          </div>
           {/* Reviews */}
           <div className="col-span-2">
             <div className="py-4 border-b border-gray-300">

@@ -14,7 +14,7 @@ const Unauthorized = () => {
         </p>
         <div className="mt-6 flex flex-col gap-3">
           <button
-            onClick={() => navigate('/app/dashboard')}
+            onClick={() => navigate("/app/company-settings")}
             className="bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-6 rounded-lg transition"
           >
             Go Back
