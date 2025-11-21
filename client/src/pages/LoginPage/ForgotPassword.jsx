@@ -175,8 +175,8 @@ const ForgotPassword = () => {
       {/* Header */}
       <div className="login-section loginTopPadding loginBottomPadding poppinsRegular heightPadding">
         <h1 className="text-center text-4xl font-bold">FORGOT PASSWORD</h1>
-        <div className="loginDividingContainer shrink-container">
-          <div className="loginLeftContainer">
+        <div className="loginDividingContainer shrink-container ">
+          <div className="loginLeftContainer  w-full md:w-3/4">
             <Container
               maxWidth="lg"
               style={{ padding: "3rem 0 0" }}
@@ -189,7 +189,7 @@ const ForgotPassword = () => {
                 noValidate
                 autoComplete="off"
               >
-                <div className="grid grid-cols-1 lg:grid-cols-1 gap-4 w-1/2 mx-auto">
+                <div className="grid grid-cols-1 lg:grid-cols-1 gap-4 w-4/5 md:w-1/2 mx-auto">
                   <Grid item xs={12}>
                     <TextField
                       label="Email"
