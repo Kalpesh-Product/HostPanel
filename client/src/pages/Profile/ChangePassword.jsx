@@ -135,16 +135,23 @@ const ChangePassword = ({ pageTitle }) => {
 
         <div>
           {/* Current Password Field */}
-          <div className="mb-4 w-full flex justify-start items-center gap-4">
+          <div className="mb-4 w-full flex justify-between md:justify-start items-center gap-2 md:gap-4">
             <TextField
               size="small"
               label="Current Password"
               type="password"
               disabled={passwordVerified}
-              sx={{ width: "49.3%" }}
+              sx={{
+                width: {
+                  xs: "100%", // phone
+                  sm: "100%", // small tablets
+                  md: "49.3%", // desktop and above
+                },
+              }}
               value={formData.currentPassword}
               onChange={(e) => handleChange("currentPassword", e.target.value)}
               required
+              fullWidth
             />
             {!passwordVerified && (
               <PrimaryButton
@@ -157,7 +164,7 @@ const ChangePassword = ({ pageTitle }) => {
           </div>
 
           {/* New Password and Confirm Password Fields */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <TextField
               size="small"
               label="New Password"
@@ -181,12 +188,12 @@ const ChangePassword = ({ pageTitle }) => {
           </div>
 
           {/* Error and Success Messages */}
-          <div className="mt-4">
+          {/* <div className="mt-4">
             {errorMessage && <p className="text-red-500">{errorMessage}</p>}
             {successMessage && (
               <p className="text-green-500">{successMessage}</p>
             )}
-          </div>
+          </div> */}
 
           <div className="flex flex-col gap-3 text-gray-500 mt-4">
             <span className="text-subtitle">Password Requirements</span>
