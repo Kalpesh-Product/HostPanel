@@ -152,7 +152,7 @@ const UserDetails = () => {
 
       {/* Header */}
       <div className="flex items-center gap-8 w-full border-2 border-gray-200 p-4 rounded-xl">
-        <div className="flex gap-6 items-center w-full">
+        <div className="flex gap-6 items-center w-full flex-col md:flex-row">
           <div className="w-40 h-40">
             <Avatar
               style={{
@@ -169,7 +169,7 @@ const UserDetails = () => {
             </Avatar>
           </div>
 
-          <div className=" w-96 flex flex-col gap-1">
+          <div className=" md:w-96 flex flex-col gap-1">
             <span className="text-title flex items-center gap-3">
               {user.name}
             </span>
@@ -208,7 +208,7 @@ const UserDetails = () => {
 
           <div className="flex flex-col gap-4 flex-1">
             <div className="flex gap-2">
-              <div className="flex flex-col gap-4 text-gray-600">
+              <div className="flex flex-col gap-4 text-gray-600 min-w-20">
                 <span>Email : </span>
                 <span>Work Location : </span>
               </div>
@@ -230,7 +230,7 @@ const UserDetails = () => {
                 {section.title}
               </span>
 
-              <div className="grid grid-cols-3 gap-4 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                 {section.fields.map((fieldName) => {
                   const fieldConfig = fields.find((f) => f.name === fieldName);
                   if (!fieldConfig) return null;
