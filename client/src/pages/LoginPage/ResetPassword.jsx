@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useParams } from "react-router-dom";
 import { Container, Box, Grid, TextField } from "@mui/material";
 import { toast } from "sonner";
 import useRefresh from "../../hooks/useRefresh";
@@ -14,9 +14,12 @@ import { Drawer, List, ListItem, ListItemText } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { IoCloseSharp } from "react-icons/io5";
 import logo from "../../assets/WONO_LOGO_Black_TP.png";
+import useAxiosPrivate from "../../hooks/useAxiosPrivate";
+import { useMutation } from "@tanstack/react-query";
 
 const ResetPassword = () => {
   const { auth, setAuth } = useAuth();
+  const axios = useAxiosPrivate();
   const user = auth.user;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const navigate = useNavigate();
@@ -27,132 +30,54 @@ const ResetPassword = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const refresh = useRefresh();
-  const defaultModules = [
-    {
-      id: 1,
-      title: "Dashboard",
-      submenus: [
-        {
-          id: 4,
-          title: "Finance Dashboard",
-          codeName: "Finance",
-          route: "/app/dashboard",
-        },
-        {
-          id: 5,
-          title: "Sales Dashboard",
-          codeName: "Sales",
-          route: "/app/dashboard",
-        },
-        {
-          id: 3,
-          title: "HR Dashboard",
-          codeName: "HR",
-          route: "/app/dashboard",
-        },
-
-        {
-          id: 2,
-          title: "Frontend Dashboard",
-          codeName: "Tec",
-          route: "/app/dashboard",
-        },
-
-        {
-          id: 6,
-          title: "Admin Dashboard",
-          codeName: "Administration",
-          route: "/app/dashboard",
-        },
-
-        {
-          id: 7,
-          title: "Maintenance Dashboard",
-          codeName: "Maintenance",
-          route: "/app/dashboard",
-        },
-        {
-          id: 9,
-          title: "IT Dashboard",
-          codeName: "IT",
-          route: "/app/dashboard",
-        },
-
-        {
-          id: 8,
-          title: "Cafe Dashboard",
-          codeName: "Cafe",
-          route: "/app/dashboard",
-        },
-      ],
-    },
-  ];
-  const userDepartments = auth.user?.departments?.map((item) => item.name);
-
-  const filteredModules = defaultModules.map((module) => {
-    const filteredSubmenus = module.submenus?.filter((submenu) =>
-      userDepartments?.includes(submenu.codeName)
-    );
-
-    return {
-      ...module,
-      submenus: filteredSubmenus,
-    };
-  });
-
-  const hasAnySubmenus = filteredModules.some(
-    (module) => module.submenus.length > 0
-  );
-
-  // If there are matches, use first matched route. Else fallback to Finance Dashboard
-  const firstAvailableRoute = hasAnySubmenus
-    ? filteredModules.find((module) => module.submenus.length > 0).submenus[0]
-        .route
-    : "/dashboard";
+  const { token } = useParams();
 
   useEffect(() => {
-    if (auth.accessToken) {
-      navigate(firstAvailableRoute);
-    } else {
-      refresh();
-    }
-  }, [auth.accessToken]);
+    if (auth?.user) navigate("/profile/my-profile", { replace: true });
+  }, [auth, navigate]);
 
-  // Validation function
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      const response = await api.post(
-        "/api/auth/login",
-        { email, password },
-        {
-          withCredentials: true,
-        }
+  const { mutate: submitReset, isPending: isResetPending } = useMutation({
+    mutationFn: async (data) => {
+      const payload = {
+        password: data.password,
+        confirmPassword: data.confirmPassword,
+      };
+
+      console.log("reset password", payload);
+      const response = await axios.patch(
+        `/api/auth/reset-password/${token}`,
+        payload
       );
-      setAuth((prevState) => {
-        return {
-          ...prevState,
-          accessToken: response?.data?.accessToken,
-          user: response.data.user,
-        };
-      });
-      console.log(response.data.user);
-      toast.success("Successfully logged in");
-      navigate("/dashboard");
-    } catch (error) {
-      toast.error(error.response?.data.message);
-    } finally {
-      setLoading(false);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data?.message || "Password reset successful");
+
+      navigate("/");
+    },
+    onError: (error) => {
+      if (error.response) {
+        const { status, data } = error.response;
+        let message = "Something went wrong";
+        if (status === 400) message = data.message;
+        else if (status === 401 && data?.message) message = data.message;
+        else if (status === 500)
+          message = "Internal server error. Please try again.";
+        toast.error(message);
+      } else {
+        toast.error("Network error. Please check your connection.");
+      }
+    },
+  });
+
+  const onSubmit = (e) => {
+    e.preventDefault();
+    if (password !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
     }
+    submitReset({ password, confirmPassword });
   };
-  const navItems = [
-    { label: "Modules", link: "https://wono.co/modules" },
-    { label: "Themes", link: "https://wono.co/themes" },
-    { label: "Leads", link: "https://wono.co/leads" },
-    { label: "Capital", link: "https://wono.co/capital" },
-    { label: "Career", link: "https://wono.co/career" },
-  ];
 
   return (
     <>
@@ -285,7 +210,7 @@ const ResetPassword = () => {
               <Box
                 component="form"
                 sx={{ flexGrow: 1 }}
-                onSubmit={handleLogin}
+                onSubmit={onSubmit}
                 noValidate
                 autoComplete="off"
               >
@@ -374,12 +299,11 @@ const ResetPassword = () => {
                     <Grid item xs={12}>
                       <div className="centerInPhone">
                         <button
-                          disabled={loading}
-                          onClick={handleLogin}
+                          disabled={isResetPending}
                           type="submit"
                           className="loginButtonStyling text-decoration-none text-subtitle w-40"
                         >
-                          {loading ? (
+                          {isResetPending ? (
                             <CircularProgress size={20} color="white" />
                           ) : (
                             "RESET"
