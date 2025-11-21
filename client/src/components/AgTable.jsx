@@ -321,34 +321,39 @@ const AgTableComponent = React.memo(
             />
           </div>
         </MuiAside>
-
-        <div
-          ref={tableRef}
-          className="ag-theme-quartz border-none w-full font-pregular"
-          style={{ height: 440 }}
-        >
-          <AgGridReact
-            ref={gridRef}
-            rowData={filteredData}
-            columnDefs={modifiedColumns} // ✅ Use modified columns with checkboxes
-            defaultColDef={defaultColDef}
-            pagination={false}
-            isRowSelectable={isRowSelectable}
-            paginationPageSize={paginationPageSize}
-            suppressCellSelection={false}
-            enableCellTextSelection={true}
-            rowHeight={50}
-            rowSelection={
-              enableCheckbox ? (checkAll ? "multiple" : "single") : rowSelection
-            }
-            onSelectionChanged={handleSelectionChanged}
-            getRowStyle={getRowStyle}
-            className="font-pregular"
-            rowBuffer={20} // ✅ Defines how many extra rows to render outside viewport
-            cacheBlockSize={paginationPageSize} // ✅ Controls how many rows to fetch per block
-            suppressRowVirtualization={false} // ✅ Ensures row virtualization is active
-            suppressColumnVirtualisation={false} // ✅ Ensures column virtualization is active
-          />
+        <div className="w-full overflow-x-auto sm:overflow-x-visible">
+          <div
+            ref={tableRef}
+            className="ag-theme-quartz border-none font-pregular min-w-[900px] sm:min-w-full"
+            style={{ height: 440 }}
+          >
+            <AgGridReact
+              ref={gridRef}
+              rowData={filteredData}
+              columnDefs={modifiedColumns} // ✅ Use modified columns with checkboxes
+              defaultColDef={defaultColDef}
+              pagination={false}
+              isRowSelectable={isRowSelectable}
+              paginationPageSize={paginationPageSize}
+              suppressCellSelection={false}
+              enableCellTextSelection={true}
+              rowHeight={50}
+              rowSelection={
+                enableCheckbox
+                  ? checkAll
+                    ? "multiple"
+                    : "single"
+                  : rowSelection
+              }
+              onSelectionChanged={handleSelectionChanged}
+              getRowStyle={getRowStyle}
+              className="font-pregular"
+              rowBuffer={20} // ✅ Defines how many extra rows to render outside viewport
+              cacheBlockSize={paginationPageSize} // ✅ Controls how many rows to fetch per block
+              suppressRowVirtualization={false} // ✅ Ensures row virtualization is active
+              suppressColumnVirtualisation={false} // ✅ Ensures column virtualization is active
+            />
+          </div>
         </div>
 
         {/* Floating Action Button */}

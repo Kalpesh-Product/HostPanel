@@ -51,6 +51,47 @@ export const updateProfile = async (req, res) => {
   }
 };
 
+export const verifyPassword = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { currentPassword } = req.body;
+
+    if (!currentPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password is required.",
+      });
+    }
+
+    const user = await HostUser.findById(userId).select("+password");
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Incorrect current password.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Password verified.",
+    });
+  } catch (error) {
+    console.error("Password Verification Error:", error);
+    res.status(400).json({
+      success: false,
+      message: error.message || "Failed to verify password.",
+    });
+  }
+};
+
 export const changePassword = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -61,6 +102,17 @@ export const changePassword = async (req, res) => {
         success: false,
         message: "Current, new, and confirm password are required.",
       });
+    }
+
+    if (newPassword.length < 8) {
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 8 characters long" });
+    }
+    if (newPassword.length > 72) {
+      return res
+        .status(400)
+        .json({ message: "Password cannot exceed 72 characters" });
     }
 
     if (newPassword !== confirmPassword) {
@@ -86,8 +138,14 @@ export const changePassword = async (req, res) => {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword;
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+    if (isSamePassword)
+      return res.status(400).json({
+        message: "New password cannot be the same as the old password",
+      });
+
+    // const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = newPassword;
 
     await user.save();
 
@@ -97,7 +155,7 @@ export const changePassword = async (req, res) => {
     });
   } catch (error) {
     console.error("Change Password Error:", error);
-    res.status(400).json({
+    res.status(500).json({
       success: false,
       message: error.message || "Failed to change password.",
     });

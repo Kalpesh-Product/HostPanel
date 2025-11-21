@@ -14,13 +14,10 @@ const MuiModal = ({ open, onClose, title, children, headerBackground }) => {
           className="fixed inset-0 flex items-center justify-center"
         >
           <motion.div
-            
             initial={{ y: 30 }}
             animate={{ y: 0 }}
-       
             exit={{ y: -30 }}
-   
-            className="w-2/5 bg-white shadow-xl rounded-lg outline-none max-h-[90vh] overflow-y-auto"
+            className="w-4/5 md:w-2/5 bg-white shadow-xl rounded-lg outline-none max-h-[90vh] overflow-y-auto"
           >
             {/* Header */}
             <div
@@ -36,7 +33,7 @@ const MuiModal = ({ open, onClose, title, children, headerBackground }) => {
               <IconButton sx={{ p: 0 }} onClick={onClose}>
                 <IoMdClose
                   className="text-black text-subtitle"
-                  style={{ color:  "black" }}
+                  style={{ color: "black" }}
                 />
               </IconButton>
             </div>
