@@ -112,7 +112,7 @@ export const changePassword = async (req, res) => {
     if (newPassword.length > 72) {
       return res
         .status(400)
-        .json({ message: "Password can't be more than 72 characters long" });
+        .json({ message: "Password cannot exceed 72 characters" });
     }
 
     if (newPassword !== confirmPassword) {
