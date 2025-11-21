@@ -104,10 +104,15 @@ export const changePassword = async (req, res) => {
       });
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 8) {
       return res
         .status(400)
-        .json({ message: "Password must be at least 6 characters long" });
+        .json({ message: "Password must be at least 8 characters long" });
+    }
+    if (newPassword.length > 72) {
+      return res
+        .status(400)
+        .json({ message: "Password can't be more than 72 characters long" });
     }
 
     if (newPassword !== confirmPassword) {
@@ -133,6 +138,12 @@ export const changePassword = async (req, res) => {
       });
     }
 
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+    if (isSamePassword)
+      return res.status(400).json({
+        message: "New password cannot be the same as the old password",
+      });
+
     // const hashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = newPassword;
 
@@ -144,7 +155,7 @@ export const changePassword = async (req, res) => {
     });
   } catch (error) {
     console.error("Change Password Error:", error);
-    res.status(400).json({
+    res.status(500).json({
       success: false,
       message: error.message || "Failed to change password.",
     });
