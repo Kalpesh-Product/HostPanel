@@ -22,6 +22,7 @@ const UserDetails = () => {
   const [editMode, setEditMode] = useState(false);
   const empId = auth?.user?.empId ?? "";
 
+  console.log("my profile here", auth.user);
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
