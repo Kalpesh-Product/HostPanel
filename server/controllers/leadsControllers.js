@@ -8,8 +8,6 @@ export const getLeads = async (req, res, next) => {
       return res.status(400).json({ message: "Company ID is required" });
     }
 
-    console.log("Fetching leads for company:", companyId);
-
     const leads = await axios.get(
       `https://wononomadsbe.vercel.app/api/company/leads?companyId=${companyId}`
     );
@@ -72,7 +70,9 @@ export const updateLeads = async (req, res, next) => {
     if (leads.status !== 200)
       return res.status(200).json({ message: "No leads found" });
 
-    return res.status(200).json({ message: "Leads updated successfully" });
+    return res
+      .status(200)
+      .json({ message: `Lead ${comment ? "comment" : "status"} updated` });
   } catch (error) {
     next(error);
   }
