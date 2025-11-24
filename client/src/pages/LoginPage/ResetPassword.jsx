@@ -201,7 +201,7 @@ const ResetPassword = () => {
       <div className="login-section loginTopPadding loginBottomPadding poppinsRegular heightPadding">
         <h1 className="text-center text-4xl font-bold">RESET PASSWORD</h1>
         <div className="loginDividingContainer shrink-container">
-          <div className="w-5/6 md:w-3/4">
+          <div className="w-5/6 md:w-2/3">
             <Container
               maxWidth="lg"
               style={{ padding: "3rem 0 0" }}
