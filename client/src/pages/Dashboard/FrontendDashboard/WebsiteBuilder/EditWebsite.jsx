@@ -525,7 +525,7 @@ const EditWebsite = () => {
                     <UploadMultipleFilesInput
                       {...field}
                       name="heroImages"
-                      label="Add Carousel Images (max 5)"
+                      label="Add Carousel Images"
                       maxFiles={5}
                       allowedExtensions={["jpg", "jpeg", "png", "webp", "pdf"]}
                       id="heroImages"

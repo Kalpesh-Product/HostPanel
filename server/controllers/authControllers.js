@@ -24,7 +24,7 @@ export const login = async (req, res, next) => {
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid)
-      return res.status(400).json({ message: "invalid password" });
+      return res.status(400).json({ message: "Invalid password" });
 
     delete user.password;
     delete user.refreshToken;

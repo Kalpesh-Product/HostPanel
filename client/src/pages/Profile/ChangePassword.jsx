@@ -7,6 +7,9 @@ import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import PageFrame from "../../components/Pages/PageFrame";
 
 const ChangePassword = ({ pageTitle }) => {
+  const [isChanging, setIsChanging] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+
   const { auth } = useAuth();
   const axios = useAxiosPrivate();
   const userId = auth?.user?._id;
@@ -32,6 +35,8 @@ const ChangePassword = ({ pageTitle }) => {
 
   const handlePasswordCheck = async () => {
     try {
+      setIsVerifying(true); // start spinner
+
       if (!formData.currentPassword) {
         setErrorMessage("Please provide your current password.");
         return;
@@ -60,11 +65,15 @@ const ChangePassword = ({ pageTitle }) => {
       setErrorMessage(msg);
       toast.error(msg);
       setPasswordVerified(false);
+    } finally {
+      setIsVerifying(false); // stop spinner
     }
   };
 
   const handlePasswordChange = async () => {
     try {
+      setIsChanging(true); // start spinner
+
       const { currentPassword, newPassword, confirmPassword } = formData;
 
       if (!currentPassword || !newPassword || !confirmPassword) {
@@ -120,6 +129,8 @@ const ChangePassword = ({ pageTitle }) => {
         "Failed to change password. Please try again.";
       setErrorMessage(msg);
       toast.error(msg);
+    } finally {
+      setIsChanging(false); // stop spinner
     }
   };
 
@@ -157,7 +168,8 @@ const ChangePassword = ({ pageTitle }) => {
               <PrimaryButton
                 title="Verify"
                 type="button"
-                disabled={!formData.currentPassword}
+                disabled={!formData.currentPassword || isVerifying}
+                loading={isVerifying}
                 handleSubmit={handlePasswordCheck}
               />
             )}
@@ -188,12 +200,12 @@ const ChangePassword = ({ pageTitle }) => {
           </div>
 
           {/* Error and Success Messages */}
-          {/* <div className="mt-4">
+          <div className="mt-4">
             {errorMessage && <p className="text-red-500">{errorMessage}</p>}
-            {successMessage && (
+            {/* {successMessage && (
               <p className="text-green-500">{successMessage}</p>
-            )}
-          </div> */}
+            )} */}
+          </div>
 
           <div className="flex flex-col gap-3 text-gray-500 mt-4">
             <span className="text-subtitle">Password Requirements</span>
@@ -207,12 +219,11 @@ const ChangePassword = ({ pageTitle }) => {
           {/* Submit Button */}
           <div className="mt-4 flex justify-center items-center">
             <PrimaryButton
-              title={"Submit"}
+              title="Submit"
               handleSubmit={handlePasswordChange}
-              disabled={!passwordVerified}
-            >
-              Change Password
-            </PrimaryButton>
+              disabled={!passwordVerified || isChanging}
+              loading={isChanging}
+            />
           </div>
         </div>
       </PageFrame>

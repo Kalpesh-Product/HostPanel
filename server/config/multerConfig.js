@@ -3,7 +3,7 @@ import multer from "multer";
 const storage = multer.memoryStorage();
 // const upload = multer({ storage });
 
-//Multer config for website file uploads
+//Multer config for most type of files
 const upload = multer({
   storage,
   limits: {
@@ -25,7 +25,7 @@ const upload = multer({
   },
 });
 
-//Multer config for nomad listing images
+//Multer config for website file uploads
 const uploadImages = multer({
   storage,
   limits: { fileSize: 30 * 1024 * 1024 }, // 30 MB

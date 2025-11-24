@@ -173,7 +173,7 @@ const ForgotPassword = () => {
         </div>
       </Drawer>
       {/* Header */}
-      <div className="login-section loginTopPadding loginBottomPadding poppinsRegular heightPadding">
+      <div className="login-section loginTopPadding loginBottomPadding poppinsRegular heightPadding min-h-screen">
         <h1 className="text-center text-4xl font-bold">FORGOT PASSWORD</h1>
         <div className="loginDividingContainer shrink-container ">
           <div className="loginLeftContainer  w-full md:w-3/4">

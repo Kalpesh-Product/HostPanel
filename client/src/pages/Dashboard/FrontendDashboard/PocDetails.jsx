@@ -1,11 +1,12 @@
 // src/pages/Dashboard/FrontendDashboard/PocDetails.jsx
 import React from "react";
 import PageFrame from "../../../components/Pages/PageFrame";
-import axios from "axios"
+import axios from "axios";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import { Avatar, TextField } from "@mui/material";
 import useAuth from "../../../hooks/useAuth";
+import { CircularProgress } from "@mui/material";
 
 // ---------- UI helpers ----------
 const ReadOnlyField = ({ label, value }) => (
@@ -44,27 +45,26 @@ async function fetchPocAxios(companyId, signal) {
     "https://wononomadsbe.vercel.app/api/poc/poc",
   ];
 
-    try {
-      const res = await axios.get(
-        `https://wononomadsbe.vercel.app/api/poc/poc?companyId=${companyId}`,
-        { signal }
-      );
-      const data = res.data;
-      return Array.isArray(data) && data.length ? data[0] : data || null;
-    } catch (_err) {
-      // try next url
-    }
-  
+  try {
+    const res = await axios.get(
+      `https://wononomadsbe.vercel.app/api/poc/poc?companyId=${companyId}`,
+      { signal }
+    );
+    const data = res.data;
+    return Array.isArray(data) && data.length ? data[0] : data || null;
+  } catch (_err) {
+    // try next url
+  }
+
   return null;
 }
 
 // ---------- component ----------
 const PocDetails = () => {
+  const { auth } = useAuth();
+  const user = auth.user;
 
-  const {auth} = useAuth()
-  const user = auth.user
-
-  const { data: fetchedPoc = null } = useQuery({
+  const { data: fetchedPoc = null, isFetching } = useQuery({
     queryKey: ["pocDetails", user.companyId],
     queryFn: ({ signal }) => fetchPocAxios(user.companyId, signal),
     placeholderData: null, // no loaders; we'll normalize below
@@ -72,7 +72,6 @@ const PocDetails = () => {
     retry: 0,
     staleTime: 5 * 60 * 1000,
   });
-
 
   const poc = fetchedPoc || placeholder;
 
@@ -100,6 +99,16 @@ const PocDetails = () => {
     avatarUrl: poc?.avatarUrl ?? "",
   };
 
+  if (isFetching && !fetchedPoc) {
+    return (
+      <PageFrame>
+        <div className="w-full flex justify-center items-center py-60">
+          <CircularProgress />
+        </div>
+      </PageFrame>
+    );
+  }
+
   return (
     <div className="p-4">
       <PageFrame>
@@ -122,7 +131,8 @@ const PocDetails = () => {
           <div className="flex flex-col md:flex-row md:items-center gap-6 border border-gray-200 rounded-xl p-4">
             <Avatar
               src={view.avatarUrl}
-              sx={{ width: 96, height: 96, fontSize: "2rem" }}>
+              sx={{ width: 96, height: 96, fontSize: "2rem" }}
+            >
               {String(view.fullName || "P").charAt(0)}
             </Avatar>
 
