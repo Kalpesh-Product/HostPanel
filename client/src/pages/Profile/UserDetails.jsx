@@ -120,6 +120,8 @@ const UserDetails = () => {
     },
   });
 
+  const { isPending } = mutation;
+
   const onSubmit = (data, event) => {
     if (!editMode) {
       event?.preventDefault();
@@ -300,7 +302,17 @@ const UserDetails = () => {
 
           {editMode && (
             <div className="flex items-center justify-center gap-4 mt-4">
-              <PrimaryButton title={"Save"} />
+              <PrimaryButton
+                title={
+                  isPending ? (
+                    <CircularProgress size={20} color="inherit" />
+                  ) : (
+                    "Save"
+                  )
+                }
+                disabled={isPending}
+              />
+
               <SecondaryButton
                 title={"Cancel"}
                 handleSubmit={() => {

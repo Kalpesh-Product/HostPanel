@@ -188,12 +188,12 @@ const ChangePassword = ({ pageTitle }) => {
           </div>
 
           {/* Error and Success Messages */}
-          {/* <div className="mt-4">
+          <div className="mt-4">
             {errorMessage && <p className="text-red-500">{errorMessage}</p>}
-            {successMessage && (
+            {/* {successMessage && (
               <p className="text-green-500">{successMessage}</p>
-            )}
-          </div> */}
+            )} */}
+          </div>
 
           <div className="flex flex-col gap-3 text-gray-500 mt-4">
             <span className="text-subtitle">Password Requirements</span>
