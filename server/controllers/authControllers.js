@@ -209,7 +209,7 @@ export const resetPassword = async (req, res) => {
       <p>Your password has been successfully reset.</p>
       <p>You can now <a href="${
         process.env.FRONTEND_PROD_LINK
-      }login" target="_blank">log in</a> with your new password.</p>
+      }" target="_blank">log in</a> with your new password.</p>
       <p>If you did not perform this action, please contact us immediately.</p>
       <br/>
       <p>Best,<br/>The Wono Team</p>
