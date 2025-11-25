@@ -39,6 +39,7 @@ export const createCompanyListing = async (req, res) => {
       city: company.companyCity,
       state: company.companyState,
       country: company.companyCountry,
+      continent: company.companyContinent,
       website: company.websiteLink,
       companyType: companyType,
       ratings: ratings,
