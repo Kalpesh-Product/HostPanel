@@ -5,7 +5,7 @@ const templateSchema = new mongoose.Schema(
     searchKey: { type: String, required: true, index: true },
     isActive: {
       type: Boolean,
-      default: false,
+      default: true,
     },
     isDeleted: {
       type: Boolean,
