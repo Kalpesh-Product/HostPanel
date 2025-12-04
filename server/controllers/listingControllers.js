@@ -245,15 +245,15 @@ export const editCompanyListing = async (req, res) => {
 
     // ---------- REMOTE UPDATE (NO DELETION YET) ----------
     try {
-      const response = await axios.patch(
-        "https://wononomadsbe.vercel.app/api/company/update-company",
-        updateData
-      );
-
       // const response = await axios.patch(
-      //   "http://localhost:3000/api/company/update-company",
+      //   "https://wononomadsbe.vercel.app/api/company/update-company",
       //   updateData
       // );
+
+      const response = await axios.patch(
+        "http://localhost:3000/api/company/update-company",
+        updateData
+      );
       console.log("✅ Remote update success:", response.data);
     } catch (err) {
       console.error(
