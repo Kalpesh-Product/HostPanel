@@ -58,7 +58,7 @@ const Header = ({
     mutationKey: ["updateRead"],
     mutationFn: async (notificationId) => {
       const response = await axios.patch(
-        `/api/notifications/mark-as-read/${notificationId}`
+        `/api/notifications/mark-as-read/${notificationId}`,
       );
       return response.data;
     },
@@ -118,7 +118,7 @@ const Header = ({
               className={`w-60 flex justify-between items-center gap-16 h-full `}
             >
               <img
-                onClick={() => navigate("dashboard")}
+                onClick={() => navigate("/company-settings")}
                 className="max-w-[70%] h-12 object-contain cursor-pointer"
                 src={
                   auth?.user?.logo

@@ -33,7 +33,7 @@ const CompanyLeads = () => {
       const companyId = selectedCompany?.companyId || auth?.user?.companyId;
       const response = await axiosPrivate.get(
         `/api/leads/get-leads?companyId=${companyId}`,
-        { headers: { "Cache-Control": "no-cache" } }
+        { headers: { "Cache-Control": "no-cache" } },
       );
       return Array.isArray(response?.data) ? response.data : [];
     },
@@ -88,7 +88,7 @@ const CompanyLeads = () => {
     { field: "email", headerName: "Email" },
     { field: "startDate", headerName: "Start Date" },
     { field: "endDate", headerName: "End Date" },
-    { field: "recievedDate", headerName: "Recieved Date" },
+    { field: "recievedDate", headerName: "Received Date" },
     {
       field: "status",
       headerName: "Status",
@@ -124,7 +124,8 @@ const CompanyLeads = () => {
                 "& .MuiSelect-select": {
                   textAlign: "center",
                 },
-              }}>
+              }}
+            >
               {["Pending", "Contacted", "Closed", "Rejected"].map((option) => (
                 <MenuItem
                   key={option}
@@ -137,7 +138,8 @@ const CompanyLeads = () => {
                     backgroundColor: statusStyles[option]?.bg,
                     color: statusStyles[option]?.color,
                     my: 0.5,
-                  }}>
+                  }}
+                >
                   {option}
                 </MenuItem>
               ))}
@@ -181,10 +183,12 @@ const CompanyLeads = () => {
       <MuiModal
         open={openModal}
         onClose={() => setOpenModal(false)}
-        title="Update Comment">
+        title="Update Comment"
+      >
         <form
           onSubmit={handleSubmit(onSubmitComment)}
-          className="flex flex-col gap-4">
+          className="flex flex-col gap-4"
+        >
           <Controller
             name="comment"
             control={control}

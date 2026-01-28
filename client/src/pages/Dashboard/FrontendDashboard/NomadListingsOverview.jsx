@@ -41,7 +41,7 @@ export default function NomadListingsOverview() {
           params: {
             t: Date.now(), // cache buster
           },
-        }
+        },
       );
       return res.data || [];
     },
@@ -58,7 +58,7 @@ export default function NomadListingsOverview() {
       console.log("data", data);
       const response = await axios.patch(
         "/api/listings/activate-product",
-        data
+        data,
       );
       return response.data;
     },
@@ -115,11 +115,11 @@ export default function NomadListingsOverview() {
                 sessionStorage.setItem("companyId", companyId);
                 sessionStorage.setItem(
                   "companyName",
-                  params?.data?.companyName || ""
+                  params?.data?.companyName || "",
                 );
                 sessionStorage.setItem(
                   "businessId",
-                  params?.data?.businessId || ""
+                  params?.data?.businessId || "",
                 );
 
                 navigate(`/company-settings/nomad-listings/edit`, {
@@ -170,6 +170,7 @@ export default function NomadListingsOverview() {
           loading={isPending}
           buttonTitle="Add Product"
           handleClick={handleAddClick}
+          hideFilter
         />
       </PageFrame>
     </div>

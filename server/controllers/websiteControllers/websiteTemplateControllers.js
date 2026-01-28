@@ -530,7 +530,8 @@ export const editTemplate = async (req, res, next) => {
 
     // === 🖼 HERO IMAGES (max 5 total) ===
     const heroKeepIds = safeParse(req.body.heroImageIds, []);
-    if (heroKeepIds.length) {
+
+    if (req.body.heroImageIds !== undefined) {
       const toDelete = template.heroImages.filter(
         (img) => !heroKeepIds.includes(img.id)
       );
@@ -542,6 +543,7 @@ export const editTemplate = async (req, res, next) => {
 
     const newHeroFiles = filesByField.heroImages || [];
     const totalHeroCount = template.heroImages.length + newHeroFiles.length;
+    // const totalHeroCount = heroKeepIds.length + newHeroFiles.length;
     if (totalHeroCount > 5) {
       throw new Error(
         `Cannot exceed 5 hero images (currently ${template.heroImages.length}).`
@@ -558,7 +560,7 @@ export const editTemplate = async (req, res, next) => {
 
     // === 🏞 GALLERY (max 40 total) ===
     const galleryKeepIds = safeParse(req.body.galleryImageIds, []);
-    if (galleryKeepIds.length) {
+    if (req.body.galleryImageIds !== undefined) {
       const toDelete = template.gallery.filter(
         (img) => !galleryKeepIds.includes(img.id)
       );
@@ -622,14 +624,19 @@ export const editTemplate = async (req, res, next) => {
 
       if (existing) {
         const keepIds = new Set(p.imageIds || []);
-        const toDelete = (existing.images || []).filter(
-          (img) => !keepIds.has(img.id)
-        );
-        await deleteImagesFromS3(toDelete);
-        const kept = (existing.images || []).filter((img) =>
-          keepIds.has(img.id)
-        );
-        existing.images = [...kept, ...uploaded];
+
+        if (p.imageIds !== undefined) {
+          const toDelete = (existing.images || []).filter(
+            (img) => !keepIds.has(img.id)
+          );
+          await deleteImagesFromS3(toDelete);
+          const kept = (existing.images || []).filter((img) =>
+            keepIds.has(img.id)
+          );
+          existing.images = [...kept, ...uploaded];
+        } else {
+          existing.images = [...(existing.images || []), ...uploaded];
+        }
         existing.type = p.type ?? existing.type;
         existing.name = p.name ?? existing.name;
         existing.cost = p.cost ?? existing.cost;
@@ -684,12 +691,12 @@ export const editTemplate = async (req, res, next) => {
         : [];
 
       if (existing) {
-        if (t.imageId === null) {
-          if (existing.image?.url) await deleteImagesFromS3([existing.image]);
-          existing.image = null;
-        } else if (uploaded[0]) {
+        if (uploaded[0]) {
           if (existing.image?.url) await deleteImagesFromS3([existing.image]);
           existing.image = uploaded[0];
+        } else if (t.imageId === null) {
+          if (existing.image?.url) await deleteImagesFromS3([existing.image]);
+          existing.image = null;
         }
         existing.name = t.name ?? existing.name;
         existing.jobPosition = t.jobPosition ?? existing.jobPosition;
