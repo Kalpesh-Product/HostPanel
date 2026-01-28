@@ -39,6 +39,7 @@ const AgTableComponent = React.memo(
     hideTitle,
     tableRef,
     onSelectionChange,
+    loading,
   }) => {
     const [filteredData, setFilteredData] = useState(data);
     const [searchQuery, setSearchQuery] = useState("");
@@ -49,9 +50,7 @@ const AgTableComponent = React.memo(
     const gridRef = useRef(null);
 
     useEffect(() => {
-      if (data && data.length > 0) {
-        setFilteredData(data);
-      }
+      setFilteredData(data || []);
     }, [data]);
 
     useEffect(() => {
@@ -84,8 +83,8 @@ const AgTableComponent = React.memo(
       }
       const filtered = data.filter((row) =>
         Object.values(row).some((value) =>
-          value?.toString().toLowerCase().includes(query)
-        )
+          value?.toString().toLowerCase().includes(query),
+        ),
       );
       setFilteredData(filtered);
     };
@@ -141,7 +140,7 @@ const AgTableComponent = React.memo(
           onSelectionChange(rows);
         }
       },
-      [onSelectionChange]
+      [onSelectionChange],
     );
 
     const handleActionClick = () => {
@@ -161,6 +160,12 @@ const AgTableComponent = React.memo(
         ...columns,
       ];
     }, [columns, enableCheckbox, checkAll]);
+
+    const showLoadingMessage =
+      loading && (!filteredData || filteredData.length === 0);
+    const noRowsMessage = showLoadingMessage
+      ? "Loading Data"
+      : "No Rows To Show";
 
     return (
       <div className="border-b-[1px] border-borderGray">
@@ -268,7 +273,7 @@ const AgTableComponent = React.memo(
                 label={`${field}: ${appliedFilters[field]}`}
                 onDelete={() => removeFilter(field)}
               />
-            ) : null
+            ) : null,
           )}
         </div>
 
@@ -311,7 +316,7 @@ const AgTableComponent = React.memo(
                   handleFilterChange(column.field, e.target.value)
                 }
               />
-            )
+            ),
           )}
           <div className="flex items-center gap-4 justify-center py-4">
             <PrimaryButton title="Apply Filters" handleSubmit={applyFilters} />
@@ -332,6 +337,7 @@ const AgTableComponent = React.memo(
               rowData={filteredData}
               columnDefs={modifiedColumns} // ✅ Use modified columns with checkboxes
               defaultColDef={defaultColDef}
+              overlayNoRowsTemplate={`<span class="ag-overlay-loading-center">${noRowsMessage}</span>`}
               pagination={false}
               isRowSelectable={isRowSelectable}
               paginationPageSize={paginationPageSize}
@@ -366,7 +372,7 @@ const AgTableComponent = React.memo(
         )} */}
       </div>
     );
-  }
+  },
 );
 
 AgTableComponent.displayName = "AgTable";
