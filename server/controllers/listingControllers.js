@@ -4,6 +4,8 @@ import { deleteFileFromS3ByUrl, uploadFileToS3 } from "../config/s3config.js";
 
 export const createCompanyListing = async (req, res) => {
   try {
+    const payload = req.body.data ? JSON.parse(req.body.data) : req.body;
+
     const {
       companyId,
       companyType,
@@ -18,7 +20,23 @@ export const createCompanyListing = async (req, res) => {
       about,
       address,
       reviews,
-    } = req.body;
+    } = payload;
+
+    // const {
+    //   companyId,
+    //   companyType,
+    //   ratings,
+    //   totalReviews,
+    //   companyName,
+    //   cost,
+    //   description,
+    //   latitude,
+    //   longitude,
+    //   inclusions,
+    //   about,
+    //   address,
+    //   reviews,
+    // } = req.body;
 
     let parsedReviews;
 
@@ -32,8 +50,10 @@ export const createCompanyListing = async (req, res) => {
       parsedReviews = JSON.parse(reviews);
     }
 
+    console.log(company.logo);
     const listingData = {
       companyName: companyName,
+      registeredEntityName: company.registeredEntityName,
       companyId: company.companyId,
       logo: company.logo,
       city: company.companyCity,
@@ -98,14 +118,14 @@ export const createCompanyListing = async (req, res) => {
         const results = await Promise.allSettled(
           imageFiles.map((file, i) => {
             const uniqueKey = `${folderPath}/images/${sanitizeFileName(
-              file.originalname
+              file.originalname,
             )}`;
             return uploadFileToS3(uniqueKey, file).then((data) => ({
               url: data.url,
               id: data.id,
               index: startIndex + i + 1,
             }));
-          })
+          }),
         );
 
         const successes = results
@@ -116,15 +136,15 @@ export const createCompanyListing = async (req, res) => {
     }
 
     try {
-      const response = await axios.post(
-        "https://wononomadsbe.vercel.app/api/company/create-company",
-        listingData
-      );
-
       // const response = await axios.post(
-      //   "http://localhost:3000/api/company/create-company",
-      //   listingData
+      //   "https://wononomadsbe.vercel.app/api/company/create-company",
+      //   listingData,
       // );
+
+      const response = await axios.post(
+        "http://localhost:3000/api/company/create-company",
+        listingData,
+      );
 
       if (response.status !== 201) {
         return res.status(400).json({ message: "Failed to add listing" });
@@ -144,8 +164,11 @@ export const createCompanyListing = async (req, res) => {
 
 export const editCompanyListing = async (req, res) => {
   try {
+    const payload = req.body.data ? JSON.parse(req.body.data) : req.body;
+
     const {
       businessId,
+      companyId,
       companyType,
       ratings,
       totalReviews,
@@ -159,16 +182,19 @@ export const editCompanyListing = async (req, res) => {
       address,
       reviews,
       existingImages = [],
-    } = req.body;
+    } = payload;
 
     console.log("listing hit🔥");
 
     const parsedReviews =
       typeof reviews === "string" ? JSON.parse(reviews) : reviews;
 
+    console.log("businessId", businessId);
+    console.log("companyId", companyId);
+
     // FIX: Search by both businessId and companyId
     const company = await HostCompany.findOne({
-      companyId: req.body.companyId?.trim(),
+      companyId: companyId?.trim(),
     });
 
     if (!company) {
@@ -231,7 +257,7 @@ export const editCompanyListing = async (req, res) => {
             const key = `${folderPath}/images/${sanitize(file.originalname)}`;
             const data = await uploadFileToS3(key, file);
             return { url: data.url, id: data.id };
-          })
+          }),
         );
 
         const uploaded = results
@@ -252,13 +278,13 @@ export const editCompanyListing = async (req, res) => {
 
       const response = await axios.patch(
         "http://localhost:3000/api/company/update-company",
-        updateData
+        updateData,
       );
       console.log("✅ Remote update success:", response.data);
     } catch (err) {
       console.error(
         "❌ Remote update failed:",
-        err.response?.data || err.message
+        err.response?.data || err.message,
       );
 
       // If remote update fails, delete the newly uploaded images to maintain consistency
@@ -266,13 +292,13 @@ export const editCompanyListing = async (req, res) => {
         const imageFiles = req.files.filter((f) => f.fieldname === "images");
         if (imageFiles.length) {
           console.log(
-            "🧹 Cleaning up newly uploaded images due to remote failure..."
+            "🧹 Cleaning up newly uploaded images due to remote failure...",
           );
           const newlyUploadedUrls = updateData.images.slice(
-            existingImages.length
+            existingImages.length,
           );
           await Promise.allSettled(
-            newlyUploadedUrls.map((img) => deleteFileFromS3ByUrl(img.url))
+            newlyUploadedUrls.map((img) => deleteFileFromS3ByUrl(img.url)),
           );
         }
       }
@@ -317,7 +343,7 @@ export const activateProduct = async (req, res, next) => {
       {
         businessId,
         status,
-      }
+      },
     );
 
     if (response.status !== 200) {
@@ -334,7 +360,7 @@ export const activateProduct = async (req, res, next) => {
 export const getAllCompanyListings = async (req, res) => {
   try {
     const response = await axios.get(
-      "https://wononomadsbe.vercel.app/api/company/companies"
+      "https://wononomadsbe.vercel.app/api/company/companies",
     );
 
     if (!response.data) {
@@ -350,7 +376,7 @@ export const getAllCompanyListings = async (req, res) => {
 export const getCompanyListings = async (req, res) => {
   try {
     const response = await axios.get(
-      "https://wononomadsbe.vercel.app/api/company/companies"
+      "https://wononomadsbe.vercel.app/api/company/companies",
     );
 
     if (!response.data) {
