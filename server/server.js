@@ -12,6 +12,7 @@ import serviceRoutes from "./routes/serviceRoutes.js";
 import leadsRoutes from "./routes/leadsRoutes.js";
 import listingRoutes from "./routes/listingRoutes.js";
 import hostUserRoutes from "./routes/hostUserRoutes.js";
+import reviewRoutes from "./routes/reviewRoutes.js";
 
 const app = express();
 dotenv.config();
@@ -30,6 +31,7 @@ app.use("/api/services", verifyJwt, serviceRoutes);
 app.use("/api/leads", verifyJwt, leadsRoutes);
 app.use("/api/listings", verifyJwt, listingRoutes);
 app.use("/api/profile", verifyJwt, hostUserRoutes);
+app.use("/api/review", verifyJwt, reviewRoutes);
 
 app.use((err, req, res, next) => {
   // Multer: file too large
