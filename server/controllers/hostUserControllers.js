@@ -118,8 +118,8 @@ export const changePassword = async (req, res) => {
     // must contain at least one lowercase and one uppercase letter
     const hasUpperAndLower = /(?=.*[a-z])(?=.*[A-Z])/;
 
-    // must contain at least one number OR one special character
-    const hasNumberOrSpecial = /(?=.*[\d\W])/;
+    // must contain at least one number AND one special character
+    const hasNumberAndSpecial = /(?=.*\d)(?=.*\W)/;
 
     if (!hasUpperAndLower.test(newPassword)) {
       return res.status(400).json({
@@ -128,11 +128,11 @@ export const changePassword = async (req, res) => {
       });
     }
 
-    if (!hasNumberOrSpecial.test(newPassword)) {
+    if (!hasNumberAndSpecial.test(newPassword)) {
       return res.status(400).json({
         success: false,
         message:
-          "Password must include at least one number or special character.",
+          "Password must include at least one number and one special character.",
       });
     }
 
