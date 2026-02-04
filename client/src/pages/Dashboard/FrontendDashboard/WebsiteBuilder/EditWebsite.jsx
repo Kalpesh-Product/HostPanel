@@ -212,6 +212,31 @@ const EditWebsite = () => {
 
   const values = watch();
 
+  const CHAR_LIMITS = {
+    heroTitle: 100,
+    heroSubTitle: 200,
+    ctaButtonText: 50,
+    aboutText: 200,
+    productTitle: 100,
+    productName: 100,
+    productType: 100,
+    productDescription: 200,
+    galleryTitle: 100,
+    testimonialTitle: 100,
+    testimonialName: 100,
+    testimonialJobPosition: 100,
+    testimonialTestimony: 200,
+    contactTitle: 100,
+    mapUrl: 200,
+    email: 100,
+    phone: 30,
+    address: 200,
+    registeredCompanyName: 100,
+    copyrightText: 200,
+  };
+  const getHelperText = (error, value, limit) =>
+    error || (limit ? `${(value || "").length}/${limit}` : undefined);
+
   // 4) Submit -> FormData for /api/editor/edit-template
   const { mutate: updateTemplate, isPending: isUpdating } = useMutation({
     mutationKey: ["website-update", tenant],
@@ -279,7 +304,7 @@ const EditWebsite = () => {
 
     fd.append(
       "companyLogoId",
-      JSON.stringify(vals.companyLogoExisting?.id ?? null)
+      JSON.stringify(vals.companyLogoExisting?.id ?? null),
     );
     fd.append("products", JSON.stringify(productsMeta));
     fd.append("testimonials", JSON.stringify(testimonialsMeta));
@@ -315,7 +340,7 @@ const EditWebsite = () => {
     // --- Map testimonial image by FINAL index ---
     const existingTestimonials = tpl?.testimonials || [];
     const tIdxById = new Map(
-      existingTestimonials.map((t, i) => [String(t._id), i])
+      existingTestimonials.map((t, i) => [String(t._id), i]),
     );
     const tBaseLen = existingTestimonials.length;
     let tNewCounter = 0;
@@ -435,14 +460,19 @@ const EditWebsite = () => {
                 <Controller
                   name="title"
                   control={control}
-                  // rules={{ required: "Title is required" }}
+                  rules={{ required: "Title is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
                       size="small"
                       label="Hero Title"
                       fullWidth
-                      helperText={errors?.title?.message}
+                      inputProps={{ maxLength: CHAR_LIMITS.heroTitle }}
+                      helperText={getHelperText(
+                        errors?.title?.message,
+                        values?.title,
+                        CHAR_LIMITS.heroTitle,
+                      )}
                       error={!!errors.title}
                     />
                   )}
@@ -450,14 +480,19 @@ const EditWebsite = () => {
                 <Controller
                   name="subTitle"
                   control={control}
-                  // rules={{ required: "Sub Title is required" }}
+                  rules={{ required: "Sub Title is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
                       size="small"
                       label="Hero Sub Title"
                       fullWidth
-                      helperText={errors?.subTitle?.message}
+                      inputProps={{ maxLength: CHAR_LIMITS.heroSubTitle }}
+                      helperText={getHelperText(
+                        errors?.subTitle?.message,
+                        values?.subTitle,
+                        CHAR_LIMITS.heroSubTitle,
+                      )}
                       error={!!errors.subTitle}
                     />
                   )}
@@ -471,6 +506,12 @@ const EditWebsite = () => {
                       size="small"
                       label="CTA Button Text"
                       fullWidth
+                      inputProps={{ maxLength: CHAR_LIMITS.ctaButtonText }}
+                      helperText={getHelperText(
+                        errors?.CTAButtonText?.message,
+                        values?.CTAButtonText,
+                        CHAR_LIMITS.ctaButtonText,
+                      )}
                     />
                   )}
                 />
@@ -513,7 +554,7 @@ const EditWebsite = () => {
                     queueDelete(
                       "heroImagesExisting",
                       "deletedHeroImageIds",
-                      img
+                      img,
                     )
                   }
                 />
@@ -560,7 +601,7 @@ const EditWebsite = () => {
                     <Controller
                       name={`about.${index}.text`}
                       control={control}
-                      // rules={{ required: "About paragraph is required" }}
+                      rules={{ required: "About paragraph is required" }}
                       render={({ field }) => (
                         <TextField
                           {...field}
@@ -569,7 +610,12 @@ const EditWebsite = () => {
                           fullWidth
                           multiline
                           minRows={3}
-                          helperText={errors?.about?.[index]?.text?.message}
+                          inputProps={{ maxLength: CHAR_LIMITS.aboutText }}
+                          helperText={getHelperText(
+                            errors?.about?.[index]?.text?.message,
+                            values?.about?.[index]?.text,
+                            CHAR_LIMITS.aboutText,
+                          )}
                           error={!!errors?.about?.[index]?.text}
                         />
                       )}
@@ -603,6 +649,12 @@ const EditWebsite = () => {
                       size="small"
                       label="Products Section Title"
                       fullWidth
+                      inputProps={{ maxLength: CHAR_LIMITS.productTitle }}
+                      helperText={getHelperText(
+                        errors?.productTitle?.message,
+                        values?.productTitle,
+                        CHAR_LIMITS.productTitle,
+                      )}
                     />
                   )}
                 />
@@ -634,9 +686,12 @@ const EditWebsite = () => {
                             size="small"
                             label="Product Name"
                             fullWidth
-                            helperText={
-                              errors?.products?.[index]?.name?.message
-                            }
+                            inputProps={{ maxLength: CHAR_LIMITS.productName }}
+                            helperText={getHelperText(
+                              errors?.products?.[index]?.name?.message,
+                              values?.products?.[index]?.name,
+                              CHAR_LIMITS.productName,
+                            )}
                             error={!!errors?.products?.[index]?.name}
                           />
                         )}
@@ -651,9 +706,12 @@ const EditWebsite = () => {
                             size="small"
                             label="Product Type"
                             fullWidth
-                            helperText={
-                              errors?.products?.[index]?.type?.message
-                            }
+                            inputProps={{ maxLength: CHAR_LIMITS.productType }}
+                            helperText={getHelperText(
+                              errors?.products?.[index]?.type?.message,
+                              values?.products?.[index]?.type,
+                              CHAR_LIMITS.productType,
+                            )}
                             error={!!errors?.products?.[index]?.type}
                           />
                         )}
@@ -671,9 +729,14 @@ const EditWebsite = () => {
                             fullWidth
                             // multiline
                             // minRows={3}
-                            helperText={
-                              errors?.products?.[index]?.description?.message
-                            }
+                            inputProps={{
+                              maxLength: CHAR_LIMITS.productDescription,
+                            }}
+                            helperText={getHelperText(
+                              errors?.products?.[index]?.description?.message,
+                              values?.products?.[index]?.description,
+                              CHAR_LIMITS.productDescription,
+                            )}
                             error={!!errors?.products?.[index]?.description}
                           />
                         )}
@@ -708,7 +771,7 @@ const EditWebsite = () => {
                           queueDelete(
                             `products.${index}.images`,
                             "deletedProductImages",
-                            img
+                            img,
                           )
                         }
                       />
@@ -765,7 +828,7 @@ const EditWebsite = () => {
                     queueDelete(
                       "galleryExisting",
                       "deletedGalleryImageIds",
-                      img
+                      img,
                     )
                   }
                 />
@@ -778,6 +841,12 @@ const EditWebsite = () => {
                       size="small"
                       label="Gallery Section Title"
                       fullWidth
+                      inputProps={{ maxLength: CHAR_LIMITS.galleryTitle }}
+                      helperText={getHelperText(
+                        errors?.galleryTitle?.message,
+                        values?.galleryTitle,
+                        CHAR_LIMITS.galleryTitle,
+                      )}
                     />
                   )}
                 />
@@ -813,6 +882,12 @@ const EditWebsite = () => {
                       size="small"
                       label="Testimonials Section Title"
                       fullWidth
+                      inputProps={{ maxLength: CHAR_LIMITS.testimonialTitle }}
+                      helperText={getHelperText(
+                        errors?.testimonialTitle?.message,
+                        values?.testimonialTitle,
+                        CHAR_LIMITS.testimonialTitle,
+                      )}
                     />
                   )}
                 />
@@ -845,9 +920,14 @@ const EditWebsite = () => {
                             size="small"
                             label="Name"
                             fullWidth
-                            helperText={
-                              errors?.testimonials?.[index]?.name?.message
-                            }
+                            inputProps={{
+                              maxLength: CHAR_LIMITS.testimonialName,
+                            }}
+                            helperText={getHelperText(
+                              errors?.testimonials?.[index]?.name?.message,
+                              values?.testimonials?.[index]?.name,
+                              CHAR_LIMITS.testimonialName,
+                            )}
                             error={!!errors?.testimonials?.[index]?.name}
                           />
                         )}
@@ -861,10 +941,15 @@ const EditWebsite = () => {
                             size="small"
                             label="Job Position"
                             fullWidth
-                            helperText={
+                            inputProps={{
+                              maxLength: CHAR_LIMITS.testimonialJobPosition,
+                            }}
+                            helperText={getHelperText(
                               errors?.testimonials?.[index]?.jobPosition
-                                ?.message
-                            }
+                                ?.message,
+                              values?.testimonials?.[index]?.jobPosition,
+                              CHAR_LIMITS.testimonialJobPosition,
+                            )}
                             error={!!errors?.testimonials?.[index]?.jobPosition}
                           />
                         )}
@@ -898,9 +983,14 @@ const EditWebsite = () => {
                             fullWidth
                             multiline
                             minRows={3}
-                            helperText={
-                              errors?.testimonials?.[index]?.testimony?.message
-                            }
+                            inputProps={{
+                              maxLength: CHAR_LIMITS.testimonialTestimony,
+                            }}
+                            helperText={getHelperText(
+                              errors?.testimonials?.[index]?.testimony?.message,
+                              values?.testimonials?.[index]?.testimony,
+                              CHAR_LIMITS.testimonialTestimony,
+                            )}
                             error={!!errors?.testimonials?.[index]?.testimony}
                           />
                         )}
@@ -918,7 +1008,7 @@ const EditWebsite = () => {
                           queueDelete(
                             `testimonials.${index}.image`,
                             "deletedTestimonialImageIds",
-                            img
+                            img,
                           )
                         }
                       />
@@ -966,6 +1056,12 @@ const EditWebsite = () => {
                       size="small"
                       label="Contact Section Title"
                       fullWidth
+                      inputProps={{ maxLength: CHAR_LIMITS.contactTitle }}
+                      helperText={getHelperText(
+                        errors?.contactTitle?.message,
+                        values?.contactTitle,
+                        CHAR_LIMITS.contactTitle,
+                      )}
                     />
                   )}
                 />
@@ -994,7 +1090,12 @@ const EditWebsite = () => {
                       size="small"
                       label="Embed Map URL"
                       fullWidth
-                      helperText={errors?.mapUrl?.message}
+                      inputProps={{ maxLength: CHAR_LIMITS.mapUrl }}
+                      helperText={getHelperText(
+                        errors?.mapUrl?.message,
+                        values?.mapUrl,
+                        CHAR_LIMITS.mapUrl,
+                      )}
                       error={!!errors.mapUrl}
                     />
                   )}
@@ -1009,7 +1110,12 @@ const EditWebsite = () => {
                       size="small"
                       label="Email"
                       fullWidth
-                      helperText={errors?.email?.message}
+                      inputProps={{ maxLength: CHAR_LIMITS.email }}
+                      helperText={getHelperText(
+                        errors?.email?.message,
+                        values?.email,
+                        CHAR_LIMITS.email,
+                      )}
                       error={!!errors.email}
                     />
                   )}
@@ -1024,7 +1130,12 @@ const EditWebsite = () => {
                       size="small"
                       label="Phone"
                       fullWidth
-                      helperText={errors?.phone?.message}
+                      inputProps={{ maxLength: CHAR_LIMITS.phone }}
+                      helperText={getHelperText(
+                        errors?.phone?.message,
+                        values?.phone,
+                        CHAR_LIMITS.phone,
+                      )}
                       error={!!errors.phone}
                     />
                   )}
@@ -1041,7 +1152,12 @@ const EditWebsite = () => {
                       fullWidth
                       multiline
                       minRows={2}
-                      helperText={errors?.address?.message}
+                      inputProps={{ maxLength: CHAR_LIMITS.address }}
+                      helperText={getHelperText(
+                        errors?.address?.message,
+                        values?.address,
+                        CHAR_LIMITS.address,
+                      )}
                       error={!!errors.address}
                     />
                   )}
@@ -1064,7 +1180,14 @@ const EditWebsite = () => {
                       size="small"
                       label="Registered Company Name"
                       fullWidth
-                      helperText={errors?.registeredCompanyName?.message}
+                      inputProps={{
+                        maxLength: CHAR_LIMITS.registeredCompanyName,
+                      }}
+                      helperText={getHelperText(
+                        errors?.registeredCompanyName?.message,
+                        values?.registeredCompanyName,
+                        CHAR_LIMITS.registeredCompanyName,
+                      )}
                       error={!!errors.registeredCompanyName}
                     />
                   )}
@@ -1079,7 +1202,12 @@ const EditWebsite = () => {
                       size="small"
                       label="Copyright Text"
                       fullWidth
-                      helperText={errors?.copyrightText?.message}
+                      inputProps={{ maxLength: CHAR_LIMITS.copyrightText }}
+                      helperText={getHelperText(
+                        errors?.copyrightText?.message,
+                        values?.copyrightText,
+                        CHAR_LIMITS.copyrightText,
+                      )}
                       error={!!errors.copyrightText}
                     />
                   )}

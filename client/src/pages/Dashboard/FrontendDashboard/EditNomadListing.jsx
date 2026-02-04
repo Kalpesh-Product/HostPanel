@@ -105,7 +105,7 @@ const EditNomadListing = () => {
     enabled: !!companyId && !!businessId,
     queryFn: async () => {
       const res = await axios.get(
-        `https://wononomadsbe.vercel.app/api/company/get-listings/${companyId}?companyType=${companyType}`
+        `https://wononomadsbe.vercel.app/api/company/get-listings/${companyId}?companyType=${companyType}`,
       );
       const all = Array.isArray(res.data) ? res.data : [];
       return all.find((x) => x.businessId === businessId) || null;
@@ -129,11 +129,11 @@ const EditNomadListing = () => {
     const inclusionsArr = Array.isArray(src.inclusions)
       ? src.inclusions
       : typeof src.inclusions === "string" && src.inclusions.trim()
-      ? src.inclusions
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : [];
+        ? src.inclusions
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [];
 
     reset({
       businessId: src.businessId || businessId || `BIZ_${Date.now()}`,
@@ -155,14 +155,14 @@ const EditNomadListing = () => {
 
   // --------------------------------------------------------------------
 
-  const { mutate: saveListing, isLoading } = useMutation({
+  const { mutate: saveListing, isPending: isSaving } = useMutation({
     mutationFn: async (fd) => {
       const res = await axiosPriv.patch(
         "/api/listings/edit-company-listing",
         fd,
         {
           headers: { "Content-Type": "multipart/form-data" },
-        }
+        },
       );
       return res.data;
     },
@@ -187,11 +187,11 @@ const EditNomadListing = () => {
     const inclusionsArr = Array.isArray(values.inclusions)
       ? values.inclusions
       : typeof values.inclusions === "string"
-      ? values.inclusions
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : [];
+        ? values.inclusions
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [];
     fd.set("inclusions", inclusionsArr.join(", "));
 
     // normalize reviews
@@ -547,7 +547,12 @@ const EditNomadListing = () => {
 
           {/* Submit / Reset */}
           <div className="col-span-2 flex items-center justify-center gap-4">
-            <PrimaryButton type="submit" title="Submit" isLoading={isLoading} />
+            <PrimaryButton
+              type="submit"
+              title={isSaving ? "Submitting..." : "Submit"}
+              isPending={isSaving}
+              disabled={isSaving}
+            />
             {/* <SecondaryButton handleSubmit={handleReset} title="Reset" /> */}
             <button
               type="button"

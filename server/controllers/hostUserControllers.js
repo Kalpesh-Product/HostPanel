@@ -28,7 +28,7 @@ export const updateProfile = async (req, res) => {
         ...(profileImage && { profileImage }),
         ...(typeof isActive === "boolean" && { isActive }),
       },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!updatedPOC) {
@@ -113,6 +113,27 @@ export const changePassword = async (req, res) => {
       return res
         .status(400)
         .json({ message: "Password cannot exceed 72 characters" });
+    }
+
+    // must contain at least one lowercase and one uppercase letter
+    const hasUpperAndLower = /(?=.*[a-z])(?=.*[A-Z])/;
+
+    // must contain at least one number AND one special character
+    const hasNumberAndSpecial = /(?=.*\d)(?=.*\W)/;
+
+    if (!hasUpperAndLower.test(newPassword)) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must include both uppercase and lowercase letters.",
+      });
+    }
+
+    if (!hasNumberAndSpecial.test(newPassword)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Password must include at least one number and one special character.",
+      });
     }
 
     if (newPassword !== confirmPassword) {
