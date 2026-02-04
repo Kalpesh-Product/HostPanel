@@ -279,7 +279,7 @@ const EditWebsite = () => {
 
     fd.append(
       "companyLogoId",
-      JSON.stringify(vals.companyLogoExisting?.id ?? null)
+      JSON.stringify(vals.companyLogoExisting?.id ?? null),
     );
     fd.append("products", JSON.stringify(productsMeta));
     fd.append("testimonials", JSON.stringify(testimonialsMeta));
@@ -315,7 +315,7 @@ const EditWebsite = () => {
     // --- Map testimonial image by FINAL index ---
     const existingTestimonials = tpl?.testimonials || [];
     const tIdxById = new Map(
-      existingTestimonials.map((t, i) => [String(t._id), i])
+      existingTestimonials.map((t, i) => [String(t._id), i]),
     );
     const tBaseLen = existingTestimonials.length;
     let tNewCounter = 0;
@@ -435,7 +435,7 @@ const EditWebsite = () => {
                 <Controller
                   name="title"
                   control={control}
-                  // rules={{ required: "Title is required" }}
+                  rules={{ required: "Title is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -450,7 +450,7 @@ const EditWebsite = () => {
                 <Controller
                   name="subTitle"
                   control={control}
-                  // rules={{ required: "Sub Title is required" }}
+                  rules={{ required: "Sub Title is required" }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -513,7 +513,7 @@ const EditWebsite = () => {
                     queueDelete(
                       "heroImagesExisting",
                       "deletedHeroImageIds",
-                      img
+                      img,
                     )
                   }
                 />
@@ -560,7 +560,7 @@ const EditWebsite = () => {
                     <Controller
                       name={`about.${index}.text`}
                       control={control}
-                      // rules={{ required: "About paragraph is required" }}
+                      rules={{ required: "About paragraph is required" }}
                       render={({ field }) => (
                         <TextField
                           {...field}
@@ -708,7 +708,7 @@ const EditWebsite = () => {
                           queueDelete(
                             `products.${index}.images`,
                             "deletedProductImages",
-                            img
+                            img,
                           )
                         }
                       />
@@ -765,7 +765,7 @@ const EditWebsite = () => {
                     queueDelete(
                       "galleryExisting",
                       "deletedGalleryImageIds",
-                      img
+                      img,
                     )
                   }
                 />
@@ -918,7 +918,7 @@ const EditWebsite = () => {
                           queueDelete(
                             `testimonials.${index}.image`,
                             "deletedTestimonialImageIds",
-                            img
+                            img,
                           )
                         }
                       />

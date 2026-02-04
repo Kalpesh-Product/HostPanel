@@ -28,8 +28,146 @@ export const createTemplate = async (req, res, next) => {
     products = safeParse(products, []);
     testimonials = safeParse(testimonials, []);
 
+    const TEXT_LIMITS = {
+      title: 120,
+      subTitle: 200,
+      CTAButtonText: 50,
+      productTitle: 120,
+      galleryTitle: 120,
+      testimonialTitle: 120,
+      contactTitle: 120,
+      mapUrl: 2048,
+      email: 254,
+      phone: 30,
+      address: 200,
+      registeredCompanyName: 150,
+      copyrightText: 200,
+      aboutItem: 500,
+      productType: 50,
+      productName: 120,
+      productCost: 50,
+      productDescription: 500,
+      testimonialName: 120,
+      testimonialJob: 120,
+      testimonialText: 500,
+    };
+
+    const enforceMaxLength = (label, value, max) => {
+      if (typeof value === "string" && value.length > max) {
+        return `${label} cannot exceed ${max} characters.`;
+      }
+
+      return null;
+    };
+
+    const validateTextFields = () => {
+      const fieldLimits = [
+        ["Title", req.body.title, TEXT_LIMITS.title],
+        ["Subtitle", req.body.subTitle, TEXT_LIMITS.subTitle],
+        ["CTA button text", req.body.CTAButtonText, TEXT_LIMITS.CTAButtonText],
+        ["Product title", req.body.productTitle, TEXT_LIMITS.productTitle],
+        ["Gallery title", req.body.galleryTitle, TEXT_LIMITS.galleryTitle],
+        [
+          "Testimonial title",
+          req.body.testimonialTitle,
+          TEXT_LIMITS.testimonialTitle,
+        ],
+        ["Contact title", req.body.contactTitle, TEXT_LIMITS.contactTitle],
+        ["Map URL", req.body.mapUrl, TEXT_LIMITS.mapUrl],
+        ["Email", req.body.websiteEmail, TEXT_LIMITS.email],
+        ["Phone", req.body.phone, TEXT_LIMITS.phone],
+        ["Address", req.body.address, TEXT_LIMITS.address],
+        [
+          "Registered company name",
+          req.body.registeredCompanyName,
+          TEXT_LIMITS.registeredCompanyName,
+        ],
+        ["Copyright text", req.body.copyrightText, TEXT_LIMITS.copyrightText],
+      ];
+
+      for (const [label, value, max] of fieldLimits) {
+        const error = enforceMaxLength(label, value, max);
+        if (error) return error;
+      }
+
+      if (Array.isArray(about)) {
+        for (const [index, item] of about.entries()) {
+          const error = enforceMaxLength(
+            `About item ${index + 1}`,
+            item,
+            TEXT_LIMITS.aboutItem,
+          );
+          if (error) return error;
+        }
+      }
+
+      if (Array.isArray(products)) {
+        for (const [index, product] of products.entries()) {
+          const typeError = enforceMaxLength(
+            `Product ${index + 1} type`,
+            product?.type,
+            TEXT_LIMITS.productType,
+          );
+          if (typeError) return typeError;
+
+          const nameError = enforceMaxLength(
+            `Product ${index + 1} name`,
+            product?.name,
+            TEXT_LIMITS.productName,
+          );
+          if (nameError) return nameError;
+
+          const costError = enforceMaxLength(
+            `Product ${index + 1} cost`,
+            product?.cost,
+            TEXT_LIMITS.productCost,
+          );
+          if (costError) return costError;
+
+          const descriptionError = enforceMaxLength(
+            `Product ${index + 1} description`,
+            product?.description,
+            TEXT_LIMITS.productDescription,
+          );
+          if (descriptionError) return descriptionError;
+        }
+      }
+
+      if (Array.isArray(testimonials)) {
+        for (const [index, testimonial] of testimonials.entries()) {
+          const nameError = enforceMaxLength(
+            `Testimonial ${index + 1} name`,
+            testimonial?.name,
+            TEXT_LIMITS.testimonialName,
+          );
+          if (nameError) return nameError;
+
+          const jobError = enforceMaxLength(
+            `Testimonial ${index + 1} job position`,
+            testimonial?.jobPosition,
+            TEXT_LIMITS.testimonialJob,
+          );
+          if (jobError) return jobError;
+
+          const testimonyError = enforceMaxLength(
+            `Testimonial ${index + 1} testimony`,
+            testimonial?.testimony,
+            TEXT_LIMITS.testimonialText,
+          );
+          if (testimonyError) return testimonyError;
+        }
+      }
+
+      return null;
+    };
+
+    const validationError = validateTextFields();
+    if (validationError) {
+      return res.status(400).json({ message: validationError });
+    }
+
     const hostCompanyExists = await HostCompany.findOne(
-      { companyName: req.body.companyName } //can't use company Id as the host signup form can't send any company Id
+      { companyName: req.body.companyName }, //can't use company Id as the host signup form can't send any company Id
     );
 
     if (!hostCompanyExists && source !== "Nomad") {
@@ -99,7 +237,7 @@ export const createTemplate = async (req, res, next) => {
 
         const route = `${folder}/${Date.now()}_${file.originalname.replace(
           /\s+/g,
-          "_"
+          "_",
         )}`;
         const data = await uploadFileToS3(route, {
           buffer,
@@ -137,7 +275,7 @@ export const createTemplate = async (req, res, next) => {
         : safeParse(req.body.testimonials, []);
 
       template.testimonials = parsedTestimonials.map((t) =>
-        t?.url ? { url: t.url, id: t.id } : {}
+        t?.url ? { url: t.url, id: t.id } : {},
       );
     }
 
@@ -218,7 +356,7 @@ export const createTemplate = async (req, res, next) => {
     if (filesByField.heroImages?.length) {
       template.heroImages = await uploadImages(
         filesByField.heroImages,
-        `${baseFolder}/heroImages`
+        `${baseFolder}/heroImages`,
       );
     }
 
@@ -226,7 +364,7 @@ export const createTemplate = async (req, res, next) => {
     if (filesByField.gallery?.length) {
       template.gallery = await uploadImages(
         filesByField.gallery,
-        `${baseFolder}/gallery`
+        `${baseFolder}/gallery`,
       );
     }
 
@@ -236,7 +374,7 @@ export const createTemplate = async (req, res, next) => {
         const pFiles = filesByField[`productImages_${i}`] || [];
         const uploaded = await uploadImages(
           pFiles,
-          `${baseFolder}/productImages/${i}`
+          `${baseFolder}/productImages/${i}`,
         );
 
         template.products.push({
@@ -255,7 +393,7 @@ export const createTemplate = async (req, res, next) => {
       // Preferred new path: single field 'testimonialImages' with N files in order
       tUploads = await uploadImages(
         filesByField.testimonialImages,
-        `${baseFolder}/testimonialImages`
+        `${baseFolder}/testimonialImages`,
       );
     } else {
       // Back-compat: testimonialImages_${i}
@@ -263,7 +401,7 @@ export const createTemplate = async (req, res, next) => {
         const tFiles = filesByField[`testimonialImages_${i}`] || [];
         const uploaded = await uploadImages(
           tFiles,
-          `${baseFolder}/testimonialImages/${i}`
+          `${baseFolder}/testimonialImages/${i}`,
         );
         tUploads[i] = uploaded[0]; // one file per testimonial
       }
@@ -291,7 +429,7 @@ export const createTemplate = async (req, res, next) => {
         { companyName: req.body.companyName }, //can't use company Id as the host signup form can't send any company Id
         {
           isWebsiteTemplate: true,
-        }
+        },
       );
 
       if (!updateHostCompany) {
@@ -304,7 +442,7 @@ export const createTemplate = async (req, res, next) => {
           {
             companyName: req.body.companyName,
             link: `https://${savedTemplate.searchKey}.wono.co/`,
-          }
+          },
         );
 
         if (!updatedCompany) {
@@ -409,7 +547,7 @@ export const activateTemplate = async (req, res) => {
       },
       {
         isActive: true,
-      }
+      },
     );
 
     if (!template) {
@@ -446,8 +584,125 @@ export const editTemplate = async (req, res, next) => {
     const searchKey = formatCompanyName(companyName);
     const baseFolder = `hosts/template/${searchKey}`;
 
+    const TEXT_LIMITS = {
+      title: 120,
+      subTitle: 200,
+      CTAButtonText: 50,
+      productTitle: 120,
+      galleryTitle: 120,
+      testimonialTitle: 120,
+      contactTitle: 120,
+      mapUrl: 2048,
+      email: 254,
+      phone: 30,
+      address: 200,
+      registeredCompanyName: 150,
+      copyrightText: 200,
+      aboutItem: 500,
+      productType: 50,
+      productName: 120,
+      productCost: 50,
+      productDescription: 500,
+      testimonialName: 120,
+      testimonialJob: 120,
+      testimonialText: 500,
+    };
+
+    const enforceMaxLength = (label, value, max) => {
+      if (typeof value === "string" && value.length > max) {
+        throw new Error(`${label} cannot exceed ${max} characters.`);
+      }
+    };
+
+    const validateTextFields = () => {
+      const fieldLimits = [
+        ["Title", req.body.title, TEXT_LIMITS.title],
+        ["Subtitle", req.body.subTitle, TEXT_LIMITS.subTitle],
+        ["CTA button text", req.body.CTAButtonText, TEXT_LIMITS.CTAButtonText],
+        ["Product title", req.body.productTitle, TEXT_LIMITS.productTitle],
+        ["Gallery title", req.body.galleryTitle, TEXT_LIMITS.galleryTitle],
+        [
+          "Testimonial title",
+          req.body.testimonialTitle,
+          TEXT_LIMITS.testimonialTitle,
+        ],
+        ["Contact title", req.body.contactTitle, TEXT_LIMITS.contactTitle],
+        ["Map URL", req.body.mapUrl, TEXT_LIMITS.mapUrl],
+        ["Email", req.body.email, TEXT_LIMITS.email],
+        ["Phone", req.body.phone, TEXT_LIMITS.phone],
+        ["Address", req.body.address, TEXT_LIMITS.address],
+        [
+          "Registered company name",
+          req.body.registeredCompanyName,
+          TEXT_LIMITS.registeredCompanyName,
+        ],
+        ["Copyright text", req.body.copyrightText, TEXT_LIMITS.copyrightText],
+      ];
+
+      fieldLimits.forEach(([label, value, max]) => {
+        enforceMaxLength(label, value, max);
+      });
+
+      if (Array.isArray(about)) {
+        about.forEach((item, index) => {
+          enforceMaxLength(
+            `About item ${index + 1}`,
+            item,
+            TEXT_LIMITS.aboutItem,
+          );
+        });
+      }
+
+      if (Array.isArray(products)) {
+        products.forEach((product, index) => {
+          enforceMaxLength(
+            `Product ${index + 1} type`,
+            product?.type,
+            TEXT_LIMITS.productType,
+          );
+          enforceMaxLength(
+            `Product ${index + 1} name`,
+            product?.name,
+            TEXT_LIMITS.productName,
+          );
+          enforceMaxLength(
+            `Product ${index + 1} cost`,
+            product?.cost,
+            TEXT_LIMITS.productCost,
+          );
+          enforceMaxLength(
+            `Product ${index + 1} description`,
+            product?.description,
+            TEXT_LIMITS.productDescription,
+          );
+        });
+      }
+
+      if (Array.isArray(testimonials)) {
+        testimonials.forEach((testimonial, index) => {
+          enforceMaxLength(
+            `Testimonial ${index + 1} name`,
+            testimonial?.name,
+            TEXT_LIMITS.testimonialName,
+          );
+          enforceMaxLength(
+            `Testimonial ${index + 1} job position`,
+            testimonial?.jobPosition,
+            TEXT_LIMITS.testimonialJob,
+          );
+          enforceMaxLength(
+            `Testimonial ${index + 1} testimony`,
+            testimonial?.testimony,
+            TEXT_LIMITS.testimonialText,
+          );
+        });
+      }
+    };
+
+    validateTextFields();
+
     const template = await WebsiteTemplate.findOne({ searchKey }).session(
-      session
+      session,
     );
     if (!template) {
       await session.abortTransaction();
@@ -467,7 +722,7 @@ export const editTemplate = async (req, res, next) => {
           .toBuffer();
         const route = `${folder}/${Date.now()}_${file.originalname.replace(
           /\s+/g,
-          "_"
+          "_",
         )}`;
         const data = await uploadFileToS3(route, {
           buffer,
@@ -488,7 +743,7 @@ export const editTemplate = async (req, res, next) => {
               console.error(`Failed to delete ${img.url}:`, err);
             }
           }
-        })
+        }),
       );
     };
 
@@ -523,7 +778,7 @@ export const editTemplate = async (req, res, next) => {
       const uploaded = await uploadImages(
         [filesByField.companyLogo[0]],
         `${baseFolder}/companyLogo`,
-        1
+        1,
       );
       template.companyLogo = uploaded[0];
     }
@@ -533,11 +788,11 @@ export const editTemplate = async (req, res, next) => {
 
     if (req.body.heroImageIds !== undefined) {
       const toDelete = template.heroImages.filter(
-        (img) => !heroKeepIds.includes(img.id)
+        (img) => !heroKeepIds.includes(img.id),
       );
       await deleteImagesFromS3(toDelete);
       template.heroImages = template.heroImages.filter((img) =>
-        heroKeepIds.includes(img.id)
+        heroKeepIds.includes(img.id),
       );
     }
 
@@ -546,14 +801,14 @@ export const editTemplate = async (req, res, next) => {
     // const totalHeroCount = heroKeepIds.length + newHeroFiles.length;
     if (totalHeroCount > 5) {
       throw new Error(
-        `Cannot exceed 5 hero images (currently ${template.heroImages.length}).`
+        `Cannot exceed 5 hero images (currently ${template.heroImages.length}).`,
       );
     }
     if (newHeroFiles.length) {
       const newHero = await uploadImages(
         newHeroFiles,
         `${baseFolder}/heroImages`,
-        5
+        5,
       );
       template.heroImages.push(...newHero);
     }
@@ -562,11 +817,11 @@ export const editTemplate = async (req, res, next) => {
     const galleryKeepIds = safeParse(req.body.galleryImageIds, []);
     if (req.body.galleryImageIds !== undefined) {
       const toDelete = template.gallery.filter(
-        (img) => !galleryKeepIds.includes(img.id)
+        (img) => !galleryKeepIds.includes(img.id),
       );
       await deleteImagesFromS3(toDelete);
       template.gallery = template.gallery.filter((img) =>
-        galleryKeepIds.includes(img.id)
+        galleryKeepIds.includes(img.id),
       );
     }
 
@@ -574,24 +829,24 @@ export const editTemplate = async (req, res, next) => {
     const totalGalleryCount = template.gallery.length + newGalleryFiles.length;
     if (totalGalleryCount > 40) {
       throw new Error(
-        `Cannot exceed 40 gallery images (currently ${template.gallery.length}).`
+        `Cannot exceed 40 gallery images (currently ${template.gallery.length}).`,
       );
     }
     if (newGalleryFiles.length) {
       const newGallery = await uploadImages(
         newGalleryFiles,
         `${baseFolder}/gallery`,
-        40
+        40,
       );
       template.gallery.push(...newGallery);
     }
 
     // === 🛍 PRODUCTS (max 10 per product) ===
     const existingMap = new Map(
-      (template.products || []).map((p) => [String(p._id), p])
+      (template.products || []).map((p) => [String(p._id), p]),
     );
     const idxById = new Map(
-      (template.products || []).map((p, i) => [String(p._id), i])
+      (template.products || []).map((p, i) => [String(p._id), i]),
     );
     const baseLen = (template.products || []).length;
     let newCounter = 0;
@@ -610,7 +865,7 @@ export const editTemplate = async (req, res, next) => {
       const total = existingCount + newFiles.length;
       if (total > 10) {
         throw new Error(
-          `Max 10 images allowed per product (${p.name || "Unnamed product"}).`
+          `Max 10 images allowed per product (${p.name || "Unnamed product"}).`,
         );
       }
 
@@ -618,7 +873,7 @@ export const editTemplate = async (req, res, next) => {
         ? await uploadImages(
             newFiles,
             `${baseFolder}/productImages/${p._id || fieldIdx}`,
-            10
+            10,
           )
         : [];
 
@@ -627,11 +882,11 @@ export const editTemplate = async (req, res, next) => {
 
         if (p.imageIds !== undefined) {
           const toDelete = (existing.images || []).filter(
-            (img) => !keepIds.has(img.id)
+            (img) => !keepIds.has(img.id),
           );
           await deleteImagesFromS3(toDelete);
           const kept = (existing.images || []).filter((img) =>
-            keepIds.has(img.id)
+            keepIds.has(img.id),
           );
           existing.images = [...kept, ...uploaded];
         } else {
@@ -654,10 +909,10 @@ export const editTemplate = async (req, res, next) => {
     }
 
     const updatedIds = new Set(
-      updatedProducts.map((p) => String(p._id)).filter(Boolean)
+      updatedProducts.map((p) => String(p._id)).filter(Boolean),
     );
     const removedProducts = (template.products || []).filter(
-      (p) => !updatedIds.has(String(p._id))
+      (p) => !updatedIds.has(String(p._id)),
     );
     for (const removed of removedProducts)
       await deleteImagesFromS3(removed.images || []);
@@ -665,10 +920,10 @@ export const editTemplate = async (req, res, next) => {
 
     // === 💬 TESTIMONIALS (max 1 per testimonial) ===
     const testimonialMap = new Map(
-      (template.testimonials || []).map((t) => [String(t._id), t])
+      (template.testimonials || []).map((t) => [String(t._id), t]),
     );
     const tIdxById = new Map(
-      (template.testimonials || []).map((t, i) => [String(t._id), i])
+      (template.testimonials || []).map((t, i) => [String(t._id), i]),
     );
     const tBaseLen = (template.testimonials || []).length;
     let tNewCounter = 0;
@@ -715,10 +970,10 @@ export const editTemplate = async (req, res, next) => {
     }
 
     const updatedTIds = new Set(
-      updatedTestimonials.map((t) => String(t._id)).filter(Boolean)
+      updatedTestimonials.map((t) => String(t._id)).filter(Boolean),
     );
     const removedT = (template.testimonials || []).filter(
-      (t) => !updatedTIds.has(String(t._id))
+      (t) => !updatedTIds.has(String(t._id)),
     );
     for (const r of removedT)
       if (r.image?.url) await deleteImagesFromS3([r.image]);
