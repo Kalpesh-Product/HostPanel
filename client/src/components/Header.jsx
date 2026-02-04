@@ -86,6 +86,13 @@ const Header = ({
     },
   });
 
+  const headerLogoUrl =
+    companyLogo?.logo?.url ||
+    companyLogo?.logo ||
+    auth?.user?.logo?.url ||
+    auth?.user?.logo ||
+    WoNoLogo;
+
   const handleAvatarClick = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -120,11 +127,7 @@ const Header = ({
               <img
                 onClick={() => navigate("/company-settings")}
                 className="max-w-[70%] h-12 object-contain cursor-pointer"
-                src={
-                  auth?.user?.logo
-                    ? auth.user.logo // ✅ dynamic logo from backend
-                    : WoNoLogo // ✅ fallback hardcoded logo
-                }
+                src={headerLogoUrl}
                 alt="logo"
               />
               {!isMobile && (
