@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import YearWiseTable from "../../../components/Tables/YearWiseTable";
 import PageFrame from "../../../components/Pages/PageFrame";
 import { useSelector } from "react-redux";
@@ -9,7 +9,6 @@ import { MenuItem, TextField, IconButton } from "@mui/material";
 import { MdOutlineRateReview } from "react-icons/md";
 import MuiModal from "../../../components/MuiModal";
 import { Controller, useForm } from "react-hook-form";
-import PrimaryButton from "../../../components/PrimaryButton";
 import { toast } from "sonner";
 
 const CompanyReviews = () => {
@@ -19,35 +18,47 @@ const CompanyReviews = () => {
   const queryClient = useQueryClient();
 
   const [openModal, setOpenModal] = useState(false);
-  const [selectedLead, setSelectedLead] = useState(null);
 
-  // 🔹 Fetch Leads
+  const reviewApiBaseUrl =
+    import.meta.env.VITE_REVIEW_API_BASE_URL || "http://localhost:5006";
+  const reviewAdminApiBaseUrl =
+    import.meta.env.VITE_REVIEW_ADMIN_API_BASE_URL || "http://localhost:5007";
+
+  // 🔹 Fetch Reviews
   const {
     data = [],
     isPending,
     isError,
   } = useQuery({
-    queryKey: ["leadCompany"],
+    queryKey: [
+      "companyReviews",
+      selectedCompany?.companyId,
+      auth?.user?.companyId,
+    ],
     enabled: !!(selectedCompany || auth?.user?.companyId),
     queryFn: async () => {
       const companyId = selectedCompany?.companyId || auth?.user?.companyId;
       const response = await axiosPrivate.get(
-        `/api/leads/get-leads?companyId=${companyId}`,
+        `${reviewApiBaseUrl}/api/review?companyId=${companyId}&companyType=meetingroom&status=approved`,
         { headers: { "Cache-Control": "no-cache" } },
       );
-      return Array.isArray(response?.data) ? response.data : [];
+      const reviews = response?.data?.data ?? response?.data;
+      return Array.isArray(reviews) ? reviews : [];
     },
   });
 
-  // 🔹 Mutation for updating lead
-  const updateLeadMutation = useMutation({
-    mutationFn: async (payload) => {
-      const res = await axiosPrivate.patch("/api/leads/update-lead", payload);
+  // 🔹 Mutation for updating review status
+  const updateReviewMutation = useMutation({
+    mutationFn: async ({ reviewId, status }) => {
+      const res = await axiosPrivate.patch(
+        `${reviewAdminApiBaseUrl}/api/admin/review/${reviewId}`,
+        { status },
+      );
       return res.data;
     },
     onSuccess: (data) => {
-      toast.success(data.message || "Lead updated");
-      queryClient.invalidateQueries(["leadCompany"]);
+      toast.success(data.message || "Review updated");
+      queryClient.invalidateQueries(["companyReviews"]);
       setOpenModal(false);
     },
     onError: (err) => {
@@ -57,31 +68,56 @@ const CompanyReviews = () => {
 
   // 🔹 Comment Modal form
   const { control, handleSubmit, reset } = useForm({
-    defaultValues: { comment: "" },
+    defaultValues: { description: "" },
   });
 
-  const handleOpenModal = (lead) => {
-    setSelectedLead(lead);
-    reset({ comment: lead.comment || "" });
+  const handleOpenModal = (review) => {
+    reset({ description: review.description || "" });
     setOpenModal(true);
   };
 
-  const onSubmitComment = (data) => {
-    updateLeadMutation.mutate({
-      leadId: selectedLead._id,
-      comment: data.comment,
-    });
+  const onSubmitComment = () => {
+    setOpenModal(false);
   };
 
-  const handleStatusChange = (leadId, newStatus) => {
-    updateLeadMutation.mutate({ leadId, status: newStatus });
+  const handleStatusChange = (reviewId, newStatus) => {
+    updateReviewMutation.mutate({ reviewId, status: newStatus });
   };
+
+  const formatStatusLabel = (status) => {
+    if (!status) return "Pending";
+    const normalized = String(status).toLowerCase();
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  };
+
+  const rows = useMemo(
+    () =>
+      (Array.isArray(data) ? data : []).map((review, index) => ({
+        ...review,
+        srNo: index + 1,
+      })),
+    [data],
+  );
 
   // 🔹 Table columns
   const columns = [
     { field: "srNo", headerName: "SrNo", width: 100 },
-    { field: "fullName", headerName: "Reviewer Name" },
-    { field: "source", headerName: "Rating" },
+    {
+      field: "reviewerName",
+      headerName: "Reviewer Name",
+      valueGetter: (params) =>
+        params.data.reviewerName ||
+        params.data.reviewreName ||
+        params.data.fullName ||
+        params.data.name ||
+        "-",
+    },
+    {
+      field: "rating",
+      headerName: "Rating",
+      valueGetter: (params) =>
+        params.data.rating ?? params.data.ratingValue ?? "-",
+    },
     // { field: "productType", headerName: "Product" },
     // { field: "noOfPeople", headerName: "People Count" },
     // { field: "mobileNumber", headerName: "Mobile Number" },
@@ -93,7 +129,7 @@ const CompanyReviews = () => {
       field: "status",
       headerName: "Status",
       cellRenderer: (params) => {
-        const value = params.data.status || "Pending";
+        const value = formatStatusLabel(params.data.status);
 
         const statusStyles = {
           Pending: { bg: "#FEF3C7", color: "#F59E0B" }, // amber
@@ -109,7 +145,10 @@ const CompanyReviews = () => {
               size="small"
               value={value}
               onChange={(e) =>
-                handleStatusChange(params.data._id, e.target.value)
+                handleStatusChange(
+                  params.data._id,
+                  e.target.value.toLowerCase(),
+                )
               }
               sx={{
                 "& .MuiOutlinedInput-root": {
@@ -135,8 +174,7 @@ const CompanyReviews = () => {
                     fontWeight: 600,
                     fontSize: "0.85rem",
                     borderRadius: "9999px",
-                    backgroundColor: statusStyles[option]?.bg,
-                    color: statusStyles[option]?.color,
+
                     my: 0.5,
                   }}
                 >
@@ -162,19 +200,16 @@ const CompanyReviews = () => {
   ];
 
   if (isPending) return <>Loading Reviews</>;
-  if (isError) return <span className="text-red-500">Error Loading Leads</span>;
+  if (isError)
+    return <span className="text-red-500">Error Loading Reviews</span>;
 
   return (
     <div className="p-4">
       <PageFrame>
         {/* <YearWiseTable data={data} tableTitle={"Leads"} columns={columns} /> */}
-        <YearWiseTable
-          data={Array.isArray(data) ? data : []} // 👈 ensure array
-          tableTitle={"Reviews"}
-          columns={columns}
-        />
+        <YearWiseTable data={rows} tableTitle={"Reviews"} columns={columns} />
 
-        {Array.isArray(data) && data.length === 0 && (
+        {rows.length === 0 && (
           <div className="text-center text-gray-500 py-4">No records found</div>
         )}
       </PageFrame>
