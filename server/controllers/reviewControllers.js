@@ -60,3 +60,48 @@ export const updateReviewStatus = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getReviewsByCompany = async (req, res, next) => {
+  try {
+    const { companyId, companyType, status = "" } = req.query;
+
+    if (!companyId || !companyType) {
+      return res.status(400).json({
+        message: "companyId and companyType are required",
+      });
+    }
+    let response = {};
+    try {
+      const response = await axios.get(
+        `https://wononomadsbe.vercel.app/api/reviews/${reviewId}`,
+        data,
+      );
+
+      // response = await axios.get("http://localhost:3000/api/review", {
+      //   params: {
+      //     companyId,
+      //     companyType,
+      //     status,
+      //   },
+      // });
+
+      if (![200, 204].includes(response.status)) {
+        return res.status(400).json({ message: `Failed to fetch reviews` });
+      }
+    } catch (err) {
+      return res.status(err.response?.status || 500).json({
+        message:
+          err.response?.data?.message ||
+          err.message ||
+          "Failed to fetch reviews",
+      });
+    }
+    console.log("response", response.data);
+
+    return res.status(200).json({
+      reviews: response.data.data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

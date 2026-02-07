@@ -1,7 +1,11 @@
 import { Router } from "express";
-import { updateReviewStatus } from "../controllers/reviewControllers.js";
+import {
+  getReviewsByCompany,
+  updateReviewStatus,
+} from "../controllers/reviewControllers.js";
 
 const router = Router();
 router.patch("/:reviewId", updateReviewStatus);
+router.get("/", getReviewsByCompany);
 
 export default router;
