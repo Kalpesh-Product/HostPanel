@@ -146,6 +146,7 @@ import Services from "../pages/Services";
 import EditNomadListing from "../pages/Dashboard/FrontendDashboard/EditNomadListing";
 import ForgotPassword from "../pages/LoginPage/ForgotPassword";
 import ResetPassword from "../pages/LoginPage/ResetPassword";
+import CompanyReviews from "../pages/Dashboard/FrontendDashboard/CompanyReviews";
 
 export const routes = createBrowserRouter([
   {
@@ -282,6 +283,11 @@ export const routes = createBrowserRouter([
               },
 
               {
+                path: "company-reviews",
+                element: <CompanyReviews />,
+              },
+
+              {
                 path: "company-settings",
                 // element: <CompanyOverview />,
                 children: [
@@ -289,6 +295,7 @@ export const routes = createBrowserRouter([
                     index: true, // login lands here
                     element: <CompanyOverview />,
                   },
+
                   {
                     path: "nomad-listings",
                     element: <NomadListingsOverview />,

@@ -127,6 +127,13 @@ const Sidebar = ({ drawerOpen, onCloseDrawer }) => {
           icon: <SiAuthelia />,
           route: "/company-settings/website-builder/leads",
         },
+        {
+          id: 4,
+          title: "Reviews",
+          codeName: "Web",
+          icon: <SiAuthelia />,
+          route: "/company-reviews",
+        },
       ],
     },
   ];
@@ -186,8 +193,8 @@ const Sidebar = ({ drawerOpen, onCloseDrawer }) => {
                       expandedModule === null && isSidebarOpen
                         ? "justify-between pr-2"
                         : expandedModule === 0 && isSidebarOpen
-                        ? "justify-between text-[#1E3D73] pr-2"
-                        : "justify-center pr-0"
+                          ? "justify-between text-[#1E3D73] pr-2"
+                          : "justify-center pr-0"
                     } items-center   ${
                       expandedModule === 0 &&
                       "bg-gray-200 rounded-t-md text-black"
