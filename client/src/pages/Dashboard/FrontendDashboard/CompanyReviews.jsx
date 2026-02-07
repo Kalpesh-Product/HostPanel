@@ -39,7 +39,7 @@ const CompanyReviews = () => {
     queryFn: async () => {
       const companyId = selectedCompany?.companyId || auth?.user?.companyId;
       const response = await axiosPrivate.get(
-        `${reviewApiBaseUrl}/api/review?companyId=${companyId}&companyType=meetingroom&status=approved`,
+        `${reviewApiBaseUrl}/api/review?companyId=${companyId}&status=approved`,
         { headers: { "Cache-Control": "no-cache" } },
       );
       const reviews = response?.data?.data ?? response?.data;
