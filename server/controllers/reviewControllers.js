@@ -24,15 +24,15 @@ export const updateReviewStatus = async (req, res, next) => {
 
     let response = {};
     try {
-      const response = await axios.post(
-        `https://wononomadsbe.vercel.app/api/reviews/${reviewId}`,
+      // const response = await axios.post(
+      //   `https://wononomadsbe.vercel.app/api/reviews/${reviewId}`,
+      //   data,
+      // );
+
+      response = await axios.patch(
+        `http://localhost:3000/api/review/${reviewId}`,
         data,
       );
-
-      //   response = await axios.patch(
-      //     `http://localhost:3000/api/review/${reviewId}`,
-      //     data,
-      //   );
 
       //   if (response.status !== 201) {
       //     return res.status(400).json({ message: `Failed to ${status} review` });
@@ -73,17 +73,23 @@ export const getReviewsByCompany = async (req, res, next) => {
     let response = {};
     try {
       const response = await axios.get(
-        `https://wononomadsbe.vercel.app/api/reviews/${reviewId}`,
-        data,
+        `https://wononomadsbe.vercel.app/api/review/${reviewId}`,
+        {
+          params: {
+            companyId,
+            companyType,
+            status,
+          },
+        },
       );
 
-      // response = await axios.get("http://localhost:3000/api/review", {
-      //   params: {
-      //     companyId,
-      //     companyType,
-      //     status,
-      //   },
-      // });
+      response = await axios.get("http://localhost:3000/api/review", {
+        params: {
+          companyId,
+          companyType,
+          status,
+        },
+      });
 
       if (![200, 204].includes(response.status)) {
         return res.status(400).json({ message: `Failed to fetch reviews` });
