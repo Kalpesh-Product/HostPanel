@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import YearWiseTable from "../../../components/Tables/YearWiseTable";
+import AgTable from "../../../components/AgTable";
 import PageFrame from "../../../components/Pages/PageFrame";
 import { useSelector } from "react-redux";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -37,7 +37,11 @@ const CompanyReviews = () => {
         `/api/review?companyId=${companyId}`,
         { headers: { "Cache-Control": "no-cache" } },
       );
-      const reviews = response?.data?.data ?? response?.data;
+      const reviews =
+        response?.data?.reviews ??
+        response?.data?.data?.reviews ??
+        response?.data?.data ??
+        response?.data;
       return Array.isArray(reviews) ? reviews : [];
     },
   });
@@ -110,7 +114,10 @@ const CompanyReviews = () => {
       field: "rating",
       headerName: "Rating",
       valueGetter: (params) =>
-        params.data.rating ?? params.data.ratingValue ?? "-",
+        params.data.starCount ??
+        params.data.rating ??
+        params.data.ratingValue ??
+        "-",
     },
     // { field: "productType", headerName: "Product" },
     // { field: "noOfPeople", headerName: "People Count" },
@@ -200,8 +207,7 @@ const CompanyReviews = () => {
   return (
     <div className="p-4">
       <PageFrame>
-        {/* <YearWiseTable data={data} tableTitle={"Leads"} columns={columns} /> */}
-        <YearWiseTable data={rows} tableTitle={"Reviews"} columns={columns} />
+        <AgTable data={rows} columns={columns} tableTitle={"Reviews"} search />
 
         {rows.length === 0 && (
           <div className="text-center text-gray-500 py-4">No records found</div>
