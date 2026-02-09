@@ -63,7 +63,7 @@ export const updateReviewStatus = async (req, res, next) => {
 
 export const getReviewsByCompany = async (req, res, next) => {
   try {
-    const { companyId, companyType, status = "" } = req.query;
+    const { companyId, companyType = "", status = "" } = req.query;
 
     if (!companyId || !companyType) {
       return res.status(400).json({
