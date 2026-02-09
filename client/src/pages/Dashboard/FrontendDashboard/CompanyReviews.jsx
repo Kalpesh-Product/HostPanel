@@ -19,11 +19,6 @@ const CompanyReviews = () => {
 
   const [openModal, setOpenModal] = useState(false);
 
-  const reviewApiBaseUrl =
-    import.meta.env.VITE_REVIEW_API_BASE_URL || "http://localhost:5006";
-  const reviewAdminApiBaseUrl =
-    import.meta.env.VITE_REVIEW_ADMIN_API_BASE_URL || "http://localhost:5007";
-
   // 🔹 Fetch Reviews
   const {
     data = [],
@@ -39,7 +34,7 @@ const CompanyReviews = () => {
     queryFn: async () => {
       const companyId = selectedCompany?.companyId || auth?.user?.companyId;
       const response = await axiosPrivate.get(
-        `${reviewApiBaseUrl}/api/review?companyId=${companyId}&companyType=meetingroom&status=approved`,
+        `/api/review?companyId=${companyId}&status=approved`,
         { headers: { "Cache-Control": "no-cache" } },
       );
       const reviews = response?.data?.data ?? response?.data;
@@ -50,10 +45,9 @@ const CompanyReviews = () => {
   // 🔹 Mutation for updating review status
   const updateReviewMutation = useMutation({
     mutationFn: async ({ reviewId, status }) => {
-      const res = await axiosPrivate.patch(
-        `${reviewAdminApiBaseUrl}/api/admin/review/${reviewId}`,
-        { status },
-      );
+      const res = await axiosPrivate.patch(`/api/admin/review/${reviewId}`, {
+        status,
+      });
       return res.data;
     },
     onSuccess: (data) => {
