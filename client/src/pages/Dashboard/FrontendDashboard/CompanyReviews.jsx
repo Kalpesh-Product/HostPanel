@@ -49,7 +49,7 @@ const CompanyReviews = () => {
   // 🔹 Mutation for updating review status
   const updateReviewMutation = useMutation({
     mutationFn: async ({ reviewId, status }) => {
-      const res = await axiosPrivate.patch(`/api/admin/review/${reviewId}`, {
+      const res = await axiosPrivate.patch(`/api/review/${reviewId}`, {
         status,
       });
       return res.data;
