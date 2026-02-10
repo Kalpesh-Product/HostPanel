@@ -52,7 +52,7 @@ const ChangePassword = ({ pageTitle }) => {
         `/api/profile/verify-password/${userId}`, // adjust base path if different
         {
           currentPassword: formData.currentPassword,
-        }
+        },
       );
 
       toast.success(res?.data?.message || "Password verified.");
@@ -97,6 +97,20 @@ const ChangePassword = ({ pageTitle }) => {
         return;
       }
 
+      if (!/(?=.*[a-z])(?=.*[A-Z])/.test(newPassword)) {
+        setErrorMessage(
+          "New password must include both uppercase and lowercase letters.",
+        );
+        return;
+      }
+
+      if (!/(?=.*\d)(?=.*[^A-Za-z0-9])/.test(newPassword)) {
+        setErrorMessage(
+          "New password must include at least one number and one special character.",
+        );
+        return;
+      }
+
       if (!userId) {
         setErrorMessage("User not found. Please re-login.");
         return;
@@ -109,7 +123,7 @@ const ChangePassword = ({ pageTitle }) => {
           currentPassword,
           newPassword,
           confirmPassword,
-        }
+        },
       );
 
       toast.success(res?.data?.message || "Password changed successfully.");
