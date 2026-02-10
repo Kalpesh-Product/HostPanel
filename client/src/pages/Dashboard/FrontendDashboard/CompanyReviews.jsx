@@ -5,7 +5,7 @@ import { useSelector } from "react-redux";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import useAuth from "../../../hooks/useAuth";
-import { MenuItem, TextField, IconButton } from "@mui/material";
+import { MenuItem, TextField, IconButton, Button } from "@mui/material";
 import { MdOutlineRateReview } from "react-icons/md";
 import MuiModal from "../../../components/MuiModal";
 import { Controller, useForm } from "react-hook-form";
@@ -157,6 +157,7 @@ const CompanyReviews = () => {
       headerName: "Status",
       cellRenderer: (params) => {
         const value = formatStatusLabel(params.data.status);
+        const isFinalStatus = value === "Approved" || value === "Rejected";
 
         const statusStyles = {
           Pending: { bg: "#FEF3C7", color: "#F59E0B" }, // amber
@@ -165,50 +166,67 @@ const CompanyReviews = () => {
           Rejected: { bg: "#FEE2E2", color: "#EF4444" }, // red
         };
 
+        const badgeStyles = {
+          borderRadius: "9999px",
+          padding: "4px 16px",
+          fontWeight: 600,
+          fontSize: "0.85rem",
+          backgroundColor: statusStyles[value]?.bg,
+          color: statusStyles[value]?.color,
+          lineHeight: 1.5,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+        };
+
         return (
           <div style={{ display: "flex", justifyContent: "center" }}>
-            <TextField
-              select
-              size="small"
-              value={value}
-              onChange={(e) =>
-                handleStatusChange(
-                  params.data._id,
-                  e.target.value.toLowerCase(),
-                )
-              }
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "9999px",
-                  px: 1.5,
-                  fontWeight: 600,
-                  fontSize: "0.85rem",
-                  backgroundColor: statusStyles[value]?.bg,
-                  color: statusStyles[value]?.color,
-                  "& fieldset": { border: "none" },
-                },
-                "& .MuiSelect-select": {
-                  textAlign: "center",
-                },
-              }}
-            >
-              {["Pending", "Approved", "Rejected"].map((option) => (
-                <MenuItem
-                  key={option}
-                  value={option}
-                  sx={{
-                    justifyContent: "center",
+            {isFinalStatus ? (
+              <span style={badgeStyles}>{value}</span>
+            ) : (
+              <TextField
+                select
+                size="small"
+                value={value}
+                onChange={(e) =>
+                  handleStatusChange(
+                    params.data._id,
+                    e.target.value.toLowerCase(),
+                  )
+                }
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: "9999px",
+                    px: 1.5,
                     fontWeight: 600,
                     fontSize: "0.85rem",
-                    borderRadius: "9999px",
+                    backgroundColor: statusStyles[value]?.bg,
+                    color: statusStyles[value]?.color,
+                    "& fieldset": { border: "none" },
+                  },
+                  "& .MuiSelect-select": {
+                    textAlign: "center",
+                  },
+                }}
+              >
+                {["Pending", "Approved", "Rejected"].map((option) => (
+                  <MenuItem
+                    key={option}
+                    value={option}
+                    sx={{
+                      justifyContent: "center",
+                      fontWeight: 600,
+                      fontSize: "0.85rem",
+                      borderRadius: "9999px",
 
-                    my: 0.5,
-                  }}
-                >
-                  {option}
-                </MenuItem>
-              ))}
-            </TextField>
+                      my: 0.5,
+                    }}
+                  >
+                    {option}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
           </div>
         );
       },
@@ -218,9 +236,15 @@ const CompanyReviews = () => {
       headerName: "Description",
       cellRenderer: (params) => (
         <div style={{ display: "flex", justifyContent: "center" }}>
-          <IconButton onClick={() => handleOpenModal(params.data)}>
+          {/* <IconButton onClick={() => handleOpenModal(params.data)}>
             <MdOutlineRateReview />
-          </IconButton>
+          </IconButton> */}
+          <button
+            className="text-blue-500 underline font-semibold"
+            onClick={() => handleOpenModal(params.data)}
+          >
+            View Description
+          </button>
         </div>
       ),
     },
