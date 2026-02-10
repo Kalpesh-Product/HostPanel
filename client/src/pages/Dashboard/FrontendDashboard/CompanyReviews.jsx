@@ -33,16 +33,29 @@ const CompanyReviews = () => {
     enabled: !!(selectedCompany || auth?.user?.companyId),
     queryFn: async () => {
       const companyId = selectedCompany?.companyId || auth?.user?.companyId;
-      const response = await axiosPrivate.get(
-        `/api/review?companyId=${companyId}`,
-        { headers: { "Cache-Control": "no-cache" } },
+
+      const parseReviews = (response) => {
+        const reviews =
+          response?.data?.reviews ??
+          response?.data?.data?.reviews ??
+          response?.data?.data ??
+          response?.data;
+        return Array.isArray(reviews) ? reviews : [];
+      };
+
+      const statuses = ["pending", "rejected", "approved"];
+      const responses = await Promise.all(
+        statuses.map((status) =>
+          axiosPrivate.get(
+            `/api/review?companyId=${companyId}&status=${status}`,
+            {
+              headers: { "Cache-Control": "no-cache" },
+            },
+          ),
+        ),
       );
-      const reviews =
-        response?.data?.reviews ??
-        response?.data?.data?.reviews ??
-        response?.data?.data ??
-        response?.data;
-      return Array.isArray(reviews) ? reviews : [];
+
+      return responses.flatMap((response) => parseReviews(response));
     },
   });
 
@@ -88,14 +101,27 @@ const CompanyReviews = () => {
     return normalized.charAt(0).toUpperCase() + normalized.slice(1);
   };
 
-  const rows = useMemo(
-    () =>
-      (Array.isArray(data) ? data : []).map((review, index) => ({
+  const rows = useMemo(() => {
+    const statusOrder = {
+      pending: 0,
+      rejected: 1,
+      approved: 2,
+    };
+
+    return (Array.isArray(data) ? data : [])
+      .slice()
+      .sort((a, b) => {
+        const aStatus = String(a?.status || "pending").toLowerCase();
+        const bStatus = String(b?.status || "pending").toLowerCase();
+        const aRank = statusOrder[aStatus] ?? Number.MAX_SAFE_INTEGER;
+        const bRank = statusOrder[bStatus] ?? Number.MAX_SAFE_INTEGER;
+        return aRank - bRank;
+      })
+      .map((review, index) => ({
         ...review,
         srNo: index + 1,
-      })),
-    [data],
-  );
+      }));
+  }, [data]);
 
   // 🔹 Table columns
   const columns = [
