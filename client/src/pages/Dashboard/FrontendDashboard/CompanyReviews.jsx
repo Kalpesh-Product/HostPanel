@@ -101,6 +101,33 @@ const CompanyReviews = () => {
     return normalized.charAt(0).toUpperCase() + normalized.slice(1);
   };
 
+  const getApproverRejectorName = (review) => {
+    const normalizedStatus = String(review?.status || "").toLowerCase();
+    const actor =
+      normalizedStatus === "approved"
+        ? review?.approvedBy
+        : normalizedStatus === "rejected"
+          ? review?.rejectedBy
+          : null;
+
+    if (!actor || typeof actor !== "object") return "-";
+
+    const userType = String(actor?.userType || "").toUpperCase();
+
+    if (userType === "MASTER") {
+      const firstName = actor?.user?.firstName?.trim?.() || "";
+      const lastName = actor?.user?.lastName?.trim?.() || "";
+      const fullName = `${firstName} ${lastName}`.trim();
+      return fullName || "-";
+    }
+
+    if (userType === "HOST") {
+      return actor?.user?.name?.trim?.() || "-";
+    }
+
+    return "-";
+  };
+
   const rows = useMemo(() => {
     const statusOrder = {
       pending: 0,
@@ -247,6 +274,12 @@ const CompanyReviews = () => {
           </button>
         </div>
       ),
+    },
+    {
+      field: "approvedRejectedBy",
+      headerName: "Approved/Rejected By",
+      valueGetter: (params) => getApproverRejectorName(params?.data),
+      minWidth: 220,
     },
   ];
 
