@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from "react";
-import YearWiseTable from "../../../components/Tables/YearWiseTable";
+import AgTable from "../../../components/AgTable";
 import PageFrame from "../../../components/Pages/PageFrame";
 import { useSelector } from "react-redux";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import useAuth from "../../../hooks/useAuth";
-import { MenuItem, TextField, IconButton } from "@mui/material";
+import { MenuItem, TextField, IconButton, Button } from "@mui/material";
 import { MdOutlineRateReview } from "react-icons/md";
 import MuiModal from "../../../components/MuiModal";
 import { Controller, useForm } from "react-hook-form";
@@ -18,11 +18,6 @@ const CompanyReviews = () => {
   const queryClient = useQueryClient();
 
   const [openModal, setOpenModal] = useState(false);
-
-  const reviewApiBaseUrl =
-    import.meta.env.VITE_REVIEW_API_BASE_URL || "http://localhost:5006";
-  const reviewAdminApiBaseUrl =
-    import.meta.env.VITE_REVIEW_ADMIN_API_BASE_URL || "http://localhost:5007";
 
   // 🔹 Fetch Reviews
   const {
@@ -38,22 +33,38 @@ const CompanyReviews = () => {
     enabled: !!(selectedCompany || auth?.user?.companyId),
     queryFn: async () => {
       const companyId = selectedCompany?.companyId || auth?.user?.companyId;
-      const response = await axiosPrivate.get(
-        `${reviewApiBaseUrl}/api/review?companyId=${companyId}&companyType=meetingroom&status=approved`,
-        { headers: { "Cache-Control": "no-cache" } },
+
+      const parseReviews = (response) => {
+        const reviews =
+          response?.data?.reviews ??
+          response?.data?.data?.reviews ??
+          response?.data?.data ??
+          response?.data;
+        return Array.isArray(reviews) ? reviews : [];
+      };
+
+      const statuses = ["pending", "rejected", "approved"];
+      const responses = await Promise.all(
+        statuses.map((status) =>
+          axiosPrivate.get(
+            `/api/review?companyId=${companyId}&status=${status}`,
+            {
+              headers: { "Cache-Control": "no-cache" },
+            },
+          ),
+        ),
       );
-      const reviews = response?.data?.data ?? response?.data;
-      return Array.isArray(reviews) ? reviews : [];
+
+      return responses.flatMap((response) => parseReviews(response));
     },
   });
 
   // 🔹 Mutation for updating review status
   const updateReviewMutation = useMutation({
     mutationFn: async ({ reviewId, status }) => {
-      const res = await axiosPrivate.patch(
-        `${reviewAdminApiBaseUrl}/api/admin/review/${reviewId}`,
-        { status },
-      );
+      const res = await axiosPrivate.patch(`/api/review/${reviewId}`, {
+        status,
+      });
       return res.data;
     },
     onSuccess: (data) => {
@@ -90,14 +101,27 @@ const CompanyReviews = () => {
     return normalized.charAt(0).toUpperCase() + normalized.slice(1);
   };
 
-  const rows = useMemo(
-    () =>
-      (Array.isArray(data) ? data : []).map((review, index) => ({
+  const rows = useMemo(() => {
+    const statusOrder = {
+      pending: 0,
+      rejected: 1,
+      approved: 2,
+    };
+
+    return (Array.isArray(data) ? data : [])
+      .slice()
+      .sort((a, b) => {
+        const aStatus = String(a?.status || "pending").toLowerCase();
+        const bStatus = String(b?.status || "pending").toLowerCase();
+        const aRank = statusOrder[aStatus] ?? Number.MAX_SAFE_INTEGER;
+        const bRank = statusOrder[bStatus] ?? Number.MAX_SAFE_INTEGER;
+        return aRank - bRank;
+      })
+      .map((review, index) => ({
         ...review,
         srNo: index + 1,
-      })),
-    [data],
-  );
+      }));
+  }, [data]);
 
   // 🔹 Table columns
   const columns = [
@@ -116,7 +140,10 @@ const CompanyReviews = () => {
       field: "rating",
       headerName: "Rating",
       valueGetter: (params) =>
-        params.data.rating ?? params.data.ratingValue ?? "-",
+        params.data.starCount ??
+        params.data.rating ??
+        params.data.ratingValue ??
+        "-",
     },
     // { field: "productType", headerName: "Product" },
     // { field: "noOfPeople", headerName: "People Count" },
@@ -130,6 +157,7 @@ const CompanyReviews = () => {
       headerName: "Status",
       cellRenderer: (params) => {
         const value = formatStatusLabel(params.data.status);
+        const isFinalStatus = value === "Approved" || value === "Rejected";
 
         const statusStyles = {
           Pending: { bg: "#FEF3C7", color: "#F59E0B" }, // amber
@@ -138,50 +166,67 @@ const CompanyReviews = () => {
           Rejected: { bg: "#FEE2E2", color: "#EF4444" }, // red
         };
 
+        const badgeStyles = {
+          borderRadius: "9999px",
+          padding: "4px 16px",
+          fontWeight: 600,
+          fontSize: "0.85rem",
+          backgroundColor: statusStyles[value]?.bg,
+          color: statusStyles[value]?.color,
+          lineHeight: 1.5,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+        };
+
         return (
           <div style={{ display: "flex", justifyContent: "center" }}>
-            <TextField
-              select
-              size="small"
-              value={value}
-              onChange={(e) =>
-                handleStatusChange(
-                  params.data._id,
-                  e.target.value.toLowerCase(),
-                )
-              }
-              sx={{
-                "& .MuiOutlinedInput-root": {
-                  borderRadius: "9999px",
-                  px: 1.5,
-                  fontWeight: 600,
-                  fontSize: "0.85rem",
-                  backgroundColor: statusStyles[value]?.bg,
-                  color: statusStyles[value]?.color,
-                  "& fieldset": { border: "none" },
-                },
-                "& .MuiSelect-select": {
-                  textAlign: "center",
-                },
-              }}
-            >
-              {["Pending", "Approved", "Rejected"].map((option) => (
-                <MenuItem
-                  key={option}
-                  value={option}
-                  sx={{
-                    justifyContent: "center",
+            {isFinalStatus ? (
+              <span style={badgeStyles}>{value}</span>
+            ) : (
+              <TextField
+                select
+                size="small"
+                value={value}
+                onChange={(e) =>
+                  handleStatusChange(
+                    params.data._id,
+                    e.target.value.toLowerCase(),
+                  )
+                }
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: "9999px",
+                    px: 1.5,
                     fontWeight: 600,
                     fontSize: "0.85rem",
-                    borderRadius: "9999px",
+                    backgroundColor: statusStyles[value]?.bg,
+                    color: statusStyles[value]?.color,
+                    "& fieldset": { border: "none" },
+                  },
+                  "& .MuiSelect-select": {
+                    textAlign: "center",
+                  },
+                }}
+              >
+                {["Pending", "Approved", "Rejected"].map((option) => (
+                  <MenuItem
+                    key={option}
+                    value={option}
+                    sx={{
+                      justifyContent: "center",
+                      fontWeight: 600,
+                      fontSize: "0.85rem",
+                      borderRadius: "9999px",
 
-                    my: 0.5,
-                  }}
-                >
-                  {option}
-                </MenuItem>
-              ))}
-            </TextField>
+                      my: 0.5,
+                    }}
+                  >
+                    {option}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
           </div>
         );
       },
@@ -191,9 +236,15 @@ const CompanyReviews = () => {
       headerName: "Description",
       cellRenderer: (params) => (
         <div style={{ display: "flex", justifyContent: "center" }}>
-          <IconButton onClick={() => handleOpenModal(params.data)}>
+          {/* <IconButton onClick={() => handleOpenModal(params.data)}>
             <MdOutlineRateReview />
-          </IconButton>
+          </IconButton> */}
+          <button
+            className="text-blue-500 underline font-semibold"
+            onClick={() => handleOpenModal(params.data)}
+          >
+            View Description
+          </button>
         </div>
       ),
     },
@@ -206,8 +257,7 @@ const CompanyReviews = () => {
   return (
     <div className="p-4">
       <PageFrame>
-        {/* <YearWiseTable data={data} tableTitle={"Leads"} columns={columns} /> */}
-        <YearWiseTable data={rows} tableTitle={"Reviews"} columns={columns} />
+        <AgTable data={rows} columns={columns} tableTitle={"Reviews"} search />
 
         {rows.length === 0 && (
           <div className="text-center text-gray-500 py-4">No records found</div>
