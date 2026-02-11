@@ -3,6 +3,9 @@ import { response } from "express";
 import HostUser from "../models/HostUser.js";
 import AdminUser from "../models/AdminUser.js";
 
+const REVIEW_API_BASE_URL =
+  process.env.REVIEW_API_BASE_URL || "https://wononomadsbe.vercel.app";
+
 export const updateReviewStatus = async (req, res, next) => {
   try {
     const { reviewId } = req.params;
@@ -33,7 +36,7 @@ export const updateReviewStatus = async (req, res, next) => {
       // );
 
       response = await axios.patch(
-        `http://localhost:3000/api/review/${reviewId}`,
+        `${REVIEW_API_BASE_URL}/api/review/${reviewId}`,
         data,
       );
 
@@ -79,7 +82,7 @@ export const getReviewsByCompany = async (req, res, next) => {
       //   },
       // });
 
-      response = await axios.get("http://localhost:3000/api/review", {
+      response = await axios.get(`${REVIEW_API_BASE_URL}/api/review`, {
         params: {
           companyId,
           companyType,
