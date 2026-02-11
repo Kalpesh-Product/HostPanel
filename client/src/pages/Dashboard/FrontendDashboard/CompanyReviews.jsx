@@ -43,19 +43,14 @@ const CompanyReviews = () => {
         return Array.isArray(reviews) ? reviews : [];
       };
 
-      const statuses = ["pending", "rejected", "approved"];
-      const responses = await Promise.all(
-        statuses.map((status) =>
-          axiosPrivate.get(
-            `/api/review?companyId=${companyId}&status=${status}`,
-            {
-              headers: { "Cache-Control": "no-cache" },
-            },
-          ),
-        ),
+      const response = await axiosPrivate.get(
+        `/api/review?companyId=${companyId}`,
+        {
+          headers: { "Cache-Control": "no-cache" },
+        },
       );
 
-      return responses.flatMap((response) => parseReviews(response));
+      return parseReviews(response);
     },
   });
 
@@ -99,6 +94,33 @@ const CompanyReviews = () => {
     if (!status) return "Pending";
     const normalized = String(status).toLowerCase();
     return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  };
+
+  const getApproverRejectorName = (review) => {
+    const normalizedStatus = String(review?.status || "").toLowerCase();
+    const actor =
+      normalizedStatus === "approved"
+        ? review?.approvedBy
+        : normalizedStatus === "rejected"
+          ? review?.rejectedBy
+          : null;
+
+    if (!actor || typeof actor !== "object") return "-";
+
+    const userType = String(actor?.userType || "").toUpperCase();
+
+    if (userType === "MASTER") {
+      const firstName = actor?.user?.firstName?.trim?.() || "";
+      const lastName = actor?.user?.lastName?.trim?.() || "";
+      const fullName = `${firstName} ${lastName}`.trim();
+      return fullName || "-";
+    }
+
+    if (userType === "HOST") {
+      return actor?.user?.name?.trim?.() || "-";
+    }
+
+    return "-";
   };
 
   const rows = useMemo(() => {
@@ -247,6 +269,12 @@ const CompanyReviews = () => {
           </button>
         </div>
       ),
+    },
+    {
+      field: "approvedRejectedBy",
+      headerName: "Approved/Rejected By",
+      valueGetter: (params) => getApproverRejectorName(params?.data),
+      minWidth: 220,
     },
   ];
 
