@@ -43,19 +43,14 @@ const CompanyReviews = () => {
         return Array.isArray(reviews) ? reviews : [];
       };
 
-      const statuses = ["pending", "rejected", "approved"];
-      const responses = await Promise.all(
-        statuses.map((status) =>
-          axiosPrivate.get(
-            `/api/review?companyId=${companyId}&status=${status}`,
-            {
-              headers: { "Cache-Control": "no-cache" },
-            },
-          ),
-        ),
+      const response = await axiosPrivate.get(
+        `/api/review?companyId=${companyId}`,
+        {
+          headers: { "Cache-Control": "no-cache" },
+        },
       );
 
-      return responses.flatMap((response) => parseReviews(response));
+      return parseReviews(response);
     },
   });
 
