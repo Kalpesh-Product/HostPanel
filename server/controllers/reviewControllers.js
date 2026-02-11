@@ -1,11 +1,13 @@
 import axios from "axios";
 import { response } from "express";
+import HostUser from "../models/HostUser.js";
+import AdminUser from "../models/AdminUser.js";
 
 export const updateReviewStatus = async (req, res, next) => {
   try {
     const { reviewId } = req.params;
     const { status } = req.body;
-    let data = { status };
+    let data = { status, userType: "HOST" };
 
     if (!reviewId) {
       return res.status(400).json({ message: "Review id is required" });
@@ -22,7 +24,8 @@ export const updateReviewStatus = async (req, res, next) => {
       data = { ...data, userId: req.user, date: new Date() };
     }
 
-    let response = {};
+    let response;
+
     try {
       // const response = await axios.post(
       //   `https://wononomadsbe.vercel.app/api/reviews/${reviewId}`,
@@ -33,10 +36,6 @@ export const updateReviewStatus = async (req, res, next) => {
         `http://localhost:3000/api/review/${reviewId}`,
         data,
       );
-
-      //   if (response.status !== 201) {
-      //     return res.status(400).json({ message: `Failed to ${status} review` });
-      //   }
 
       if (![200, 204].includes(response.status)) {
         return res
@@ -69,7 +68,8 @@ export const getReviewsByCompany = async (req, res, next) => {
       return res.status(400).json({ message: "Company Id is required" });
     }
 
-    let response = {};
+    let response;
+    let enrichedReviews;
     try {
       // response = await axios.get(`https://wononomadsbe.vercel.app/api/review`, {
       //   params: {
@@ -90,6 +90,64 @@ export const getReviewsByCompany = async (req, res, next) => {
       if (![200, 204].includes(response.status)) {
         return res.status(400).json({ message: `Failed to fetch reviews` });
       }
+
+      console.log("reviews", response.data.data);
+      const reviews = response.data.data;
+
+      const adminIds = new Set();
+      const hostIds = new Set();
+
+      for (const r of reviews) {
+        if (r.approvedBy?.userId) {
+          r.approvedBy.userType === "MASTER"
+            ? adminIds.add(r.approvedBy.userId)
+            : hostIds.add(r.approvedBy.userId);
+        }
+
+        if (r.rejectedBy?.userId) {
+          r.rejectedBy.userType === "MASTER"
+            ? adminIds.add(r.rejectedBy.userId)
+            : hostIds.add(r.rejectedBy.userId);
+        }
+      }
+
+      const [admins, hosts] = await Promise.all([
+        AdminUser.find({ _id: { $in: [...adminIds] } })
+          .select("_id firstName lastName email")
+          .lean(),
+        HostUser.find({ _id: { $in: [...hostIds] } })
+          .select("_id name phone email")
+          .lean(),
+      ]);
+
+      const adminMap = Object.fromEntries(
+        admins.map((a) => [a._id.toString(), a]),
+      );
+      const hostMap = Object.fromEntries(
+        hosts.map((h) => [h._id.toString(), h]),
+      );
+
+      enrichedReviews = reviews.map((r) => ({
+        ...r,
+        approvedBy: r.approvedBy
+          ? {
+              ...r.approvedBy,
+              user:
+                r.approvedBy.userType === "MASTER"
+                  ? adminMap[r.approvedBy.userId]
+                  : hostMap[r.approvedBy.userId],
+            }
+          : null,
+        rejectedBy: r.rejectedBy
+          ? {
+              ...r.rejectedBy,
+              user:
+                r.rejectedBy.userType === "MASTER"
+                  ? adminMap[r.rejectedBy.userId]
+                  : hostMap[r.rejectedBy.userId],
+            }
+          : null,
+      }));
     } catch (err) {
       return res.status(err.response?.status || 500).json({
         message:
@@ -100,7 +158,7 @@ export const getReviewsByCompany = async (req, res, next) => {
     }
 
     return res.status(200).json({
-      reviews: response.data.data,
+      reviews: enrichedReviews,
     });
   } catch (error) {
     next(error);
