@@ -171,6 +171,7 @@ export const editCompanyListing = async (req, res) => {
     //   businessId,
     //   companyId,
     //   companyType,
+    //companyTitle,
     //   ratings,
     //   totalReviews,
     //   productName,
