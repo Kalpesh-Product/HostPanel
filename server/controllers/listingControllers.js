@@ -53,7 +53,7 @@ export const createCompanyListing = async (req, res) => {
 
     const listingData = {
       companyName: companyName,
-      companyTitle: companyTitle ? companyTitle : companyName,
+      companyTitle: companyTitle ? companyTitle : company.companyName,
       registeredEntityName: company.registeredEntityName,
       companyId: company.companyId,
       logo: company.logo,
