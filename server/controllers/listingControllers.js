@@ -28,6 +28,7 @@ export const createCompanyListing = async (req, res) => {
       ratings,
       totalReviews,
       companyName,
+      companyTitle,
       cost,
       description,
       latitude,
@@ -52,6 +53,7 @@ export const createCompanyListing = async (req, res) => {
 
     const listingData = {
       companyName: companyName,
+      companyTitle: companyTitle ? companyTitle : companyName,
       registeredEntityName: company.registeredEntityName,
       companyId: company.companyId,
       logo: company.logo,
@@ -165,9 +167,28 @@ export const editCompanyListing = async (req, res) => {
   try {
     // const payload = req.body.data ? JSON.parse(req.body.data) : req.body;
 
+    // const {
+    //   businessId,
+    //   companyId,
+    //   companyType,
+    //   ratings,
+    //   totalReviews,
+    //   productName,
+    //   cost,
+    //   description,
+    //   latitude,
+    //   longitude,
+    //   inclusions,
+    //   about,
+    //   address,
+    //   reviews,
+    //   existingImages = [],
+    // } = payload;
+
     const {
       businessId,
       companyId,
+      companyTitle,
       companyType,
       ratings,
       totalReviews,
@@ -185,11 +206,12 @@ export const editCompanyListing = async (req, res) => {
 
     console.log("listing hit🔥");
 
+    if (!companyId || !businessId || !companyType) {
+      return res.status(404).json({ message: "Missing required fields" });
+    }
+
     const parsedReviews =
       typeof reviews === "string" ? JSON.parse(reviews) : reviews;
-
-    console.log("businessId", businessId);
-    console.log("companyId", companyId);
 
     // FIX: Search by both businessId and companyId
     const company = await HostCompany.findOne({
@@ -203,6 +225,7 @@ export const editCompanyListing = async (req, res) => {
     const updateData = {
       businessId,
       companyType,
+      companyTitle,
       ratings,
       totalReviews,
       companyName: company.companyName,
@@ -235,13 +258,14 @@ export const editCompanyListing = async (req, res) => {
     const safeCompanyName =
       (company.companyName || "unnamed").replace(/[^\w\- ]+/g, "").trim() ||
       "unnamed";
+
     const folderPath = `nomads/${pathCompanyType}/${company.companyCountry}/${safeCompanyName}`;
 
     if (req.files?.length) {
       const imageFiles = req.files.filter((f) => f.fieldname === "images");
 
       const totalImages = imageFiles.length + existingImages.length;
-      if (totalImages.length > 10) {
+      if (totalImages > 10) {
         return res.status(400).json({ message: "Maximum 10 images allowed" });
       }
 
