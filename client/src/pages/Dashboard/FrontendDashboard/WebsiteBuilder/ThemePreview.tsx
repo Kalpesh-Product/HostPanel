@@ -6,7 +6,7 @@ const ThemePreview = ({ themes }) => {
   const navigate = useNavigate();
 
   // Find the theme by ID
-  const theme = themes.find((t) => t.id === parseInt(id, 10));
+  const theme = themes.find((t) => t.id === parseInt(id ?? "", 10));
 
   if (!theme) {
     return <div>Theme not found!</div>;
