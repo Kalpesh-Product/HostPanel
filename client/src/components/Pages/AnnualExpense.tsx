@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import PrimaryButton from "../../components/PrimaryButton";

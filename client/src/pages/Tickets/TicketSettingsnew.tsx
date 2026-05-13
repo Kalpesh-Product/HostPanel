@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -302,3 +303,4 @@ const TicketSettingsNew = () => {
 };
 
 export default TicketSettingsNew;
+

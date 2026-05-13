@@ -13,7 +13,7 @@ export default function useRefWithInitialRerender() {
     if (ref.current && !hasRendered) {
       setHasRendered(true); // Trigger a one-time re-render
     }
-  }, [ref.current]);
+  }, [hasRendered]);
 
   return { ref, hasRendered };
 }

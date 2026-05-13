@@ -3,7 +3,7 @@ import { Children } from "react";
 import PrimaryButton from "./PrimaryButton";
 
 interface WidgetSectionProps {
-  layout?: 1 | 2 | 3 | 4 | 5 | 6;
+  layout?: 1 | 2 | 3 | 4 | 5 | 6 | number;
   children?: ReactNode;
   title?: ReactNode;
   titleData?: ReactNode;
@@ -120,7 +120,10 @@ const WidgetSection = ({
         </div>
       )}
       <div style={border ? { border: "2px solid #d1d5db", borderTop: "0" } : {}} className="h-full rounded-b-xl">
-        <div style={{ padding: padding ? "0" : "1rem" }} className={`h-full w-full grid gap-4 py-4 ${gridClasses[layout]}`}>
+        <div
+          style={{ padding: padding ? "0" : "1rem" }}
+          className={`h-full w-full grid gap-4 py-4 ${gridClasses[(layout as 1 | 2 | 3 | 4 | 5 | 6)] ?? gridClasses[1]}`}
+        >
           {Children.map(children, (child) => (
             <div>{child}</div>
           ))}

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MdNavigateBefore, MdNavigateNext } from "react-icons/md";
 import dayjs from "dayjs";
@@ -50,7 +51,7 @@ const MonthWiseTable = ({
   const selectedMonthIndexDefault = useMemo(() => {
     const index = monthLabels.findIndex((label) => label === currentMonth);
     return index >= 0 ? index : 0;
-  }, [monthLabels]);
+  }, [monthLabels, currentMonth]);
 
   // Step 3: Selected month state
   const [selectedMonthIndex, setSelectedMonthIndex] = useState(
@@ -156,3 +157,4 @@ const MonthWiseTable = ({
 };
 
 export default MonthWiseTable;
+

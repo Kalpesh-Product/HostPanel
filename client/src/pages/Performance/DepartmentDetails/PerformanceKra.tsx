@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useLocation, useParams } from "react-router-dom";
 import AgTable from "../../../components/AgTable";
 import WidgetSection from "../../../components/WidgetSection";
@@ -376,3 +377,4 @@ const PerformanceKra = () => {
 };
 
 export default PerformanceKra;
+

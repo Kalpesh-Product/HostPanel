@@ -119,7 +119,7 @@ const Companies = () => {
         },
       },
     ],
-    [navigate]
+    [dispatch, navigate]
   );
 
   if (isLoading) return <div className="p-6">Loading companies…</div>;

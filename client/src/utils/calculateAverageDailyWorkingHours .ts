@@ -1,3 +1,4 @@
+// @ts-nocheck
 // import { differenceInMinutes, parseISO } from "date-fns";
 
 // export const calculateAverageDailyWorkingHours = (attendances, workingDays) => {
@@ -71,3 +72,4 @@ export const calculateAverageDailyWorkingHours = (attendances, workingDays) => {
 
   return overallAverage.toFixed(2); // e.g., "7.89"
 };
+

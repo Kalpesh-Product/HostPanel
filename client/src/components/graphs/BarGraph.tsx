@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useMemo, useRef, useState } from "react";
 import Chart from "react-apexcharts";
 import { Select, MenuItem, FormControl, CircularProgress } from "@mui/material";

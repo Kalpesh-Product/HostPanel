@@ -14,21 +14,6 @@ const BulkUpload = () => {
     { field: "date", headerName: "Date", flex: 1 },
   ];
 
-  const bulkUploadData = [
-    {
-      srNo: 1,
-      templateName: "Upload Employee",
-      uploadedBy: "Kalpesh Naik",
-      date: "01-03-2025",
-    },
-    {
-      srNo: 2,
-      templateName: "Upload Employee",
-      uploadedBy: "Kalpesh Naik",
-      date: "08-03-2025",
-    },
-  ];
-
   return (
     <div className=" flex flex-col gap-4">
       <span className="text-title font-pmedium text-primary">
@@ -37,15 +22,15 @@ const BulkUpload = () => {
       <hr />
 
       <div className="grid lg:grid-cols-3 md:grid-col-3 sm:grid-col-1 gap-4">
-        {uploadItems.map((index, item) => {
+        {uploadItems.map((item, index) => {
           return (
 
             <div
               className="space-y-2 border-default p-4  rounded-md"
-              key={index}
+              key={`${item}-${index}`}
             >
               <div className="mb-2">
-                <span className="text-subtitle text-primary">{index}</span>
+                <span className="text-subtitle text-primary">{item}</span>
               </div>
               <div className="flex gap-4">
                 {/* Placeholder Input Box */}

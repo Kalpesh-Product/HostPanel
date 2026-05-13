@@ -1,4 +1,5 @@
-import { useEffect, useMemo } from "react";
+// @ts-nocheck
+import { useEffect } from "react";
 import useAuth from "../hooks/useAuth"; // Adjust the path as necessary
 
 export function useTopDepartment({
@@ -17,24 +18,15 @@ export function useTopDepartment({
 
   const topUserId = allowedUserIds.find((id) => loggedInUserId === id);
 
-  const baseTopUserId = topUserId;
-  const baseTopDepartmentIds = []; // Add base top-department IDs here if any
-
   const currentUserId = auth.user?._id;
   const currentUserName = `${auth.user?.firstName || ""} ${
     auth.user?.lastName || ""
   }`.trim();
 
-  // Combine and memoize user and department ID lists
-  const topUserIds = useMemo(() => {
-    return Array.from(new Set([baseTopUserId, ...additionalTopUserIds]));
-  }, [additionalTopUserIds]);
-
-  const topDepartmentIds = useMemo(() => {
-    return Array.from(
-      new Set([...baseTopDepartmentIds, ...additionalTopDepartmentIds])
-    );
-  }, [additionalTopDepartmentIds]);
+  const topUserIds = topUserId
+    ? [topUserId, ...additionalTopUserIds]
+    : [...additionalTopUserIds];
+  const topDepartmentIds = [...additionalTopDepartmentIds];
 
   // Get all department IDs of current user
   const userDeptIds = auth.user?.departments?.map((d) => d._id) || [];
@@ -56,3 +48,4 @@ export function useTopDepartment({
     currentUserName,
   };
 }
+

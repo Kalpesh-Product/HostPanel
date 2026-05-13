@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useRef } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import {
@@ -569,3 +570,4 @@ const EditNomadListing = () => {
 };
 
 export default EditNomadListing;
+

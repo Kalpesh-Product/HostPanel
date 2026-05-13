@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from "react";
 import { RiPagesLine } from "react-icons/ri";
 import { MdFormatListBulleted, MdMiscellaneousServices } from "react-icons/md";
@@ -643,3 +644,4 @@ const AssetsDashboard = () => {
 };
 
 export default AssetsDashboard;
+

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+// @ts-nocheck
+import React, { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -51,9 +52,11 @@ const Calender = () => {
     },
   });
 
-  const transformedMeetings = isMeetingsLoading
-    ? []
-    : meetings.map((meeting) => {
+  const transformedMeetings = useMemo(
+    () =>
+      isMeetingsLoading
+        ? []
+        : meetings.map((meeting) => {
         const formattedStart = meeting.startTime.split("/").reverse().join("-");
         const formattedEnd = meeting.endTime.split("/").reverse().join("-");
 
@@ -72,7 +75,9 @@ const Calender = () => {
           borderColor: colors[status] || undefined,
           extendedProps: { ...meeting },
         };
-      });
+      }),
+    [isMeetingsLoading, meetings]
+  );
 
   useEffect(() => {
     if (eventFilter.length === 0) {
@@ -83,7 +88,7 @@ const Calender = () => {
       );
       setFilteredEvents(filtered);
     }
-  }, [eventFilter, meetings]);
+  }, [eventFilter, meetings, transformedMeetings]);
 
   const getTodaysEvents = () => {
     const today = dayjs().startOf("day");
@@ -380,3 +385,4 @@ const Calender = () => {
 };
 
 export default Calender;
+

@@ -203,7 +203,7 @@ const ThemeGrid = () => {
                 </ul>
               </div>
               <div className="themePage-featured-button flex justify-start">
-                <button
+                <button type="button"
                   className="get-started-main-button px-4 py-2 bg-blue-600 text-white rounded"
                   onClick={() => {
                     navigate("/register");
@@ -241,7 +241,7 @@ const ThemeGrid = () => {
               ))}
             </div>
             <div className="flex justify-center mt-4">
-              <button
+              <button type="button"
                 className="get-started-main-button px-4 py-2 bg-blue-600 text-white rounded"
                 onClick={() => {
                   navigate("/register");
@@ -309,3 +309,4 @@ const ThemeGrid = () => {
 };
 
 export default ThemeGrid;
+

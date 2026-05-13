@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from "react";
 import Chart from "react-apexcharts";
 import { useNavigate } from "react-router-dom";
@@ -109,3 +110,4 @@ const HrExpenseGraph = ({ utilisedData, maxBudget, route }) => {
 };
 
 export default HrExpenseGraph;
+

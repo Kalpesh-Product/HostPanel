@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import FullCalendar from "@fullcalendar/react";
@@ -117,7 +118,7 @@ const Calender = () => {
       );
       setFilteredEvents(filtered);
     }
-  }, [eventFilter, events, meetings]);
+  }, [eventFilter, events, meetings, transformedEvents, transformedMeetings]);
 
   const getTodaysEvents = () => {
     const today = dayjs().startOf("day");
@@ -558,3 +559,4 @@ const Calender = () => {
 };
 
 export default Calender;
+

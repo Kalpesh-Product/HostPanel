@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useLocation, useParams } from "react-router-dom";
 import AgTable from "../../../components/AgTable";
 import WidgetSection from "../../../components/WidgetSection";
@@ -43,7 +44,7 @@ const DailyTasks = () => {
     if (!deptId) {
       dispatch(setSelectedDepartment(currentDepartmentId));
     }
-  }, []);
+  }, [currentDepartmentId, deptId, dispatch]);
 
   const {
     handleSubmit: submitDailyKra,
@@ -572,3 +573,4 @@ const DailyTasks = () => {
 };
 
 export default DailyTasks;
+

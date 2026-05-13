@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useRef } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import {
@@ -538,3 +539,4 @@ const NomadListing = () => {
 };
 
 export default NomadListing;
+

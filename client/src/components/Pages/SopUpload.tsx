@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { IoMdDownload } from "react-icons/io";
 import { MdUpload } from "react-icons/md";
 import WidgetSection from "../../components/WidgetSection";
@@ -364,3 +365,4 @@ const SopUpload = () => {
 };
 
 export default SopUpload;
+

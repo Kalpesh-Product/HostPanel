@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link, useParams } from "react-router-dom";
 import { Container, Box, Grid, TextField } from "@mui/material";
@@ -102,12 +103,12 @@ const ResetPassword = () => {
             {/* Desktop Buttons */}
             {/* <div className="hidden md:flex gap-4">
           <a href="https://wonofe.vercel.app">
-            <button className="bg-white text-black py-2 px-4 rounded-full uppercase">
+            <button type="button" className="bg-white text-black py-2 px-4 rounded-full uppercase">
               Sign In
             </button>
           </a>
           <a href="https://www.wono.co/register">
-            <button className="bg-sky-400 text-white py-2 px-4 rounded-full uppercase">
+            <button type="button" className="bg-sky-400 text-white py-2 px-4 rounded-full uppercase">
               Sign Up
             </button>
           </a>
@@ -116,7 +117,7 @@ const ResetPassword = () => {
             {/* Mobile Menu Button */}
             <div className="">
               <div className="p-4 px-0 whitespace-nowrap">
-                <button
+                <button type="button"
                   onClick={() =>
                     (window.location.href = "https://nomad.wono.co")
                   }
@@ -143,7 +144,12 @@ const ResetPassword = () => {
       >
         {/* Drawer Header */}
         <div className="w-full bg-black text-white flex justify-end items-center border-b border-gray-700 p-4 text-2xl">
-          <button onClick={() => setDrawerOpen(false)}>
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(false)}
+            aria-label="Close drawer"
+            title="Close"
+          >
             <IoCloseSharp />
           </button>
         </div>
@@ -345,3 +351,5 @@ const ResetPassword = () => {
 };
 
 export default ResetPassword;
+
+

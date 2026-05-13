@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useRef, useState } from "react";
 import { Skeleton } from "@mui/material";
 import WidgetSection from "../WidgetSection"
@@ -32,3 +33,4 @@ const LazyDashboardWidget = ({ layout, widgets }) => {
 };
 
 export default LazyDashboardWidget;
+

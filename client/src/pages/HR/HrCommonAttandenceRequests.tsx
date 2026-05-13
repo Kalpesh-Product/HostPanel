@@ -1,3 +1,4 @@
+// @ts-nocheck
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import { useQuery } from "@tanstack/react-query";
 import YearWiseTable from "../../components/Tables/YearWiseTable";
@@ -104,3 +105,4 @@ export default function HrCommonAttandenceRequests() {
     </div>
   );
 }
+

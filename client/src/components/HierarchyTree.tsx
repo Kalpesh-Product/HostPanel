@@ -2,6 +2,7 @@ import { Avatar } from "@mui/material";
 import { Tree, TreeNode } from "react-organizational-chart";
 import { useSidebar } from "../context/SideBarContext";
 import { useNavigate } from "react-router-dom";
+import type { ReactNode } from "react";
 
 const users = [
   {
@@ -127,7 +128,7 @@ const users = [
   },
 ];
 
-const StyledNode = ({ children }: { children: React.ReactNode }) => {
+const StyledNode = ({ children }: { children: ReactNode }) => {
   return (
     <div className="p-2 px-4 rounded-md bg-white inline-block border-2 border-gray-300 text-start w-[250px]">
       {children}

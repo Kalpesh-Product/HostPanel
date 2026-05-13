@@ -17,7 +17,17 @@ import reviewRoutes from "./routes/reviewRoutes.js";
 const app = express();
 dotenv.config();
 const PORT = process.env.PORT || 5006;
-mongoose.connect(process.env.DB_URL);
+mongoose
+    .connect(process.env.DB_URL)
+    .then(() => {
+    console.log("connected to mongoDB");
+})
+    .catch((error) => {
+    console.error("mongoDB connection error:", error?.message || error);
+});
+mongoose.connection.on("error", (error) => {
+    console.error("mongoDB runtime error:", error?.message || error);
+});
 app.use(cors(corsConfig));
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
@@ -30,23 +40,18 @@ app.use("/api/listings", verifyJwt, listingRoutes);
 app.use("/api/profile", verifyJwt, hostUserRoutes);
 app.use("/api/review", verifyJwt, reviewRoutes);
 app.use((err, req, res, next) => {
-    // Multer: file too large
     if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
         return res.status(413).json({
             message: "Some files are too large. Please keep images under the allowed size and try again.",
         });
     }
-    // express.json() or express.urlencoded(): body too large
     if (err.type === "entity.too.large") {
         return res.status(413).json({
-            message: "The data you’re sending is too large. Please reduce the size and try again.",
+            message: "The data you're sending is too large. Please reduce the size and try again.",
         });
     }
     next(err);
 });
-mongoose.connection.once("open", () => {
-    console.log("connected to mongoDB");
-    app.listen(PORT, () => {
-        console.log(`server is running on PORT ${PORT}`);
-    });
+app.listen(PORT, () => {
+    console.log(`server is running on PORT ${PORT}`);
 });

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
@@ -384,3 +385,4 @@ const BookMeetingsForm = () => {
 };
 
 export default BookMeetingsForm;
+

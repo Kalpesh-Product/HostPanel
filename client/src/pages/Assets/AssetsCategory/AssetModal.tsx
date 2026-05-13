@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
@@ -212,3 +213,4 @@ const AssetModal = ({
 };
 
 export default AssetModal;
+

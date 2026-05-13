@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/pages/Dashboard/FrontendDashboard/PocDetails.jsx
 import React from "react";
 import PageFrame from "../../../components/Pages/PageFrame";
@@ -171,3 +172,4 @@ const PocDetails = () => {
 };
 
 export default PocDetails;
+

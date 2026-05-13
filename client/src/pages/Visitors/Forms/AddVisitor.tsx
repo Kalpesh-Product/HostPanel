@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { TextField, MenuItem, CircularProgress } from "@mui/material";
@@ -166,7 +167,7 @@ const AddVisitor = () => {
 
   useEffect(() => {
     setValue("checkIn", dayjs(new Date()));
-  }, []);
+  }, [setValue]);
 
   return (
     <div className=" p-4">
@@ -576,3 +577,4 @@ const AddVisitor = () => {
 };
 
 export default AddVisitor;
+

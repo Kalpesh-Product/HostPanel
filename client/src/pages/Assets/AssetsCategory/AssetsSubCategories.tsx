@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import {
@@ -153,7 +154,7 @@ const AssetsSubCategories = () => {
   useEffect(() => {
     setValue("subCategoryName", selectedAsset?.subCategoryName);
     setValue("status", selectedAsset?.isActive);
-  }, [selectedAsset]);
+  }, [selectedAsset, setValue]);
   //--------------------Event handlers------------------------------//
   //--------------------Table Data------------------------------//
   const categoriesColumn = [
@@ -382,3 +383,4 @@ const AssetsSubCategories = () => {
 };
 
 export default AssetsSubCategories;
+

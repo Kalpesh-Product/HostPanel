@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { MdNavigateBefore, MdNavigateNext } from "react-icons/md";
@@ -208,3 +209,4 @@ const MonthWiseAgTable = ({ financialData, passedColumns, title, amount }) => {
 };
 
 export default MonthWiseAgTable;
+

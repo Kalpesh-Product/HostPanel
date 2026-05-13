@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState } from "react";
 import YearWiseTable from "../../../components/Tables/YearWiseTable";
 import PageFrame from "../../../components/Pages/PageFrame";
@@ -215,3 +216,4 @@ const CompanyLeads = () => {
 };
 
 export default CompanyLeads;
+

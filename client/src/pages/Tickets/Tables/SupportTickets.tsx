@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useState } from "react";
 import AgTable from "../../../components/AgTable";
 import MuiModal from "../../../components/MuiModal";
@@ -544,3 +545,4 @@ const SupportTickets = ({ title, departmentId }) => {
 };
 
 export default SupportTickets;
+

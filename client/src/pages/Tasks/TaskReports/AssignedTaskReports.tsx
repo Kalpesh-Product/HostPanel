@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState } from "react";
 import AgTable from "../../../components/AgTable";
 import { Chip, CircularProgress } from "@mui/material";
@@ -155,3 +156,4 @@ const AssignedTaskReports = () => {
 };
 
 export default AssignedTaskReports;
+

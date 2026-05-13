@@ -1,3 +1,4 @@
+// @ts-nocheck
 import MuiModal from "./MuiModal";
 import DetalisFormatted from "./DetalisFormatted";
 

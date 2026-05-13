@@ -26,7 +26,7 @@ const SecondaryButton = ({
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.9 }}
       disabled={disabled || isLoading}
-      type={type}
+      type={type ?? "button"}
       className={`flex items-center justify-center gap-2 px-8 py-2 ${
         disabled || isLoading ? "bg-gray-400" : "bg-borderGray"
       } motion-preset-slide-up-sm rounded-md text-black ${

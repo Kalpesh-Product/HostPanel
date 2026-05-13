@@ -1,45 +1,62 @@
-import { useEffect, useMemo } from "react"; // 🆕 added useMemo
+import { useEffect, useMemo } from "react";
 import { Tabs } from "@mui/material";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import useIsMobile from "../../hooks/useIsMobile"; // adjust the path
-import { AnimatePresence, motion } from "motion/react";
-import useAuth from "../../hooks/useAuth"; // 🆕 added
+import useIsMobile from "../../hooks/useIsMobile";
+import useAuth from "../../hooks/useAuth";
+
+interface TabItem {
+  label: string;
+  path: string;
+  permission?: string;
+}
+
+interface TabLayoutProps {
+  basePath: string;
+  tabs?: TabItem[];
+  defaultTabPath?: string;
+  hideTabsCondition?: (pathname: string) => boolean;
+  hideTabsOnPaths?: string[];
+  scrollable?: boolean;
+}
 
 const TabLayout = ({
   basePath,
   tabs = [],
   defaultTabPath,
   hideTabsCondition = () => false,
-  hideTabsOnPaths = [], // NEW PROP
-}) => {
+  hideTabsOnPaths = [],
+  scrollable,
+}: TabLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile(768);
-  const { auth } = useAuth(); // 🆕 get user
-  const userPermissions = auth?.user?.permissions?.permissions || []; // 🆕
+  const { auth } = useAuth();
 
-  // 🧠 Filter tabs based on permissions
-  const filteredTabs = useMemo(() => {
-    return tabs.filter(
-      (tab) => !tab.permission || userPermissions.includes(tab.permission)
-    );
-  }, [tabs, userPermissions]);
+  const rawPermissions = (auth?.user as any)?.permissions?.permissions;
+  const userPermissions = useMemo(() => rawPermissions || [], [rawPermissions]);
 
-  // Redirect to default tab if on basePath
+  const filteredTabs = useMemo(
+    () =>
+      tabs.filter(
+        (tab) => !tab.permission || userPermissions.includes(tab.permission),
+      ),
+    [tabs, userPermissions],
+  );
+
   useEffect(() => {
     if (
       location.pathname === basePath &&
       defaultTabPath &&
       filteredTabs.length > 0
     ) {
-      navigate(`${basePath}/${filteredTabs[0].path}`, { replace: true }); // 🆕 use filteredTabs
+      navigate(`${basePath}/${filteredTabs[0].path}`, { replace: true });
     }
-  }, [location, navigate, basePath, defaultTabPath, filteredTabs]); // 🆕
+  }, [location.pathname, navigate, basePath, defaultTabPath, filteredTabs]);
 
   const activeTab = filteredTabs.findIndex((tab) =>
-    location.pathname.includes(tab.path)
-  ); // 🆕 use filteredTabs
-  const tabPercent = 100 / filteredTabs.length; // 🆕
+    location.pathname.includes(tab.path),
+  );
+  const tabPercent = filteredTabs.length > 0 ? 100 / filteredTabs.length : 100;
 
   const showTabs =
     !hideTabsCondition(location.pathname) &&
@@ -50,7 +67,7 @@ const TabLayout = ({
       {showTabs && (
         <Tabs
           value={activeTab}
-          variant={isMobile ? "scrollable" : "fullWidth"}
+          variant={scrollable || isMobile ? "scrollable" : "fullWidth"}
           scrollButtons={isMobile ? "auto" : false}
           TabIndicatorProps={{ style: { display: "none" } }}
           sx={{
@@ -71,29 +88,24 @@ const TabLayout = ({
             },
           }}
         >
-          {filteredTabs.map(
-            (
-              tab,
-              index // 🆕 use filteredTabs
-            ) => (
-              <NavLink
-                key={index}
-                className="border-r-[1px] border-borderGray"
-                to={`${basePath}/${tab.path}`}
-                style={({ isActive }) => ({
-                  textDecoration: "none",
-                  color: isActive ? "white" : "#1E3D73",
-                  textAlign: "center",
-                  padding: "12px 16px",
-                  display: "block",
-                  backgroundColor: isActive ? "#1E3D73" : "white",
-                  minWidth: isMobile ? "70%" : `${tabPercent}%`,
-                })}
-              >
-                {tab.label}
-              </NavLink>
-            )
-          )}
+          {filteredTabs.map((tab, index) => (
+            <NavLink
+              key={`${tab.path}-${index}`}
+              className="border-r-[1px] border-borderGray"
+              to={`${basePath}/${tab.path}`}
+              style={({ isActive }) => ({
+                textDecoration: "none",
+                color: isActive ? "white" : "#1E3D73",
+                textAlign: "center",
+                padding: "12px 16px",
+                display: "block",
+                backgroundColor: isActive ? "#1E3D73" : "white",
+                minWidth: isMobile ? "70%" : `${tabPercent}%`,
+              })}
+            >
+              {tab.label}
+            </NavLink>
+          ))}
         </Tabs>
       )}
 

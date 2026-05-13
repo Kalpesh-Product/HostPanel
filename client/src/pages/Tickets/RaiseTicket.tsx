@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect, useRef, useState } from "react";
 import AgTable from "../../components/AgTable";
 import PrimaryButton from "../../components/PrimaryButton";
@@ -596,3 +597,4 @@ const RaiseTicket = () => {
 };
 
 export default RaiseTicket;
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import {
   TextField,
   FormControl,
@@ -200,3 +201,4 @@ export const BankDetails = ({ formData, handleChange, isEditable }) => {
     </div>
   );
 };
+

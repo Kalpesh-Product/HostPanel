@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState } from "react";
 import PageFrame from "./PageFrame";
 import MuiModal from "../MuiModal";

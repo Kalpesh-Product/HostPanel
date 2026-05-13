@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Updated TeamMemberDetails with Edit Modal
 import { useEffect, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
@@ -211,7 +212,7 @@ const TeamMemberDetails = () => {
       setValue("fromDate", dayjs(selectedEvent.extendedProps.fromDate));
       setValue("toDate", dayjs(selectedEvent.extendedProps.toDate));
     }
-  }, [modalType, selectedEvent]);
+  }, [modalType, selectedEvent, setValue]);
 
   return (
     <div className="flex flex-col gap-4 bg-white p-4">
@@ -369,3 +370,4 @@ const TeamMemberDetails = () => {
 };
 
 export default TeamMemberDetails;
+

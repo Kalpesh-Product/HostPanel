@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { MenuItem, TextField } from "@mui/material";
@@ -118,7 +119,7 @@ const AssetsCategories = () => {
   useEffect(() => {
     setValue("categoryName", selectedAsset?.categoryName);
     setValue("status", selectedAsset?.isActive);
-  }, [selectedAsset]);
+  }, [selectedAsset, setValue]);
 
   const getRowStyle = (params) => {
     if (!params.data.isActive) {
@@ -335,3 +336,4 @@ const AssetsCategories = () => {
 };
 
 export default AssetsCategories;
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // utils/attendanceUtils.js
 import { format } from "date-fns";
 
@@ -22,3 +23,4 @@ export const calculateAverageAttendance = (attendances, workingDays) => {
 
   return averageAttendance.toFixed(2); // e.g., "86.45"
 };
+

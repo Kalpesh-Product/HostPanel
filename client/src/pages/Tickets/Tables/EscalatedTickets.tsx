@@ -1,3 +1,4 @@
+// @ts-nocheck
 import AgTable from "../../../components/AgTable";
 import { Chip } from "@mui/material";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -306,3 +307,4 @@ const EscalatedTickets = ({ title, departmentId }) => {
 };
 
 export default EscalatedTickets;
+

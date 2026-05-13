@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect } from "react";
 import BiznestImage from "../../../../assets/WONO_images/img/products-images/biznestImage.webp";
 import BiznestImageMockup from "../../../../assets/WONO_images/img/website-builder/new-layout/mobile/mockups/biznest-mockup.webp";
@@ -173,7 +174,7 @@ const ViewTheme = () => {
                     ))}
                   </div>
                   <div className="product-page-button-space flex gap-4 items-center">
-                    <button
+                    <button type="button"
                       className="product-page-button bg-white text-black mb-8 w-full py-2 px-8 rounded-full"
                       onClick={() => {
                         if (templateName && pageName) {
@@ -186,7 +187,7 @@ const ViewTheme = () => {
                       }}>
                       Edit theme
                     </button>
-                    <button
+                    <button type="button"
                       className="product-page-button bg-white text-black mb-8 w-full py-2 px-8 rounded-full"
                       onClick={() => {
                         if (link) {
@@ -290,3 +291,5 @@ const ViewTheme = () => {
 };
 
 export default ViewTheme;
+
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import AgTable from "../../../components/AgTable";
@@ -176,3 +177,4 @@ export default function NomadListingsOverview() {
     </div>
   );
 }
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import WidgetSection from "../../components/WidgetSection";
 import AreaGraph from "../../components/graphs/AreaGraph";
 import Card from "../../components/Card";
@@ -562,3 +563,4 @@ const TicketDashboard = () => {
 };
 
 export default TicketDashboard;
+

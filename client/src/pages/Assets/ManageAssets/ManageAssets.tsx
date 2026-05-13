@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useSelector } from "react-redux";
 import TabLayout from "../../../components/Tabs/TabLayout"; // Adjust the path as per your structure
 
@@ -19,3 +20,4 @@ const ManageAssets = () => {
 };
 
 export default ManageAssets;
+

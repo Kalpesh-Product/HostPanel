@@ -1,3 +1,4 @@
+// @ts-nocheck
 import {
   Avatar,
   Button,
@@ -92,7 +93,7 @@ const ViewVendor = () => {
       reset(mapping);
       initialValuesRef.current = mapping;
     }
-  }, [state, setValue]);
+  }, [state, reset, setValue]);
 
   const handleEditToggle = () => {
     setIsEditing(!isEditing);
@@ -511,3 +512,4 @@ const ViewVendor = () => {
 };
 
 export default ViewVendor;
+

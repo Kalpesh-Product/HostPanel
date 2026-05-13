@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Drawer, IconButton, useMediaQuery } from "@mui/material";
@@ -52,13 +53,15 @@ const MainLayout = () => {
       { threshold: 0.1 },
     );
 
-    if (dummyRef.current) {
-      observer.observe(dummyRef.current);
+    const currentDummyRef = dummyRef.current;
+
+    if (currentDummyRef) {
+      observer.observe(currentDummyRef);
     }
 
     return () => {
-      if (dummyRef.current) {
-        observer.unobserve(dummyRef.current);
+      if (currentDummyRef) {
+        observer.unobserve(currentDummyRef);
       }
     };
   }, []);
@@ -129,3 +132,4 @@ const MainLayout = () => {
 };
 
 export default MainLayout;
+

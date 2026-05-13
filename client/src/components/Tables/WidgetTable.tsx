@@ -103,7 +103,7 @@ const WidgetTable = ({
         key: "selection",
       },
     ]);
-  }, [data, dateColumn, isUserChangedRange]);
+  }, [data, dateColumn, isUserChangedRange, today]);
 
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
@@ -229,7 +229,15 @@ const WidgetTable = ({
       ...item,
       srNo: index + 1,
     }));
-  }, [filteredData, groupByKey, totalKey, sortByString, sortByNo, sortOrder]);
+  }, [
+    filteredData,
+    finalTableData,
+    groupByKey,
+    totalKey,
+    sortByString,
+    sortByNo,
+    sortOrder,
+  ]);
 
   const sortedTableData = useMemo(() => {
     let sorted = [...finalTableData];

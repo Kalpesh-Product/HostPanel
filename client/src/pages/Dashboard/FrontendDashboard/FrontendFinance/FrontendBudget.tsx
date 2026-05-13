@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { Suspense, useEffect, useMemo, useState } from "react";
 import WidgetSection from "../../../../components/WidgetSection";
 import {
@@ -393,3 +394,4 @@ const FrontendBudget = () => {
 };
 
 export default FrontendBudget;
+

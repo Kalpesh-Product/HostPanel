@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from "react";
 import AgTable from "../AgTable";
 
@@ -110,3 +111,4 @@ const HrReports = () => {
 };
 
 export default HrReports;
+

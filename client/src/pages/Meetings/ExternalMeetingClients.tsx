@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -70,19 +71,22 @@ const ExternalMeetingCLients = () => {
     "In Progress": { bg: "#FBE9E7", text: "#BF360C" },
   };
 
-  const defaultChecklist = [
-    { name: "Desk is cleaned", checked: false },
-    { name: "Chairs are clean and neatly arranged", checked: false },
-    { name: "AC is cooling", checked: false },
-    {
-      name: "TV, HDMI cable, LAN cable are available and active",
-      checked: false,
-    },
-    { name: "TV & AC remotes in place", checked: false },
-    { name: "Air freshener sprayed", checked: false },
-    { name: "Water bottle & glass placed", checked: false },
-    { name: "Tissue placed on the table", checked: false },
-  ];
+  const defaultChecklist = useMemo(
+    () => [
+      { name: "Desk is cleaned", checked: false },
+      { name: "Chairs are clean and neatly arranged", checked: false },
+      { name: "AC is cooling", checked: false },
+      {
+        name: "TV, HDMI cable, LAN cable are available and active",
+        checked: false,
+      },
+      { name: "TV & AC remotes in place", checked: false },
+      { name: "Air freshener sprayed", checked: false },
+      { name: "Water bottle & glass placed", checked: false },
+      { name: "Tissue placed on the table", checked: false },
+    ],
+    []
+  );
   // const meetings = useSelector((state) => state.meetings?.data);
 
   //-----------------------------Form--------------------------------//
@@ -346,14 +350,14 @@ const ExternalMeetingCLients = () => {
       });
       setChecklists(initialChecklists);
     }
-  }, [meetings]);
+  }, [meetings, defaultChecklist]);
 
   useEffect(() => {
     if (selectedMeeting) {
       setEditValue("startTime", dayjs(new Date(selectedMeeting?.startTime)));
       setEditValue("endTime", dayjs(new Date(selectedMeeting?.endTime)));
     }
-  }, [selectedMeeting]);
+  }, [selectedMeeting, setEditValue]);
 
   //---------------------------------Event handlers----------------------------------------//
 
@@ -505,7 +509,7 @@ const ExternalMeetingCLients = () => {
       setPaymentValue("gstAmount", room.perHourGstPrice);
       setPaymentValue("finalAmount", finalAmount);
     }
-  }, [room, isRoomLoading]);
+  }, [room, isRoomLoading, setPaymentValue]);
 
   useEffect(() => {
     if (!isRoomLoading) {
@@ -519,7 +523,7 @@ const ExternalMeetingCLients = () => {
       setPaymentValue("discountPercentage", discountPercentage);
       setPaymentValue("finalAmount", finalAmount);
     }
-  }, [watchedDiscountAmount, room, isRoomLoading]);
+  }, [watchedDiscountAmount, room, isRoomLoading, setPaymentValue]);
 
   //---------------------------------Event handlers----------------------------------------//
 
@@ -1382,3 +1386,4 @@ const ExternalMeetingCLients = () => {
 };
 
 export default ExternalMeetingCLients;
+

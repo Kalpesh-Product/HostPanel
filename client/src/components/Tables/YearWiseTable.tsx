@@ -96,7 +96,7 @@ const YearWiseTable = ({
         key: "selection",
       },
     ]);
-  }, [data, dateColumn, isUserChangedRange]);
+  }, [data, dateColumn, isUserChangedRange, today]);
 
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
@@ -153,7 +153,7 @@ const YearWiseTable = ({
     }, 0);
 
     onMonthChange(total);
-  }, [filteredData, onMonthChange]);
+  }, [filteredData, onMonthChange, today]);
 
   const formattedColumns = useMemo(() => {
     return columns.map((col) => {

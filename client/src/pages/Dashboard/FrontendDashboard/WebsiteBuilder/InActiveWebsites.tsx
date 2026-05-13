@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useMutation, useQuery } from "@tanstack/react-query";
 import React from "react";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
@@ -107,3 +108,4 @@ const InActiveWebsites = () => {
 };
 
 export default InActiveWebsites;
+

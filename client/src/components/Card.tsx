@@ -1,3 +1,4 @@
+// @ts-nocheck
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";

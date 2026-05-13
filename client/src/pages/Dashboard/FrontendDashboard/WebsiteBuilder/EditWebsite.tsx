@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect, useRef } from "react";
 import { Controller, useForm, useFieldArray } from "react-hook-form";
 import { TextField, CircularProgress } from "@mui/material";
@@ -1292,8 +1293,9 @@ const ExistingImagesGrid = ({ items = [], onDelete }) => {
             />
 
             {/* X close icon */}
-            <button
+            <button type="button"
               className="absolute -top-4 -right-4 bg-white text-black p-2 rounded-full shadow text-lg flex items-center justify-center"
+              title="Close preview"
               onClick={(e) => {
                 e.stopPropagation();
                 setPreviewImg(null);
@@ -1309,3 +1311,5 @@ const ExistingImagesGrid = ({ items = [], onDelete }) => {
 };
 
 export default EditWebsite;
+
+

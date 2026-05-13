@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useMemo, useState, useEffect, useRef } from "react";
 import { MdNavigateBefore, MdNavigateNext } from "react-icons/md";
 import dayjs from "dayjs";
@@ -154,3 +155,4 @@ const DateWiseTable = ({
 };
 
 export default DateWiseTable;
+

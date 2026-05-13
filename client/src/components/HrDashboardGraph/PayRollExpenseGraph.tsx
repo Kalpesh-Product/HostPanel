@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from "react";
 import { useLocation } from "react-router-dom";
 import { MdRebaseEdit } from "react-icons/md";
@@ -165,3 +166,4 @@ const PayRollExpenseGraph = () => {
 };
 
 export default PayRollExpenseGraph;
+

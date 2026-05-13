@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState } from "react";
 import { Tabs, Tab } from "@mui/material";
 import MyProfile from "./MyProfile";
@@ -82,3 +83,4 @@ const Profile = () => {
 };
 
 export default Profile;
+

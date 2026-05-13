@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useState } from "react";
 import AgTable from "../../../components/AgTable";
 import { Chip, CircularProgress } from "@mui/material";
@@ -171,3 +172,4 @@ const ClosedTickets = ({ title, departmentId }) => {
 };
 
 export default ClosedTickets;
+

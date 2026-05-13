@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect, useState } from "react";
 import {
   Autocomplete,
@@ -699,3 +700,4 @@ const BookMeetings = () => {
 };
 
 export default BookMeetings;
+

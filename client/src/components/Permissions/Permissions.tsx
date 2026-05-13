@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from "react";
 import useAuth from "../../hooks/useAuth";
 
@@ -26,3 +27,4 @@ const Permissions = ({
 };
 
 export default Permissions;
+

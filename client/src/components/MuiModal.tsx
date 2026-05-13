@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "motion/react";
 interface MuiModalProps {
   open: boolean;
   onClose: () => void;
+  setOpen?: (open: boolean) => void;
   title?: ReactNode;
   children: ReactNode;
   headerBackground?: string;

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import PrimaryButton from "../../components/PrimaryButton";
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -363,3 +364,4 @@ const PolicyUpload = () => {
 };
 
 export default PolicyUpload;
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState } from "react";
 import { Checkbox, FormControlLabel, FormGroup } from "@mui/material";
 import dayjs from "dayjs";

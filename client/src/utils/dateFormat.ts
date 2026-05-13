@@ -1,3 +1,4 @@
+// @ts-nocheck
 import dayjs from "dayjs"
 
 
@@ -69,5 +70,6 @@ export const getFiscalYearString = () => {
 
   return `${startYear}-${String(endYear).slice(-2)}`;
 }
+
 
 

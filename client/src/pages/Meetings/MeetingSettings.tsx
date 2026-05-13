@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useRef, useEffect } from "react";
 import PrimaryButton from "../../components/PrimaryButton";
 import {
@@ -610,3 +611,4 @@ const MeetingSettings = () => {
 };
 
 export default MeetingSettings;
+

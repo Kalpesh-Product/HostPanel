@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useRef } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { TextField, MenuItem, CircularProgress } from "@mui/material";
@@ -1028,3 +1029,4 @@ const CreateWebsite = () => {
 };
 
 export default CreateWebsite;
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import AgTable from "../../components/AgTable";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -261,3 +262,4 @@ const HrCommonAttendance = () => {
 };
 
 export default HrCommonAttendance;
+

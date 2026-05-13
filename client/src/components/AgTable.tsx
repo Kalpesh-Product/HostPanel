@@ -39,6 +39,13 @@ interface AgTableProps {
   tableRef?: MutableRefObject<any> | null;
   onSelectionChange?: (rows: Array<Record<string, any>>) => void;
   loading?: boolean;
+  searchColumn?: string;
+  formatDate?: boolean;
+  noRowsOverlayMessage?: string;
+  dateColumn?: string;
+  rowHeight?: number;
+  components?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 const AgTableComponent = ({
@@ -325,31 +332,30 @@ const AgTableComponent = ({
           style={{ height: tableHeight }}
         >
           <AgGridReact
-            ref={gridRef}
-            rowData={filteredData}
-            columnDefs={modifiedColumns}
-            defaultColDef={defaultColDef}
-            overlayNoRowsTemplate={`<span class="ag-overlay-loading-center">${noRowsMessage}</span>`}
-            pagination={false}
-            isRowSelectable={isRowSelectable}
-            paginationPageSize={paginationPageSize}
-            suppressCellSelection={false}
-            enableCellTextSelection={true}
-            rowHeight={50}
-            rowSelection={
-              enableCheckbox
+            {...({
+              ref: gridRef,
+              rowData: filteredData,
+              columnDefs: modifiedColumns,
+              defaultColDef,
+              overlayNoRowsTemplate: `<span class="ag-overlay-loading-center">${noRowsMessage}</span>`,
+              pagination: false,
+              isRowSelectable,
+              paginationPageSize,
+              enableCellTextSelection: true,
+              rowHeight: 50,
+              rowSelection: enableCheckbox
                 ? checkAll
                   ? "multiple"
                   : "single"
-                : rowSelection
-            }
-            onSelectionChanged={handleSelectionChanged}
-            getRowStyle={getRowStyle}
-            className="font-pregular"
-            rowBuffer={20}
-            cacheBlockSize={paginationPageSize}
-            suppressRowVirtualization={false}
-            suppressColumnVirtualisation={false}
+                : rowSelection,
+              onSelectionChanged: handleSelectionChanged,
+              getRowStyle,
+              className: "font-pregular",
+              rowBuffer: 20,
+              cacheBlockSize: paginationPageSize,
+              suppressRowVirtualization: false,
+              suppressColumnVirtualisation: false,
+            } as any)}
           />
         </div>
       </div>

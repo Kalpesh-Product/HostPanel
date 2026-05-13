@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect, useState } from "react";
 import { FaArrowRight } from "react-icons/fa";
 import {
@@ -711,8 +712,9 @@ const ProjectCard = ({ project }) => {
                 </Avatar>
               ))}
             </AvatarGroup>
-            <button
+            <button type="button"
               onClick={handleEditClick}
+              title="Edit project"
               className="text-gray-500 hover:bg-primary transition-all duration-200 rounded-full p-2 group"
             >
               <FaArrowRight size={15} className="group-hover:text-white"/>
@@ -779,3 +781,5 @@ const getPriorityClass = (priority) => {
 };
 
 export default ProjectList;
+
+

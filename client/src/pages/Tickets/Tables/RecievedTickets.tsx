@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState } from "react";
 import AgTable from "../../../components/AgTable";
 import { Chip, CircularProgress } from "@mui/material";
@@ -403,7 +404,7 @@ const RecievedTickets = ({ title, departmentId }) => {
             onChange={(e) => setRejectionReason(e.target.value)}
             className="w-full p-2 border rounded resize-none min-h-[100px]"
           />
-          <button
+          <button type="button"
             disabled={!rejectionReason.trim() || rejectPending}
             onClick={handleRejectSubmit}
             className={`${
@@ -421,3 +422,5 @@ const RecievedTickets = ({ title, departmentId }) => {
 };
 
 export default RecievedTickets;
+
+

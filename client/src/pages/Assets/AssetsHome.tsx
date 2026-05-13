@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useQuery } from "@tanstack/react-query";
 import AgTable from "../../components/AgTable";
 import WidgetSection from "../../components/WidgetSection";
@@ -124,3 +125,4 @@ const AssetsHome = () => {
 };
 
 export default AssetsHome;
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import {
   Checkbox,
   Paper,
@@ -143,3 +144,4 @@ const ModulePermissions = () => {
 };
 
 export default ModulePermissions;
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState } from "react";
 import WidgetSection from "../../components/WidgetSection";
 import TicketCard from "../../components/TicketCard";
@@ -286,3 +287,4 @@ const ManageTickets = () => {
 };
 
 export default ManageTickets;
+

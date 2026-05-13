@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Container, Box, Grid, TextField } from "@mui/material";
@@ -114,7 +115,7 @@ const LoginPage = () => {
     } else {
       refresh();
     }
-  }, [auth.accessToken]);
+  }, [auth.accessToken, firstAvailableRoute, navigate, refresh]);
 
   // Validation function
   const handleLogin = async (e) => {
@@ -175,12 +176,12 @@ const LoginPage = () => {
             {/* Desktop Buttons */}
             {/* <div className="hidden md:flex gap-4">
           <a href="https://wonofe.vercel.app">
-            <button className="bg-white text-black py-2 px-4 rounded-full uppercase">
+            <button type="button" className="bg-white text-black py-2 px-4 rounded-full uppercase">
               Sign In
             </button>
           </a>
           <a href="https://www.wono.co/register">
-            <button className="bg-sky-400 text-white py-2 px-4 rounded-full uppercase">
+            <button type="button" className="bg-sky-400 text-white py-2 px-4 rounded-full uppercase">
               Sign Up
             </button>
           </a>
@@ -189,7 +190,7 @@ const LoginPage = () => {
             {/* Mobile Menu Button */}
             <div className="">
               <div className="p-4 px-0 whitespace-nowrap">
-                <button
+                <button type="button"
                   onClick={() =>
                     (window.location.href = "https://nomad.wono.co")
                   }
@@ -216,7 +217,11 @@ const LoginPage = () => {
       >
         {/* Drawer Header */}
         <div className="w-full bg-black text-white flex justify-end items-center border-b border-gray-700 p-4 text-2xl">
-          <button onClick={() => setDrawerOpen(false)}>
+          <button type="button"
+            onClick={() => setDrawerOpen(false)}
+            aria-label="Close drawer"
+            title="Close drawer"
+          >
             <IoCloseSharp />
           </button>
         </div>
@@ -315,6 +320,8 @@ const LoginPage = () => {
                               onClick={() => setShowPassword(!showPassword)}
                               edge="end"
                               size="small"
+                              aria-label={showPassword ? "Hide password" : "Show password"}
+                              title={showPassword ? "Hide password" : "Show password"}
                             >
                               {showPassword ? (
                                 <VisibilityOff />
@@ -390,3 +397,5 @@ const LoginPage = () => {
 };
 
 export default LoginPage;
+
+

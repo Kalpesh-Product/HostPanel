@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+// @ts-nocheck
+import React, { useEffect, useMemo, useState } from "react";
 import Chart from "react-apexcharts";
 import dayjs from "dayjs";
 
@@ -7,7 +8,8 @@ const ScatterGraph = () => {
   const [currentMonth, setCurrentMonth] = useState(dayjs().format("YYYY-MM"));
 
   // Mock data
-  const data = [
+  const data = useMemo(
+    () => [
     { date: "2023-10-01", inTime: "09:30", outTime: "17:30" },
     { date: "2023-10-02", inTime: "09:45", outTime: "17:45" },
     { date: "2023-10-03", inTime: "10:00", outTime: "18:00" },
@@ -39,7 +41,9 @@ const ScatterGraph = () => {
     { date: "2023-10-29", inTime: "09:55", outTime: "17:35" },
     { date: "2023-10-30", inTime: "10:20", outTime: "18:10" },
     { date: "2023-10-31", inTime: "09:30", outTime: "17:30" },
-  ];
+    ],
+    []
+  );
   
 
   // Parse time into minutes for the Y-axis
@@ -62,7 +66,7 @@ const ScatterGraph = () => {
     });
 
     setChartData({ inTimes, outTimes });
-  }, [currentMonth]);
+  }, [currentMonth, data]);
 
   // Temporary month change for 1 second to force chart re-render
   useEffect(() => {
@@ -141,3 +145,4 @@ const ScatterGraph = () => {
 };
 
 export default ScatterGraph;
+

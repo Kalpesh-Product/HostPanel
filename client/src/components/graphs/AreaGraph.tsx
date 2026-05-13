@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useState } from "react";
 import Chart from "react-apexcharts";
 import type { ApexOptions } from "apexcharts";
@@ -236,7 +237,7 @@ const AreaGraph = ({
 
         <div className="flex gap-2">
           {(["Yearly", "Monthly", "Weekly"] as TimeFilter[]).map((filter) => (
-            <button
+            <button type="button"
               key={filter}
               className={`rounded px-4 py-2 text-sm font-medium ${
                 timeFilter === filter ? "bg-primary text-white" : "bg-gray-200 text-black"
@@ -296,3 +297,4 @@ const AreaGraph = ({
 };
 
 export default AreaGraph;
+

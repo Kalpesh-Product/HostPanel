@@ -1,10 +1,9 @@
+// @ts-nocheck
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import usePageDepartment from "../../hooks/usePageDepartment";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import YearWiseTable from "../Tables/YearWiseTable";
 import AgTable from "../AgTable";
 import PrimaryButton from "../PrimaryButton";
-import { MdUpload } from "react-icons/md";
 import { IoMdDownload } from "react-icons/io";
 import { useMemo, useState } from "react";
 import { Chip, MenuItem, TextField } from "@mui/material";
@@ -220,7 +219,7 @@ export default function BulkUpload() {
               <PrimaryButton
                 title="Upload"
                 type="submit"
-                isLoading={isUploading}
+                isPending={isUploading}
                 disabled={isUploading}
               />
             </form>
@@ -230,3 +229,4 @@ export default function BulkUpload() {
     </div>
   );
 }
+

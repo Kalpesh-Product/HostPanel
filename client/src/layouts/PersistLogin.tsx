@@ -21,7 +21,7 @@ export default function PersistLogin() {
     };
 
     !auth?.accessToken.length ? verifyRefreshToken() : setIsLoading(false);
-  }, []);
+  }, [auth?.accessToken.length, refresh]);
 
   return <>{isLoading ? <Loading /> : <Outlet />}</>;
 }

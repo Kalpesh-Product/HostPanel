@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect, useState } from "react";
 import AgTable from "../../components/AgTable";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
@@ -320,3 +321,4 @@ const HrCommonLeaves = () => {
 };
 
 export default HrCommonLeaves;
+

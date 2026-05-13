@@ -13,7 +13,7 @@ const Unauthorized = () => {
           You do not have permission to view this page.
         </p>
         <div className="mt-6 flex flex-col gap-3">
-          <button
+          <button type="button"
             onClick={() => navigate("/app/company-settings")}
             className="bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-6 rounded-lg transition"
           >

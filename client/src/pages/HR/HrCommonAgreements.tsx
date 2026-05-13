@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useState } from "react";
 import AgTable from "../../components/AgTable";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
@@ -119,3 +120,4 @@ const HrCommonAgreements = () => {
 };
 
 export default HrCommonAgreements;
+

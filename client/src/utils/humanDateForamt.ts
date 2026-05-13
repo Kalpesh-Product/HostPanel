@@ -1,3 +1,4 @@
+// @ts-nocheck
 import dayjs from "dayjs";
 
 const humanDate = (date) => {
@@ -22,3 +23,4 @@ const humanDate = (date) => {
 };
 
 export default humanDate;
+

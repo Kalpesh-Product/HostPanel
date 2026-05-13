@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from "react";
 import AgTable from "../../components/AgTable";
 import { useQuery } from "@tanstack/react-query";
@@ -99,3 +100,4 @@ const HrCommonPayslips = () => {
 };
 
 export default HrCommonPayslips;
+

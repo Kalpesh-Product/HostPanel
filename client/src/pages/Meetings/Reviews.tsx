@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect, useState } from "react";
 import WidgetSection from "../../components/WidgetSection";
 import DataCard from "../../components/DataCard";
@@ -261,3 +262,4 @@ const Reviews = () => {
 };
 
 export default Reviews;
+

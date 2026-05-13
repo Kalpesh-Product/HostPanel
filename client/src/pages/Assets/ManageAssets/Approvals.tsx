@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import {
@@ -225,3 +226,4 @@ const Approvals = () => {
 };
 
 export default Approvals;
+

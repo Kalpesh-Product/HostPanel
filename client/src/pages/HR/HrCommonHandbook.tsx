@@ -12,7 +12,7 @@ import useAuth from "../../hooks/useAuth";
 import { useTopDepartment } from "../../hooks/useTopDepartment";
 
 const HrCommonHandbook = () => {
-  const [generalDoc, setGeneralDoc] = useState(null); // initially null
+  const [generalDoc, setGeneralDoc] = useState<"sop" | "policies" | null>(null);
   const axios = useAxiosPrivate();
   const department = usePageDepartment();
   const isTop = useTopDepartment();
@@ -21,7 +21,7 @@ const HrCommonHandbook = () => {
   const { pathname } = useLocation();
   const isProfile = pathname.includes("profile/HR/companyHandbook");
   const { auth } = useAuth();
-  const departments = auth.user.departments;
+  const departments = auth?.user?.departments;
   const { data: companyDocuments = {}, isLoading: isDocumentsLoading } =
     useQuery({
       queryKey: ["companyDocuments", generalDoc],
@@ -33,7 +33,8 @@ const HrCommonHandbook = () => {
           );
           return response.data;
         } catch (error) {
-          toast.error(error.message);
+          const message = error instanceof Error ? error.message : "An error occurred";
+          toast.error(message);
           return {};
         }
       },
@@ -47,7 +48,8 @@ const HrCommonHandbook = () => {
         const response = await axios.get("/api/departments/get-departments");
         return response.data;
       } catch (error) {
-        console.warn(error.message);
+          const message = error instanceof Error ? error.message : "An error occurred";
+          console.warn(message);
       }
     },
   });
@@ -61,7 +63,9 @@ const HrCommonHandbook = () => {
         }))
         .sort((a, b) => a.title.localeCompare(b.title));
 
-  const userDepartmentIds = auth.user?.departments?.map((d) => d._id) || [];
+  const userDepartmentIds = Array.isArray(auth.user?.departments) 
+    ? auth.user.departments.map((d) => d._id) 
+    : [];
 
   const filteredAccordionData = isTop.isTop
     ? departmentList
@@ -79,7 +83,7 @@ const HrCommonHandbook = () => {
         <div className="flex flex-col gap-4">
           {isDocumentsLoading ? (
             <span className="text-sm text-gray-500">Loading...</span>
-          ) : companyDocuments?.[generalDoc]?.length > 0 ? (
+          ) : generalDoc && companyDocuments?.[generalDoc]?.length > 0 ? (
             companyDocuments[generalDoc].map((doc) => (
               <div key={doc._id} className="flex justify-between items-center">
                 <div>
@@ -90,6 +94,8 @@ const HrCommonHandbook = () => {
                     href={doc.documentLink}
                     target="_blank"
                     rel="noopener noreferrer"
+                    aria-label={`Open ${doc.name}`}
+                    title={`Open ${doc.name}`}
                     className="p-2 border-default border-black rounded-md text-content flex items-center"
                   >
                     <IoIosArrowForward />
@@ -115,7 +121,12 @@ const HrCommonHandbook = () => {
               <span className="text-content">Work From Home Policy</span>
             </div>
             <div className="flex-row">
-              <button className="p-2 border-default border-black rounded-md text-content">
+              <button
+                type="button"
+                aria-label="Open Work From Home Policy"
+                title="Open Work From Home Policy"
+                className="p-2 border-default border-black rounded-md text-content"
+              >
                 <IoIosArrowForward />
               </button>
             </div>
@@ -125,7 +136,12 @@ const HrCommonHandbook = () => {
               <span className="text-content">Timings Policy</span>
             </div>
             <div>
-              <button className="p-2 border-default border-black rounded-md text-content">
+              <button
+                type="button"
+                aria-label="Open Timings Policy"
+                title="Open Timings Policy"
+                className="p-2 border-default border-black rounded-md text-content"
+              >
                 <IoIosArrowForward />
               </button>
             </div>
@@ -238,6 +254,9 @@ const HrCommonHandbook = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-content">SOP's</span>
                     <button
+                      type="button"
+                      aria-label={`Open SOPs for ${item.title}`}
+                      title={`Open SOPs for ${item.title}`}
                       className="p-2 border-default border-black rounded-md text-content"
                       onClick={() =>
                         navigate(`${item.title}`, {
@@ -256,6 +275,9 @@ const HrCommonHandbook = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-content">Policies</span>
                     <button
+                      type="button"
+                      aria-label={`Open Policies for ${item.title}`}
+                      title={`Open Policies for ${item.title}`}
                       className="p-2 border-default border-black rounded-md text-content"
                       onClick={() =>
                         navigate(`${item.title}`, {

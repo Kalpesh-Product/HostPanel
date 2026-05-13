@@ -11,7 +11,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
-    "strict": false
+    "strict": true
   },
   "include": [
     "server.ts",

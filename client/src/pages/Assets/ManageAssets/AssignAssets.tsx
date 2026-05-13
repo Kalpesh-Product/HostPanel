@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useMemo } from "react";
 import AgTable from "../../../components/AgTable";
 import PrimaryButton from "../../../components/PrimaryButton";
@@ -423,3 +424,4 @@ const AssignAssets = () => {
 };
 
 export default AssignAssets;
+

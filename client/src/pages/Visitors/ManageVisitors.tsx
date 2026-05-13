@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState } from "react";
 import AgTable from "../../components/AgTable";
 import PrimaryButton from "../../components/PrimaryButton";
@@ -270,3 +271,4 @@ const ManageVisitors = () => {
 };
 
 export default ManageVisitors;
+

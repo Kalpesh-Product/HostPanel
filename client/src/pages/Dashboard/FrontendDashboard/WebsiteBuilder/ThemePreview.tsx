@@ -30,7 +30,7 @@ const ThemePreview = ({ themes }) => {
               </li>
             ))}
           </ul>
-          <button
+          <button type="button"
             onClick={() => window.open(theme.demoLink, "_blank")}
             className="wono-blue-dark text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition"
           >
@@ -38,7 +38,7 @@ const ThemePreview = ({ themes }) => {
           </button>
         </div>
       </div>
-      <button
+      <button type="button"
         onClick={() => navigate(-1)} // Navigate back to the theme list
         className="mt-8 text-blue-500 underline"
       >
@@ -49,3 +49,4 @@ const ThemePreview = ({ themes }) => {
 };
 
 export default ThemePreview;
+

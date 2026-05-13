@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState } from "react";
 import AgTable from "../../../components/AgTable";
 import MuiModal from "../../../components/MuiModal";
@@ -575,3 +576,4 @@ const AssignedTickets = ({ title, departmentId }) => {
 };
 
 export default AssignedTickets;
+

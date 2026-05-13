@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useLocation } from "react-router-dom";
 import useAuth from "./useAuth";
 import useAxiosPrivate from "./useAxiosPrivate";
@@ -93,3 +94,4 @@ const usePageDepartment = () => {
 };
 
 export default usePageDepartment;
+

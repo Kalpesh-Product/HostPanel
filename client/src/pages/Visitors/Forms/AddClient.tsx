@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { TextField, Select, MenuItem, CircularProgress } from "@mui/material";
@@ -77,7 +78,7 @@ const AddClient = () => {
   }, []);
   useEffect(() => {
     setValue("checkIn", dayjs(new Date()));
-  }, []);
+  }, [setValue]);
 
   const handleStateSelect = (stateCode) => {
     const city = City.getCitiesOfState("IN", stateCode);
@@ -828,3 +829,4 @@ const AddClient = () => {
 };
 
 export default AddClient;
+

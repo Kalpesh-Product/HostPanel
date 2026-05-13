@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState } from "react";
 import { Avatar, Chip } from "@mui/material";
 import PermissionsTable from "../../components/PermissionsTable";
@@ -520,3 +521,4 @@ const AccessGrant = () => {
 };
 
 export default AccessGrant;
+

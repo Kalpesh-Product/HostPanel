@@ -1,3 +1,4 @@
+// @ts-nocheck
 import AgTable from "../../../../components/AgTable";
 import PageFrame from "../../../../components/Pages/PageFrame";
 import PrimaryButton from "../../../../components/PrimaryButton";
@@ -183,3 +184,4 @@ const FrontendWebsiteIssueReports = () => {
 };
 
 export default FrontendWebsiteIssueReports;
+

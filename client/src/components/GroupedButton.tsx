@@ -18,7 +18,7 @@ const GroupedButton = ({
   return (
     <div>
       <button
-        type={type}
+        type={type ?? "button"}
         className={`rounded-md bg-primary px-8 py-2 text-white ${
           fontSize ? fontSize : "text-content"
         } ${externalStyles ?? ""}`}

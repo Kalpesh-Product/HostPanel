@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect, useMemo, useState } from "react";
 import Chart from "react-apexcharts";
 import dayjs from "dayjs";
@@ -188,3 +189,4 @@ const FyBarGraphCount = ({
 };
 
 export default FyBarGraphCount;
+

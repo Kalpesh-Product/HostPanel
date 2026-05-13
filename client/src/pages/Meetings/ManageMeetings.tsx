@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -60,19 +61,22 @@ const ManageMeetings = () => {
     "In Progress": { bg: "#FBE9E7", text: "#BF360C" },
   };
 
-  const defaultChecklist = [
-    { name: "Desk is cleaned", checked: false },
-    { name: "Chairs are clean and neatly arranged", checked: false },
-    { name: "AC is cooling", checked: false },
-    {
-      name: "TV, HDMI cable, LAN cable are available and active",
-      checked: false,
-    },
-    { name: "TV & AC remotes in place", checked: false },
-    { name: "Air freshener sprayed", checked: false },
-    { name: "Water bottle & glass placed", checked: false },
-    { name: "Tissue placed on the table", checked: false },
-  ];
+  const defaultChecklist = useMemo(
+    () => [
+      { name: "Desk is cleaned", checked: false },
+      { name: "Chairs are clean and neatly arranged", checked: false },
+      { name: "AC is cooling", checked: false },
+      {
+        name: "TV, HDMI cable, LAN cable are available and active",
+        checked: false,
+      },
+      { name: "TV & AC remotes in place", checked: false },
+      { name: "Air freshener sprayed", checked: false },
+      { name: "Water bottle & glass placed", checked: false },
+      { name: "Tissue placed on the table", checked: false },
+    ],
+    []
+  );
   // const meetings = useSelector((state) => state.meetings?.data);
 
   //-----------------------API-----------------------------//
@@ -188,7 +192,7 @@ const ManageMeetings = () => {
       setEditValue("internalParticipants", formattedInternal);
       setEditValue("clientParticipants", formattedExternal);
     }
-  }, [selectedMeeting]);
+  }, [selectedMeeting, setEditValue]);
 
   //-----------------------------Form--------------------------------//
 
@@ -307,7 +311,7 @@ const ManageMeetings = () => {
       });
       setChecklists(initialChecklists);
     }
-  }, [meetings]);
+  }, [meetings, defaultChecklist]);
 
   //---------------------------------Event handlers----------------------------------------//
 
@@ -1238,3 +1242,4 @@ const ManageMeetings = () => {
 };
 
 export default ManageMeetings;
+

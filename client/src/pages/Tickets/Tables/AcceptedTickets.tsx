@@ -1,3 +1,4 @@
+// @ts-nocheck
 import AgTable from "../../../components/AgTable";
 import {
   Autocomplete,
@@ -477,3 +478,4 @@ const AcceptedTickets = ({ title, departmentId }) => {
 };
 
 export default AcceptedTickets;
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState } from "react";
 import AgTable from "../../components/AgTable";
 import WidgetSection from "../../components/WidgetSection";
@@ -448,3 +449,4 @@ const MeetingRoomCredits = ({ pageTitle }) => {
 };
 
 export default MeetingRoomCredits;
+

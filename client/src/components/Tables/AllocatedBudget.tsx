@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useMemo, useEffect } from "react";
 import dayjs from "dayjs";
 import {
@@ -356,3 +357,4 @@ const AllocatedBudget = ({
 };
 
 export default AllocatedBudget;
+

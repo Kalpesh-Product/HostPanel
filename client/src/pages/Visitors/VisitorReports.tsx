@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState } from "react";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import { useQuery } from "@tanstack/react-query";

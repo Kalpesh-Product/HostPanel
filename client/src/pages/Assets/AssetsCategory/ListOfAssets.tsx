@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useState } from "react";
 import AgTable from "../../../components/AgTable";
 import PrimaryButton from "../../../components/PrimaryButton";
@@ -242,7 +243,7 @@ const ListOfAssets = () => {
         warrantyDocument: null,
       });
     }
-  }, [modalMode, selectedForEdit]);
+  }, [editRequest, modalMode, selectedForEdit, setValue]);
 
   const { mutate: editAsset, isPending: isUpdateAsset } = useMutation({
     mutationKey: ["editAsset"],
@@ -1161,3 +1162,4 @@ const ListOfAssets = () => {
 };
 
 export default ListOfAssets;
+

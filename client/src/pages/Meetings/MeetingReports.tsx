@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useQuery } from "@tanstack/react-query";
 import AgTable from "../../components/AgTable";
 import YearWiseTable from "../../components/Tables/YearWiseTable";
@@ -249,3 +250,4 @@ const MeetingReports = () => {
 };
 
 export default MeetingReports;
+

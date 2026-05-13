@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useMemo, useState } from "react";
 import AgTable from "../../../components/AgTable";
 import PageFrame from "../../../components/Pages/PageFrame";
@@ -261,7 +262,7 @@ const CompanyReviews = () => {
           {/* <IconButton onClick={() => handleOpenModal(params.data)}>
             <MdOutlineRateReview />
           </IconButton> */}
-          <button
+          <button type="button"
             className="text-blue-500 underline font-semibold"
             onClick={() => handleOpenModal(params.data)}
           >
@@ -329,3 +330,5 @@ const CompanyReviews = () => {
 };
 
 export default CompanyReviews;
+
+

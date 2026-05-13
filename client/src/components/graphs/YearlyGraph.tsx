@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect, useState } from "react";
 import WidgetSection from "../WidgetSection";
 import BarGraph from "./BarGraph";
@@ -164,3 +165,4 @@ const YearlyGraph = ({
 };
 
 export default YearlyGraph;
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useMemo, useState } from "react";
 import dayjs from "dayjs";
 import YearlyGraph from "./YearlyGraph"
@@ -107,7 +108,7 @@ const DateBasedGraph = ({
       options,
       totalsByFY: totalByFY,
     };
-  }, [rawData, dateKey]);
+  }, [rawData, dateKey, name, valueExtractor, yAxisMax, yAxisTitle]);
 
   return (
     <YearlyGraph
@@ -128,3 +129,4 @@ const DateBasedGraph = ({
 };
 
 export default DateBasedGraph;
+

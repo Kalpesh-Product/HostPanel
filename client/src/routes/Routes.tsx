@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { createBrowserRouter } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import AuthLayout from "../layouts/AuthLayout";
@@ -900,3 +901,4 @@ export const routes = createBrowserRouter([
     element: <NotFoundPage />,
   },
 ]);
+

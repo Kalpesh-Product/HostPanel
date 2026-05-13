@@ -18,7 +18,7 @@ const DangerButton = ({
   return (
     <div>
       <button
-        type={type}
+        type={type ?? "button"}
         className={`rounded-md bg-red-200 px-8 py-2 text-red-600 ${
           fontSize ? fontSize : "text-content leading-5"
         } ${externalStyles ?? ""}`}

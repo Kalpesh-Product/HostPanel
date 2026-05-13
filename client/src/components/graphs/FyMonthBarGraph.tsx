@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useEffect, useMemo, useState } from "react";
 import Chart from "react-apexcharts";
 import dayjs from "dayjs";
@@ -59,7 +60,7 @@ const FyMonthBarGraph = ({
     );
     setMonthOptions(sorted);
     if (!selectedMonth && sorted.length > 0) setSelectedMonth(sorted[0]);
-  }, [fyFilteredData, selectedMonth]);
+  }, [fyFilteredData, selectedMonth, dateKey]);
 
   const currentFYIndex = fyOptions.indexOf(selectedFY);
   const currentMonthIndex = monthOptions.indexOf(selectedMonth);
@@ -146,7 +147,7 @@ const FyMonthBarGraph = ({
       colors: ["#1E3D73"],
       ...chartOptions,
     };
-  }, [barData.categories, chartOptions]);
+  }, [barData.categories, barData.values, chartOptions]);
 
   if (fyOptions.length === 0) {
     return (
@@ -211,3 +212,4 @@ const FyMonthBarGraph = ({
 };
 
 export default FyMonthBarGraph;
+

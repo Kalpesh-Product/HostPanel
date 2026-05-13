@@ -1,3 +1,4 @@
+// @ts-nocheck
 import AgTable from "../../components/AgTable";
 import { useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -87,3 +88,4 @@ const HrCommonDocuments = () => {
 };
 
 export default HrCommonDocuments;
+

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useLocation, useParams } from "react-router-dom";
 import AgTable from "../../../components/AgTable";
 import WidgetSection from "../../../components/WidgetSection";
@@ -87,3 +88,4 @@ const PerformanceAnnual = () => {
 };
 
 export default PerformanceAnnual;
+

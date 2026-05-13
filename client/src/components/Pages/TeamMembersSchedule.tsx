@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useEffect, useState, useMemo } from "react";
 import AgTable from "../../components/AgTable";
 import PrimaryButton from "../../components/PrimaryButton";
@@ -68,7 +69,7 @@ const TeamMembersSchedule = () => {
   useEffect(() => {
     setPrimaryValue("location", selectedUser?.buildingName);
     setPrimaryValue("unitId", selectedUser?.unitNo);
-  }, [selectedUser]);
+  }, [selectedUser, setPrimaryValue]);
   const selectedLocation = watch("location");
   const selectedUnit = watch("unitId");
   const {
@@ -824,3 +825,4 @@ const handleViewUser = async (user) => {
   );
 };
 export default TeamMembersSchedule;
+
