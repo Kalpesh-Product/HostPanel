@@ -1,263 +1,442 @@
-import { useState, type ReactNode } from "react";
-import { FaAngleDown, FaChevronUp, FaLaptopCode, FaUserTie } from "react-icons/fa6";
-import { MdHome } from "react-icons/md";
-import { SiAuthelia } from "react-icons/si";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useState } from "react";
+import type { ElementType } from "react";
+import {
+  ChevronDown,
+  ChevronRight,
+  LayoutDashboard,
+  Settings,
+  Globe,
+  ShieldCheck,
+  NotebookText,
+  ClipboardCheck,
+  Building,
+  Boxes,
+  UserCog,
+  MonitorCog,
+  Package,
+  BarChart,
+  Clock,
+  ListChecks,
+  Ticket,
+  CalendarClock,
+  Presentation,
+  ContactRound,
+  Warehouse,
+  ClipboardList,
+  Wallet,
+  MessageSquareCode,
+  FileChartColumn,
+  Users,
+  UserPlus,
+  CalendarCheck,
+  UserMinus,
+  Building2,
+  Bed,
+  HandCoins,
+  Wrench,
+  BriefcaseBusiness,
+  Magnet,
+  Tag,
+  ShoppingCart,
+  Receipt,
+  Calculator,
+  ScanSearch,
+  Laptop,
+  FileSearch,
+  User,
+  LogOut,
+  Handshake,
+  Lock,
+} from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useSidebar } from "../context/SideBarContext";
-import SeperatorUnderline from "./SeperatorUnderline";
+
+type PlanType = "basic" | "professional" | "custom";
+
+interface NavNode {
+  id: string;
+  label: string;
+  icon?: ElementType;
+  route?: string;
+  isRed?: boolean;
+  disabled?: boolean;
+  defaultOpen?: boolean;
+  children?: NavNode[];
+}
 
 interface SidebarProps {
   drawerOpen?: boolean;
   onCloseDrawer?: () => void;
 }
 
-interface SidebarItem {
-  name: string;
-  icon: ReactNode;
-  route: string;
+interface NavItemProps {
+  icon?: ElementType;
+  label: string;
+  collapsed: boolean;
+  depth?: number;
+  hasChildren?: boolean;
+  isOpen?: boolean;
+  onClick?: () => void;
+  isRed?: boolean;
+  isActive?: boolean;
+  disabled?: boolean;
+  forceBold?: boolean;
+  forceSmall?: boolean;
 }
 
-interface SidebarModule {
-  id: number;
-  icon: ReactNode;
-  title: string;
-  route: string;
-  submenus: Array<{
-    id: number;
-    title: string;
-    codeName: string;
-    icon: ReactNode;
-    route: string;
-  }>;
+const PLAN_LABEL: PlanType = "basic";
+
+const companySettingsData: NavNode[] = [
+  { id: "website-builder", label: "Website Builder", icon: Globe, route: "/company-settings/website-builder" },
+  { id: "nomad-listing", label: "Nomad Listing", icon: ShieldCheck, route: "/company-settings/nomad-listings" },
+  { id: "website-leads", label: "Website Leads", icon: NotebookText, route: "/company-settings/website-builder/leads" },
+  { id: "reviews", label: "Reviews", icon: ClipboardCheck, route: "/company-reviews" },
+  { id: "organization-management", label: "Organization Management", icon: Building, disabled: true },
+  { id: "module-management", label: "Module Management", icon: Boxes, disabled: true },
+  { id: "access-grants", label: "Access Grants", icon: UserCog, disabled: true },
+  { id: "workspace-settings", label: "Workspace Settings", icon: Settings, disabled: true },
+  { id: "workspace-management", label: "Workspace Management", icon: MonitorCog, disabled: true },
+  { id: "analytics", label: "Analytics", icon: BarChart, disabled: true },
+];
+
+const keyAppsData: NavNode[] = [
+  { id: "attendance", label: "Attendance", icon: Clock, disabled: true },
+  { id: "tasks", label: "Tasks", icon: ListChecks, disabled: true },
+  { id: "tickets", label: "Tickets", icon: Ticket, disabled: true },
+  { id: "leave-requests", label: "Leave Requests", icon: CalendarClock, disabled: true },
+  { id: "meeting-room-system", label: "Meeting Room System", icon: Presentation, disabled: true },
+  { id: "visitor-management", label: "Visitor Management", icon: ContactRound, disabled: true },
+  { id: "assets", label: "Assets", icon: Package, disabled: true },
+  { id: "inventory", label: "Inventory", icon: Warehouse, disabled: true },
+  { id: "ticketing-system", label: "Ticketing System", icon: ClipboardList, disabled: true },
+  { id: "finance-management", label: "Finance Management", icon: Wallet, disabled: true },
+  { id: "chat-bot", label: "Chat Bot", icon: MessageSquareCode, disabled: true },
+  { id: "reports", label: "Reports", icon: FileChartColumn, disabled: true },
+];
+
+const departmentModules: NavNode[] = [
+  {
+    id: "hr-department",
+    label: "HR Department",
+    icon: Users,
+    defaultOpen: false,
+    children: [
+      { id: "employee-management", label: "Employee Management", icon: Users, disabled: true },
+      { id: "hr-documents", label: "Documents", icon: NotebookText, disabled: true },
+      { id: "recruitment", label: "Recruitment", icon: UserPlus, disabled: true },
+      { id: "leave-request-processing", label: "Leave Request Processing", icon: CalendarCheck, disabled: true },
+      { id: "attendance-review", label: "Attendance Review", icon: ClipboardCheck, disabled: true },
+      { id: "payroll-management", label: "Payroll Management", icon: Wallet, disabled: true },
+      { id: "exit-management", label: "Exit Management", icon: UserMinus, disabled: true },
+    ],
+  },
+  {
+    id: "administration-department",
+    label: "Administration Department",
+    icon: Building2,
+    defaultOpen: false,
+    children: [
+      { id: "tenant-companies-admin", label: "Tenant Companies", icon: Building2, disabled: true },
+      { id: "bookings", label: "Bookings", icon: Bed, disabled: true },
+      { id: "visitors-management", label: "Visitors Management", icon: ContactRound, disabled: true },
+      { id: "resource-management", label: "Resource Management", icon: HandCoins, disabled: true },
+      { id: "house-keeping", label: "House Keeping", icon: Wrench, disabled: true },
+      { id: "workspace-layout", label: "Workspace Layout", icon: LayoutDashboard, disabled: true },
+    ],
+  },
+  {
+    id: "sales-department",
+    label: "Sales Department",
+    icon: BriefcaseBusiness,
+    defaultOpen: false,
+    children: [
+      { id: "leads-management", label: "Leads Management", icon: Magnet, disabled: true },
+      { id: "tenant-companies-sales", label: "Tenant Companies", icon: Building2, disabled: true },
+      { id: "plans-pricing", label: "Plans & Pricing", icon: Tag, disabled: true },
+      { id: "sales-architecture", label: "Sales Architecture", icon: ShoppingCart, disabled: true },
+    ],
+  },
+  {
+    id: "finance-department",
+    label: "Finance Department",
+    icon: Wallet,
+    defaultOpen: false,
+    children: [
+      { id: "finance-budget", label: "Finance & Budget", icon: Wallet, disabled: true },
+      { id: "billing-payments", label: "Billing & Payments", icon: Receipt, disabled: true },
+      { id: "accounting", label: "Accounting", icon: Calculator, disabled: true },
+    ],
+  },
+  {
+    id: "maintenance-department",
+    label: "Maintenance Department",
+    icon: Wrench,
+    defaultOpen: false,
+    children: [
+      { id: "maintenance-repair-logs", label: "Maintenance Repair Logs", icon: ScanSearch, disabled: true },
+      { id: "amc-maintenance-scheduler", label: "AMC Maintenance Scheduler", icon: CalendarClock, disabled: true },
+    ],
+  },
+  {
+    id: "tech-department",
+    label: "Tech Department",
+    icon: Laptop,
+    defaultOpen: false,
+    children: [{ id: "tech-website-builder", label: "Website Builder", icon: Globe, route: "/company-settings/website-builder" }],
+  },
+  {
+    id: "it-department",
+    label: "IT Department",
+    icon: MonitorCog,
+    defaultOpen: false,
+    children: [{ id: "it-repair-logs", label: "IT Repair Logs", icon: FileSearch, disabled: true }],
+  },
+];
+
+const generalData: NavNode[] = [
+  { id: "profile", label: "Profile", icon: User, route: "/profile/my-profile" },
+  { id: "logout", label: "Logout", icon: LogOut, isRed: true, disabled: true },
+];
+
+const NavItem = ({
+  icon: Icon,
+  label,
+  collapsed,
+  depth = 0,
+  hasChildren,
+  isOpen,
+  onClick,
+  isRed,
+  isActive,
+  disabled,
+  forceBold,
+  forceSmall,
+}: NavItemProps) => (
+  <button
+    type="button"
+    title={disabled ? "Coming soon" : ""}
+    className={`w-full flex items-center justify-between py-2 px-3 select-none rounded-md transition-colors ${
+      isActive ? "bg-gray-200 font-medium" : "hover:bg-gray-200"
+    } ${isRed ? "text-red-500 hover:text-red-600" : "text-gray-700 hover:text-gray-900"} ${
+      disabled ? "opacity-75 cursor-not-allowed" : "cursor-pointer"
+    }`}
+    style={{ paddingLeft: `${depth * 1.25 + 0.75}rem` }}
+    onClick={onClick}
+  >
+    <span className="flex items-center gap-3 min-w-0">
+      {Icon && <Icon size={16} className={isRed ? "text-red-500" : "text-gray-500"} />}
+      {!collapsed && (
+        <span
+          className={`${forceSmall ? "text-[10px]" : "text-[12px]"} truncate ${forceBold ? "font-pbold" : "font-pmedium"}`}
+        >
+          {label}
+        </span>
+      )}
+    </span>
+    {!collapsed && hasChildren && (isOpen ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />)}
+    {!collapsed && disabled && !hasChildren && <Lock size={12} className="text-gray-400" />}
+  </button>
+);
+
+interface NavGroupProps {
+  item: NavNode;
+  collapsed: boolean;
+  depth?: number;
+  pathname: string;
+  onNavigate: (item: NavNode) => void;
 }
 
-const Sidebar = ({ onCloseDrawer }: SidebarProps) => {
-  const { isSidebarOpen } = useSidebar();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [expandedModule, setExpandedModule] = useState<number | null>(0);
+const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate }: NavGroupProps) => {
+  const [isOpen, setIsOpen] = useState(item.defaultOpen !== false);
+  const hasChildren = Boolean(item.children?.length);
+  const isActive = (() => {
+    if (!item.route) return false;
+    if (item.id === "website-builder") {
+      return pathname === "/company-settings/website-builder";
+    }
+    return pathname.startsWith(item.route);
+  })();
 
-  const menuItems: SidebarItem[] = [
-    {
-      name: "Services",
-      icon: <FaLaptopCode />,
-      route: "/services",
-    },
-  ];
-
-  const generalItems: SidebarItem[] = [
-    {
-      name: "Profile",
-      icon: <FaUserTie />,
-      route: "profile",
-    },
-  ];
-
-  const defaultModules: SidebarModule[] = [
-    {
-      id: 1,
-      icon: <MdHome />,
-      title: "Dashboard",
-      route: "/company-settings",
-      submenus: [
-        {
-          id: 2,
-          title: "Company Settings",
-          codeName: "Tec",
-          icon: <FaLaptopCode />,
-          route: "/company-settings",
-        },
-        {
-          id: 3,
-          title: "Website Leads",
-          codeName: "Web",
-          icon: <SiAuthelia />,
-          route: "/company-settings/website-builder/leads",
-        },
-        {
-          id: 4,
-          title: "Reviews",
-          codeName: "Web",
-          icon: <SiAuthelia />,
-          route: "/company-reviews",
-        },
-      ],
-    },
-  ];
-
-  const handleMenuOpen = (item: SidebarItem) => {
-    navigate(item.route);
-    if (onCloseDrawer) onCloseDrawer();
+  const handleClick = () => {
+    if (hasChildren) {
+      setIsOpen((prev) => !prev);
+      return;
+    }
+    onNavigate(item);
   };
-
-  const toggleModule = (index: number) => {
-    setExpandedModule((prev) => (prev === index ? null : index));
-  };
-
-  const isActive = (path: string) => location.pathname.startsWith(`${path}`);
-  const isAppsActive = (path: string) => location.pathname.startsWith(`${path}`);
 
   return (
-    <div className={`flex flex-col px-2 bg-gray`}>
-      <div
-        className={`${
-          isSidebarOpen ? "w-60" : "w-16"
-        } bg-white text-black flex flex-shrink-0 h-[90vh] hideScrollBar overflow-y-auto transition-all duration-100 z-[1]`}
-      >
-        <div className="flex relative w-full">
-          <div className="p-0 flex flex-col gap-2 w-full">
-            <div
-              className={`rounded-md ${
-                expandedModule === 0 ? "bg-gray-200" : "bg-white"
-              }`}
-            >
-              {defaultModules.map((module, index) => (
-                <div key={index} className="">
-                  <div
-                    className={`cursor-pointer text-gray-500 flex ${
-                      expandedModule === null && isSidebarOpen
-                        ? "justify-between pr-2"
-                        : expandedModule === 0 && isSidebarOpen
-                          ? "justify-between text-[#1E3D73] pr-2"
-                          : "justify-center pr-0"
-                    } items-center ${
-                      expandedModule === 0 && "bg-gray-200 rounded-t-md text-black"
-                    } ${
-                      isActive(module.route)
-                        ? "text-primary border-r-4 transition-all duration-100 rounded-tl-md rounded-bl-md "
-                        : ""
-                    }`}
-                    onClick={() => {
-                      navigate(module.route);
-                    }}
-                  >
-                    <div className="flex justify-start items-center">
-                      <div
-                        className={`flex items-center justify-center text-sm h-9 w-9 ${
-                          expandedModule === 0
-                            ? "bg-primary text-white rounded-md"
-                            : ""
-                        }`}
-                      >
-                        {module.icon}
-                      </div>
-                      {isSidebarOpen && (
-                        <span className="pl-5 text-sm ">{module.title}</span>
-                      )}
-                    </div>
-                    {isSidebarOpen && module.submenus && (
-                      <span
-                        onClick={() => toggleModule(index)}
-                        className={`transition-transform duration-300 ease-in-out ${
-                          expandedModule === index ? "rotate-180" : "rotate-0"
-                        }`}
-                      >
-                        {expandedModule === index ? <FaChevronUp /> : <FaAngleDown />}
-                      </span>
-                    )}
-                  </div>
-                  <div
-                    className={`overflow-hidden transition-[max-height] duration-300 ease-in-out ${
-                      expandedModule === index ? "max-h-[500px]" : "max-h-0"
-                    }`}
-                  >
-                    {module.submenus && (
-                      <div>
-                        {module.submenus.map((submenu, idx) => (
-                          <div
-                            key={idx}
-                            className={`cursor-pointer hover:text-[#1E3D73] transition-all duration-100 ${
-                              isActive(submenu.route)
-                                ? "text-[#1E3D73]"
-                                : "text-gray-500"
-                            } py-3`}
-                            onClick={() => handleMenuOpen({
-                              name: submenu.title,
-                              icon: submenu.icon,
-                              route: submenu.route,
-                            })}
-                          >
-                            <div
-                              className={`flex items-center ${
-                                isSidebarOpen ? "justify-start" : "justify-center"
-                              }`}
-                            >
-                              <div
-                                className={`flex justify-center items-center w-8 ${
-                                  isSidebarOpen ? "text-sm" : "text-sm"
-                                }`}
-                              >
-                                {submenu.icon}
-                              </div>
-                              {isSidebarOpen && (
-                                <span className="pl-4 text-sm">
-                                  {submenu.title}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="pt-2 flex flex-col gap-2 w-full">
-              <SeperatorUnderline title={"Apps"} />
-              {menuItems.map((item, index) => (
-                <div
-                  key={index}
-                  onClick={() => handleMenuOpen(item)}
-                  className={`cursor-pointer hover:text-primary transition-all duration-100 ${
-                    isAppsActive(item.route)
-                      ? "text-primary bg-gray-200 rounded-md"
-                      : "text-gray-500"
-                  } flex ${isSidebarOpen ? "" : "justify-center"} items-center py-0 `}
-                >
-                  <div
-                    className={`flex justify-center items-center w-9 h-9 ${
-                      isAppsActive(item.route)
-                        ? "bg-primary text-white rounded-md"
-                        : ""
-                    } text-sm`}
-                  >
-                    {item.icon}
-                  </div>
-                  {isSidebarOpen && <span className="pl-5 text-sm">{item.name}</span>}
-                </div>
-              ))}
-            </div>
-            <div className="pt-2 flex flex-col gap-2 w-full">
-              <SeperatorUnderline title={"General"} />
-              {generalItems.map((item, index) => (
-                <div
-                  key={index}
-                  onClick={() => handleMenuOpen(item)}
-                  className={`cursor-pointer hover:text-primary transition-all duration-100 ${
-                    isAppsActive(item.route)
-                      ? "text-primary bg-gray-200 rounded-md"
-                      : "text-gray-500"
-                  } flex ${isSidebarOpen ? "" : "justify-center"} items-center py-0 `}
-                >
-                  <div
-                    className={`flex justify-center items-center w-9 h-9 ${
-                      isAppsActive(item.route)
-                        ? "bg-primary text-white rounded-md"
-                        : ""
-                    } text-sm`}
-                  >
-                    {item.icon}
-                  </div>
-                  {isSidebarOpen && <span className="pl-5 text-sm">{item.name}</span>}
-                </div>
-              ))}
-            </div>
-          </div>
+    <div>
+      <NavItem
+        icon={item.icon}
+        label={item.label}
+        collapsed={collapsed}
+        depth={depth}
+        hasChildren={hasChildren}
+        isOpen={isOpen}
+        onClick={handleClick}
+        isRed={item.isRed}
+        isActive={isActive}
+        disabled={item.disabled || !item.route}
+        forceBold={hasChildren}
+        forceSmall={!hasChildren && depth > 0}
+      />
+      {hasChildren && isOpen && !collapsed && (
+        <div className="mt-1 flex flex-col gap-1">
+          {item.children?.map((child) => (
+            <NavGroup
+              key={child.id}
+              item={child}
+              collapsed={collapsed}
+              depth={depth + 1}
+              pathname={pathname}
+              onNavigate={onNavigate}
+            />
+          ))}
         </div>
-      </div>
+      )}
     </div>
   );
 };
 
-export default Sidebar;
+export default function Sidebar({ onCloseDrawer }: SidebarProps) {
+  const { isSidebarOpen } = useSidebar();
+  const collapsed = !isSidebarOpen;
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [isCompanySettingsOpen, setIsCompanySettingsOpen] = useState(false);
+  const [isKeyAppsOpen, setIsKeyAppsOpen] = useState(false);
+  const [isDepartmentOpen, setIsDepartmentOpen] = useState(false);
+
+  const onNavigate = (item: NavNode) => {
+    if (!item.route || item.disabled) return;
+    navigate(item.route);
+    if (onCloseDrawer) onCloseDrawer();
+  };
+
+  return (
+    <div
+      className={`${
+        collapsed ? "w-16" : "w-64"
+      } h-[90vh] bg-[#f3f4f6] flex flex-col border-r border-gray-200 shadow-sm overflow-hidden transition-all duration-100`}
+    >
+      <div className="px-4 py-3 flex justify-center">
+        <span className="text-[10px] font-bold tracking-wider text-gray-600 bg-gray-200 px-3 py-1 rounded-full uppercase">
+          {collapsed ? PLAN_LABEL[0].toUpperCase() : `Plan - ${PLAN_LABEL}`}
+        </span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-2 py-2 space-y-5 hideScrollBar">
+        <div className="space-y-1">
+          <NavItem
+            icon={LayoutDashboard}
+            label="Dashboard"
+            collapsed={collapsed}
+            isActive={location.pathname === "/company-settings"}
+            onClick={() => onNavigate({ id: "dashboard", label: "Dashboard", route: "/company-settings" })}
+          />
+          {!collapsed && (
+            <div
+              className="flex items-center justify-between px-3 mb-2 cursor-pointer"
+              onClick={() => setIsCompanySettingsOpen((prev) => !prev)}
+            >
+              <span className="text-[12px] font-pbold text-gray-500 tracking-wider uppercase">Company Settings</span>
+              {isCompanySettingsOpen ? <ChevronDown size={12} className="text-gray-400" /> : <ChevronRight size={12} className="text-gray-400" />}
+            </div>
+          )}
+          {(isCompanySettingsOpen || collapsed) && (
+            <div className="space-y-1">
+              {companySettingsData.map((item) => (
+                <NavGroup
+                  key={item.id}
+                  item={item}
+                  collapsed={collapsed}
+                  pathname={location.pathname}
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          {!collapsed && (
+            <div
+              className="flex items-center justify-between px-3 mb-2 cursor-pointer"
+              onClick={() => setIsKeyAppsOpen((prev) => !prev)}
+            >
+              <span className="text-[12px] font-pbold text-gray-500 tracking-wider uppercase">Key Apps</span>
+              {isKeyAppsOpen ? <ChevronDown size={12} className="text-gray-400" /> : <ChevronRight size={12} className="text-gray-400" />}
+            </div>
+          )}
+          {(isKeyAppsOpen || collapsed) && (
+            <div className="space-y-1">
+              {keyAppsData.map((item) => (
+                <NavGroup
+                  key={item.id}
+                  item={item}
+                  collapsed={collapsed}
+                  pathname={location.pathname}
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          {!collapsed && (
+            <div
+              className="flex items-center justify-between px-3 mb-2 cursor-pointer"
+              onClick={() => setIsDepartmentOpen((prev) => !prev)}
+            >
+              <span className="text-[12px] font-pbold text-gray-500 tracking-wider uppercase">Department Accesses</span>
+              {isDepartmentOpen ? <ChevronDown size={12} className="text-gray-400" /> : <ChevronRight size={12} className="text-gray-400" />}
+            </div>
+          )}
+          {(isDepartmentOpen || collapsed) && (
+            <div className="space-y-1">
+              {departmentModules.map((item) => (
+                <NavGroup
+                  key={item.id}
+                  item={item}
+                  collapsed={collapsed}
+                  pathname={location.pathname}
+                  onNavigate={onNavigate}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          {!collapsed && (
+            <div className="flex items-center justify-center px-3 mb-2">
+              <div className="h-px bg-gray-300 flex-1" />
+              <span className="text-[10px] font-pbold text-gray-500 tracking-wider px-2">General</span>
+              <div className="h-px bg-gray-300 flex-1" />
+            </div>
+          )}
+          <div className="space-y-1">
+            {generalData.map((item) => (
+              <NavGroup
+                key={item.id}
+                item={item}
+                collapsed={collapsed}
+                pathname={location.pathname}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4 border-t border-gray-200 hover:bg-gray-200 cursor-pointer transition-colors mt-auto">
+        <div className="flex items-center gap-3 text-gray-700">
+          <Handshake size={16} className="text-gray-500" />
+          {!collapsed && <span className="text-xs font-medium">Become a Contributor</span>}
+        </div>
+      </div>
+    </div>
+  );
+}

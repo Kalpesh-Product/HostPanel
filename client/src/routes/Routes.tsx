@@ -147,7 +147,10 @@ import Services from "../pages/Services";
 import EditNomadListing from "../pages/Dashboard/FrontendDashboard/EditNomadListing";
 import ForgotPassword from "../pages/LoginPage/ForgotPassword";
 import ResetPassword from "../pages/LoginPage/ResetPassword";
+import RegisterPage from "../pages/LoginPage/RegisterPage";
+import RegisterOtpVerification from "../pages/LoginPage/RegisterOtpVerification";
 import CompanyReviews from "../pages/Dashboard/FrontendDashboard/CompanyReviews";
+import CreateWorkspacePage from "../pages/CreateWorkspacePage";
 
 export const routes = createBrowserRouter([
   {
@@ -162,6 +165,30 @@ export const routes = createBrowserRouter([
     path: "/reset-password/:token",
     element: <ResetPassword />,
   },
+  {
+    path: "/register/:token",
+    element: <RegisterPage />,
+  },
+  {
+    path: "/register",
+    element: <RegisterPage />,
+  },
+  {
+    path: "/register/:token/verify",
+    element: <RegisterOtpVerification />,
+  },
+  {
+    path: "/register/verify",
+    element: <RegisterOtpVerification />,
+  },
+  {
+    path: "/signup/:token",
+    element: <RegisterPage />,
+  },
+  {
+    path: "/signup/:token/verify",
+    element: <RegisterOtpVerification />,
+  },
 
   {
     element: <PersistLogin />,
@@ -169,6 +196,10 @@ export const routes = createBrowserRouter([
       {
         element: <AuthLayout />,
         children: [
+          {
+            path: "/create-workspace",
+            element: <CreateWorkspacePage />,
+          },
           {
             path: "/",
             // path: "/host",

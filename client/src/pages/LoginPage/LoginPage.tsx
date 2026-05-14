@@ -87,6 +87,11 @@ const LoginPage = () => {
     },
   ];
   const userDepartments = auth.user?.departments?.map((item) => item.name);
+  const shouldGoToCreateWorkspace = (userData) => {
+    const companyId = userData?.companyId || "";
+    const hasCompanyName = Boolean(userData?.companyName);
+    return !hasCompanyName || companyId.includes("-dev-");
+  };
 
   const filteredModules = defaultModules.map((module) => {
     const filteredSubmenus = module.submenus?.filter((submenu) =>
@@ -111,11 +116,15 @@ const LoginPage = () => {
 
   useEffect(() => {
     if (auth.accessToken) {
-      navigate(firstAvailableRoute);
+      if (shouldGoToCreateWorkspace(auth.user)) {
+        navigate("/create-workspace");
+      } else {
+        navigate(firstAvailableRoute);
+      }
     } else {
       refresh();
     }
-  }, [auth.accessToken, firstAvailableRoute, navigate, refresh]);
+  }, [auth.accessToken, auth.user, firstAvailableRoute, navigate, refresh]);
 
   // Validation function
   const handleLogin = async (e) => {
@@ -138,7 +147,11 @@ const LoginPage = () => {
       });
       console.log(response.data.user);
       toast.success("Successfully logged in");
-      navigate("/company-settings");
+      if (shouldGoToCreateWorkspace(response?.data?.user)) {
+        navigate("/create-workspace");
+      } else {
+        navigate("/company-settings");
+      }
     } catch (error) {
       toast.error(error.response?.data.message);
     } finally {

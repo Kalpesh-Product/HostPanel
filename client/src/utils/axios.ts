@@ -1,19 +1,15 @@
 import axios from "axios";
 
-// export const api = axios.create({
-//   baseURL: import.meta.env.VITE_DEV_LINK,
-// });
-
-// export const axiosPrivate = axios.create({
-//   baseURL: import.meta.env.VITE_DEV_LINK,
-//   withCredentials: true,
-// });
+const rawBaseURL = import.meta.env.DEV
+  ? import.meta.env.VITE_DEV_LINK
+  : import.meta.env.VITE_PROD_LINK;
+const baseURL = String(rawBaseURL || "").replace(/\/+$/, "");
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_PROD_LINK,
+  baseURL,
 });
 
 export const axiosPrivate = axios.create({
-  baseURL: import.meta.env.VITE_PROD_LINK,
+  baseURL,
   withCredentials: true,
 });
