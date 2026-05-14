@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
   ArrowRight,
   Check,
@@ -8,97 +8,168 @@ import {
   Users,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import logo from "../../assets/WONO_LOGO_Black_TP.png";
 import Footer from "../../components/Footer";
-
-type ModuleItem = {
-  id: string;
-  name: string;
-  active: boolean;
-};
-
-type ModuleCategory = {
-  category: string;
-  items: ModuleItem[];
-};
+import useAxiosPrivate from "../../hooks/useAxiosPrivate";
+import useAuth from "../../hooks/useAuth";
+import {
+  clearInviteOnboardingState,
+  readInviteOnboardingState,
+} from "../../utils/inviteOnboarding";
+import {
+  canAccessWorkspaceManagement,
+  getEnabledModuleIdsForPlan,
+  getWorkspaceCount,
+} from "../../utils/workspacePlanAccess";
 
 type PlanType = "basic" | "professional" | "custom";
 
 type PlanGroup = {
   title: string;
-  items: string[];
+  items?: string[];
+  subgroups?: Array<{ title: string; items: string[] }>;
 };
 
-const PLAN_GROUPS: Record<PlanType, PlanGroup[]> = {
+const getPlanGroups = (hasWorkspaceManagement: boolean): Record<PlanType, PlanGroup[]> => ({
   basic: [
     {
-      title: "Static Website",
-      items: ["Desktop & Mobile", "Automated Lead Capture", "Smart Lead Management"],
+      title: "Company Settings",
+      items: [
+        "Website Builder",
+        "Nomad Listing",
+        "Website Leads",
+        "Reviews",
+        "Organization Management",
+        "Module Management",
+        "Access Grants",
+        "Workspace Settings",
+        "Analytics",
+        hasWorkspaceManagement
+          ? "Workspace Management"
+          : "Workspace Management after multiple workspaces",
+      ],
     },
     {
-      title: "Admin Control Panel",
-      items: ["Core Dashboard", "Cloud Storage", "Dedicated Support", "Up to 2 Users"],
-    },
-    {
-      title: "Visitor Tracking System",
-      items: ["Visitor Management Basics"],
+      title: "Key Apps",
+      items: ["Tickets", "Visitor Management", "Chat Bot"],
     },
   ],
   professional: [
     {
-      title: "Everything in Basic +",
-      items: ["Transactional Website", "Payment Gateway", "Advanced Sales Module"],
+      title: "Everything in Basic",
+      items: [
+        "All Company Settings modules",
+        "Tickets",
+        "Visitor Management",
+        "Chat Bot",
+      ],
     },
     {
-      title: "Operations Suite",
-      items: ["Meeting Room Booking System", "Visitor Management", "Integrated Ticketing System"],
+      title: "Key Apps",
+      items: ["Meeting Room Booking"],
     },
     {
-      title: "Team Scale",
-      items: ["Smart Calendar", "Up to 5 Users"],
+      title: "Department Access",
+      subgroups: [
+        {
+          title: "Sales Department",
+          items: [
+            "Sales Leads Management",
+            "Tenant Companies",
+            "Plans & Pricing",
+            "Sales Architecture",
+          ],
+        },
+      ],
     },
   ],
   custom: [
     {
-      title: "Everything in Professional +",
-      items: ["Advanced Booking Engine", "Custom Native Applications", "End-to-End Finance Suite"],
+      title: "Everything in Basic + Professional",
+      items: ["All Basic modules", "Meeting Room Booking", "Sales Department modules"],
     },
     {
-      title: "Enterprise Modules",
-      items: ["HRMS", "IT Infrastructure Module", "Maintenance Management Module"],
-    },
-    {
-      title: "AI + Scale",
+      title: "Key Apps",
       items: [
-        "AI-Driven Lead Generation",
-        "AI Customer Experience Agent",
-        "AI Sales Automation",
-        "AI SEO & Growth Engine",
-        "Custom-Built Technology Stack",
-        "Unlimited Users",
+        "Attendance",
+        "Tasks",
+        "Leave Requests",
+        "Assets",
+        "Inventory",
+        "Finance Management",
+        "Reports",
+      ],
+    },
+    {
+      title: "Department Access",
+      subgroups: [
+        {
+          title: "HR Department",
+          items: [
+            "Employee Management",
+            "Documents",
+            "Recruitment",
+            "Leave Request Processing",
+            "Attendance Review",
+            "Payroll Management",
+            "Exit Management",
+          ],
+        },
+        {
+          title: "Administration Department",
+          items: [
+            "Tenant Companies",
+            "Bookings",
+            "Visitors Management",
+            "Resource Management",
+            "House Keeping",
+            "Workspace Layout",
+          ],
+        },
+        {
+          title: "Finance Department",
+          items: ["Finance & Budget", "Billing & Payments", "Accounting"],
+        },
+        {
+          title: "Maintenance Department",
+          items: ["Maintenance Repair Logs", "AMC Maintenance Scheduler"],
+        },
+        {
+          title: "Tech Department",
+          items: ["Website Builder"],
+        },
+        {
+          title: "IT Department",
+          items: ["IT Repair Logs"],
+        },
       ],
     },
   ],
-};
+});
 
 const FinalizeSetupPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const axiosPrivate = useAxiosPrivate();
+  const { auth, setAuth } = useAuth();
   const workspaceDetails = location.state?.workspaceDetails || {};
-  const modules = (location.state?.modules || []) as ModuleCategory[];
-  const selectedPlan = (location.state?.selectedPlan || "basic") as PlanType;
+  const inviteOnboarding = readInviteOnboardingState();
+  const selectedPlan = (
+    location.state?.selectedPlan ||
+    inviteOnboarding?.selectedPlan ||
+    "basic"
+  ) as PlanType;
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    "group-0": true,
-  });
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const workspaceCount = getWorkspaceCount(
+    (auth.user as { workspaceCount?: number } | null)?.workspaceCount,
+  );
+  const hasWorkspaceManagement = canAccessWorkspaceManagement(workspaceCount);
+  const enabledModuleIds = getEnabledModuleIdsForPlan(selectedPlan, workspaceCount);
 
-  const enabledModuleIds = useMemo(() => {
-    return modules.flatMap((cat) =>
-      cat.items.filter((item) => item.active).map((item) => item.id),
-    );
-  }, [modules]);
-
-  const selectedPlanGroups = PLAN_GROUPS[selectedPlan] || [];
+  const selectedPlanGroups = getPlanGroups(hasWorkspaceManagement)[selectedPlan] || [];
   const workspaceRows = [
     { label: "Workspace Name", value: workspaceDetails.workspaceName },
     { label: "Business Name", value: workspaceDetails.businessName },
@@ -106,6 +177,7 @@ const FinalizeSetupPage: React.FC = () => {
     { label: "Country", value: workspaceDetails.country },
     { label: "State", value: workspaceDetails.state },
     { label: "City", value: workspaceDetails.city },
+    { label: "Address", value: workspaceDetails.address },
     {
       label: "Business Type",
       value: Array.isArray(workspaceDetails.businessTypes)
@@ -116,6 +188,38 @@ const FinalizeSetupPage: React.FC = () => {
 
   const toggleGroup = (key: string) =>
     setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const handleCompleteSetup = async () => {
+    try {
+      setIsSubmitting(true);
+      const response = await axiosPrivate.post("/api/workspaces/setup", {
+        workspaceDetails,
+        selectedPlan,
+        enabledModuleIds,
+        modules: [],
+      });
+
+      localStorage.setItem(
+        "workspace_setup",
+        JSON.stringify({
+          selectedPlan,
+          enabledModuleIds,
+          workspaceDetails,
+        }),
+      );
+      clearInviteOnboardingState();
+      setAuth((prevState) => ({
+        ...prevState,
+        user: response.data?.user || prevState.user,
+      }));
+      toast.success(response.data?.message || "Workspace created successfully.");
+      navigate("/company-settings");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to complete workspace setup.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#f4f4f4] text-[#0f172a] font-['Poppins'] flex flex-col">
@@ -257,7 +361,7 @@ const FinalizeSetupPage: React.FC = () => {
                       </button>
                       {isOpen && (
                         <div className="px-3 pb-2 space-y-1">
-                          {group.items.map((item) => (
+                          {group.items?.map((item) => (
                             <div key={item} className="flex items-start gap-2">
                               <span className="mt-0.5 text-[#23c35c]">
                                 <CheckCircle2 size={14} />
@@ -265,6 +369,46 @@ const FinalizeSetupPage: React.FC = () => {
                               <span className="text-[11px] text-[#4f627d]">{item}</span>
                             </div>
                           ))}
+                          {group.subgroups?.map((subgroup, subgroupIdx) => {
+                            const subgroupKey = `${groupKey}-sub-${subgroupIdx}`;
+                            const isSubgroupOpen = Boolean(openGroups[subgroupKey]);
+                            return (
+                              <div
+                                key={subgroupKey}
+                                className="rounded-xl border border-[#e1e7f0] bg-white/70"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => toggleGroup(subgroupKey)}
+                                  className="w-full px-3 py-2 flex items-center justify-between text-left"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <CheckCircle2 size={14} className="text-[#23c35c]" />
+                                    <span className="text-[11px] font-semibold text-[#3b4f6d]">
+                                      {subgroup.title}
+                                    </span>
+                                  </div>
+                                  {isSubgroupOpen ? (
+                                    <ChevronDown size={14} className="text-[#607089]" />
+                                  ) : (
+                                    <ChevronRight size={14} className="text-[#607089]" />
+                                  )}
+                                </button>
+                                {isSubgroupOpen && (
+                                  <div className="px-3 pb-2 space-y-1">
+                                    {subgroup.items.map((item) => (
+                                      <div key={item} className="flex items-start gap-2">
+                                        <span className="mt-0.5 text-[#23c35c]">
+                                          <CheckCircle2 size={13} />
+                                        </span>
+                                        <span className="text-[11px] text-[#4f627d]">{item}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -282,7 +426,7 @@ const FinalizeSetupPage: React.FC = () => {
               type="button"
               onClick={() =>
                 navigate("/create-workspace/modules", {
-                  state: { workspaceDetails, selectedPlan, modules },
+                  state: { workspaceDetails, selectedPlan },
                 })
               }
               className="h-10 w-full sm:w-auto px-5 rounded-xl border border-[#d0d8e5] text-[#5b6b83] text-[14px] font-medium bg-transparent"
@@ -291,20 +435,11 @@ const FinalizeSetupPage: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => {
-                localStorage.setItem(
-                  "workspace_setup",
-                  JSON.stringify({
-                    selectedPlan,
-                    enabledModuleIds,
-                    workspaceDetails,
-                  }),
-                );
-                navigate("/company-settings");
-              }}
+              onClick={handleCompleteSetup}
+              disabled={isSubmitting}
               className="h-10 w-full sm:w-auto px-7 rounded-xl bg-[#2d67f0] hover:bg-[#2558d5] transition-colors text-white text-[13px] font-semibold inline-flex items-center justify-center gap-2"
             >
-              Continue <ArrowRight size={16} />
+              {isSubmitting ? "Saving..." : "Continue"} <ArrowRight size={16} />
             </button>
           </div>
         </div>

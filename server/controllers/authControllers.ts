@@ -4,6 +4,7 @@ import HostUser from "../models/HostUser.js";
 import bcrypt from "bcryptjs";
 import Company from "../models/Company.js";
 import Otp from "../models/Otp.js";
+import WorkspaceMember from "../models/WorkspaceMember.js";
 import { sendMail } from "../config/mailer.js";
 import crypto from "crypto";
 
@@ -28,9 +29,23 @@ const extractInviteIdentity = (decoded: any) => {
     decoded?.userInfo?.fullName ||
     combinedName ||
     "";
+  const selectedPlan =
+    decoded?.selectedPlan || decoded?.userInfo?.selectedPlan || "basic";
+  const businessName =
+    decoded?.businessName || decoded?.userInfo?.businessName || "";
 
-  return { inviteEmail, inviteName };
+  return { inviteEmail, inviteName, selectedPlan, businessName };
 };
+
+const buildAuthUserPayload = (user: any, company: any, workspaceCount = 0) => ({
+  ...user,
+  companyName: company?.companyName,
+  logo: company?.logo,
+  isWebsiteTemplate: company?.isWebsiteTemplate,
+  hasCompletedWorkspaceSetup: Boolean(user?.hasCompletedWorkspaceSetup),
+  primaryWorkspace: user?.primaryWorkspace || null,
+  workspaceCount,
+});
 
 export const login = async (req, res, next) => {
   try {
@@ -44,10 +59,14 @@ export const login = async (req, res, next) => {
 
     const user = await HostUser.findOne({ email }).lean().exec();
 
+    if (!user) return res.status(404).json({ message: "No user found" });
     const company = await Company.findOne({ companyId: user?.companyId })
       .lean()
       .exec();
-    if (!user) return res.status(404).json({ message: "No user found" });
+    const workspaceCount = await WorkspaceMember.countDocuments({
+      user: user._id,
+      isActive: true,
+    });
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid)
@@ -78,12 +97,7 @@ export const login = async (req, res, next) => {
     });
 
     res.status(200).json({
-      user: {
-        ...user,
-        companyName: company?.companyName,
-        logo: company?.logo,
-        isWebsiteTemplate: company?.isWebsiteTemplate,
-      },
+      user: buildAuthUserPayload(user, company, workspaceCount),
       accessToken,
     });
   } catch (error) {
@@ -271,7 +285,8 @@ export const getRegisterPrefill = async (req, res, next) => {
     if (!token) return res.status(400).json({ message: "Invite token is required." });
 
     const decoded = decodeSignupInviteToken(token);
-    const { inviteEmail, inviteName } = extractInviteIdentity(decoded);
+    const { inviteEmail, inviteName, selectedPlan, businessName } =
+      extractInviteIdentity(decoded);
 
     if (!inviteEmail || !inviteName) {
       return res.status(400).json({ message: "Invalid invite token payload." });
@@ -289,6 +304,8 @@ export const getRegisterPrefill = async (req, res, next) => {
     res.status(200).json({
       fullName: inviteName,
       email: inviteEmail,
+      selectedPlan,
+      businessName,
     });
   } catch (error) {
     if (error?.name === "TokenExpiredError") {
@@ -616,6 +633,7 @@ export const verifyRegisterOtpDirect = async (req, res, next) => {
       email: normalizedEmail,
       password: payloadPassword,
       isActive: true,
+      hasCompletedWorkspaceSetup: false,
     });
 
     await Otp.updateOne({ _id: otpRecord._id }, { $set: { isUsed: true } });

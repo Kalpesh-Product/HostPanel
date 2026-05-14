@@ -15,6 +15,7 @@ import { Drawer, List, ListItem, ListItemText } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { IoCloseSharp } from "react-icons/io5";
 import logo from "../../assets/WONO_LOGO_Black_TP.png";
+import { readInviteOnboardingState } from "../../utils/inviteOnboarding";
 
 const LoginPage = () => {
   const { auth, setAuth } = useAuth();
@@ -88,6 +89,23 @@ const LoginPage = () => {
   ];
   const userDepartments = auth.user?.departments?.map((item) => item.name);
   const shouldGoToCreateWorkspace = (userData) => {
+    const pendingInviteOnboarding = readInviteOnboardingState();
+    if (
+      pendingInviteOnboarding &&
+      pendingInviteOnboarding.email &&
+      pendingInviteOnboarding.email === userData?.email
+    ) {
+      return true;
+    }
+
+    if (userData?.hasCompletedWorkspaceSetup === false) {
+      return true;
+    }
+
+    if (userData?.hasCompletedWorkspaceSetup === true) {
+      return false;
+    }
+
     const companyId = userData?.companyId || "";
     const hasCompanyName = Boolean(userData?.companyName);
     return !hasCompanyName || companyId.includes("-dev-");

@@ -6,6 +6,7 @@ import { Box, CircularProgress, Container, Grid, TextField } from "@mui/material
 import { toast } from "sonner";
 import Footer from "../../components/Footer";
 import { api } from "../../utils/axios";
+import type { PlanType } from "../../utils/inviteOnboarding";
 import logo from "../../assets/WONO_LOGO_Black_TP.png";
 import "./ClientLogin.css";
 import "./ClientSpecialClasses.css";
@@ -13,12 +14,19 @@ import "./ClientSpecialClasses.css";
 interface PrefillState {
   fullName: string;
   email: string;
+  selectedPlan: PlanType;
+  businessName: string;
 }
 
 export default function RegisterPage() {
   const { token } = useParams();
   const navigate = useNavigate();
-  const [prefill, setPrefill] = useState<PrefillState>({ fullName: "", email: "" });
+  const [prefill, setPrefill] = useState<PrefillState>({
+    fullName: "",
+    email: "",
+    selectedPlan: "basic",
+    businessName: "",
+  });
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -40,6 +48,8 @@ export default function RegisterPage() {
         setPrefill({
           fullName: response.data.fullName || "",
           email: response.data.email || "",
+          selectedPlan: response.data.selectedPlan || "basic",
+          businessName: response.data.businessName || "",
         });
       } catch (error) {
         const message = (error as AxiosError<{ message?: string }>).response?.data?.message;
@@ -66,7 +76,12 @@ export default function RegisterPage() {
       });
       toast.success(response.data?.message || "OTP sent.");
       navigate(token ? `/register/${token}/verify` : "/register/verify", {
-        state: { email: prefill.email },
+        state: {
+          email: prefill.email,
+          fullName: prefill.fullName,
+          selectedPlan: prefill.selectedPlan,
+          businessName: prefill.businessName,
+        },
       });
     } catch (error) {
       const message = (error as AxiosError<{ message?: string }>).response?.data?.message;

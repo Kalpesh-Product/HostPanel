@@ -2,6 +2,17 @@
 import jwt from "jsonwebtoken";
 import HostUser from "../models/HostUser.js";
 import Company from "../models/Company.js";
+import WorkspaceMember from "../models/WorkspaceMember.js";
+
+const buildAuthUserPayload = (user: any, company: any, workspaceCount = 0) => ({
+  ...user,
+  companyName: company?.companyName,
+  logo: company?.logo,
+  isWebsiteTemplate: company?.isWebsiteTemplate,
+  hasCompletedWorkspaceSetup: Boolean(user?.hasCompletedWorkspaceSetup),
+  primaryWorkspace: user?.primaryWorkspace || null,
+  workspaceCount,
+});
 
 const refreshTokenController = async (req, res, next) => {
   try {
@@ -17,6 +28,10 @@ const refreshTokenController = async (req, res, next) => {
     if (!user) {
       return res.sendStatus(401);
     }
+    const workspaceCount = await WorkspaceMember.countDocuments({
+      user: user._id,
+      isActive: true,
+    });
     jwt.verify(
       refreshToken,
       process.env.REFRESH_TOKEN_SECRET,
@@ -32,12 +47,7 @@ const refreshTokenController = async (req, res, next) => {
         delete user.password;
         delete user.refreshToken;
         res.status(200).json({
-          user: {
-            ...user,
-            companyName: company?.companyName,
-            logo: company?.logo,
-            isWebsiteTemplate: company?.isWebsiteTemplate,
-          },
+          user: buildAuthUserPayload(user, company, workspaceCount),
           accessToken,
         });
       }

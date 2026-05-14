@@ -3,18 +3,11 @@ import { ArrowRight, Check, CheckCircle2, ChevronDown, ChevronRight } from "luci
 import { useLocation, useNavigate } from "react-router-dom";
 import logo from "../../assets/WONO_LOGO_Black_TP.png";
 import Footer from "../../components/Footer";
+import useAuth from "../../hooks/useAuth";
+import { readInviteOnboardingState } from "../../utils/inviteOnboarding";
+import { getWorkspaceCount } from "../../utils/workspacePlanAccess";
 
 type PlanType = "basic" | "professional" | "custom";
-
-type ModuleItem = {
-  id: string;
-  name: string;
-};
-
-type ModuleCategory = {
-  category: string;
-  items: ModuleItem[];
-};
 
 type PlanCardData = {
   key: PlanType;
@@ -22,72 +15,11 @@ type PlanCardData = {
   subtitle: string;
   priceLabel: string;
   note: string;
-  moduleGroups: Array<{ title: string; items: string[] }>;
-};
-
-const PLAN_CATALOG: Record<PlanType, ModuleCategory[]> = {
-  basic: [
-    {
-      category: "STATIC WEBSITE",
-      items: [
-        { id: "website-builder", name: "Website Builder" },
-        { id: "website-leads", name: "Website Leads" },
-      ],
-    },
-    {
-      category: "ADMIN CONTROL PANEL",
-      items: [
-        { id: "dashboard", name: "Admin Dashboard" },
-        { id: "nomad-listing", name: "Nomad Listings" },
-        { id: "access-grants", name: "Access Control" },
-        { id: "workspace-management", name: "Workspace Management" },
-      ],
-    },
-    {
-      category: "VISITOR TRACKING SYSTEM",
-      items: [
-        { id: "visitor-management", name: "Visitor Management" },
-        { id: "visitor-reports", name: "Visitor Reports" },
-      ],
-    },
-  ],
-  professional: [
-    {
-      category: "BASIC + OPERATIONS",
-      items: [
-        { id: "attendance", name: "Attendance" },
-        { id: "tasks", name: "Tasks" },
-        { id: "tickets", name: "Tickets" },
-        { id: "reports", name: "Reports" },
-      ],
-    },
-    {
-      category: "TEAM MANAGEMENT",
-      items: [
-        { id: "employee-management", name: "Employee Management" },
-        { id: "recruitment", name: "Recruitment" },
-        { id: "payroll-management", name: "Payroll Management" },
-      ],
-    },
-  ],
-  custom: [
-    {
-      category: "PROFESSIONAL + ENTERPRISE",
-      items: [
-        { id: "module-management", name: "Module Management" },
-        { id: "workspace-settings", name: "Workspace Settings" },
-        { id: "finance-management", name: "Finance Management" },
-      ],
-    },
-    {
-      category: "ADVANCED AUTOMATION",
-      items: [
-        { id: "chat-bot", name: "Chat Bot" },
-        { id: "analytics", name: "Analytics" },
-        { id: "it-repair-logs", name: "IT Repair Logs" },
-      ],
-    },
-  ],
+  moduleGroups: Array<{
+    title: string;
+    items?: string[];
+    subgroups?: Array<{ title: string; items: string[] }>;
+  }>;
 };
 
 const PLAN_UI_DATA: PlanCardData[] = [
@@ -99,20 +31,22 @@ const PLAN_UI_DATA: PlanCardData[] = [
     note: "* Limited time offer for few months.",
     moduleGroups: [
       {
-        title: "Static Website",
+        title: "Company Settings",
         items: [
-          "Desktop & Mobile",
-          "Automated Lead Capture",
-          "Smart Lead Management",
+          "Website Builder",
+          "Nomad Listing",
+          "Website Leads",
+          "Reviews",
+          "Organization Management",
+          "Module Management",
+          "Access Grants",
+          "Workspace Settings",
+          "Analytics",
         ],
       },
       {
-        title: "Admin Control Panel",
-        items: ["Core Dashboard", "Cloud Storage", "Dedicated Support", "Up to 2 Users"],
-      },
-      {
-        title: "Visitor Tracking System",
-        items: ["Visitor Management Basics"],
+        title: "Key Apps",
+        items: ["Tickets", "Visitor Management", "Chat Bot"],
       },
     ],
   },
@@ -125,16 +59,26 @@ const PLAN_UI_DATA: PlanCardData[] = [
     note: "Free activation and free for first month.",
     moduleGroups: [
       {
-        title: "Everything in Basic +",
-        items: ["Transactional Website", "Payment Gateway", "Advanced Sales Module"],
+        title: "Everything in Basic",
+        items: ["All Company Settings modules", "Tickets", "Visitor Management", "Chat Bot"],
       },
       {
-        title: "Operations Suite",
-        items: ["Meeting Room Booking System", "Visitor Management", "Integrated Ticketing System"],
+        title: "Key Apps",
+        items: ["Meeting Room Booking"],
       },
       {
-        title: "Team Scale",
-        items: ["Smart Calendar", "Up to 5 Users"],
+        title: "Department Access",
+        subgroups: [
+          {
+            title: "Sales Department",
+            items: [
+              "Sales Leads Management",
+              "Tenant Companies",
+              "Plans & Pricing",
+              "Sales Architecture",
+            ],
+          },
+        ],
       },
     ],
   },
@@ -147,22 +91,63 @@ const PLAN_UI_DATA: PlanCardData[] = [
     note: "Custom activation post testing.",
     moduleGroups: [
       {
-        title: "Everything in Professional +",
-        items: ["Advanced Booking Engine", "Custom Native Applications", "End-to-End Finance Suite"],
+        title: "Everything in Basic + Professional",
+        items: ["All Basic Plan modules", "Meeting Room Booking", "Sales Department modules"],
       },
       {
-        title: "Enterprise Modules",
-        items: ["HRMS", "IT Infrastructure Module", "Maintenance Management Module"],
-      },
-      {
-        title: "AI + Scale",
+        title: "Key Apps",
         items: [
-          "AI-Driven Lead Generation",
-          "AI Customer Experience Agent",
-          "AI Sales Automation",
-          "AI SEO & Growth Engine",
-          "Custom-Built Technology Stack",
-          "Unlimited Users",
+          "Attendance",
+          "Tasks",
+          "Leave Requests",
+          "Assets",
+          "Inventory",
+          "Finance Management",
+          "Reports",
+        ],
+      },
+      {
+        title: "Department Access",
+        subgroups: [
+          {
+            title: "HR Department",
+            items: [
+              "Employee Management",
+              "Documents",
+              "Recruitment",
+              "Leave Request Processing",
+              "Attendance Review",
+              "Payroll Management",
+              "Exit Management",
+            ],
+          },
+          {
+            title: "Administration Department",
+            items: [
+              "Tenant Companies",
+              "Bookings",
+              "Visitors Management",
+              "Resource Management",
+              "House Keeping",
+              "Workspace Layout",
+            ],
+          },
+          {
+            title: "Finance Department",
+            items: ["Finance & Budget", "Billing & Payments", "Accounting"],
+          },
+          {
+            title: "Maintenance Department",
+            items: ["Maintenance Repair Logs", "AMC Maintenance Scheduler"],
+          },
+          {
+            title: "Tech Department",
+            items: ["Website Builder"],
+          },
+          {
+            title: "IT Department",
+            items: ["IT Repair Logs"],
+          },
         ],
       },
     ],
@@ -172,22 +157,19 @@ const PLAN_UI_DATA: PlanCardData[] = [
 const SetupModulesPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { auth } = useAuth();
   const workspaceDetails = location.state?.workspaceDetails || null;
+  const inviteOnboarding = readInviteOnboardingState();
+  const selectedPlan = (
+    location.state?.selectedPlan ||
+    inviteOnboarding?.selectedPlan ||
+    "basic"
+  ) as PlanType;
+  const workspaceCount = getWorkspaceCount(
+    (auth.user as { workspaceCount?: number } | null)?.workspaceCount,
+  );
 
-  const selectedPlan = (location.state?.selectedPlan || "basic") as PlanType;
-
-  const toFinalModules = useMemo(() => {
-    return (PLAN_CATALOG[selectedPlan] || []).map((cat) => ({
-      category: cat.category,
-      items: cat.items.map((item) => ({ ...item, active: true })),
-    }));
-  }, [selectedPlan]);
-
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    "basic-0": true,
-    "professional-0": true,
-    "custom-0": true,
-  });
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   const toggleGroup = (key: string) =>
     setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -303,25 +285,94 @@ const SetupModulesPage: React.FC = () => {
                             onClick={() => toggleGroup(groupKey)}
                             className="w-full px-3 py-2 flex items-center justify-between text-left"
                           >
-                            <span className="text-[11px] font-semibold text-[#304766]">
-                              {group.title}
-                            </span>
-                            {isOpen ? (
-                              <ChevronDown size={14} className="text-[#607089]" />
-                            ) : (
-                              <ChevronRight size={14} className="text-[#607089]" />
-                            )}
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2
+                                size={16}
+                                className={
+                                  isSelected ? "text-[#23c35c]" : "text-[#a8b4c7]"
+                                }
+                              />
+                              <span className="text-[11px] font-semibold text-[#304766]">
+                                {group.title}
+                              </span>
+                            </div>
+                            <div className="flex items-center">
+                              {isOpen ? (
+                                <ChevronDown size={14} className="text-[#607089]" />
+                              ) : (
+                                <ChevronRight size={14} className="text-[#607089]" />
+                              )}
+                            </div>
                           </button>
                           {isOpen && (
                             <div className="px-3 pb-2 space-y-1">
-                              {group.items.map((item) => (
+                              {group.items?.map((item) => (
                                 <div key={item} className="flex items-start gap-2">
                                   <span className="mt-0.5">
-                                    <CheckCircle2 size={14} className="text-[#23c35c]" />
+                                    <CheckCircle2
+                                      size={14}
+                                      className={
+                                        isSelected ? "text-[#23c35c]" : "text-[#a8b4c7]"
+                                      }
+                                    />
                                   </span>
                                   <span className="text-[11px] text-[#4f627d]">{item}</span>
                                 </div>
                               ))}
+                              {group.subgroups?.map((subgroup, subgroupIdx) => {
+                                const subgroupKey = `${groupKey}-sub-${subgroupIdx}`;
+                                const isSubgroupOpen = Boolean(openGroups[subgroupKey]);
+                                return (
+                                  <div
+                                    key={subgroupKey}
+                                    className="rounded-xl border border-[#e1e7f0] bg-white/70"
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleGroup(subgroupKey)}
+                                      className="w-full px-3 py-2 flex items-center justify-between text-left"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <CheckCircle2
+                                          size={14}
+                                          className={
+                                            isSelected ? "text-[#23c35c]" : "text-[#a8b4c7]"
+                                          }
+                                        />
+                                        <span className="text-[11px] font-semibold text-[#3b4f6d]">
+                                          {subgroup.title}
+                                        </span>
+                                      </div>
+                                      {isSubgroupOpen ? (
+                                        <ChevronDown size={14} className="text-[#607089]" />
+                                      ) : (
+                                        <ChevronRight size={14} className="text-[#607089]" />
+                                      )}
+                                    </button>
+                                    {isSubgroupOpen && (
+                                      <div className="px-3 pb-2 space-y-1">
+                                        {subgroup.items.map((item) => (
+                                          <div key={item} className="flex items-start gap-2">
+                                            <span className="mt-0.5">
+                                              <CheckCircle2
+                                                size={13}
+                                                className={
+                                                  isSelected
+                                                    ? "text-[#23c35c]"
+                                                    : "text-[#a8b4c7]"
+                                                }
+                                              />
+                                            </span>
+                                            <span className="text-[11px] text-[#4f627d]">
+                                              {item}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -361,7 +412,11 @@ const SetupModulesPage: React.FC = () => {
           <div className="pt-4 border-t border-[#e1e6ef] mt-6 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 max-w-[900px] mx-auto">
             <button
               type="button"
-              onClick={() => navigate("/create-workspace")}
+              onClick={() =>
+                navigate("/create-workspace", {
+                  state: { workspaceDetails, selectedPlan },
+                })
+              }
               className="h-10 w-full sm:w-auto px-5 rounded-xl border border-[#d0d8e5] text-[#5b6b83] text-[14px] font-medium bg-transparent"
             >
               Back
@@ -372,8 +427,8 @@ const SetupModulesPage: React.FC = () => {
                 navigate("/create-workspace/finalize", {
                   state: {
                     workspaceDetails,
-                    modules: toFinalModules,
                     selectedPlan,
+                    workspaceCount,
                   },
                 })
               }

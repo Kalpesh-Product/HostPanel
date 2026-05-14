@@ -4,6 +4,7 @@ import { Box, CircularProgress, Container, Grid, TextField } from "@mui/material
 import { toast } from "sonner";
 import Footer from "../../components/Footer";
 import { api, axiosPrivate } from "../../utils/axios";
+import { writeInviteOnboardingState } from "../../utils/inviteOnboarding";
 import logo from "../../assets/WONO_LOGO_Black_TP.png";
 import "./ClientLogin.css";
 import "./ClientSpecialClasses.css";
@@ -16,6 +17,9 @@ export default function RegisterOtpVerification() {
   const [emailInput, setEmailInput] = useState(location.state?.email || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const email = location.state?.email || "";
+  const fullName = location.state?.fullName || "";
+  const selectedPlan = location.state?.selectedPlan || "basic";
+  const businessName = location.state?.businessName || "";
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -34,6 +38,15 @@ export default function RegisterOtpVerification() {
         await axiosPrivate.get("/api/auth/logout");
       } catch {
         // No-op: registration succeeded; logout attempt is best-effort.
+      }
+      if (token && email) {
+        writeInviteOnboardingState({
+          source: "invite",
+          email,
+          fullName,
+          selectedPlan,
+          businessName,
+        });
       }
       toast.success(response.data?.message || "Registration complete.");
       navigate("/");

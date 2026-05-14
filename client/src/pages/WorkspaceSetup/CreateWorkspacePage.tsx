@@ -1,25 +1,60 @@
 import React, { useEffect, useState } from "react";
 import { ArrowRight, ChevronDown } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Footer from "../../components/Footer";
 import logo from "../../assets/WONO_LOGO_Black_TP.png";
 import { toast } from "sonner";
 import { getCities, getCountries, getStates } from "../../utils/locationApi";
+import useAuth from "../../hooks/useAuth";
+import { readInviteOnboardingState } from "../../utils/inviteOnboarding";
 
 const CreateWorkspacePage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { auth } = useAuth();
+  const initialWorkspaceDetails = location.state?.workspaceDetails || {};
+  const authUserEmail = String(
+    ((auth.user as { email?: string } | null)?.email || ""),
+  );
+  const inviteOnboarding = readInviteOnboardingState();
+  const activeInviteOnboarding =
+    inviteOnboarding?.email &&
+    inviteOnboarding.email === authUserEmail
+      ? inviteOnboarding
+      : null;
   const [countries, setCountries] = useState<string[]>([]);
   const [states, setStates] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
 
-  const [country, setCountry] = useState("");
-  const [stateName, setStateName] = useState("");
-  const [city, setCity] = useState("");
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [businessName, setBusinessName] = useState("");
-  const [brandName, setBrandName] = useState("");
-  const [businessTypes, setBusinessTypes] = useState<string[]>([]);
+  const [country, setCountry] = useState(
+    location.state?.workspaceDetails?.country || "",
+  );
+  const [stateName, setStateName] = useState(
+    location.state?.workspaceDetails?.state || "",
+  );
+  const [city, setCity] = useState(location.state?.workspaceDetails?.city || "");
+  const [address, setAddress] = useState(
+    location.state?.workspaceDetails?.address || "",
+  );
+  const [workspaceName, setWorkspaceName] = useState(
+    location.state?.workspaceDetails?.workspaceName || "",
+  );
+  const [businessName, setBusinessName] = useState(
+    location.state?.workspaceDetails?.businessName ||
+      activeInviteOnboarding?.businessName ||
+      "",
+  );
+  const [brandName, setBrandName] = useState(
+    location.state?.workspaceDetails?.brandName || "",
+  );
+  const [businessTypes, setBusinessTypes] = useState<string[]>(
+    Array.isArray(location.state?.workspaceDetails?.businessTypes)
+      ? location.state.workspaceDetails.businessTypes
+      : [],
+  );
   const [isBusinessTypeOpen, setIsBusinessTypeOpen] = useState(false);
+  const selectedPlanFromInviteOrState =
+    location.state?.selectedPlan || activeInviteOnboarding?.selectedPlan || "basic";
 
   const [isCountriesLoading, setIsCountriesLoading] = useState(false);
   const [isStatesLoading, setIsStatesLoading] = useState(false);
@@ -51,6 +86,7 @@ const CreateWorkspacePage: React.FC = () => {
     country.trim(),
     stateName.trim(),
     city.trim(),
+    address.trim(),
   ].every(Boolean) && businessTypes.length > 0;
 
   useEffect(() => {
@@ -90,9 +126,11 @@ const CreateWorkspacePage: React.FC = () => {
       try {
         setIsStatesLoading(true);
         setStates([]);
-        setStateName("");
-        setCities([]);
-        setCity("");
+        if (country !== initialWorkspaceDetails.country) {
+          setStateName("");
+          setCities([]);
+          setCity("");
+        }
         const result = await getStates(country);
         if (active) setStates(result);
       } catch (error: unknown) {
@@ -108,7 +146,7 @@ const CreateWorkspacePage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [country]);
+  }, [country, initialWorkspaceDetails.country]);
 
   useEffect(() => {
     let active = true;
@@ -122,7 +160,9 @@ const CreateWorkspacePage: React.FC = () => {
       try {
         setIsCitiesLoading(true);
         setCities([]);
-        setCity("");
+        if (stateName !== initialWorkspaceDetails.state) {
+          setCity("");
+        }
         const result = await getCities(country, stateName);
         if (active) setCities(result);
       } catch (error: unknown) {
@@ -138,7 +178,7 @@ const CreateWorkspacePage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [country, stateName]);
+  }, [country, stateName, initialWorkspaceDetails.state]);
 
   return (
     <div className="min-h-screen bg-[#f4f4f4] text-[#0f172a] font-['Poppins'] flex flex-col">
@@ -232,8 +272,10 @@ const CreateWorkspacePage: React.FC = () => {
                     country,
                     state: stateName,
                     city,
+                    address,
                     businessTypes,
                   },
+                  selectedPlan: selectedPlanFromInviteOrState,
                 },
               });
             }}
@@ -263,6 +305,7 @@ const CreateWorkspacePage: React.FC = () => {
                   placeholder="Enter business name"
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
+                  disabled={Boolean(activeInviteOnboarding?.businessName)}
                   className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-[#9aa6b9] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
                 />
               </div>
@@ -359,6 +402,21 @@ const CreateWorkspacePage: React.FC = () => {
               </select>
             </div>
 
+            <div className="flex flex-col">
+              <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+                Address
+              </label>
+              <input
+                type="text"
+                placeholder="Enter your address"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-[#9aa6b9] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-5">
             <div className="flex flex-col">
               <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                 Business Type

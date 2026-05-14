@@ -22,7 +22,6 @@ import {
   Presentation,
   ContactRound,
   Warehouse,
-  ClipboardList,
   Wallet,
   MessageSquareCode,
   FileChartColumn,
@@ -50,6 +49,11 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSidebar } from "../context/SideBarContext";
+import useAuth from "../hooks/useAuth";
+import {
+  getEnabledModuleIdsForPlan,
+  getWorkspaceCount,
+} from "../utils/workspacePlanAccess";
 
 type PlanType = "basic" | "professional" | "custom";
 
@@ -127,7 +131,6 @@ const keyAppsData: NavNode[] = [
   { id: "visitor-management", label: "Visitor Management", icon: ContactRound, disabled: true },
   { id: "assets", label: "Assets", icon: Package, disabled: true },
   { id: "inventory", label: "Inventory", icon: Warehouse, disabled: true },
-  { id: "ticketing-system", label: "Ticketing System", icon: ClipboardList, disabled: true },
   { id: "finance-management", label: "Finance Management", icon: Wallet, disabled: true },
   { id: "chat-bot", label: "Chat Bot", icon: MessageSquareCode, disabled: true },
   { id: "reports", label: "Reports", icon: FileChartColumn, disabled: true },
@@ -320,6 +323,7 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate }: NavGroup
 
 export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const { isSidebarOpen } = useSidebar();
+  const { auth } = useAuth();
   const collapsed = !isSidebarOpen;
   const navigate = useNavigate();
   const location = useLocation();
@@ -328,7 +332,13 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const [isDepartmentOpen, setIsDepartmentOpen] = useState(false);
   const workspaceSetup = readWorkspaceSetup();
   const planLabel = workspaceSetup.selectedPlan || "basic";
-  const enabledIds = new Set(workspaceSetup.enabledModuleIds || []);
+  const workspaceCount = getWorkspaceCount(
+    (auth.user as { workspaceCount?: number } | null)?.workspaceCount,
+  );
+  const enabledIds = new Set([
+    ...getEnabledModuleIdsForPlan(planLabel, workspaceCount),
+    ...(workspaceSetup.enabledModuleIds || []),
+  ]);
 
   const applyEnabledState = (items: NavNode[]): NavNode[] =>
     items.map((item) => {
