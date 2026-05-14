@@ -95,7 +95,7 @@ export default function RegisterPage() {
       </header>
 
       <div className="login-section loginTopPadding loginBottomPadding poppinsRegular heightPadding">
-        <h1 className="text-center text-4xl font-bold">REGISTER</h1>
+        <h1 className="text-center text-4xl font-bold">REGISTER YOURSELF!</h1>
         <div className="loginDividingContainer shrink-container">
           <div className="w-5/6 md:w-2/3">
             <Container maxWidth="lg" style={{ padding: "3rem 0 0" }}>

@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { ArrowRight, ChevronDown } from "lucide-react";
-import Footer from "../components/Footer";
-import logo from "../assets/WONO_LOGO_Black_TP.png";
+import { useNavigate } from "react-router-dom";
+import Footer from "../../components/Footer";
+import logo from "../../assets/WONO_LOGO_Black_TP.png";
 import { toast } from "sonner";
-import { getCities, getCountries, getStates } from "../utils/locationApi";
+import { getCities, getCountries, getStates } from "../../utils/locationApi";
 
 const CreateWorkspacePage: React.FC = () => {
+  const navigate = useNavigate();
   const [countries, setCountries] = useState<string[]>([]);
   const [states, setStates] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
@@ -129,15 +131,15 @@ const CreateWorkspacePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#f4f4f4] text-[#0f172a] font-['Poppins'] flex flex-col">
       <div className="shadow-md bg-white/80 backdrop-blur-md">
-        <div className="max-w-[80rem] mx-auto px-6 lg:px-0">
-          <div className="flex justify-between items-center py-3">
+        <div className="max-w-[80rem] mx-auto px-4 sm:px-6 lg:px-0">
+          <div className="flex justify-between items-center py-3 gap-3">
             <a href="https://wono.co">
-              <img src={logo} alt="wono" className="w-36 h-10" />
+              <img src={logo} alt="wono" className="w-28 sm:w-36 h-auto" />
             </a>
             <button
               type="button"
               onClick={() => (window.location.href = "https://nomad.wono.co")}
-              className="relative pb-1 transition-all duration-300 group font-bold bg-transparent uppercase border-none"
+              className="relative pb-1 transition-all duration-300 group font-bold bg-transparent uppercase border-none text-[11px] sm:text-[13px] whitespace-nowrap"
             >
               Become a nomad
               <span className="absolute left-0 w-0 bottom-0 block h-[2px] bg-blue-500 transition-all duration-300 group-hover:w-full" />
@@ -148,11 +150,11 @@ const CreateWorkspacePage: React.FC = () => {
 
       <main className="flex-1 px-4 sm:px-6 lg:px-8 pt-8 md:pt-12 pb-12">
         <div className="w-full max-w-[900px] mx-auto">
-          <div className="mb-10">
+          <div className="mb-8 sm:mb-10">
           <p className="text-[10px] font-bold tracking-[0.22em] text-[#8da0bd] uppercase mb-4">
             Progress
           </p>
-          <div className="flex items-center w-full">
+          <div className="flex flex-col md:flex-row md:items-center w-full gap-4 md:gap-0">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-[#dce9ff] flex items-center justify-center">
                 <div className="w-8 h-8 rounded-full bg-[#2d67f0] text-white text-sm font-bold flex items-center justify-center">
@@ -167,7 +169,7 @@ const CreateWorkspacePage: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex-1 h-px bg-[#2d67f0] mx-4 md:mx-6" />
+            <div className="hidden md:block flex-1 h-px bg-[#2d67f0] mx-4 md:mx-6" />
 
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full border border-[#c8cfda] bg-transparent text-[#c8cfda] text-sm font-bold flex items-center justify-center">
@@ -179,7 +181,7 @@ const CreateWorkspacePage: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex-1 h-px bg-[#2d67f0] mx-4 md:mx-6" />
+            <div className="hidden md:block flex-1 h-px bg-[#2d67f0] mx-4 md:mx-6" />
 
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-full border border-[#c8cfda] bg-transparent text-[#c8cfda] text-sm font-bold flex items-center justify-center">
@@ -193,8 +195,8 @@ const CreateWorkspacePage: React.FC = () => {
           </div>
         </div>
 
-          <div className="text-center mb-7">
-            <h1 className="text-[30px] md:text-[38px] font-bold text-[#111b33] mb-4">
+          <div className="text-center mb-6 sm:mb-7">
+            <h1 className="text-[26px] sm:text-[30px] md:text-[38px] font-bold text-[#111b33] mb-3 sm:mb-4">
               Create your workspace
             </h1>
           <p className="text-sm md:text-[15px] text-[#63738d]">
@@ -203,7 +205,13 @@ const CreateWorkspacePage: React.FC = () => {
           </p>
           </div>
 
-          <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              navigate("/create-workspace/modules");
+            }}
+            className="space-y-4"
+          >
           <div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5">
               <div className="flex flex-col">
@@ -364,7 +372,7 @@ const CreateWorkspacePage: React.FC = () => {
             </p>
             <button
               type="submit"
-              className="h-10 px-7 rounded-xl bg-[#8aa9ef] hover:bg-[#7d9de8] transition-colors text-white text-[13px] font-semibold inline-flex items-center gap-2"
+              className="h-10 w-full sm:w-auto px-7 rounded-xl bg-[#8aa9ef] hover:bg-[#7d9de8] transition-colors text-white text-[13px] font-semibold inline-flex items-center justify-center gap-2"
             >
               Continue <ArrowRight size={16} />
             </button>

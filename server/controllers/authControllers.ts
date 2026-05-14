@@ -16,6 +16,22 @@ const decodeSignupInviteToken = (token) => {
   return jwt.verify(token, secret);
 };
 
+const extractInviteIdentity = (decoded: any) => {
+  const inviteEmail = decoded?.email || decoded?.userInfo?.email || "";
+  const firstName = decoded?.firstName || decoded?.userInfo?.firstName || "";
+  const lastName = decoded?.lastName || decoded?.userInfo?.lastName || "";
+  const combinedName = `${firstName} ${lastName}`.trim();
+  const inviteName =
+    decoded?.fullName ||
+    decoded?.name ||
+    decoded?.userInfo?.name ||
+    decoded?.userInfo?.fullName ||
+    combinedName ||
+    "";
+
+  return { inviteEmail, inviteName };
+};
+
 export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -255,12 +271,7 @@ export const getRegisterPrefill = async (req, res, next) => {
     if (!token) return res.status(400).json({ message: "Invite token is required." });
 
     const decoded = decodeSignupInviteToken(token);
-    const inviteEmail = decoded?.email || decoded?.userInfo?.email;
-    const inviteName =
-      decoded?.fullName ||
-      decoded?.name ||
-      decoded?.userInfo?.name ||
-      decoded?.userInfo?.fullName;
+    const { inviteEmail, inviteName } = extractInviteIdentity(decoded);
 
     if (!inviteEmail || !inviteName) {
       return res.status(400).json({ message: "Invalid invite token payload." });
@@ -316,13 +327,7 @@ export const startRegisterWithOtp = async (req, res, next) => {
     }
 
     const decoded = decodeSignupInviteToken(token);
-    const inviteEmail = decoded?.email || decoded?.userInfo?.email;
-    const inviteName =
-      decoded?.fullName ||
-      decoded?.name ||
-      decoded?.userInfo?.name ||
-      decoded?.userInfo?.fullName ||
-      "Founder";
+    const { inviteEmail, inviteName } = extractInviteIdentity(decoded);
 
     if (!inviteEmail || !inviteName) {
       return res.status(400).json({ message: "Invalid invite token payload." });
@@ -396,12 +401,7 @@ export const verifyRegisterOtpAndComplete = async (req, res, next) => {
     if (!otp) return res.status(400).json({ message: "OTP is required." });
 
     const decoded = decodeSignupInviteToken(token);
-    const inviteEmail = decoded?.email || decoded?.userInfo?.email;
-    const inviteName =
-      decoded?.fullName ||
-      decoded?.name ||
-      decoded?.userInfo?.name ||
-      decoded?.userInfo?.fullName;
+    const { inviteEmail, inviteName } = extractInviteIdentity(decoded);
 
     if (!inviteEmail || !inviteName)
       return res.status(400).json({ message: "Invalid invite token payload." });

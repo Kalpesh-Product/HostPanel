@@ -150,7 +150,8 @@ import ResetPassword from "../pages/LoginPage/ResetPassword";
 import RegisterPage from "../pages/LoginPage/RegisterPage";
 import RegisterOtpVerification from "../pages/LoginPage/RegisterOtpVerification";
 import CompanyReviews from "../pages/Dashboard/FrontendDashboard/CompanyReviews";
-import CreateWorkspacePage from "../pages/CreateWorkspacePage";
+import CreateWorkspacePage from "../pages/WorkspaceSetup/CreateWorkspacePage";
+import SetupModulesPage from "../pages/WorkspaceSetup/SetupModulesPage";
 
 export const routes = createBrowserRouter([
   {
@@ -199,6 +200,10 @@ export const routes = createBrowserRouter([
           {
             path: "/create-workspace",
             element: <CreateWorkspacePage />,
+          },
+          {
+            path: "/create-workspace/modules",
+            element: <SetupModulesPage />,
           },
           {
             path: "/",
