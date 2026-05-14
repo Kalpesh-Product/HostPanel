@@ -152,6 +152,7 @@ import RegisterOtpVerification from "../pages/LoginPage/RegisterOtpVerification"
 import CompanyReviews from "../pages/Dashboard/FrontendDashboard/CompanyReviews";
 import CreateWorkspacePage from "../pages/WorkspaceSetup/CreateWorkspacePage";
 import SetupModulesPage from "../pages/WorkspaceSetup/SetupModulesPage";
+import FinalizeSetupPage from "../pages/WorkspaceSetup/FinalizeSetupPage";
 
 export const routes = createBrowserRouter([
   {
@@ -204,6 +205,10 @@ export const routes = createBrowserRouter([
           {
             path: "/create-workspace/modules",
             element: <SetupModulesPage />,
+          },
+          {
+            path: "/create-workspace/finalize",
+            element: <FinalizeSetupPage />,
           },
           {
             path: "/",

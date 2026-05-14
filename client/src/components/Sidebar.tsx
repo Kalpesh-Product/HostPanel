@@ -84,7 +84,26 @@ interface NavItemProps {
   forceSmall?: boolean;
 }
 
-const PLAN_LABEL: PlanType = "basic";
+interface WorkspaceSetupState {
+  selectedPlan?: PlanType;
+  enabledModuleIds?: string[];
+}
+
+const readWorkspaceSetup = (): WorkspaceSetupState => {
+  try {
+    const raw = localStorage.getItem("workspace_setup");
+    if (!raw) return { selectedPlan: "basic", enabledModuleIds: [] };
+    const parsed = JSON.parse(raw) as WorkspaceSetupState;
+    return {
+      selectedPlan: parsed?.selectedPlan || "basic",
+      enabledModuleIds: Array.isArray(parsed?.enabledModuleIds)
+        ? parsed.enabledModuleIds
+        : [],
+    };
+  } catch {
+    return { selectedPlan: "basic", enabledModuleIds: [] };
+  }
+};
 
 const companySettingsData: NavNode[] = [
   { id: "website-builder", label: "Website Builder", icon: Globe, route: "/company-settings/website-builder" },
@@ -307,6 +326,29 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const [isCompanySettingsOpen, setIsCompanySettingsOpen] = useState(false);
   const [isKeyAppsOpen, setIsKeyAppsOpen] = useState(false);
   const [isDepartmentOpen, setIsDepartmentOpen] = useState(false);
+  const workspaceSetup = readWorkspaceSetup();
+  const planLabel = workspaceSetup.selectedPlan || "basic";
+  const enabledIds = new Set(workspaceSetup.enabledModuleIds || []);
+
+  const applyEnabledState = (items: NavNode[]): NavNode[] =>
+    items.map((item) => {
+      const hasChildren = Boolean(item.children?.length);
+      if (hasChildren) {
+        return {
+          ...item,
+          children: applyEnabledState(item.children || []),
+        };
+      }
+      if (!item.disabled) return item;
+      return {
+        ...item,
+        disabled: !enabledIds.has(item.id),
+      };
+    });
+
+  const companySettingsItems = applyEnabledState(companySettingsData);
+  const keyAppsItems = applyEnabledState(keyAppsData);
+  const departmentItems = applyEnabledState(departmentModules);
 
   const onNavigate = (item: NavNode) => {
     if (!item.route || item.disabled) return;
@@ -322,7 +364,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     >
       <div className="px-4 py-3 flex justify-center">
         <span className="text-[10px] font-bold tracking-wider text-gray-600 bg-gray-200 px-3 py-1 rounded-full uppercase">
-          {collapsed ? PLAN_LABEL[0].toUpperCase() : `Plan - ${PLAN_LABEL}`}
+          {collapsed ? planLabel[0].toUpperCase() : `Plan - ${planLabel}`}
         </span>
       </div>
 
@@ -346,7 +388,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
           )}
           {(isCompanySettingsOpen || collapsed) && (
             <div className="space-y-1">
-              {companySettingsData.map((item) => (
+              {companySettingsItems.map((item) => (
                 <NavGroup
                   key={item.id}
                   item={item}
@@ -371,7 +413,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
           )}
           {(isKeyAppsOpen || collapsed) && (
             <div className="space-y-1">
-              {keyAppsData.map((item) => (
+              {keyAppsItems.map((item) => (
                 <NavGroup
                   key={item.id}
                   item={item}
@@ -396,7 +438,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
           )}
           {(isDepartmentOpen || collapsed) && (
             <div className="space-y-1">
-              {departmentModules.map((item) => (
+              {departmentItems.map((item) => (
                 <NavGroup
                   key={item.id}
                   item={item}

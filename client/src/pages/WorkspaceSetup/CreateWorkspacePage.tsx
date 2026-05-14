@@ -15,6 +15,9 @@ const CreateWorkspacePage: React.FC = () => {
   const [country, setCountry] = useState("");
   const [stateName, setStateName] = useState("");
   const [city, setCity] = useState("");
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [businessName, setBusinessName] = useState("");
+  const [brandName, setBrandName] = useState("");
   const [businessTypes, setBusinessTypes] = useState<string[]>([]);
   const [isBusinessTypeOpen, setIsBusinessTypeOpen] = useState(false);
 
@@ -40,6 +43,15 @@ const CreateWorkspacePage: React.FC = () => {
     businessTypes.length > 0
       ? businessTypes.join(", ")
       : "Select your Business Types";
+
+  const isWorkspaceFormComplete = [
+    workspaceName.trim(),
+    businessName.trim(),
+    brandName.trim(),
+    country.trim(),
+    stateName.trim(),
+    city.trim(),
+  ].every(Boolean) && businessTypes.length > 0;
 
   useEffect(() => {
     let active = true;
@@ -208,7 +220,22 @@ const CreateWorkspacePage: React.FC = () => {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              navigate("/create-workspace/modules");
+              if (!isWorkspaceFormComplete) {
+                return;
+              }
+              navigate("/create-workspace/modules", {
+                state: {
+                  workspaceDetails: {
+                    workspaceName,
+                    businessName,
+                    brandName,
+                    country,
+                    state: stateName,
+                    city,
+                    businessTypes,
+                  },
+                },
+              });
             }}
             className="space-y-4"
           >
@@ -221,6 +248,8 @@ const CreateWorkspacePage: React.FC = () => {
                 <input
                   type="text"
                   placeholder="Enter Unique workspace name"
+                  value={workspaceName}
+                  onChange={(e) => setWorkspaceName(e.target.value)}
                   className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-[#9aa6b9] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
                 />
               </div>
@@ -232,6 +261,8 @@ const CreateWorkspacePage: React.FC = () => {
                 <input
                   type="text"
                   placeholder="Enter business name"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
                   className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-[#9aa6b9] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
                 />
               </div>
@@ -243,6 +274,8 @@ const CreateWorkspacePage: React.FC = () => {
                 <input
                   type="text"
                   placeholder="Enter brand name"
+                  value={brandName}
+                  onChange={(e) => setBrandName(e.target.value)}
                   className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-[#9aa6b9] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
                 />
               </div>
@@ -372,7 +405,8 @@ const CreateWorkspacePage: React.FC = () => {
             </p>
             <button
               type="submit"
-              className="h-10 w-full sm:w-auto px-7 rounded-xl bg-[#8aa9ef] hover:bg-[#7d9de8] transition-colors text-white text-[13px] font-semibold inline-flex items-center justify-center gap-2"
+              disabled={!isWorkspaceFormComplete}
+              className="h-10 w-full sm:w-auto px-7 rounded-xl bg-[#2d67f0] hover:bg-[#2558d5] disabled:bg-[#c8d5f1] disabled:text-white/80 disabled:cursor-not-allowed transition-colors text-white text-[13px] font-semibold inline-flex items-center justify-center gap-2"
             >
               Continue <ArrowRight size={16} />
             </button>
