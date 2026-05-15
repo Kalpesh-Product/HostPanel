@@ -88,19 +88,18 @@ export default function RegisterOtpVerification() {
 
               <Box component="form" sx={{ flexGrow: 1 }} onSubmit={handleSubmit} noValidate autoComplete="off">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {!token && (
-                    <div className="w-full">
-                      <TextField
-                        label="Email"
-                        variant="standard"
-                        type="email"
-                        value={emailInput}
-                        onChange={(e) => setEmailInput(e.target.value)}
-                        required
-                        fullWidth
-                      />
-                    </div>
-                  )}
+                  <div className="w-full">
+                    <TextField
+                      label="Email"
+                      variant="standard"
+                      type="email"
+                      value={email || emailInput}
+                      onChange={(e) => !token && setEmailInput(e.target.value)}
+                      disabled={Boolean(token)}
+                      required
+                      fullWidth
+                    />
+                  </div>
                   <div className="w-full">
                     <TextField
                       label="OTP"

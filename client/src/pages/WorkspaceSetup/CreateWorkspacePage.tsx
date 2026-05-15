@@ -1,12 +1,31 @@
 import React, { useEffect, useState } from "react";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { City, Country, State } from "country-state-city";
+import { Autocomplete, TextField } from "@mui/material";
 import Footer from "../../components/Footer";
 import logo from "../../assets/WONO_LOGO_Black_TP.png";
 import { toast } from "sonner";
-import { getCities, getCountries, getStates } from "../../utils/locationApi";
 import useAuth from "../../hooks/useAuth";
 import { readInviteOnboardingState } from "../../utils/inviteOnboarding";
+
+interface CountryOption {
+  name: string;
+  isoCode: string;
+  flag: string;
+}
+
+interface StateOption {
+  name: string;
+  isoCode: string;
+}
+
+interface CityOption {
+  name: string;
+}
+
+const getFlagUrl = (isoCode: string) =>
+  `https://flagcdn.com/w40/${String(isoCode || "").toLowerCase()}.png`;
 
 const CreateWorkspacePage: React.FC = () => {
   const navigate = useNavigate();
@@ -22,9 +41,9 @@ const CreateWorkspacePage: React.FC = () => {
     inviteOnboarding.email === authUserEmail
       ? inviteOnboarding
       : null;
-  const [countries, setCountries] = useState<string[]>([]);
-  const [states, setStates] = useState<string[]>([]);
-  const [cities, setCities] = useState<string[]>([]);
+  const [countries, setCountries] = useState<CountryOption[]>([]);
+  const [states, setStates] = useState<StateOption[]>([]);
+  const [cities, setCities] = useState<CityOption[]>([]);
 
   const [country, setCountry] = useState(
     location.state?.workspaceDetails?.country || "",
@@ -55,6 +74,10 @@ const CreateWorkspacePage: React.FC = () => {
   const [isBusinessTypeOpen, setIsBusinessTypeOpen] = useState(false);
   const selectedPlanFromInviteOrState =
     location.state?.selectedPlan || activeInviteOnboarding?.selectedPlan || "basic";
+  const selectedCountryOption =
+    countries.find((item) => item.name === country) || null;
+  const selectedStateOption =
+    states.find((item) => item.name === stateName) || null;
 
   const [isCountriesLoading, setIsCountriesLoading] = useState(false);
   const [isStatesLoading, setIsStatesLoading] = useState(false);
@@ -94,7 +117,13 @@ const CreateWorkspacePage: React.FC = () => {
     const loadCountries = async () => {
       try {
         setIsCountriesLoading(true);
-        const result = await getCountries();
+        const result = Country.getAllCountries()
+          .map((item) => ({
+          name: item.name,
+          isoCode: item.isoCode,
+          flag: item.flag,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
         if (active) setCountries(result);
       } catch (error: unknown) {
         if (active) {
@@ -131,7 +160,12 @@ const CreateWorkspacePage: React.FC = () => {
           setCities([]);
           setCity("");
         }
-        const result = await getStates(country);
+        const result = State.getStatesOfCountry(selectedCountryOption?.isoCode || "")
+          .map((item) => ({
+            name: item.name,
+            isoCode: item.isoCode,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
         if (active) setStates(result);
       } catch (error: unknown) {
         if (active) {
@@ -146,7 +180,7 @@ const CreateWorkspacePage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [country, initialWorkspaceDetails.country]);
+  }, [country, initialWorkspaceDetails.country, selectedCountryOption?.isoCode]);
 
   useEffect(() => {
     let active = true;
@@ -163,7 +197,14 @@ const CreateWorkspacePage: React.FC = () => {
         if (stateName !== initialWorkspaceDetails.state) {
           setCity("");
         }
-        const result = await getCities(country, stateName);
+        const result = City.getCitiesOfState(
+          selectedCountryOption?.isoCode || "",
+          selectedStateOption?.isoCode || "",
+        )
+          .map((item) => ({
+            name: item.name,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
         if (active) setCities(result);
       } catch (error: unknown) {
         if (active) {
@@ -178,7 +219,13 @@ const CreateWorkspacePage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [country, stateName, initialWorkspaceDetails.state]);
+  }, [
+    country,
+    stateName,
+    initialWorkspaceDetails.state,
+    selectedCountryOption?.isoCode,
+    selectedStateOption?.isoCode,
+  ]);
 
   return (
     <div className="min-h-screen bg-[#f4f4f4] text-[#0f172a] font-['Poppins'] flex flex-col">
@@ -329,25 +376,126 @@ const CreateWorkspacePage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-5">
+            <div className="flex flex-col md:col-span-2">
+              <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
+                Address
+              </label>
+              <input
+                type="text"
+                placeholder="Enter your address"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-[#9aa6b9] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
+              />
+            </div>
+
             <div className="flex flex-col">
               <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                 Country
               </label>
-              <select
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                disabled={isCountriesLoading}
-                className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff] disabled:bg-[#eef1f5] disabled:text-[#8d99ad]"
-              >
-                <option value="">
-                  {isCountriesLoading ? "Loading countries..." : "Select country"}
-                </option>
-                {countries.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
+              <Autocomplete
+                  options={countries}
+                  value={selectedCountryOption}
+                  onChange={(_, newValue) => setCountry(newValue?.name || "")}
+                  disabled={isCountriesLoading}
+                  getOptionLabel={(option) => option.name}
+                  isOptionEqualToValue={(option, value) => option.isoCode === value.isoCode}
+                  noOptionsText="No countries found"
+                  sx={{
+                    "& .MuiAutocomplete-paper": {
+                      marginTop: "6px",
+                      borderRadius: "8px",
+                      boxShadow: "0 8px 32px rgba(15, 23, 42, 0.15)",
+                    },
+                    "& .MuiAutocomplete-endAdornment": {
+                      right: "10px",
+                      gap: "2px",
+                    },
+                    "& .MuiAutocomplete-clearIndicator, & .MuiAutocomplete-popupIndicator": {
+                      padding: "4px",
+                    },
+                    "& .MuiAutocomplete-listbox": {
+                      padding: "8px 0px",
+                    },
+                    "& .MuiAutocomplete-option": {
+                      minHeight: "44px !important",
+                      padding: "8px 16px 8px 24px !important",
+                      borderRadius: "12px",
+                      // 1. THIS ADDS THE VERTICAL GAP BETWEEN ROWS
+                      marginBottom: "8px !important", 
+                    },
+                    "& .MuiAutocomplete-option:last-of-type": {
+                      marginBottom: "0 !important",
+                    },
+                  }}
+                    renderOption={(props, option) => (
+                      <li
+                        {...props}
+                        key={option.isoCode}
+                        // 2. ADDED ${props.className} SO THE MARGIN-BOTTOM ABOVE ACTUALLY APPLIES
+                        className={`${props.className} flex items-center gap-4 text-[13px] text-[#334155]`}
+                      >
+                        <img
+                          src={getFlagUrl(option.isoCode)}
+                          alt={`${option.name} flag`}
+                          className="h-4 w-6 shrink-0 rounded-[3px] object-cover shadow-sm"
+                          loading="lazy"
+                        />
+                        <span className="leading-none tracking-[0.01em]">{option.name}</span>
+                      </li>
+                    )}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder={isCountriesLoading ? "Loading countries..." : "Select country"}
+                    variant="outlined"
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        minHeight: "32px",
+                        height: "42px",
+                        borderRadius: "12px",
+                        backgroundColor: "#f2f4f8",
+                        fontSize: "10px",
+                        color: "#334155",
+                        paddingLeft: "6px",
+                        paddingRight: "8px",
+                        alignItems: "center",
+                        "& fieldset": {
+                          borderColor: "#d2d9e5",
+                        },
+                        "&:hover fieldset": {
+                          borderColor: "#d2d9e5",
+                        },
+                        "&.Mui-focused fieldset": {
+                          borderColor: "#bcd0ff",
+                          boxShadow: "0 0 0 2px rgba(188, 208, 255, 0.45)",
+                        },
+                      },
+                      "& .MuiOutlinedInput-input": {
+                        padding: "4px 8px",
+                      },
+                      "& .MuiAutocomplete-input": {
+                        minWidth: "36px",
+                      },
+                    }}
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: selectedCountryOption ? (
+                        <div className="flex items-center gap-2 pl-1">
+                          <img
+                            src={getFlagUrl(selectedCountryOption.isoCode)}
+                            alt={`${selectedCountryOption.name} flag`}
+                            className="h-4 w-6 shrink-0 rounded-[2px] object-cover shadow-sm"
+                          />
+                          {params.InputProps.startAdornment}
+                        </div>
+                      ) : (
+                        params.InputProps.startAdornment
+                      ),
+                    }}
+                  />
+                )}
+              />
             </div>
 
             <div className="flex flex-col">
@@ -368,8 +516,8 @@ const CreateWorkspacePage: React.FC = () => {
                     : "Select state"}
                 </option>
                 {states.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
+                  <option key={item.isoCode} value={item.name}>
+                    {item.name}
                   </option>
                 ))}
               </select>
@@ -395,28 +543,13 @@ const CreateWorkspacePage: React.FC = () => {
                     : "Select city"}
                 </option>
                 {cities.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
+                  <option key={item.name} value={item.name}>
+                    {item.name}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div className="flex flex-col">
-              <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
-                Address
-              </label>
-              <input
-                type="text"
-                placeholder="Enter your address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-[#9aa6b9] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-5">
             <div className="flex flex-col">
               <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                 Business Type

@@ -63,7 +63,7 @@ const PLAN_UI_DATA: PlanCardData[] = [
         items: ["All Company Settings modules", "Tickets", "Visitor Management", "Chat Bot"],
       },
       {
-        title: "Key Apps",
+        title: "Add-On Key Apps",
         items: ["Meeting Room Booking"],
       },
       {
@@ -95,7 +95,7 @@ const PLAN_UI_DATA: PlanCardData[] = [
         items: ["All Basic Plan modules", "Meeting Room Booking", "Sales Department modules"],
       },
       {
-        title: "Key Apps",
+        title: "Add-On Key Apps",
         items: [
           "Attendance",
           "Tasks",

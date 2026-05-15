@@ -15,7 +15,7 @@ const workspaceMemberSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      default: "owner",
+      default: "founder",
       trim: true,
     },
     isPrimary: {
@@ -34,4 +34,3 @@ workspaceMemberSchema.index({ workspace: 1, user: 1 }, { unique: true });
 
 const WorkspaceMember = mongoose.model("WorkspaceMember", workspaceMemberSchema);
 export default WorkspaceMember;
-

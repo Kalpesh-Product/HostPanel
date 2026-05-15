@@ -101,7 +101,7 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       { workspace: workspace._id, user: user._id },
       {
         $set: {
-          role: "owner",
+          role: "founder",
           isPrimary: true,
           isActive: true,
         },

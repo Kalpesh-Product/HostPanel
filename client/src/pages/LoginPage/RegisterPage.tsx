@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Lock } from "lucide-react";
 import type { AxiosError } from "axios";
-import { Box, CircularProgress, Container, Grid, TextField } from "@mui/material";
+import {
+  Box,
+  CircularProgress,
+  Container,
+  Grid,
+  InputAdornment,
+  TextField,
+} from "@mui/material";
 import { toast } from "sonner";
 import Footer from "../../components/Footer";
 import { api } from "../../utils/axios";
@@ -122,6 +129,17 @@ export default function RegisterPage() {
                       variant="standard"
                       value={prefill.fullName}
                       disabled={!isTokenMissing}
+                      InputProps={
+                        !isTokenMissing
+                          ? {
+                              endAdornment: (
+                                <InputAdornment position="end">
+                                  <Lock size={16} className="text-gray-500" />
+                                </InputAdornment>
+                              ),
+                            }
+                          : undefined
+                      }
                       onChange={(e) =>
                         isTokenMissing && setPrefill((prev) => ({ ...prev, fullName: e.target.value }))
                       }
@@ -135,6 +153,17 @@ export default function RegisterPage() {
                       type="email"
                       value={prefill.email}
                       disabled={!isTokenMissing}
+                      InputProps={
+                        !isTokenMissing
+                          ? {
+                              endAdornment: (
+                                <InputAdornment position="end">
+                                  <Lock size={16} className="text-gray-500" />
+                                </InputAdornment>
+                              ),
+                            }
+                          : undefined
+                      }
                       onChange={(e) =>
                         isTokenMissing && setPrefill((prev) => ({ ...prev, email: e.target.value }))
                       }
