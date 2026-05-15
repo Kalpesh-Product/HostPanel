@@ -231,18 +231,10 @@ const CreateWorkspacePage: React.FC = () => {
     <div className="min-h-screen bg-[#f4f4f4] text-[#0f172a] font-['Poppins'] flex flex-col">
       <div className="shadow-md bg-white/80 backdrop-blur-md">
         <div className="max-w-[80rem] mx-auto px-4 sm:px-6 lg:px-0">
-          <div className="flex justify-between items-center py-3 gap-3">
+          <div className="flex items-center py-3">
             <a href="https://wono.co">
               <img src={logo} alt="wono" className="w-28 sm:w-36 h-auto" />
             </a>
-            <button
-              type="button"
-              onClick={() => (window.location.href = "https://nomad.wono.co")}
-              className="relative pb-1 transition-all duration-300 group font-bold bg-transparent uppercase border-none text-[11px] sm:text-[13px] whitespace-nowrap"
-            >
-              Become a nomad
-              <span className="absolute left-0 w-0 bottom-0 block h-[2px] bg-blue-500 transition-all duration-300 group-hover:w-full" />
-            </button>
           </div>
         </div>
       </div>
