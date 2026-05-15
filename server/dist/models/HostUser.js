@@ -27,6 +27,15 @@ const hostUserSchema = new mongoose.Schema({
         required: true,
         trim: true,
     },
+    primaryWorkspace: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Workspace",
+        default: null,
+    },
+    hasCompletedWorkspaceSetup: {
+        type: Boolean,
+        default: false,
+    },
     designation: {
         type: String,
     },

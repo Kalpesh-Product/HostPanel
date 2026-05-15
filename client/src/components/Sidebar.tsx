@@ -50,6 +50,7 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSidebar } from "../context/SideBarContext";
 import useAuth from "../hooks/useAuth";
+import useLogout from "../hooks/useLogout";
 import {
   getEnabledModuleIdsForPlan,
   getWorkspaceCount,
@@ -114,7 +115,7 @@ const companySettingsData: NavNode[] = [
   { id: "nomad-listing", label: "Nomad Listing", icon: ShieldCheck, route: "/company-settings/nomad-listings" },
   { id: "website-leads", label: "Website Leads", icon: NotebookText, route: "/company-settings/website-builder/leads" },
   { id: "reviews", label: "Reviews", icon: ClipboardCheck, route: "/company-reviews" },
-  { id: "organization-management", label: "Organization Management", icon: Building, disabled: true },
+  { id: "organization-management", label: "Organization Management", icon: Building, route: "/company-settings/organization-management" },
   { id: "module-management", label: "Module Management", icon: Boxes, disabled: true },
   { id: "access-grants", label: "Access Grants", icon: UserCog, disabled: true },
   { id: "workspace-settings", label: "Workspace Settings", icon: Settings, disabled: true },
@@ -217,7 +218,7 @@ const departmentModules: NavNode[] = [
 
 const generalData: NavNode[] = [
   { id: "profile", label: "Profile", icon: User, route: "/profile/my-profile" },
-  { id: "logout", label: "Logout", icon: LogOut, isRed: true, disabled: true },
+  { id: "logout", label: "Sign Out", icon: LogOut, isRed: true, route: "/sign-out" },
 ];
 
 const NavItem = ({
@@ -326,6 +327,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const { auth } = useAuth();
   const collapsed = !isSidebarOpen;
   const navigate = useNavigate();
+  const logout = useLogout();
   const location = useLocation();
   const [isCompanySettingsOpen, setIsCompanySettingsOpen] = useState(false);
   const [isKeyAppsOpen, setIsKeyAppsOpen] = useState(false);
@@ -361,6 +363,11 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const departmentItems = applyEnabledState(departmentModules);
 
   const onNavigate = (item: NavNode) => {
+    if (item.id === "logout") {
+      void logout();
+      if (onCloseDrawer) onCloseDrawer();
+      return;
+    }
     if (!item.route || item.disabled) return;
     navigate(item.route);
     if (onCloseDrawer) onCloseDrawer();

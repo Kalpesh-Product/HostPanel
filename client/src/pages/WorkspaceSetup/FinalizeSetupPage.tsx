@@ -5,7 +5,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
-  Users,
+  X,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -17,136 +17,213 @@ import {
   clearInviteOnboardingState,
   readInviteOnboardingState,
 } from "../../utils/inviteOnboarding";
+import { getEnabledModuleIdsForPlan, getWorkspaceCount } from "../../utils/workspacePlanAccess";
 import {
-  canAccessWorkspaceManagement,
-  getEnabledModuleIdsForPlan,
-  getWorkspaceCount,
-} from "../../utils/workspacePlanAccess";
+  getUpgradePlanOptions,
+  PLAN_UI_DATA,
+  type PlanCardData,
+  type PlanType,
+} from "./workspaceSetupPlans";
 
-type PlanType = "basic" | "professional" | "custom";
+const planCardHighlightStyles = {
+  borderRadius: "40px",
+  borderColor: "#1d9ae8",
+  borderWidth: "3px",
+  boxShadow:
+    "0 10px 30px rgba(29, 154, 232, 0.16), 0 0 0 1px rgba(29, 154, 232, 0.18)",
+} as const;
 
-type PlanGroup = {
-  title: string;
-  items?: string[];
-  subgroups?: Array<{ title: string; items: string[] }>;
-};
+const PlanCard = ({
+  plan,
+  openGroups,
+  toggleGroup,
+  actionLabel,
+  onAction,
+  isSelected,
+  useNeutralButton,
+  secondaryActionLabel,
+  onSecondaryAction,
+  footerNote,
+}: {
+  plan: PlanCardData;
+  openGroups: Record<string, boolean>;
+  toggleGroup: (key: string) => void;
+  actionLabel: string;
+  onAction: () => void;
+  isSelected: boolean;
+  useNeutralButton?: boolean;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
+  footerNote?: string;
+}) => (
+  <div
+    className="relative overflow-hidden rounded-[38px] bg-[#eef2f7] p-4 md:p-4 flex flex-col min-h-[360px] shadow-[0_4px_18px_rgba(15,27,53,0.05)] border"
+    style={
+      isSelected
+        ? planCardHighlightStyles
+        : {
+            borderRadius: "40px",
+            borderColor: "#d9e1ec",
+            borderWidth: "1px",
+          }
+    }
+  >
+    <h3 className="text-[20px] md:text-[17px] lg:text-[15px] font-bold text-[#0f1b35] text-center mt-1">
+      {plan.title}
+    </h3>
 
-const getPlanGroups = (hasWorkspaceManagement: boolean): Record<PlanType, PlanGroup[]> => ({
-  basic: [
-    {
-      title: "Company Settings",
-      items: [
-        "Website Builder",
-        "Nomad Listing",
-        "Website Leads",
-        "Reviews",
-        "Organization Management",
-        "Module Management",
-        "Access Grants",
-        "Workspace Settings",
-        "Analytics",
-        hasWorkspaceManagement
-          ? "Workspace Management"
-          : "Workspace Management after multiple workspaces",
-      ],
-    },
-    {
-      title: "Key Apps",
-      items: ["Tickets", "Visitor Management", "Chat Bot"],
-    },
-  ],
-  professional: [
-    {
-      title: "Everything in Basic",
-      items: [
-        "All Company Settings modules",
-        "Tickets",
-        "Visitor Management",
-        "Chat Bot",
-      ],
-    },
-    {
-      title: "Key Apps",
-      items: ["Meeting Room Booking"],
-    },
-    {
-      title: "Department Access",
-      subgroups: [
-        {
-          title: "Sales Department",
-          items: [
-            "Sales Leads Management",
-            "Tenant Companies",
-            "Plans & Pricing",
-            "Sales Architecture",
-          ],
-        },
-      ],
-    },
-  ],
-  custom: [
-    {
-      title: "Everything in Basic + Professional",
-      items: ["All Basic modules", "Meeting Room Booking", "Sales Department modules"],
-    },
-    {
-      title: "Key Apps",
-      items: [
-        "Attendance",
-        "Tasks",
-        "Leave Requests",
-        "Assets",
-        "Inventory",
-        "Finance Management",
-        "Reports",
-      ],
-    },
-    {
-      title: "Department Access",
-      subgroups: [
-        {
-          title: "HR Department",
-          items: [
-            "Employee Management",
-            "Documents",
-            "Recruitment",
-            "Leave Request Processing",
-            "Attendance Review",
-            "Payroll Management",
-            "Exit Management",
-          ],
-        },
-        {
-          title: "Administration Department",
-          items: [
-            "Tenant Companies",
-            "Bookings",
-            "Visitors Management",
-            "Resource Management",
-            "House Keeping",
-            "Workspace Layout",
-          ],
-        },
-        {
-          title: "Finance Department",
-          items: ["Finance & Budget", "Billing & Payments", "Accounting"],
-        },
-        {
-          title: "Maintenance Department",
-          items: ["Maintenance Repair Logs", "AMC Maintenance Scheduler"],
-        },
-        {
-          title: "Tech Department",
-          items: ["Website Builder"],
-        },
-        {
-          title: "IT Department",
-          items: ["IT Repair Logs"],
-        },
-      ],
-    },
-  ],
-});
+    <p className="text-[11px] md:text-[10px] lg:text-[10px] text-[#667791] text-center mt-3 min-h-[36px]">
+      {plan.subtitle}
+    </p>
+
+    <p className="text-center mt-3 mb-3 text-[#0f1b35] font-bold text-[20px]">
+      {plan.priceLabel}
+    </p>
+
+    <div className="h-px bg-[#d8e0ea] mb-3" />
+
+    <div className="space-y-2 flex-1">
+      {plan.moduleGroups.map((group, idx) => {
+        const groupKey = `${plan.key}-${idx}`;
+        const isOpen = Boolean(openGroups[groupKey]);
+
+        return (
+          <div key={groupKey} className="rounded-2xl border border-[#dce4ee] bg-[#f7f9fc]">
+            <button
+              type="button"
+              onClick={() => toggleGroup(groupKey)}
+              className="w-full px-3 py-2 flex items-center justify-between text-left"
+            >
+              <div className="flex items-center gap-2">
+                <CheckCircle2
+                  size={16}
+                  className={isSelected ? "text-[#23c35c]" : "text-[#a8b4c7]"}
+                />
+                <span className="text-[11px] font-bold text-[#304766]">{group.title}</span>
+              </div>
+              {isOpen ? (
+                <ChevronDown size={14} className="text-[#607089]" />
+              ) : (
+                <ChevronRight size={14} className="text-[#607089]" />
+              )}
+            </button>
+
+            {isOpen ? (
+              <div className="px-3 pb-2 space-y-1">
+                {group.items?.map((item) => (
+                  <div key={item} className="flex items-start gap-2">
+                    <span className="mt-0.5">
+                      <CheckCircle2
+                        size={14}
+                        className={isSelected ? "text-[#23c35c]" : "text-[#a8b4c7]"}
+                      />
+                    </span>
+                    <span className="text-[11px] text-[#4f627d]">{item}</span>
+                  </div>
+                ))}
+
+                {group.subgroups?.map((subgroup, subgroupIdx) => {
+                  const subgroupKey = `${groupKey}-sub-${subgroupIdx}`;
+                  const isSubgroupOpen = Boolean(openGroups[subgroupKey]);
+
+                  return (
+                    <div
+                      key={subgroupKey}
+                      className="rounded-xl border border-[#e1e7f0] bg-white/70"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(subgroupKey)}
+                        className="w-full px-3 py-2 flex items-center justify-between text-left"
+                      >
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2
+                            size={14}
+                            className={isSelected ? "text-[#23c35c]" : "text-[#a8b4c7]"}
+                          />
+                          <span className="text-[11px] font-bold text-[#3b4f6d]">
+                            {subgroup.title}
+                          </span>
+                        </div>
+                        {isSubgroupOpen ? (
+                          <ChevronDown size={14} className="text-[#607089]" />
+                        ) : (
+                          <ChevronRight size={14} className="text-[#607089]" />
+                        )}
+                      </button>
+
+                      {isSubgroupOpen ? (
+                        <div className="px-3 pb-2 space-y-1">
+                          {subgroup.items.map((item) => (
+                            <div key={item} className="flex items-start gap-2">
+                              <span className="mt-0.5">
+                                <CheckCircle2
+                                  size={13}
+                                  className={isSelected ? "text-[#23c35c]" : "text-[#a8b4c7]"}
+                                />
+                              </span>
+                              <span className="text-[11px] text-[#4f627d]">{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+
+    <div className="h-px bg-[#d8e0ea] mt-3 mb-2" />
+    <p className="text-[11px] text-[#9aa8bc] text-center mb-2">{plan.note}</p>
+
+    <button
+      type="button"
+      onClick={onAction}
+      className="w-full h-11 rounded-full text-[14px] font-bold border transition-colors"
+      style={
+        useNeutralButton
+          ? {
+              backgroundColor: "#2d67f0",
+              color: "#ffffff",
+              borderColor: "#2d67f0",
+              boxShadow: "inset 0 -1px 0 rgba(0,0,0,0.08)",
+            }
+          : isSelected
+          ? {
+              backgroundColor: "#2d67f0",
+              color: "#ffffff",
+              borderColor: "#2d67f0",
+              boxShadow: "inset 0 -1px 0 rgba(0,0,0,0.08)",
+            }
+          : {
+              backgroundColor: "#dce3ed",
+              color: "#0f1b35",
+              borderColor: "#d2dbe8",
+            }
+      }
+    >
+      {actionLabel}
+    </button>
+
+    {secondaryActionLabel && onSecondaryAction ? (
+      <button
+        type="button"
+        onClick={onSecondaryAction}
+        className="mt-3 h-11 rounded-full text-[14px] font-bold border transition-colors bg-[#dce3ed] text-[#0f1b35] border-[#d2dbe8]"
+      >
+        {secondaryActionLabel}
+      </button>
+    ) : null}
+
+    {footerNote ? (
+      <p className="mt-2 text-[11px] text-[#7b8ba3] text-center">{footerNote}</p>
+    ) : null}
+  </div>
+);
 
 const FinalizeSetupPage: React.FC = () => {
   const navigate = useNavigate();
@@ -155,31 +232,29 @@ const FinalizeSetupPage: React.FC = () => {
   const { auth, setAuth } = useAuth();
   const workspaceDetails = location.state?.workspaceDetails || {};
   const inviteOnboarding = readInviteOnboardingState();
-  const selectedPlan = (
-    location.state?.selectedPlan ||
-    inviteOnboarding?.selectedPlan ||
-    "basic"
-  ) as PlanType;
+  const initialSelectedPlan = "basic" as PlanType;
 
+  const [selectedPlan, setSelectedPlan] = useState<PlanType>(initialSelectedPlan);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+
   const workspaceCount = getWorkspaceCount(
     (auth.user as { workspaceCount?: number } | null)?.workspaceCount,
   );
-  const hasWorkspaceManagement = canAccessWorkspaceManagement(workspaceCount);
   const enabledModuleIds = getEnabledModuleIdsForPlan(selectedPlan, workspaceCount);
-
-  const selectedPlanGroups = getPlanGroups(hasWorkspaceManagement)[selectedPlan] || [];
+  const currentPlanCard = PLAN_UI_DATA.find((plan) => plan.key === selectedPlan) || PLAN_UI_DATA[0];
+  const upgradePlanOptions = getUpgradePlanOptions(selectedPlan);
   const workspaceRows = [
     { label: "Workspace Name", value: workspaceDetails.workspaceName },
-    { label: "Business Name", value: workspaceDetails.businessName },
+    { label: "Company Name", value: workspaceDetails.businessName },
     { label: "Brand Name", value: workspaceDetails.brandName },
     { label: "Country", value: workspaceDetails.country },
     { label: "State", value: workspaceDetails.state },
     { label: "City", value: workspaceDetails.city },
     { label: "Address", value: workspaceDetails.address },
     {
-      label: "Business Type",
+      label: "Type of Vertical",
       value: Array.isArray(workspaceDetails.businessTypes)
         ? workspaceDetails.businessTypes.join(", ")
         : workspaceDetails.businessType,
@@ -188,6 +263,18 @@ const FinalizeSetupPage: React.FC = () => {
 
   const toggleGroup = (key: string) =>
     setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const handleUpgradeAction = (plan: PlanCardData) => {
+    if (selectedPlan === "basic") {
+      setSelectedPlan(plan.key);
+      setIsUpgradeModalOpen(false);
+      toast.success(`${plan.title} plan selected for this workspace.`);
+      return;
+    }
+
+    setIsUpgradeModalOpen(false);
+    toast.success("Request submitted. Sales team will contact you soon.");
+  };
 
   const handleCompleteSetup = async () => {
     try {
@@ -233,9 +320,9 @@ const FinalizeSetupPage: React.FC = () => {
         </div>
       </div>
 
-      <main className="flex-1 px-4 sm:px-6 lg:px-8 pt-8 md:pt-12 pb-12">
+      <main className="flex-1 px-4 sm:px-6 lg:px-8 pt-6 md:pt-8 pb-8">
         <div className="w-full max-w-[900px] mx-auto">
-          <div className="mb-6 sm:mb-8">
+          <div className="mb-5 sm:mb-6">
             <p className="text-[10px] font-bold tracking-[0.22em] text-[#8da0bd] uppercase mb-4">
               Progress
             </p>
@@ -255,23 +342,9 @@ const FinalizeSetupPage: React.FC = () => {
               <div className="hidden md:block flex-1 h-px bg-[#2d67f0] mx-4 md:mx-6" />
 
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#dcfce7] flex items-center justify-center">
-                  <div className="w-8 h-8 rounded-full bg-[#22c55e] text-white flex items-center justify-center">
-                    <Check size={16} strokeWidth={3} />
-                  </div>
-                </div>
-                <div className="flex flex-col leading-tight">
-                  <span className="text-sm font-bold text-[#233552]">Set Up Modules</span>
-                  <span className="text-[11px] text-[#6d9bff] font-semibold">Done</span>
-                </div>
-              </div>
-
-              <div className="hidden md:block flex-1 h-px bg-[#2d67f0] mx-4 md:mx-6" />
-
-              <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-[#dce9ff] flex items-center justify-center">
                   <div className="w-8 h-8 rounded-full bg-[#2d67f0] text-white text-sm font-bold flex items-center justify-center">
-                    3
+                    2
                   </div>
                 </div>
                 <div className="flex flex-col leading-tight">
@@ -284,28 +357,49 @@ const FinalizeSetupPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="mb-5 sm:mb-6 text-center">
-            <h1 className="text-[24px] sm:text-[28px] md:text-[34px] font-bold text-[#111b33] mb-3">
-              Finalize your workspace setup
+          <div className="mb-4 sm:mb-5 text-center">
+            <h1 className="text-[22px] sm:text-[26px] md:text-[30px] font-bold text-[#111b33] mb-2">
+              Finalize your business location setup
             </h1>
-            <p className="text-sm md:text-[14px] text-[#63738d] max-w-[560px] mx-auto">
-              Review what is configured so far, then continue to dashboard to explore more settings and customize your workspace as you like.
+            <p className="text-[13px] md:text-[14px] text-[#63738d] max-w-[560px] mx-auto">
+              Review your business location details, confirm the active plan, and finish the setup in one last step.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 md:gap-5 mb-5 sm:mb-6">
-            <div className="rounded-2xl sm:rounded-3xl border border-[#d5ddea] bg-[#eef2f7] p-4 sm:p-5">
-              <div className="w-11 h-11 rounded-xl bg-white flex items-center justify-center text-[#2d67f0] mb-4">
-                <CheckCircle2 size={22} />
-              </div>
-              <p className="text-[15px] font-bold text-[#111b33] mb-2">
-                Workspace Details:
+          <div className="grid grid-cols-1 lg:grid-cols-[285px_minmax(0,1fr)] gap-4 md:gap-4 mb-4 sm:mb-5 items-start">
+            <PlanCard
+              plan={currentPlanCard}
+              openGroups={openGroups}
+              toggleGroup={toggleGroup}
+              actionLabel="Current Plan"
+              onAction={() => {}}
+              isSelected={true}
+              useNeutralButton={true}
+              secondaryActionLabel={upgradePlanOptions.length ? "Upgrade Plan" : undefined}
+              onSecondaryAction={
+                upgradePlanOptions.length
+                  ? () => {
+                      setIsUpgradeModalOpen(true);
+                    }
+                  : undefined
+              }
+            />
+
+            <div className="rounded-[38px] bg-[#eef2f7] p-4 md:p-4 flex flex-col min-h-[360px] h-full shadow-[0_4px_18px_rgba(15,27,53,0.05)] border border-[#d9e1ec]">
+              <p className="text-[16px] font-bold text-[#111b33] mb-2 text-center mt-2">
+                Business Location Details
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+              <p className="text-[11px] font-bold text-[#233552] mb-4 text-center">
+                Plan Selected : {selectedPlan.toUpperCase()}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 flex-1 content-start">
                 {workspaceRows.length ? (
                   workspaceRows.map((row) => (
-                    <div key={row.label}>
-                      <p className="text-[11px] font-semibold text-[#233552]">
+                    <div
+                      key={row.label}
+                      className="rounded-2xl border border-[#dce4ee] bg-[#f7f9fc] px-3 py-3"
+                    >
+                      <p className="text-[11px] font-bold text-[#233552]">
                         {row.label}:
                       </p>
                       <p className="text-[11px] text-[#6f7f96] break-words">{row.value}</p>
@@ -315,109 +409,18 @@ const FinalizeSetupPage: React.FC = () => {
                   <p className="text-[11px] text-[#6f7f96]">No workspace details available</p>
                 )}
               </div>
-            </div>
-
-            <div className="rounded-2xl sm:rounded-3xl border border-[#d5ddea] bg-[#eef2f7] p-4 sm:p-5">
-              <div className="w-11 h-11 rounded-xl bg-white flex items-center justify-center text-[#2d67f0] mb-4">
-                <Users size={22} />
-              </div>
-              <p className="text-[15px] font-bold text-[#111b33] mb-2">
-                Modules Enabled
+              <div className="h-px bg-[#d8e0ea] mt-3 mb-2" />
+              <p className="text-[11px] text-[#9aa8bc] text-center">
+                You can still edit these details later from workspace settings.
               </p>
-              <p className="text-[11px] font-semibold text-[#233552] mb-3">
-                Plan Selected : {selectedPlan.toUpperCase()}
-              </p>
-              <div className="space-y-2">
-                {selectedPlanGroups.map((group, idx) => {
-                  const groupKey = `group-${idx}`;
-                  const isOpen = Boolean(openGroups[groupKey]);
-
-                  return (
-                    <div
-                      key={groupKey}
-                      className="rounded-2xl border border-[#dce4ee] bg-[#f7f9fc]"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => toggleGroup(groupKey)}
-                        className="w-full px-3 py-2 flex items-center justify-between text-left"
-                      >
-                        <span className="text-[11px] font-semibold text-[#304766]">
-                          {group.title}
-                        </span>
-                        {isOpen ? (
-                          <ChevronDown size={14} className="text-[#607089]" />
-                        ) : (
-                          <ChevronRight size={14} className="text-[#607089]" />
-                        )}
-                      </button>
-                      {isOpen && (
-                        <div className="px-3 pb-2 space-y-1">
-                          {group.items?.map((item) => (
-                            <div key={item} className="flex items-start gap-2">
-                              <span className="mt-0.5 text-[#23c35c]">
-                                <CheckCircle2 size={14} />
-                              </span>
-                              <span className="text-[11px] text-[#4f627d]">{item}</span>
-                            </div>
-                          ))}
-                          {group.subgroups?.map((subgroup, subgroupIdx) => {
-                            const subgroupKey = `${groupKey}-sub-${subgroupIdx}`;
-                            const isSubgroupOpen = Boolean(openGroups[subgroupKey]);
-                            return (
-                              <div
-                                key={subgroupKey}
-                                className="rounded-xl border border-[#e1e7f0] bg-white/70"
-                              >
-                                <button
-                                  type="button"
-                                  onClick={() => toggleGroup(subgroupKey)}
-                                  className="w-full px-3 py-2 flex items-center justify-between text-left"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <CheckCircle2 size={14} className="text-[#23c35c]" />
-                                    <span className="text-[11px] font-semibold text-[#3b4f6d]">
-                                      {subgroup.title}
-                                    </span>
-                                  </div>
-                                  {isSubgroupOpen ? (
-                                    <ChevronDown size={14} className="text-[#607089]" />
-                                  ) : (
-                                    <ChevronRight size={14} className="text-[#607089]" />
-                                  )}
-                                </button>
-                                {isSubgroupOpen && (
-                                  <div className="px-3 pb-2 space-y-1">
-                                    {subgroup.items.map((item) => (
-                                      <div key={item} className="flex items-start gap-2">
-                                        <span className="mt-0.5 text-[#23c35c]">
-                                          <CheckCircle2 size={13} />
-                                        </span>
-                                        <span className="text-[11px] text-[#4f627d]">{item}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              {!selectedPlanGroups.length && (
-                <p className="text-[11px] text-[#6f7f96]">No modules selected</p>
-              )}
             </div>
           </div>
 
-          <div className="pt-4 border-t border-[#e1e6ef] mt-4 sm:mt-5 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="pt-4 border-t border-[#e1e6ef] mt-3 sm:mt-4 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <button
               type="button"
               onClick={() =>
-                navigate("/create-workspace/modules", {
+                navigate("/create-workspace", {
                   state: { workspaceDetails, selectedPlan },
                 })
               }
@@ -436,6 +439,66 @@ const FinalizeSetupPage: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {isUpgradeModalOpen ? (
+        <div className="fixed inset-0 z-50 bg-[#0f172a]/45 backdrop-blur-[2px] px-4 py-6 flex items-center justify-center overflow-hidden">
+          <div className="w-full max-w-fit max-h-[90vh] overflow-y-auto rounded-[32px] bg-[linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] shadow-[0_20px_80px_rgba(15,23,42,0.28)] p-5 sm:p-6 border border-[#dbe5f2] my-auto">
+            <div className="flex items-start justify-between gap-4 mb-5">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#6d9bff] mb-2">
+                  Upgrade Plan
+                </p>
+                <h2 className="text-[28px] sm:text-[32px] font-bold tracking-[-0.02em] text-[#111b33]">
+                  Choose your plan
+                </h2>
+                <p className="text-[15px] text-[#63738d] mt-1 max-w-[420px]">
+                  {selectedPlan === "basic"
+                    ? "Pick the next plan that fits your workspace best, or continue now with your current plan."
+                    : "Send an upgrade request for a higher plan, or continue now with your current plan."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsUpgradeModalOpen(false)}
+                className="h-10 w-10 rounded-full border border-[#d7dfeb] text-[#5c6d84] inline-flex items-center justify-center"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-4 mx-auto">
+              {upgradePlanOptions.map((plan) => (
+                <div key={plan.key} className="w-full max-w-[285px]">
+                  <PlanCard
+                    plan={plan}
+                    openGroups={openGroups}
+                    toggleGroup={toggleGroup}
+                    actionLabel={selectedPlan === "basic" ? "Select Plan" : "Upgrade Plan"}
+                    onAction={() => handleUpgradeAction(plan)}
+                    isSelected={false}
+                    footerNote={
+                      selectedPlan === "basic"
+                        ? "Upgrade now if you want more features for this workspace."
+                        : "Request this plan and our sales team will contact you soon."
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-4 mt-5 border-t border-[#e1e6ef] flex justify-center">
+              <button
+                type="button"
+                onClick={() => setIsUpgradeModalOpen(false)}
+                className="h-10 px-6 rounded-xl border border-[#d0d8e5] text-[#5b6b83] text-[14px] font-medium bg-transparent"
+              >
+                Continue now with current plan
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <Footer />
     </div>
   );

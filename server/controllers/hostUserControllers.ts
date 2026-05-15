@@ -1,6 +1,7 @@
 // @ts-nocheck
 import HostUser from "../models/HostUser.js";
 import bcrypt from "bcryptjs";
+import Workspace from "../models/Workspace.js";
 
 export const updateProfile = async (req, res) => {
   try {
@@ -180,6 +181,46 @@ export const changePassword = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || "Failed to change password.",
+    });
+  }
+};
+
+export const getMyProfile = async (req, res) => {
+  try {
+    const userId = req.user;
+    const user = await HostUser.findById(userId).lean().exec();
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    let workspace = null;
+    if (user.primaryWorkspace) {
+      workspace = await Workspace.findById(user.primaryWorkspace).lean().exec();
+    }
+
+    if (!workspace) {
+      workspace = await Workspace.findOne({ owner: user._id, isActive: true })
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec();
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        user,
+        workspace: workspace || null,
+      },
+    });
+  } catch (error) {
+    console.error("Get My Profile Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to load profile.",
     });
   }
 };

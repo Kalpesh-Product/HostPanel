@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { ArrowRight, Check, CheckCircle2, ChevronDown, ChevronRight } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import logo from "../../assets/WONO_LOGO_Black_TP.png";
@@ -6,153 +6,7 @@ import Footer from "../../components/Footer";
 import useAuth from "../../hooks/useAuth";
 import { readInviteOnboardingState } from "../../utils/inviteOnboarding";
 import { getWorkspaceCount } from "../../utils/workspacePlanAccess";
-
-type PlanType = "basic" | "professional" | "custom";
-
-type PlanCardData = {
-  key: PlanType;
-  title: string;
-  subtitle: string;
-  priceLabel: string;
-  note: string;
-  moduleGroups: Array<{
-    title: string;
-    items?: string[];
-    subgroups?: Array<{ title: string; items: string[] }>;
-  }>;
-};
-
-const PLAN_UI_DATA: PlanCardData[] = [
-  {
-    key: "basic",
-    title: "BASIC",
-    subtitle: "Everything you need to start, manage, and grow your business at no cost!",
-    priceLabel: "FREE*",
-    note: "* Limited time offer for few months.",
-    moduleGroups: [
-      {
-        title: "Company Settings",
-        items: [
-          "Website Builder",
-          "Nomad Listing",
-          "Website Leads",
-          "Reviews",
-          "Organization Management",
-          "Module Management",
-          "Access Grants",
-          "Workspace Settings",
-          "Analytics",
-        ],
-      },
-      {
-        title: "Key Apps",
-        items: ["Tickets", "Visitor Management", "Chat Bot"],
-      },
-    ],
-  },
-  {
-    key: "professional",
-    title: "PROFESSIONAL",
-    subtitle:
-      "Your ambitions and goals to scale from a small business to a growing company!",
-    priceLabel: "$199 /month",
-    note: "Free activation and free for first month.",
-    moduleGroups: [
-      {
-        title: "Everything in Basic",
-        items: ["All Company Settings modules", "Tickets", "Visitor Management", "Chat Bot"],
-      },
-      {
-        title: "Add-On Key Apps",
-        items: ["Meeting Room Booking"],
-      },
-      {
-        title: "Department Access",
-        subgroups: [
-          {
-            title: "Sales Department",
-            items: [
-              "Sales Leads Management",
-              "Tenant Companies",
-              "Plans & Pricing",
-              "Sales Architecture",
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    key: "custom",
-    title: "CUSTOMISE",
-    subtitle:
-      "Tailored solutions for companies scaling into ENTERPRISE LEVEL OPERATIONS!",
-    priceLabel: "PERSONALISED",
-    note: "Custom activation post testing.",
-    moduleGroups: [
-      {
-        title: "Everything in Basic + Professional",
-        items: ["All Basic Plan modules", "Meeting Room Booking", "Sales Department modules"],
-      },
-      {
-        title: "Add-On Key Apps",
-        items: [
-          "Attendance",
-          "Tasks",
-          "Leave Requests",
-          "Assets",
-          "Inventory",
-          "Finance Management",
-          "Reports",
-        ],
-      },
-      {
-        title: "Department Access",
-        subgroups: [
-          {
-            title: "HR Department",
-            items: [
-              "Employee Management",
-              "Documents",
-              "Recruitment",
-              "Leave Request Processing",
-              "Attendance Review",
-              "Payroll Management",
-              "Exit Management",
-            ],
-          },
-          {
-            title: "Administration Department",
-            items: [
-              "Tenant Companies",
-              "Bookings",
-              "Visitors Management",
-              "Resource Management",
-              "House Keeping",
-              "Workspace Layout",
-            ],
-          },
-          {
-            title: "Finance Department",
-            items: ["Finance & Budget", "Billing & Payments", "Accounting"],
-          },
-          {
-            title: "Maintenance Department",
-            items: ["Maintenance Repair Logs", "AMC Maintenance Scheduler"],
-          },
-          {
-            title: "Tech Department",
-            items: ["Website Builder"],
-          },
-          {
-            title: "IT Department",
-            items: ["IT Repair Logs"],
-          },
-        ],
-      },
-    ],
-  },
-];
+import { PLAN_UI_DATA, type PlanType } from "./workspaceSetupPlans";
 
 const SetupModulesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -260,7 +114,7 @@ const SetupModulesPage: React.FC = () => {
                     {plan.subtitle}
                   </p>
 
-                  <p className="text-center mt-3 mb-3 text-[#0f1b35] font-bold text-[26px] md:text-[24px] lg:text-[26px]">
+                  <p className="text-center mt-3 mb-3 text-[#0f1b35] font-bold text-[20px] md:text-[20px] lg:text-[20px]">
                     {plan.priceLabel}
                   </p>
 
@@ -377,7 +231,7 @@ const SetupModulesPage: React.FC = () => {
 
                   <button
                     type="button"
-                    className="w-full h-11 rounded-full text-[16px] font-semibold border transition-colors"
+                    className="w-full h-11 rounded-full text-[14px] font-semibold border transition-colors"
                     style={
                       isSelected
                         ? {

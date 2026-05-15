@@ -4,14 +4,74 @@ import HostUser from "../models/HostUser.js";
 import bcrypt from "bcryptjs";
 import Company from "../models/Company.js";
 import Otp from "../models/Otp.js";
+import WorkspaceMember from "../models/WorkspaceMember.js";
 import { sendMail } from "../config/mailer.js";
 import crypto from "crypto";
-const getInviteSecret = () => process.env.REGISTER_INVITE_SECRET || process.env.ACCESS_TOKEN_SECRET;
+const getInviteSecret = () => process.env.HOST_INVITE_TOKEN_SECRET ||
+    process.env.REGISTER_INVITE_SECRET ||
+    process.env.ACCESS_TOKEN_SECRET;
 const decodeSignupInviteToken = (token) => {
     const secret = getInviteSecret();
     if (!secret)
         throw new Error("Invite secret not configured");
     return jwt.verify(token, secret);
+};
+const extractInviteIdentity = (decoded) => {
+    const inviteEmail = decoded?.inviteEmail || decoded?.email || decoded?.userInfo?.email || "";
+    const firstName = decoded?.firstName || decoded?.userInfo?.firstName || "";
+    const lastName = decoded?.lastName || decoded?.userInfo?.lastName || "";
+    const combinedName = `${firstName} ${lastName}`.trim();
+    const inviteName = decoded?.inviteName ||
+        decoded?.fullName ||
+        decoded?.name ||
+        decoded?.userInfo?.name ||
+        decoded?.userInfo?.fullName ||
+        decoded?.userInfo?.inviteName ||
+        combinedName ||
+        "";
+    const selectedPlan = decoded?.selectedPlan ||
+        decoded?.goals ||
+        decoded?.userInfo?.selectedPlan ||
+        decoded?.userInfo?.goals ||
+        "basic";
+    const businessName = decoded?.businessName ||
+        decoded?.companyName ||
+        decoded?.userInfo?.businessName ||
+        decoded?.userInfo?.companyName ||
+        "";
+    return { inviteEmail, inviteName, selectedPlan, businessName };
+};
+const buildAuthUserPayload = (user, company, workspaceCount = 0) => ({
+    ...user,
+    companyName: company?.companyName,
+    logo: company?.logo,
+    isWebsiteTemplate: company?.isWebsiteTemplate,
+    hasCompletedWorkspaceSetup: Boolean(user?.hasCompletedWorkspaceSetup),
+    primaryWorkspace: user?.primaryWorkspace || null,
+    workspaceCount,
+});
+const normalizeInviteEmail = (email) => String(email || "").trim().toLowerCase();
+const ensureInviteUserRecord = async (inviteEmail, inviteName) => {
+    const normalizedEmail = normalizeInviteEmail(inviteEmail);
+    let user = await HostUser.findOne({ email: normalizedEmail }).exec();
+    if (user)
+        return user;
+    const company = await Company.findOne({}).lean().exec();
+    if (!company?._id || !company?.companyId) {
+        throw new Error("INVITE_COMPANY_NOT_FOUND");
+    }
+    const fallbackCompanyId = `${company.companyId}-dev-${Date.now()
+        .toString()
+        .slice(-6)}`;
+    user = await HostUser.create({
+        company: company._id,
+        companyId: fallbackCompanyId,
+        name: inviteName,
+        email: normalizedEmail,
+        isActive: true,
+        hasCompletedWorkspaceSetup: false,
+    });
+    return user;
 };
 export const login = async (req, res, next) => {
     try {
@@ -22,11 +82,15 @@ export const login = async (req, res, next) => {
         if (!emailRegex.test(email))
             return res.status(400).json({ message: "invalid data" });
         const user = await HostUser.findOne({ email }).lean().exec();
+        if (!user)
+            return res.status(404).json({ message: "No user found" });
         const company = await Company.findOne({ companyId: user?.companyId })
             .lean()
             .exec();
-        if (!user)
-            return res.status(404).json({ message: "No user found" });
+        const workspaceCount = await WorkspaceMember.countDocuments({
+            user: user._id,
+            isActive: true,
+        });
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid)
             return res.status(400).json({ message: "Invalid password" });
@@ -42,12 +106,7 @@ export const login = async (req, res, next) => {
             maxAge: 15 * 24 * 60 * 60 * 1000,
         });
         res.status(200).json({
-            user: {
-                ...user,
-                companyName: company?.companyName,
-                logo: company?.logo,
-                isWebsiteTemplate: company?.isWebsiteTemplate,
-            },
+            user: buildAuthUserPayload(user, company, workspaceCount),
             accessToken,
         });
     }
@@ -212,17 +271,11 @@ export const getRegisterPrefill = async (req, res, next) => {
         if (!token)
             return res.status(400).json({ message: "Invite token is required." });
         const decoded = decodeSignupInviteToken(token);
-        const inviteEmail = decoded?.email || decoded?.userInfo?.email;
-        const inviteName = decoded?.fullName ||
-            decoded?.name ||
-            decoded?.userInfo?.name ||
-            decoded?.userInfo?.fullName;
+        const { inviteEmail, inviteName, selectedPlan, businessName } = extractInviteIdentity(decoded);
         if (!inviteEmail || !inviteName) {
             return res.status(400).json({ message: "Invalid invite token payload." });
         }
-        const user = await HostUser.findOne({ email: inviteEmail }).lean().exec();
-        if (!user)
-            return res.status(404).json({ message: "Invite user not found." });
+        const user = await ensureInviteUserRecord(inviteEmail, inviteName);
         if (user.password) {
             return res.status(409).json({
                 message: "Account is already registered. Please sign in.",
@@ -231,9 +284,16 @@ export const getRegisterPrefill = async (req, res, next) => {
         res.status(200).json({
             fullName: inviteName,
             email: inviteEmail,
+            selectedPlan,
+            businessName,
         });
     }
     catch (error) {
+        if (error?.message === "INVITE_COMPANY_NOT_FOUND") {
+            return res.status(400).json({
+                message: "No company found to attach this invited user. Please create at least one company first.",
+            });
+        }
         if (error?.name === "TokenExpiredError") {
             return res.status(400).json({ message: "Invite link has expired." });
         }
@@ -268,12 +328,7 @@ export const startRegisterWithOtp = async (req, res, next) => {
                 .json({ message: "Password cannot exceed 72 characters." });
         }
         const decoded = decodeSignupInviteToken(token);
-        const inviteEmail = decoded?.email || decoded?.userInfo?.email;
-        const inviteName = decoded?.fullName ||
-            decoded?.name ||
-            decoded?.userInfo?.name ||
-            decoded?.userInfo?.fullName ||
-            "Founder";
+        const { inviteEmail, inviteName } = extractInviteIdentity(decoded);
         if (!inviteEmail || !inviteName) {
             return res.status(400).json({ message: "Invalid invite token payload." });
         }
@@ -282,9 +337,7 @@ export const startRegisterWithOtp = async (req, res, next) => {
                 .status(400)
                 .json({ message: "Invite details mismatch for this registration link." });
         }
-        const user = await HostUser.findOne({ email: inviteEmail }).lean().exec();
-        if (!user)
-            return res.status(404).json({ message: "Invite user not found." });
+        const user = await ensureInviteUserRecord(inviteEmail, inviteName);
         if (user.password) {
             return res.status(409).json({
                 message: "Account is already registered. Please sign in.",
@@ -316,10 +369,15 @@ export const startRegisterWithOtp = async (req, res, next) => {
         });
         res.status(200).json({
             message: "OTP sent successfully.",
-            email: inviteEmail,
+            email: normalizeInviteEmail(inviteEmail),
         });
     }
     catch (error) {
+        if (error?.message === "INVITE_COMPANY_NOT_FOUND") {
+            return res.status(400).json({
+                message: "No company found to attach this invited user. Please create at least one company first.",
+            });
+        }
         if (error?.name === "TokenExpiredError") {
             return res.status(400).json({ message: "Invite link has expired." });
         }
@@ -338,11 +396,7 @@ export const verifyRegisterOtpAndComplete = async (req, res, next) => {
         if (!otp)
             return res.status(400).json({ message: "OTP is required." });
         const decoded = decodeSignupInviteToken(token);
-        const inviteEmail = decoded?.email || decoded?.userInfo?.email;
-        const inviteName = decoded?.fullName ||
-            decoded?.name ||
-            decoded?.userInfo?.name ||
-            decoded?.userInfo?.fullName;
+        const { inviteEmail, inviteName } = extractInviteIdentity(decoded);
         if (!inviteEmail || !inviteName)
             return res.status(400).json({ message: "Invalid invite token payload." });
         const otpRecord = await Otp.findOne({
@@ -370,9 +424,7 @@ export const verifyRegisterOtpAndComplete = async (req, res, next) => {
             await Otp.updateOne({ _id: otpRecord._id }, { $inc: { attempts: 1 } });
             return res.status(400).json({ message: "Invalid OTP." });
         }
-        const user = await HostUser.findOne({ email: inviteEmail }).select("+password");
-        if (!user)
-            return res.status(404).json({ message: "Invite user not found." });
+        const user = await ensureInviteUserRecord(inviteEmail, inviteName);
         if (user.password) {
             return res.status(409).json({
                 message: "Account is already registered. Please sign in.",
@@ -394,6 +446,11 @@ export const verifyRegisterOtpAndComplete = async (req, res, next) => {
         });
     }
     catch (error) {
+        if (error?.message === "INVITE_COMPANY_NOT_FOUND") {
+            return res.status(400).json({
+                message: "No company found to attach this invited user. Please create at least one company first.",
+            });
+        }
         if (error?.name === "TokenExpiredError") {
             return res.status(400).json({ message: "Invite link has expired." });
         }
@@ -532,6 +589,7 @@ export const verifyRegisterOtpDirect = async (req, res, next) => {
             email: normalizedEmail,
             password: payloadPassword,
             isActive: true,
+            hasCompletedWorkspaceSetup: false,
         });
         await Otp.updateOne({ _id: otpRecord._id }, { $set: { isUsed: true } });
         return res.status(200).json({

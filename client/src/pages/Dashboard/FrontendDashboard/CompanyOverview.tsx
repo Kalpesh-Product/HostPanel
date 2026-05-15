@@ -6,6 +6,7 @@ const cards = [
   { title: "Website Builder", path: "website-builder" },
   { title: "Nomad Listing", path: "nomad-listings" },
   { title: "POC Details", path: "poc-details" },
+  { title: "Organization Management", path: "organization-management" },
 ];
 
 const CompanyOverview = () => {

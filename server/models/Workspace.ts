@@ -79,6 +79,46 @@ const workspaceSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    organizationDepartments: {
+      type: [
+        {
+          name: { type: String, required: true, trim: true },
+          description: { type: String, default: "", trim: true },
+          isActive: { type: Boolean, default: true },
+          managerUser: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "HostUser",
+            default: null,
+          },
+        },
+      ],
+      default: [],
+    },
+    actingManagerAssignments: {
+      type: [
+        {
+          departmentId: {
+            type: mongoose.Schema.Types.ObjectId,
+            default: null,
+          },
+          assignedUser: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "HostUser",
+            default: null,
+          },
+          note: {
+            type: String,
+            default: "",
+            trim: true,
+          },
+          isActive: {
+            type: Boolean,
+            default: true,
+          },
+        },
+      ],
+      default: [],
+    },
     isSetupComplete: {
       type: Boolean,
       default: true,
@@ -93,4 +133,3 @@ const workspaceSchema = new mongoose.Schema(
 
 const Workspace = mongoose.model("Workspace", workspaceSchema);
 export default Workspace;
-

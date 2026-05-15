@@ -1,9 +1,8 @@
 // @ts-nocheck
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Container, Box, Grid, TextField } from "@mui/material";
 import { toast } from "sonner";
-import useRefresh from "../../hooks/useRefresh";
 import { api } from "../../utils/axios";
 import useAuth from "../../hooks/useAuth";
 import "./ClientLogin.css";
@@ -19,75 +18,89 @@ import { readInviteOnboardingState } from "../../utils/inviteOnboarding";
 
 const LoginPage = () => {
   const { auth, setAuth } = useAuth();
-  const user = auth.user;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const refresh = useRefresh();
-  const defaultModules = [
-    {
-      id: 1,
-      title: "Dashboard",
-      submenus: [
-        {
-          id: 4,
-          title: "Finance Dashboard",
-          codeName: "Finance",
-          route: "/app/company-settings",
-        },
-        {
-          id: 5,
-          title: "Sales Dashboard",
-          codeName: "Sales",
-          route: "/app/company-settings",
-        },
-        {
-          id: 3,
-          title: "HR Dashboard",
-          codeName: "HR",
-          route: "/app/company-settings",
-        },
-
-        {
-          id: 2,
-          title: "Frontend Dashboard",
-          codeName: "Tec",
-          route: "/app/company-settings",
-        },
-
-        {
-          id: 6,
-          title: "Admin Dashboard",
-          codeName: "Administration",
-          route: "/app/company-settings",
-        },
-
-        {
-          id: 7,
-          title: "Maintenance Dashboard",
-          codeName: "Maintenance",
-          route: "/app/company-settings",
-        },
-        {
-          id: 9,
-          title: "IT Dashboard",
-          codeName: "IT",
-          route: "/app/company-settings",
-        },
-
-        {
-          id: 8,
-          title: "Cafe Dashboard",
-          codeName: "Cafe",
-          route: "/app/company-settings",
-        },
-      ],
-    },
-  ];
-  const userDepartments = auth.user?.departments?.map((item) => item.name);
+  // Kept as comments per request: do not delete company project code.
+  // const defaultModules = [
+  //   {
+  //     id: 1,
+  //     title: "Dashboard",
+  //     submenus: [
+  //       {
+  //         id: 4,
+  //         title: "Finance Dashboard",
+  //         codeName: "Finance",
+  //         route: "/app/company-settings",
+  //       },
+  //       {
+  //         id: 5,
+  //         title: "Sales Dashboard",
+  //         codeName: "Sales",
+  //         route: "/app/company-settings",
+  //       },
+  //       {
+  //         id: 3,
+  //         title: "HR Dashboard",
+  //         codeName: "HR",
+  //         route: "/app/company-settings",
+  //       },
+  //       {
+  //         id: 2,
+  //         title: "Frontend Dashboard",
+  //         codeName: "Tec",
+  //         route: "/app/company-settings",
+  //       },
+  //       {
+  //         id: 6,
+  //         title: "Admin Dashboard",
+  //         codeName: "Administration",
+  //         route: "/app/company-settings",
+  //       },
+  //       {
+  //         id: 7,
+  //         title: "Maintenance Dashboard",
+  //         codeName: "Maintenance",
+  //         route: "/app/company-settings",
+  //       },
+  //       {
+  //         id: 9,
+  //         title: "IT Dashboard",
+  //         codeName: "IT",
+  //         route: "/app/company-settings",
+  //       },
+  //       {
+  //         id: 8,
+  //         title: "Cafe Dashboard",
+  //         codeName: "Cafe",
+  //         route: "/app/company-settings",
+  //       },
+  //     ],
+  //   },
+  // ];
+  // const userDepartments = auth.user?.departments?.map((item) => item.name);
+  // const filteredModules = defaultModules.map((module) => {
+  //   const filteredSubmenus = module.submenus?.filter((submenu) =>
+  //     userDepartments?.includes(submenu.codeName)
+  //   );
+  //
+  //   return {
+  //     ...module,
+  //     submenus: filteredSubmenus,
+  //   };
+  // });
+  //
+  // const hasAnySubmenus = filteredModules.some(
+  //   (module) => module.submenus.length > 0
+  // );
+  //
+  // const firstAvailableRoute = hasAnySubmenus
+  //   ? filteredModules.find((module) => module.submenus.length > 0).submenus[0]
+  //       .route
+  //   : "/company-settings";
   const shouldGoToCreateWorkspace = (userData) => {
     const pendingInviteOnboarding = readInviteOnboardingState();
     if (
@@ -110,39 +123,6 @@ const LoginPage = () => {
     const hasCompanyName = Boolean(userData?.companyName);
     return !hasCompanyName || companyId.includes("-dev-");
   };
-
-  const filteredModules = defaultModules.map((module) => {
-    const filteredSubmenus = module.submenus?.filter((submenu) =>
-      userDepartments?.includes(submenu.codeName)
-    );
-
-    return {
-      ...module,
-      submenus: filteredSubmenus,
-    };
-  });
-
-  const hasAnySubmenus = filteredModules.some(
-    (module) => module.submenus.length > 0
-  );
-
-  // If there are matches, use first matched route. Else fallback to Finance Dashboard
-  const firstAvailableRoute = hasAnySubmenus
-    ? filteredModules.find((module) => module.submenus.length > 0).submenus[0]
-        .route
-    : "/company-settings";
-
-  useEffect(() => {
-    if (auth.accessToken) {
-      if (shouldGoToCreateWorkspace(auth.user)) {
-        navigate("/create-workspace");
-      } else {
-        navigate(firstAvailableRoute);
-      }
-    } else {
-      refresh();
-    }
-  }, [auth.accessToken, auth.user, firstAvailableRoute, navigate, refresh]);
 
   // Validation function
   const handleLogin = async (e) => {

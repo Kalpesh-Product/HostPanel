@@ -14,6 +14,8 @@ import leadsRoutes from "./routes/leadsRoutes.js";
 import listingRoutes from "./routes/listingRoutes.js";
 import hostUserRoutes from "./routes/hostUserRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
+import workspaceRoutes from "./routes/workspaceRoutes.js";
+import organizationRoutes from "./routes/organizationRoutes.js";
 const app = express();
 dotenv.config();
 const PORT = process.env.PORT || 5006;
@@ -39,6 +41,8 @@ app.use("/api/leads", verifyJwt, leadsRoutes);
 app.use("/api/listings", verifyJwt, listingRoutes);
 app.use("/api/profile", verifyJwt, hostUserRoutes);
 app.use("/api/review", verifyJwt, reviewRoutes);
+app.use("/api/workspaces", verifyJwt, workspaceRoutes);
+app.use("/api/organization", verifyJwt, organizationRoutes);
 app.use((err, req, res, next) => {
     if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
         return res.status(413).json({

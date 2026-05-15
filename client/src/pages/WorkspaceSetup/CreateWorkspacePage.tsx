@@ -253,7 +253,7 @@ const CreateWorkspacePage: React.FC = () => {
                 </div>
               </div>
               <div className="flex flex-col leading-tight">
-                <span className="text-sm font-bold text-[#233552]">Workspace</span>
+                <span className="text-sm font-bold text-[#233552]">Business Location</span>
                 <span className="text-[11px] text-[#6d9bff] font-semibold">
                   Current step
                 </span>
@@ -267,31 +267,20 @@ const CreateWorkspacePage: React.FC = () => {
                 2
               </div>
               <div className="flex flex-col leading-tight">
-                <span className="text-sm font-bold text-[#233552]">Set Up Modules</span>
-                <span className="text-[11px] text-[#9aa8bc] font-semibold">Next</span>
-              </div>
-            </div>
-
-            <div className="hidden md:block flex-1 h-px bg-[#2d67f0] mx-4 md:mx-6" />
-
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full border border-[#c8cfda] bg-transparent text-[#c8cfda] text-sm font-bold flex items-center justify-center">
-                3
-              </div>
-              <div className="flex flex-col leading-tight">
                 <span className="text-sm font-bold text-[#233552]">Finalize Setup</span>
                 <span className="text-[11px] text-[#9aa8bc] font-semibold">Next</span>
               </div>
             </div>
+
           </div>
         </div>
 
           <div className="text-center mb-6 sm:mb-7">
             <h1 className="text-[26px] sm:text-[30px] md:text-[38px] font-bold text-[#111b33] mb-3 sm:mb-4">
-              Create your workspace
+              Create New Business Location
             </h1>
           <p className="text-sm md:text-[15px] text-[#63738d]">
-            Start with the main identity of your workspace. You can still refine and
+            Start with the main identity of your business location. You can still refine and
             expand it after setup.
           </p>
           </div>
@@ -302,7 +291,7 @@ const CreateWorkspacePage: React.FC = () => {
               if (!isWorkspaceFormComplete) {
                 return;
               }
-              navigate("/create-workspace/modules", {
+              navigate("/create-workspace/finalize", {
                 state: {
                   workspaceDetails: {
                     workspaceName,
@@ -337,11 +326,11 @@ const CreateWorkspacePage: React.FC = () => {
 
               <div className="flex flex-col">
                 <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
-                  Business Name
+                  Company Name
                 </label>
                 <input
                   type="text"
-                  placeholder="Enter business name"
+                  placeholder="Enter company name"
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
                   disabled={Boolean(activeInviteOnboarding?.businessName)}
@@ -544,7 +533,7 @@ const CreateWorkspacePage: React.FC = () => {
 
             <div className="flex flex-col">
               <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
-                Business Type
+                Type of Vertical
               </label>
               <div className="relative">
                 <button

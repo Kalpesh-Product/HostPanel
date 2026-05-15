@@ -13,7 +13,7 @@ export default function useLogout() {
       await api.get("/api/auth/logout", {
         withCredentials: true,
       });
-      toast.success("Successfully logged out");
+      toast.success("Successfully signed out");
       setAuth((prevState) => {
         return {
           ...prevState,

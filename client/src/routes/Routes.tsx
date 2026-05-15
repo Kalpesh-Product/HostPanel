@@ -153,6 +153,7 @@ import CompanyReviews from "../pages/Dashboard/FrontendDashboard/CompanyReviews"
 import CreateWorkspacePage from "../pages/WorkspaceSetup/CreateWorkspacePage";
 import SetupModulesPage from "../pages/WorkspaceSetup/SetupModulesPage";
 import FinalizeSetupPage from "../pages/WorkspaceSetup/FinalizeSetupPage";
+import OrganizationPage from "../pages/Organization/OrganizationPage";
 
 export const routes = createBrowserRouter([
   {
@@ -435,6 +436,10 @@ export const routes = createBrowserRouter([
                   {
                     path: "poc-details",
                     element: <PocDetails />,
+                  },
+                  {
+                    path: "organization-management",
+                    element: <OrganizationPage />,
                   },
                 ],
               },

@@ -18,6 +18,15 @@ const workspaceMemberSchema = new mongoose.Schema(
       default: "founder",
       trim: true,
     },
+    status: {
+      type: String,
+      default: "active",
+      trim: true,
+    },
+    departments: {
+      type: [String],
+      default: [],
+    },
     isPrimary: {
       type: Boolean,
       default: true,

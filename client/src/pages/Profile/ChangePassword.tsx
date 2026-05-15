@@ -5,6 +5,7 @@ import useAuth from "../../hooks/useAuth";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import PageFrame from "../../components/Pages/PageFrame";
+import { AxiosError } from "axios";
 
 const ChangePassword = ({ pageTitle }) => {
   const [isChanging, setIsChanging] = useState(false);
@@ -60,7 +61,7 @@ const ChangePassword = ({ pageTitle }) => {
       setErrorMessage("");
     } catch (error) {
       const msg =
-        error?.response?.data?.message ||
+        (error as AxiosError<{ message?: string }>)?.response?.data?.message ||
         "Failed to verify password. Please try again.";
       setErrorMessage(msg);
       toast.error(msg);
@@ -139,7 +140,7 @@ const ChangePassword = ({ pageTitle }) => {
       setErrorMessage("");
     } catch (error) {
       const msg =
-        error?.response?.data?.message ||
+        (error as AxiosError<{ message?: string }>)?.response?.data?.message ||
         "Failed to change password. Please try again.";
       setErrorMessage(msg);
       toast.error(msg);
