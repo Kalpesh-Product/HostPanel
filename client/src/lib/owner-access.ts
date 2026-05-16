@@ -54,6 +54,19 @@ export const getDepartmentLabel = (key = "") =>
 
 export const getSharedSectionModules = (_section: string, _departmentKey: string) => SHARED_MODULES;
 export const getDepartmentModules = (departmentKey: string) => CORE_MODULES[departmentKey] || [];
+export const getRoleModules = (roleKey = "") => {
+  const normalized = String(roleKey || "").trim().toLowerCase();
+  if (normalized === "super-admin" || normalized === "super_admin") {
+    return [
+      { id: "admin-dashboard", label: "Admin Dashboard", description: "Global workspace controls" },
+      { id: "admin-bookings", label: "Admin Bookings", description: "Manage global meeting room bookings" },
+    ];
+  }
+  if (normalized === "admin") {
+    return [{ id: "admin-bookings", label: "Admin Bookings", description: "Manage bookings for admin scope" }];
+  }
+  return [];
+};
 
 export const isDepartmentEnabledInState = (state: any, departmentKey: string) =>
   state?.departments?.[departmentKey]?.enabled !== false;

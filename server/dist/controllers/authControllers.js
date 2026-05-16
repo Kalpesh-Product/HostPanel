@@ -43,7 +43,63 @@ const extractInviteIdentity = (decoded) => {
     const inviteType = decoded?.inviteType ||
         decoded?.userInfo?.inviteType ||
         "master";
-    return { inviteEmail, inviteName, selectedPlan, businessName, inviteType };
+    const country = decoded?.country ||
+        decoded?.companyCountry ||
+        decoded?.workspaceCountry ||
+        decoded?.userInfo?.country ||
+        decoded?.userInfo?.companyCountry ||
+        decoded?.userInfo?.workspaceCountry ||
+        "";
+    const state = decoded?.state ||
+        decoded?.companyState ||
+        decoded?.workspaceState ||
+        decoded?.userInfo?.state ||
+        decoded?.userInfo?.companyState ||
+        decoded?.userInfo?.workspaceState ||
+        "";
+    const city = decoded?.city ||
+        decoded?.companyCity ||
+        decoded?.workspaceCity ||
+        decoded?.userInfo?.city ||
+        decoded?.userInfo?.companyCity ||
+        decoded?.userInfo?.workspaceCity ||
+        "";
+    const businessTypesRaw = decoded?.businessTypes ||
+        decoded?.businessType ||
+        decoded?.verticalTypes ||
+        decoded?.verticalType ||
+        decoded?.verticals ||
+        decoded?.companyTypes ||
+        decoded?.companyType ||
+        decoded?.workspaceType ||
+        decoded?.workspaceTypes ||
+        decoded?.userInfo?.businessTypes ||
+        decoded?.userInfo?.businessType ||
+        decoded?.userInfo?.verticalTypes ||
+        decoded?.userInfo?.verticalType ||
+        decoded?.userInfo?.verticals ||
+        decoded?.userInfo?.companyTypes ||
+        decoded?.userInfo?.companyType ||
+        decoded?.userInfo?.workspaceType ||
+        decoded?.userInfo?.workspaceTypes ||
+        [];
+    const businessTypes = Array.isArray(businessTypesRaw)
+        ? businessTypesRaw.map((item) => String(item || "").trim()).filter(Boolean)
+        : String(businessTypesRaw || "")
+            .split(/[,\|\/;]+/)
+            .map((item) => item.trim())
+            .filter(Boolean);
+    return {
+        inviteEmail,
+        inviteName,
+        selectedPlan,
+        businessName,
+        inviteType,
+        country,
+        state,
+        city,
+        businessTypes,
+    };
 };
 const buildAuthUserPayload = (user, company, workspaceCount = 0, workspaceMembership = null) => ({
     ...user,
@@ -106,6 +162,60 @@ const ensureInviteUserRecord = async (inviteEmail, inviteName) => {
         hasCompletedWorkspaceSetup: false,
     });
     return user;
+};
+const enrichInviteLocationAndTypes = async ({ businessName, country, state, city, businessTypes, }) => {
+    const normalizedBusinessName = String(businessName || "").trim();
+    let resolvedCountry = String(country || "").trim();
+    let resolvedState = String(state || "").trim();
+    let resolvedCity = String(city || "").trim();
+    let resolvedBusinessTypes = Array.isArray(businessTypes)
+        ? businessTypes.map((item) => String(item || "").trim()).filter(Boolean)
+        : [];
+    if (!normalizedBusinessName) {
+        return {
+            country: resolvedCountry,
+            state: resolvedState,
+            city: resolvedCity,
+            businessTypes: resolvedBusinessTypes,
+        };
+    }
+    const workspace = await Workspace.findOne({
+        businessName: normalizedBusinessName,
+        isActive: true,
+    })
+        .sort({ updatedAt: -1, createdAt: -1 })
+        .lean()
+        .exec();
+    if (workspace) {
+        resolvedCountry = resolvedCountry || String(workspace.country || "").trim();
+        resolvedState = resolvedState || String(workspace.state || "").trim();
+        resolvedCity = resolvedCity || String(workspace.city || "").trim();
+        if (!resolvedBusinessTypes.length) {
+            resolvedBusinessTypes = Array.isArray(workspace.businessTypes)
+                ? workspace.businessTypes
+                    .map((item) => String(item || "").trim())
+                    .filter(Boolean)
+                : [];
+        }
+    }
+    if (!resolvedCountry || !resolvedState || !resolvedCity) {
+        const company = await Company.findOne({
+            companyName: normalizedBusinessName,
+        })
+            .lean()
+            .exec();
+        if (company) {
+            resolvedCountry = resolvedCountry || String(company.companyCountry || "").trim();
+            resolvedState = resolvedState || String(company.companyState || "").trim();
+            resolvedCity = resolvedCity || String(company.companyCity || "").trim();
+        }
+    }
+    return {
+        country: resolvedCountry,
+        state: resolvedState,
+        city: resolvedCity,
+        businessTypes: resolvedBusinessTypes,
+    };
 };
 export const login = async (req, res, next) => {
     try {
@@ -332,7 +442,7 @@ export const getRegisterPrefill = async (req, res, next) => {
         if (!token)
             return res.status(400).json({ message: "Invite token is required." });
         const decoded = decodeSignupInviteToken(token);
-        const { inviteEmail, inviteName, selectedPlan, businessName, inviteType } = extractInviteIdentity(decoded);
+        const { inviteEmail, inviteName, selectedPlan, businessName, inviteType, country, state, city, businessTypes, } = extractInviteIdentity(decoded);
         if (!inviteEmail || !inviteName) {
             return res.status(400).json({ message: "Invalid invite token payload." });
         }
@@ -342,12 +452,23 @@ export const getRegisterPrefill = async (req, res, next) => {
                 message: "Account is already registered. Please sign in.",
             });
         }
+        const enriched = await enrichInviteLocationAndTypes({
+            businessName,
+            country,
+            state,
+            city,
+            businessTypes,
+        });
         res.status(200).json({
             fullName: inviteName,
             email: inviteEmail,
             selectedPlan,
             businessName,
             inviteType,
+            country: enriched.country,
+            state: enriched.state,
+            city: enriched.city,
+            businessTypes: enriched.businessTypes,
         });
     }
     catch (error) {

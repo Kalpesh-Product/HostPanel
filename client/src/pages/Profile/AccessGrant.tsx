@@ -1,269 +1,1744 @@
-import { useMemo, useState } from "react";
-import type { ReactElement } from "react";
+﻿// @ts-nocheck
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
-  AlertCircle,
-  ArrowRightLeft,
-  CheckCircle,
-  ChevronDown,
-  Search,
   Shield,
-  Users,
+  Search,
+  ChevronDown,
   X,
-} from "lucide-react";
-import PageFrame from "../../components/Pages/PageFrame";
-import useAuth from "../../hooks/useAuth";
+  CheckCircle,
+  AlertCircle,
+  ArrowRight,
+  ArrowRightLeft,
+  Users,
+} from 'lucide-react';
+import PageFrame from '../../components/Pages/PageFrame';
+import useAxiosPrivate from '../../hooks/useAxiosPrivate';
+import useAuth from '../../hooks/useAuth';
 
-type RoleGroup = "Founder" | "Super-Admin" | "Admin" | "Manager" | "Employee";
-type RoleFilter = "All Roles" | RoleGroup;
 
-type AccessMember = {
-  id: string;
-  name: string;
-  email: string;
-  roleGroup: RoleGroup;
-  department: string;
-  status: "joined" | "disabled";
-  grantedModules: string[];
+import { updateEmployeeAccess as updateEmployeeAccessRequest } from '../../services/hr';
+import { getDepartmentModules, getRoleModules, getSharedSectionModules } from '../../lib/owner-access';
+import {
+  getOrganizationOverview,
+  linkOrganizationMember,
+  transferOrganizationMember,
+  transferOrganizationOwnership,
+  updateOrganizationMemberRole,
+} from '../../services/organization';
+
+const ROLE_FILTERS = ['All Roles', 'Founder', 'Super-Admin', 'Admin', 'Manager', 'Employee'];
+const TRANSFER_ROLE_OPTIONS = [
+  { value: 'employee', label: 'Employee' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'super_admin', label: 'Super-Admin' },
+];
+const ALL_DEPARTMENT_KEYS = ['hr', 'administration', 'sales', 'finance', 'technology', 'it', 'maintenance'];
+const DEPARTMENT_LABELS = {
+  hr: 'HR',
+  administration: 'Administration',
+  sales: 'Sales',
+  finance: 'Finance',
+  technology: 'Technology',
+  it: 'IT',
+  maintenance: 'Maintenance',
 };
 
-type WorkspaceOption = {
-  id: string;
-  workspaceName: string;
-  location: string;
-};
+function Switch({ checked, disabled, onCheckedChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onCheckedChange(!checked)}
+      className={`relative h-6 w-11 rounded-full transition ${
+        checked ? 'bg-[#2563EB]' : 'bg-slate-300'
+      } ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+    >
+      <span
+        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${
+          checked ? 'left-5' : 'left-0.5'
+        }`}
+      />
+    </button>
+  );
+}
 
-const ROLE_FILTERS: RoleFilter[] = ["All Roles", "Founder", "Super-Admin", "Admin", "Manager", "Employee"];
+function isOwnerLikeMember(member = null) {
+  const normalized = normalizeRole(member?.rawRole || '');
+  return normalized === 'owner';
+}
 
-const MODULES = ["Dashboard", "Reports", "Attendance", "Tasks", "Tickets", "Bookings", "Assets", "Finance"];
+function normalizeRole(value = '') {
+  return value.toString().trim().toLowerCase().replace(/[\s-]+/g, '_');
+}
 
-const getRoleBadge = (group: RoleGroup): ReactElement => {
-  const common = "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1";
-  if (group === "Founder") return <span className={`${common} bg-[#111827] text-white`}><Shield size={12} /> Founder</span>;
-  if (group === "Super-Admin") return <span className={`${common} bg-[#2563EB]/10 text-[#2563EB`}><Shield size={12} /> Super Admin</span>;
-  if (group === "Admin") return <span className={`${common} bg-cyan-100 text-cyan-700`}><Shield size={12} /> Admin</span>;
-  if (group === "Manager") return <span className={`${common} bg-emerald-100 text-emerald-700`}><Users size={12} /> Manager</span>;
-  return <span className={`${common} bg-slate-100 text-slate-600`}><Users size={12} /> Employee</span>;
-};
+function getRoleGroup(role = '') {
+  const normalized = normalizeRole(role);
 
-const AccessGrant = () => {
-  const { auth } = useAuth();
-  const currentName = `${auth?.user?.firstName ?? ""} ${auth?.user?.lastName ?? ""}`.trim() || "Current User";
+  if (normalized === 'owner') {
+    return 'Founder';
+  }
 
-  const members = useMemo<AccessMember[]>(() => [
-    {
-      id: "owner-1",
-      name: currentName,
-      email: String(auth?.user?.email || "owner@example.com"),
-      roleGroup: "Founder",
-      department: "All Departments",
-      status: "joined",
-      grantedModules: MODULES,
-    },
-    {
-      id: "sa-1",
-      name: "Rahul Sharma",
-      email: "rahul@company.com",
-      roleGroup: "Super-Admin",
-      department: "Administration / HR",
-      status: "joined",
-      grantedModules: ["Dashboard", "Reports", "Bookings", "Assets"],
-    },
-    {
-      id: "m-1",
-      name: "Ankita Verma",
-      email: "ankita@company.com",
-      roleGroup: "Manager",
-      department: "Sales",
-      status: "joined",
-      grantedModules: ["Dashboard", "Tasks", "Tickets"],
-    },
-    {
-      id: "e-1",
-      name: "Rohit Das",
-      email: "rohit@company.com",
-      roleGroup: "Employee",
-      department: "HR",
-      status: "joined",
-      grantedModules: ["Dashboard", "Attendance", "Tasks"],
-    },
-  ], [auth?.user?.email, currentName]);
+  if (normalized === 'super_admin' || normalized === 'superadmin') {
+    return 'Super-Admin';
+  }
 
-  const workspaceOptions: WorkspaceOption[] = [
-    { id: "ws-2", workspaceName: "Biznest Downtown", location: "Pune" },
-    { id: "ws-3", workspaceName: "Biznest North", location: "Mumbai" },
-  ];
+  if (normalized === 'admin' || normalized === 'admin_manager') {
+    return 'Admin';
+  }
 
-  const [selectedRole, setSelectedRole] = useState<RoleFilter>("All Roles");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedUserId, setSelectedUserId] = useState<string>(members[0]?.id ?? "");
+  if (
+    normalized === 'manager' ||
+    normalized === 'hr' ||
+    normalized === 'hr_manager' ||
+    normalized === 'sales_manager' ||
+    normalized === 'finance_manager' ||
+    normalized === 'tech_manager' ||
+    normalized === 'it_manager' ||
+    normalized === 'maintenance_manager' ||
+    normalized === 'facilities_manager'
+  ) {
+    return 'Manager';
+  }
+
+  if (normalized === 'employee' || normalized === 'hr') {
+    return 'Employee';
+  }
+
+  return normalized.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()) || 'Employee';
+}
+
+function getRoleLabel(role = '') {
+  const normalized = normalizeRole(role);
+
+  if (normalized === 'owner') return 'Founder';
+  if (normalized === 'super_admin' || normalized === 'superadmin') return 'Super-Admin';
+  if (normalized === 'admin' || normalized === 'admin_manager') return 'Admin';
+
+  if (
+    normalized === 'manager' ||
+    normalized === 'hr_manager' ||
+    normalized === 'sales_manager' ||
+    normalized === 'finance_manager' ||
+    normalized === 'tech_manager' ||
+    normalized === 'it_manager' ||
+    normalized === 'maintenance_manager' ||
+    normalized === 'facilities_manager'
+  ) {
+    return 'Manager';
+  }
+
+  if (normalized === 'hr') return 'HR Manager';
+
+  if (normalized === 'employee') return 'Employee';
+
+  return role
+    .toString()
+    .trim()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase()) || 'Employee';
+}
+
+function normalizeModuleKey(value = '') {
+  return String(value || '').trim().toLowerCase().replace(/[\s_]+/g, '-');
+}
+
+function toEmployeeSidebarModuleKey(value = '') {
+  const normalized = normalizeModuleKey(value);
+  const aliasMap = {
+    'common-dashboard': 'dashboard',
+    'common-my-calendar': 'my-calendar',
+    'common-attendance': 'attendance',
+    'common-leave-requests': 'leave',
+    'common-tasks': 'tasks',
+    'common-tickets': 'tickets',
+    'common-meeting-room-booking': 'bookings',
+    'common-report': 'reports',
+    'extra-common-assets': 'assets',
+    'extra-assets': 'assets',
+    'extra-common-inventory': 'inventory',
+    'extra-inventory': 'inventory',
+    'extra-common-finance-management': 'finance',
+    'extra-finance-management': 'finance',
+    'finance-management': 'finance',
+  };
+  return aliasMap[normalized] || normalized;
+}
+
+function resolveEmployeeModuleKeysForSection(moduleId = '', sectionKey = '', member = null) {
+  const normalizedSection = String(sectionKey || '').trim().toLowerCase();
+  const baseKey = toEmployeeSidebarModuleKey(moduleId);
+  const keys = new Set([baseKey]);
+
+  if (baseKey === 'admin-bookings') {
+    keys.add('bookings');
+  }
+
+  if (normalizedSection === 'core' && baseKey === 'bookings') {
+    const departmentKeys = new Set(
+      (Array.isArray(member?.departments) ? member.departments : [])
+        .map((departmentName) => resolveDepartmentKey(departmentName))
+        .filter(Boolean),
+    );
+    if (departmentKeys.has('administration') || member?.roleGroup === 'Admin' || member?.roleGroup === 'Manager') {
+      keys.add('admin-bookings');
+    }
+  }
+
+  return Array.from(keys);
+}
+
+function resolveDepartmentKey(value = '') {
+  const normalized = normalizeModuleKey(value);
+  if (normalized.includes('administration') || normalized === 'admin') return 'administration';
+  if (normalized.includes('sales')) return 'sales';
+  if (normalized.includes('finance') || normalized.includes('accounting')) return 'finance';
+  if (normalized.includes('maintenance') || normalized.includes('facilities') || normalized.includes('operations')) return 'maintenance';
+  if (normalized.includes('technology') || normalized.includes('tech')) return 'technology';
+  if (normalized === 'it' || normalized.includes('information-technology')) return 'it';
+  if (normalized.includes('hr')) return 'hr';
+  return normalized;
+}
+
+function getRoleRank(role = '') {
+  const group = getRoleGroup(role);
+  if (group === 'Founder') return 4;
+  if (group === 'Super-Admin') return 3;
+  if (group === 'Admin') return 2;
+  if (group === 'Manager') return 1;
+  return 0;
+}
+
+function getNextHigherRole(role = '') {
+  const group = getRoleGroup(role);
+  if (group === 'Employee') return 'manager';
+  if (group === 'Manager') return 'admin';
+  if (group === 'Admin') return 'super_admin';
+  return null;
+}
+
+function getNextLowerRole(role = '') {
+  const group = getRoleGroup(role);
+  if (group === 'Super-Admin') return 'admin';
+  if (group === 'Admin') return 'manager';
+  if (group === 'Manager') return 'employee';
+  return null;
+}
+
+function getTransferRoleValue(role = '') {
+  const group = getRoleGroup(role);
+
+  if (group === 'Super-Admin') return 'super_admin';
+  if (group === 'Admin') return 'admin';
+  if (group === 'Manager') return 'manager';
+  return 'employee';
+}
+
+function getInitials(name = '') {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
+
+function getDepartmentLabel(member = {}) {
+  const departments = Array.isArray(member.departmentNames) && member.departmentNames.length > 0
+    ? member.departmentNames
+    : Array.isArray(member.departments)
+      ? member.departments
+      : [];
+
+  if (departments.length === 0) {
+    return 'All Departments';
+  }
+
+  return departments.join(' / ');
+}
+
+function mapOverviewMember(member = {}) {
+  return {
+    id: member.id || member.userId || member.email || member.name,
+    userId: member.userId || null,
+    name: member.name || member.fullName || 'Unknown',
+    email: member.email || '',
+    rawRole: member.role || 'employee',
+    role: getRoleLabel(member.role),
+    roleGroup: getRoleGroup(member.role),
+    department: getDepartmentLabel(member),
+    status: member.status || 'joined',
+    departments: Array.isArray(member.departmentNames)
+      ? member.departmentNames
+      : Array.isArray(member.departments)
+        ? member.departments
+        : [],
+    grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],
+    workspaceAccesses: Array.isArray(member.workspaceAccesses) ? member.workspaceAccesses : [],
+  };
+}
+
+export default function AccessGrantsPage() {
+  const navigate = useNavigate();
+  const axiosPrivate = useAxiosPrivate();
+  const { auth, setAuth } = useAuth();
+  const currentUser = auth?.user || null;
+  const currentRole = normalizeRole(currentUser?.workspaceMembership?.role || currentUser?.role);
+  const canEditAccessGrants = currentRole === 'owner' || currentRole === 'founder';
+
+  const [selectedRole, setSelectedRole] = useState('All Roles');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showDetailPanel, setShowDetailPanel] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [roleActionWarning, setRoleActionWarning] = useState(null);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const [showTransferWarning, setShowTransferWarning] = useState(false);
+  const [transferTargetUserId, setTransferTargetUserId] = useState('');
+  const [linkedWorkspaces, setLinkedWorkspaces] = useState([]);
   const [showWorkspaceTransferDialog, setShowWorkspaceTransferDialog] = useState(false);
-  const [showLinkDialog, setShowLinkDialog] = useState(false);
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(workspaceOptions[0]?.id ?? "");
+  const [showWorkspaceLinkDialog, setShowWorkspaceLinkDialog] = useState(false);
+  const [workspaceTransferForm, setWorkspaceTransferForm] = useState({
+    targetWorkspaceId: '',
+    role: 'employee',
+    departmentIds: [],
+    note: '',
+  });
+  const [workspaceLinkForm, setWorkspaceLinkForm] = useState({
+    targetWorkspaceId: '',
+    note: '',
+  });
+  const [showMemberAccessDialog, setShowMemberAccessDialog] = useState(false);
+  const [memberAccessTarget, setMemberAccessTarget] = useState(null);
+  const [memberAccessDraft, setMemberAccessDraft] = useState({});
+  const [members, setMembers] = useState([]);
+  const [workspace, setWorkspace] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const selectedUser = useMemo(() => members.find((m) => m.id === selectedUserId) ?? null, [members, selectedUserId]);
+  const loadAccessGrants = async (showLoading = false) => {
+    if (showLoading) {
+      setIsLoading(true);
+    }
+
+    try {
+      const response = await getOrganizationOverview(axiosPrivate);
+      const payload = response?.data?.data || {};
+      const nextMembers = Array.isArray(payload.teamMembers) ? payload.teamMembers : [];
+
+      setWorkspace(payload.workspace || null);
+      setLinkedWorkspaces(Array.isArray(payload.linkedWorkspaces) ? payload.linkedWorkspaces : []);
+      setMembers(
+        nextMembers
+          .filter((member) => member?.userId && member?.status !== 'pending')
+          .map(mapOverviewMember),
+      );
+    } catch (error) {
+      toast.error(error.message || 'Failed to load access grants.');
+    } finally {
+      if (showLoading) {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    void loadAccessGrants(true);
+  }, []);
+
+  const users = useMemo(() => members, [members]);
+  const transferWorkspaceOptions = useMemo(
+    () => linkedWorkspaces.filter((item) => !item?.isCurrentWorkspace),
+    [linkedWorkspaces],
+  );
+  const canTransferMembers = canEditAccessGrants && transferWorkspaceOptions.length > 0;
+  const linkWorkspaceOptions = useMemo(() => {
+    const activeWorkspaceIds = new Set(
+      Array.isArray(selectedUser?.workspaceAccesses)
+        ? selectedUser.workspaceAccesses.map((item) => String(item?.id || ''))
+        : [],
+    );
+
+    return transferWorkspaceOptions.filter((item) => !activeWorkspaceIds.has(String(item.id)));
+  }, [selectedUser, transferWorkspaceOptions]);
+  const canLinkMembers = canEditAccessGrants && linkWorkspaceOptions.length > 0;
+  const selectedTransferWorkspace = useMemo(
+    () => transferWorkspaceOptions.find((item) => String(item.id) === String(workspaceTransferForm.targetWorkspaceId)) || null,
+    [transferWorkspaceOptions, workspaceTransferForm.targetWorkspaceId],
+  );
+  const selectedTransferRole = useMemo(
+    () => TRANSFER_ROLE_OPTIONS.find((option) => option.value === workspaceTransferForm.role) || TRANSFER_ROLE_OPTIONS[0],
+    [workspaceTransferForm.role],
+  );
+  const selectedTransferDepartmentOptions = Array.isArray(selectedTransferWorkspace?.departments)
+    ? selectedTransferWorkspace.departments
+    : [];
+  const isAdminTransferRole = workspaceTransferForm.role === 'admin';
+  const isSuperAdminTransferRole = workspaceTransferForm.role === 'super_admin';
+  const selectedSingleTransferDepartmentId = workspaceTransferForm.departmentIds[0] || '';
 
   const filteredUsers = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    return members.filter((m) => {
-      const roleMatch = selectedRole === "All Roles" || m.roleGroup === selectedRole;
-      const textMatch = !q || m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q) || m.department.toLowerCase().includes(q);
-      return roleMatch && textMatch;
+    const normalizedSearch = searchQuery.toLowerCase().trim();
+
+    return users.filter((user) => {
+      const matchesRole = selectedRole === 'All Roles' || user.roleGroup === selectedRole;
+      const matchesSearch =
+        !normalizedSearch ||
+        user.name.toLowerCase().includes(normalizedSearch) ||
+        user.email.toLowerCase().includes(normalizedSearch) ||
+        user.department.toLowerCase().includes(normalizedSearch) ||
+        user.role.toLowerCase().includes(normalizedSearch);
+
+      return matchesRole && matchesSearch;
     });
-  }, [members, searchQuery, selectedRole]);
+  }, [users, searchQuery, selectedRole]);
 
   const stats = useMemo(() => {
-    const count = (group: RoleGroup) => members.filter((m) => m.roleGroup === group).length;
+    const countByGroup = (group) => users.filter((user) => user.roleGroup === group).length;
+
     return {
-      owner: count("Founder"),
-      superAdmin: count("Super-Admin"),
-      admin: count("Admin"),
-      manager: count("Manager"),
-      employee: count("Employee"),
+      owner: countByGroup('Founder'),
+      superAdmin: countByGroup('Super-Admin'),
+      admin: countByGroup('Admin'),
+      manager: countByGroup('Manager'),
+      employee: countByGroup('Employee'),
     };
-  }, [members]);
+  }, [users]);
+
+  const eligibleOwnershipCandidates = useMemo(
+    () =>
+      users.filter(
+        (user) =>
+          user.roleGroup === 'Super-Admin' &&
+          user.status !== 'disabled',
+      ),
+    [users],
+  );
+
+  const transferTargetUser = useMemo(
+    () => users.find((user) => String(user.id) === String(transferTargetUserId)) || null,
+    [users, transferTargetUserId],
+  );
+
+  const getRoleBadge = (group) => {
+    switch (group) {
+      case 'Founder':
+        return <span className="px-3 py-1 bg-[#111827] text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Shield size={12} /> Founder</span>;
+      case 'Super-Admin':
+        return <span className="px-3 py-1 bg-[#2563EB]/10 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Shield size={12} /> Super Admin</span>;
+      case 'Admin':
+        return <span className="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Shield size={12} /> Admin</span>;
+      case 'Manager':
+        return <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Users size={12} /> Manager</span>;
+      case 'Employee':
+      default:
+        return <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Users size={12} /> Employee</span>;
+    }
+  };
+
+  const sharedCommonModules = useMemo(() => getSharedSectionModules('common'), []);
+  const sharedExtraModules = useMemo(() => getSharedSectionModules('extra-common'), []);
+
+  const getMemberCoreSections = (member) => {
+    if (!member) return [];
+    const departments = Array.isArray(member.departments) ? member.departments : [];
+    const roleCoreModules =
+      member.roleGroup === 'Super-Admin'
+        ? getRoleModules('super-admin')
+        : member.roleGroup === 'Admin'
+          ? getRoleModules('admin')
+          : [];
+    const shouldUseAllDepartmentCoreModulesForAdminScopes =
+      member.roleGroup === 'Super-Admin' ||
+      (member.roleGroup === 'Admin' && departments.length === 0);
+
+    const departmentKeys = shouldUseAllDepartmentCoreModulesForAdminScopes
+      ? ALL_DEPARTMENT_KEYS
+      : departments.map((departmentName) => resolveDepartmentKey(departmentName)).filter(Boolean);
+
+    const sections = [];
+
+    if (roleCoreModules.length > 0) {
+      sections.push({
+        key: 'role-core',
+        title: `${member.roleGroup} Core Modules`,
+        modules: roleCoreModules.map((module) => ({
+          ...module,
+          toggleId: `role-core::${module.id}`,
+          moduleKey: module.id,
+        })),
+      });
+    }
+
+    departmentKeys.forEach((departmentKey) => {
+      const departmentModules = getDepartmentModules(departmentKey);
+      if (departmentModules.length === 0) return;
+
+      sections.push({
+        key: `dept-core::${departmentKey}`,
+        title: `${DEPARTMENT_LABELS[departmentKey] || departmentKey} Core Modules`,
+        modules: departmentModules.map((module) => ({
+          ...module,
+          toggleId: `dept-core::${departmentKey}::${module.id}`,
+          moduleKey: module.id,
+          departmentKey,
+        })),
+      });
+    });
+
+    return sections;
+  };
+
+  const openMemberAccessDialog = (member) => {
+    const memberCoreSections = getMemberCoreSections(member);
+    const grantedModuleValues = Array.isArray(member?.grantedModules) ? member.grantedModules : [];
+    const grantedModules = new Set(
+      grantedModuleValues
+        .map((item) => String(item || ''))
+        .filter((item) => !normalizeModuleKey(item).startsWith('disabled:'))
+        .map((item) => normalizeModuleKey(item))
+        .map((item) => toEmployeeSidebarModuleKey(item)),
+    );
+    const disabledCommonModules = new Set(
+      grantedModuleValues
+        .map((item) => normalizeModuleKey(item))
+        .filter((item) => item.startsWith('disabled:'))
+        .map((item) => toEmployeeSidebarModuleKey(item.slice('disabled:'.length))),
+    );
+    const ownerLikeMember = isOwnerLikeMember(member);
+
+    const nextDraft = {
+      common: sharedCommonModules.reduce((acc, module) => {
+        const sidebarModuleKeys = resolveEmployeeModuleKeysForSection(module.id, 'common', member);
+        acc[module.id] = ownerLikeMember
+          ? (
+              sidebarModuleKeys.some((moduleKey) => grantedModules.has(moduleKey))
+              && !sidebarModuleKeys.some((moduleKey) => disabledCommonModules.has(moduleKey))
+            )
+          : true;
+        return acc;
+      }, {}),
+      extra: sharedExtraModules.reduce((acc, module) => {
+        const sidebarModuleKeys = resolveEmployeeModuleKeysForSection(module.id, 'extra', member);
+        acc[module.id] = sidebarModuleKeys.some((moduleKey) => grantedModules.has(moduleKey));
+        return acc;
+      }, {}),
+      core: memberCoreSections.reduce((acc, section) => {
+        section.modules.forEach((module) => {
+          const sidebarModuleKeys = resolveEmployeeModuleKeysForSection(module.moduleKey || module.id, 'core', member);
+          acc[module.toggleId] = sidebarModuleKeys.some((moduleKey) => grantedModules.has(moduleKey));
+        });
+        return acc;
+      }, {}),
+    };
+
+    setMemberAccessTarget(member);
+    setMemberAccessDraft(nextDraft);
+    setShowMemberAccessDialog(true);
+  };
+
+  const toggleMemberModule = (sectionKey, moduleId) => {
+    if (sectionKey === 'common') {
+      if (!isOwnerLikeMember(memberAccessTarget)) {
+        return;
+      }
+    }
+
+    if (!memberAccessTarget) {
+      return;
+    }
+
+    setMemberAccessDraft((current) => ({
+      ...current,
+      [sectionKey]: {
+        ...(current?.[sectionKey] || {}),
+        [moduleId]: !current?.[sectionKey]?.[moduleId],
+      },
+    }));
+  };
+
+  const handleSaveMemberAccess = async () => {
+    if (!memberAccessTarget) return;
+
+    const selectedCommonModules = Object.entries(memberAccessDraft?.common || {})
+      .filter(([, enabled]) => enabled)
+      .flatMap(([moduleId]) => resolveEmployeeModuleKeysForSection(moduleId, 'common', memberAccessTarget));
+    const selectedExtraModules = Object.entries(memberAccessDraft?.extra || {})
+      .filter(([, enabled]) => enabled)
+      .flatMap(([moduleId]) => resolveEmployeeModuleKeysForSection(moduleId, 'extra', memberAccessTarget));
+    const selectedCoreModules = Object.entries(memberAccessDraft?.core || {})
+      .filter(([, enabled]) => enabled)
+      .flatMap(([toggleId]) => {
+        const moduleId = String(toggleId || '').split('::').pop() || '';
+        return resolveEmployeeModuleKeysForSection(moduleId, 'core', memberAccessTarget);
+      });
+
+    const disabledCommonModules = Object.entries(memberAccessDraft?.common || {})
+      .filter(([, enabled]) => !enabled)
+      .map(([moduleId]) => `disabled:${toEmployeeSidebarModuleKey(moduleId)}`);
+    const disabledExtraModules = Object.entries(memberAccessDraft?.extra || {})
+      .filter(([, enabled]) => !enabled)
+      .flatMap(([moduleId]) =>
+        resolveEmployeeModuleKeysForSection(moduleId, 'extra', memberAccessTarget)
+          .map((moduleKey) => `disabled:${toEmployeeSidebarModuleKey(moduleKey)}`),
+      );
+    const disabledCoreModules = Object.entries(memberAccessDraft?.core || {})
+      .filter(([, enabled]) => !enabled)
+      .flatMap(([toggleId]) => {
+        const moduleId = String(toggleId || '').split('::').pop() || '';
+        return resolveEmployeeModuleKeysForSection(moduleId, 'core', memberAccessTarget)
+          .map((moduleKey) => `disabled:${toEmployeeSidebarModuleKey(moduleKey)}`);
+      });
+
+    const selectedModules = [
+      ...selectedCommonModules,
+      ...selectedExtraModules,
+      ...selectedCoreModules,
+    ];
+    const effectiveModules = isOwnerLikeMember(memberAccessTarget)
+      ? Array.from(new Set([...selectedModules, ...disabledCommonModules, ...disabledExtraModules, ...disabledCoreModules]))
+      : Array.from(new Set([
+          ...selectedModules,
+          ...sharedCommonModules.map((module) => toEmployeeSidebarModuleKey(module.id)),
+          ...disabledExtraModules,
+          ...disabledCoreModules,
+        ]));
+
+    setIsSaving(true);
+    try {
+      await updateEmployeeAccessRequest(axiosPrivate, memberAccessTarget.id, {
+        accessModules: effectiveModules,
+        accessFeatures: [],
+      });
+      toast.success(`Sidebar access updated for ${memberAccessTarget.name}.`);
+      setShowMemberAccessDialog(false);
+      setMemberAccessTarget(null);
+      await loadAccessGrants();
+    } catch (error) {
+      toast.error(error?.message || 'Unable to update sidebar access for this user.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const refreshCurrentUserSession = (nextUser) => {
+    if (nextUser) {
+      setAuth((prev) => ({ ...prev, user: nextUser }));
+    }
+  };
+
+  const handleOpenDetails = (user) => {
+    setSelectedUser(user);
+    setRoleActionWarning(null);
+    setShowDetailPanel(true);
+  };
+
+  const handleOpenWorkspaceTransferDialog = (user) => {
+    const defaultTargetWorkspace = transferWorkspaceOptions[0] || null;
+    const normalizedRole = getTransferRoleValue(user?.rawRole);
+    const departmentOptions = Array.isArray(defaultTargetWorkspace?.departments)
+      ? defaultTargetWorkspace.departments
+      : [];
+    const matchedDepartmentIds = departmentOptions
+      .filter((department) =>
+        Array.isArray(user?.departments) &&
+        user.departments.some(
+          (currentDepartment) =>
+            String(currentDepartment || '').trim().toLowerCase() ===
+            String(department?.name || '').trim().toLowerCase(),
+        ),
+      )
+      .map((department) => department.id);
+    const preferredDepartmentIds =
+      normalizedRole === 'super_admin'
+        ? []
+        : normalizedRole === 'admin'
+          ? (matchedDepartmentIds.length > 0 ? matchedDepartmentIds : departmentOptions[0]?.id ? [departmentOptions[0].id] : [])
+          : [
+              departmentOptions.find((department) =>
+                Array.isArray(user?.departments) &&
+                user.departments.some(
+                  (currentDepartment) =>
+                    String(currentDepartment || '').trim().toLowerCase() ===
+                    String(department?.name || '').trim().toLowerCase(),
+                ),
+              )?.id || departmentOptions[0]?.id || '',
+            ].filter(Boolean);
+
+    setSelectedUser(user);
+    setWorkspaceTransferForm({
+      targetWorkspaceId: defaultTargetWorkspace?.id || '',
+      role: normalizedRole,
+      departmentIds: preferredDepartmentIds,
+      note: '',
+    });
+    setShowWorkspaceTransferDialog(true);
+  };
+
+  const handleOpenWorkspaceLinkDialog = (user) => {
+    const defaultTargetWorkspace = (
+      transferWorkspaceOptions.filter((item) =>
+        !(Array.isArray(user?.workspaceAccesses) ? user.workspaceAccesses : []).some(
+          (access) => String(access?.id || '') === String(item.id),
+        ),
+      )[0] || null
+    );
+
+    setSelectedUser(user);
+    setWorkspaceLinkForm({
+      targetWorkspaceId: defaultTargetWorkspace?.id || '',
+      note: '',
+    });
+    setShowWorkspaceLinkDialog(true);
+  };
+
+  const reloadFromResponse = async (response) => {
+    const payload = response?.data?.data || {};
+
+    if (payload.overview) {
+      const overview = payload.overview;
+      setWorkspace(overview.workspace || null);
+      setLinkedWorkspaces(Array.isArray(overview.linkedWorkspaces) ? overview.linkedWorkspaces : []);
+      setMembers((Array.isArray(overview.teamMembers) ? overview.teamMembers : []).map(mapOverviewMember));
+    } else {
+      await loadAccessGrants();
+    }
+
+    refreshCurrentUserSession(payload.currentUser?.user || payload.currentUser || null);
+  };
+
+  const handlePromote = async () => {
+    if (!canEditAccessGrants) {
+      toast.error('Only the workspace founder can change access grants.');
+      return;
+    }
+
+    if (!selectedUser || selectedUser.roleGroup === 'Founder') {
+      return;
+    }
+
+    const nextRole = getNextHigherRole(selectedUser.rawRole);
+    if (!nextRole) {
+      toast.info('No higher role is available for this user.');
+      return;
+    }
+
+    if (!roleActionWarning || roleActionWarning.type !== 'promote') {
+      setRoleActionWarning({
+        type: 'promote',
+        nextRole,
+        title: `Confirm promotion for ${selectedUser.name}`,
+        message: `${selectedUser.name} will be promoted to ${getRoleLabel(nextRole)}.`,
+        note: "This will expand the user's access to the next role level.",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await updateOrganizationMemberRole(axiosPrivate, selectedUser.id, { role: roleActionWarning.nextRole || nextRole });
+      await reloadFromResponse(response);
+      setShowDetailPanel(false);
+      setSelectedUser(null);
+      setRoleActionWarning(null);
+      toast.success(`${selectedUser.name} promoted to ${getRoleLabel(roleActionWarning.nextRole || nextRole)}.`);
+    } catch (error) {
+      toast.error(error.message || 'Unable to promote user right now.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDemote = async () => {
+    if (!canEditAccessGrants) {
+      toast.error('Only the workspace founder can change access grants.');
+      return;
+    }
+
+    if (!selectedUser || selectedUser.roleGroup === 'Founder') {
+      return;
+    }
+
+    const nextRole = getNextLowerRole(selectedUser.rawRole);
+    if (!nextRole) {
+      toast.info('No lower role is available for this user.');
+      return;
+    }
+
+    if (!roleActionWarning || roleActionWarning.type !== 'demote') {
+      setRoleActionWarning({
+        type: 'demote',
+        nextRole,
+        title: `Confirm demotion for ${selectedUser.name}`,
+        message: `${selectedUser.name} will be demoted to ${getRoleLabel(nextRole)}.`,
+        note: "This will reduce the user's access to the next lower role level.",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await updateOrganizationMemberRole(axiosPrivate, selectedUser.id, { role: roleActionWarning.nextRole || nextRole });
+      await reloadFromResponse(response);
+      setShowDetailPanel(false);
+      setSelectedUser(null);
+      setRoleActionWarning(null);
+      toast.success(`${selectedUser.name} demoted to ${getRoleLabel(roleActionWarning.nextRole || nextRole)}.`);
+    } catch (error) {
+      toast.error(error.message || 'Unable to demote user right now.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleTransferOwnership = async () => {
+    if (!canEditAccessGrants) {
+      toast.error('Only the workspace founder can transfer founder access.');
+      return;
+    }
+
+    const targetMemberId = transferTargetUser?.id || eligibleOwnershipCandidates[0]?.id;
+    if (!targetMemberId) {
+      toast.info('Select an eligible Super-Admin before transferring founder access.');
+      return;
+    }
+
+    if (!showTransferWarning) {
+      setShowTransferWarning(true);
+      return;
+    }
+
+    const targetMember = users.find((member) => String(member.id) === String(targetMemberId));
+
+    setIsSaving(true);
+    try {
+      const response = await transferOrganizationOwnership(axiosPrivate, { memberId: targetMemberId });
+      await reloadFromResponse(response);
+      setShowTransferDialog(false);
+      setShowTransferWarning(false);
+      setShowDetailPanel(false);
+      setSelectedUser(null);
+      setTransferTargetUserId('');
+      toast.success(`Founder access transferred to ${targetMember?.name || 'the selected user'}.`);
+      navigate('/dashboard', { replace: true });
+    } catch (error) {
+      toast.error(error.message || 'Unable to transfer founder access right now.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleConfirmWorkspaceTransfer = async () => {
+    if (!canTransferMembers || !selectedUser) {
+      return;
+    }
+
+    if (!workspaceTransferForm.targetWorkspaceId) {
+      toast.error('Select a target workspace first.');
+      return;
+    }
+
+    if (!isSuperAdminTransferRole && workspaceTransferForm.departmentIds.length === 0) {
+      toast.error('Select a target department for this transfer.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await transferOrganizationMember(axiosPrivate, selectedUser.id, {
+        targetWorkspaceId: workspaceTransferForm.targetWorkspaceId,
+        role: workspaceTransferForm.role,
+        departments:
+          isSuperAdminTransferRole
+            ? []
+            : workspaceTransferForm.departmentIds,
+        note: workspaceTransferForm.note,
+      });
+      await reloadFromResponse(response);
+      setShowWorkspaceTransferDialog(false);
+      setShowDetailPanel(false);
+      setSelectedUser(null);
+      toast.success(`${selectedUser.name} transferred successfully.`);
+    } catch (error) {
+      toast.error(error.message || 'Unable to transfer this user right now.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleConfirmWorkspaceLink = async () => {
+    if (!canLinkMembers || !selectedUser) {
+      return;
+    }
+
+    if (!workspaceLinkForm.targetWorkspaceId) {
+      toast.error('Select a workspace to add access.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await linkOrganizationMember(axiosPrivate, selectedUser.id, {
+        targetWorkspaceId: workspaceLinkForm.targetWorkspaceId,
+        note: workspaceLinkForm.note,
+      });
+      await reloadFromResponse(response);
+      setShowWorkspaceLinkDialog(false);
+      setShowDetailPanel(false);
+      setSelectedUser(null);
+      toast.success(`${selectedUser.name} can now access another workspace.`);
+    } catch (error) {
+      toast.error(error.message || 'Unable to add workspace access right now.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const nextHigherRole = selectedUser ? getNextHigherRole(selectedUser.rawRole) : null;
+  const nextLowerRole = selectedUser ? getNextLowerRole(selectedUser.rawRole) : null;
+
+  const todayCounts = [
+    { label: 'Founder', value: stats.owner, color: 'text-purple-600' },
+    { label: 'Super-Admin', value: stats.superAdmin, color: 'text-red-600' },
+    { label: 'Admin', value: stats.admin, color: 'text-amber-600' },
+    { label: 'Manager', value: stats.manager, color: 'text-blue-600' },
+    { label: 'Employee', value: stats.employee, color: 'text-green-600' },
+  ];
+
+  const ownerName = currentUser?.fullName || currentUser?.name || 'Founder';
+  const accessGrantsModeLabel = canEditAccessGrants ? 'Founder edit access' : 'Read-only access';
+
+  if (isLoading) {
+    return (
+      <PageFrame>      <div className='p-6 lg:p-8'>Loading access grants...</div>
+      </PageFrame>
+    );
+  }
 
   return (
     <PageFrame>
-      <div className="space-y-6">
-        <div className="rounded-[2rem] border border-slate-100 bg-white p-5 sm:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="p-2.5 lg:p-3.5 min-h-full text-[#0F172A] font-sans">
+        <div className="space-y-3">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">Owner Controls</p>
-              <h1 className="mt-2 text-2xl font-black text-slate-900">Access Grants</h1>
-              <p className="mt-2 text-sm text-slate-500">Manage roles, visibility, and workspace handovers with a centralized access console.</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button onClick={() => setShowLinkDialog(true)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Link Workspace Access</button>
-              <button onClick={() => setShowWorkspaceTransferDialog(true)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Transfer Workspace</button>
-              <button onClick={() => setShowTransferDialog(true)} className="rounded-xl bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1d4ed8]">Transfer Founder</button>
+              <h1 className="text-[24px] md:text-[28px] leading-[0.98] font-black tracking-tight text-slate-800">Access Grants</h1>
+              <p className="text-[17px] font-medium text-slate-600 mt-0.5">
+                Manage user roles and founder access for {workspace?.workspaceName || 'this workspace'}.
+              </p>
             </div>
           </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <button onClick={() => setSelectedRole("Founder")} className="rounded-2xl border border-slate-200 p-3 text-left hover:bg-slate-50"><p className="text-xs text-slate-500">Founders</p><p className="text-xl font-black text-slate-900">{stats.owner}</p></button>
-            <button onClick={() => setSelectedRole("Super-Admin")} className="rounded-2xl border border-slate-200 p-3 text-left hover:bg-slate-50"><p className="text-xs text-slate-500">Super Admins</p><p className="text-xl font-black text-slate-900">{stats.superAdmin}</p></button>
-            <button onClick={() => setSelectedRole("Admin")} className="rounded-2xl border border-slate-200 p-3 text-left hover:bg-slate-50"><p className="text-xs text-slate-500">Admins</p><p className="text-xl font-black text-slate-900">{stats.admin}</p></button>
-            <button onClick={() => setSelectedRole("Manager")} className="rounded-2xl border border-slate-200 p-3 text-left hover:bg-slate-50"><p className="text-xs text-slate-500">Managers</p><p className="text-xl font-black text-slate-900">{stats.manager}</p></button>
-            <button onClick={() => setSelectedRole("Employee")} className="rounded-2xl border border-slate-200 p-3 text-left hover:bg-slate-50"><p className="text-xs text-slate-500">Employees</p><p className="text-xl font-black text-slate-900">{stats.employee}</p></button>
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            {todayCounts.map((stat) => {
+              const iconBg = {
+                Founder: 'bg-violet-50 text-violet-600',
+                'Super-Admin': 'bg-rose-50 text-rose-600',
+                Admin: 'bg-amber-50 text-amber-600',
+                Manager: 'bg-blue-50 text-[#2563EB]',
+                Employee: 'bg-emerald-50 text-emerald-600',
+              }[stat.label] || 'bg-slate-50 text-slate-600';
+
+              const valueColor = {
+                Founder: 'text-violet-600',
+                'Super-Admin': 'text-rose-600',
+                Admin: 'text-amber-600',
+                Manager: 'text-[#2563EB]',
+                Employee: 'text-emerald-600',
+              }[stat.label] || 'text-slate-800';
+
+              return (
+                <div key={stat.label} className="bg-white px-3.5 py-2.5 rounded-[1.35rem] border border-slate-200 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em] mb-1">{stat.label}</p>
+                    <p className={`text-[18px] leading-none font-black ${valueColor}`}>{stat.value}</p>
+                  </div>
+                  <div className={`p-2 rounded-xl ${iconBg}`}>
+                    <Shield size={18} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="bg-gradient-to-br from-[#2563EB] to-blue-700 px-3.5 py-2.5 rounded-[1.35rem] shadow-md shadow-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all group"
+            onClick={() => {
+              setTransferTargetUserId(eligibleOwnershipCandidates[0]?.id || '');
+              setShowTransferWarning(false);
+              setShowTransferDialog(true);
+            }}
+            style={{ pointerEvents: (!canEditAccessGrants || eligibleOwnershipCandidates.length === 0) ? 'none' : 'auto', opacity: (!canEditAccessGrants || eligibleOwnershipCandidates.length === 0) ? 0.6 : 1 }}
+          >
+            <div>
+              <p className="text-[10px] font-black text-blue-200 uppercase tracking-[0.16em] mb-1">Founder Action</p>
+              <p className="text-[15px] leading-none font-black text-white group-hover:scale-105 transition-transform origin-left">Transfer Founder Access</p>
+              <p className="text-[10px] font-medium text-blue-100 mt-1">{eligibleOwnershipCandidates.length} eligible Super-Admin{eligibleOwnershipCandidates.length !== 1 ? 's' : ''} • {accessGrantsModeLabel}</p>
+            </div>
+            <div className="p-1.5 rounded-lg bg-white/20 text-white">
+              <Users size={15} />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-0">
+            <div className="p-3 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-2.5 shrink-0">
+              <div className="relative w-full md:w-[300px]">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search by name, email, or department..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="px-3.5 pb-2.5 flex flex-col md:flex-row gap-2.5 md:gap-3">
+              <div className="w-full md:w-44">
+                <label className="block text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 mb-1.5">Role</label>
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                >
+                  {ROLE_FILTERS.map((role) => (
+                    <option key={role} value={role}>{role}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto flex-1 p-2">
+              <table className="w-full text-left">
+                <thead className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 sticky top-0 bg-white z-10">
+                  <tr>
+                    <th className="px-3.5 py-2">Platform User</th>
+                    <th className="px-3.5 py-2">Access Role</th>
+                    <th className="px-3.5 py-2">Department</th>
+                    <th className="px-3.5 py-2">Status</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {filteredUsers.length > 0 ? (
+                    filteredUsers.map((user) => {
+                      const currentUserId = String(currentUser?.id || currentUser?._id || '').trim();
+                      const rowUserId = String(user?.userId || user?.id || '').trim();
+                      const hideAccessButtonForSelfSuperAdmin =
+                        normalizeRole(currentRole) === 'super_admin' &&
+                        user.roleGroup === 'Super-Admin' &&
+                        currentUserId &&
+                        rowUserId &&
+                        currentUserId === rowUserId;
+
+                      return (
+                      <tr key={user.id} className={`transition-all ${user.roleGroup === 'Founder' ? 'bg-slate-50/50' : 'hover:bg-blue-50/30'}`}>
+                        <td className="px-3.5 py-2">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-[10px] shadow-sm ${user.roleGroup === 'Founder' ? 'bg-[#111827]' : 'bg-gradient-to-br from-[#2563EB] to-blue-700'}`}>
+                              {getInitials(user.name)}
+                            </div>
+                            <div>
+                              <div className="font-bold text-[11px] text-slate-900">{user.name}</div>
+                              <div className="text-[10px] font-medium text-slate-500">{user.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3.5 py-2">{getRoleBadge(user.roleGroup)}</td>
+                        <td className="px-3.5 py-2">
+                          <div className="flex flex-wrap gap-1.5 max-w-56">
+                            {(user.departments && user.departments.length > 0 ? user.departments : [user.department]).filter(Boolean).map((dept, i) => (
+                              <span key={i} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[9px] font-bold tracking-wide">{dept}</span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-3.5 py-2">
+                          <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.14em] w-max ${
+                            user.status === 'joined' ? 'bg-emerald-100 text-emerald-700' :
+                            user.status === 'disabled' ? 'bg-slate-200 text-slate-700' :
+                            user.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                            user.status === 'invited' ? 'bg-violet-100 text-violet-700' :
+                            'bg-slate-100 text-slate-600'
+                          }`}>
+                            {user.status}
+                          </span>
+                        </td>
+                        <td className="px-3.5 py-2">
+                          <div className="flex items-center justify-end gap-2">
+                            {user.roleGroup === 'Founder' ? (
+                              <span className="px-3 py-1 bg-[#111827] text-white rounded-lg text-[10px] font-black uppercase tracking-widest">Founder</span>
+                            ) : (
+                              <>
+                                {!hideAccessButtonForSelfSuperAdmin ? (
+                                  <button
+                                    onClick={(event) => event.preventDefault()}
+                                    type="button"
+                                    disabled
+                                    className="px-3 py-1.5 bg-[#2563EB] text-white rounded-lg font-bold text-[10px] transition-all shadow-sm shadow-blue-200 opacity-55 cursor-not-allowed"
+                                  >
+                                    Access
+                                  </button>
+                                ) : null}
+                                <button
+                                  onClick={() => handleOpenDetails(user)}
+                                  type="button"
+                                  className="px-3 py-1.5 bg-[#2563EB] hover:bg-blue-700 text-white rounded-lg font-bold text-[10px] transition-all shadow-sm shadow-blue-200"
+                                >
+                                  {canEditAccessGrants ? 'Manage' : 'View'}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )})
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-bold">
+                        <Shield size={32} className="mx-auto mb-3 opacity-50" />
+                        No members found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-          <div className="rounded-[2rem] border border-slate-100 bg-white p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="relative w-full sm:max-w-md">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by name, email, department" className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-700 outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10" />
+        {showDetailPanel && selectedUser && (
+          <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-[1.5rem] max-w-xl w-full overflow-hidden shadow-2xl border border-white/10">
+              <div className="p-3.5 sm:p-4 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">Access Control</p>
+                  <h2 className="text-[15px] sm:text-base font-semibold text-white mt-1">
+                    {canEditAccessGrants ? 'Manage Access' : 'View Access'} - {selectedUser.name}
+                  </h2>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowDetailPanel(false);
+                    setSelectedUser(null);
+                    setRoleActionWarning(null);
+                  }}
+                  className="p-2.5 hover:bg-white/10 rounded-xl transition-colors border border-white/5"
+                >
+                  <X className="w-5 h-5 text-slate-300" />
+                </button>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {ROLE_FILTERS.map((role) => (
-                  <button key={role} onClick={() => setSelectedRole(role)} className={`rounded-xl border px-3 py-1.5 text-xs font-semibold ${selectedRole === role ? "border-[#2563EB] bg-[#2563EB]/10 text-[#2563EB]" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>{role}</button>
+
+              <div className="p-3.5 sm:p-4 space-y-4 bg-gradient-to-b from-slate-50 to-white">
+                <div className="grid gap-4 md:grid-cols-[1.25fr_0.75fr]">
+                    <div className="w-11 h-11 bg-gradient-to-br from-[#2563EB] to-[#1e40af] rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                      {getInitials(selectedUser.name)}
+                    </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-slate-900 text-sm">{selectedUser.name}</div>
+                    <div className="text-xs text-slate-500">{selectedUser.email}</div>
+                    <div className="flex items-center gap-2 mt-2">
+                      {getRoleBadge(selectedUser.roleGroup)}
+                      <span className="text-xs text-slate-400">• {selectedUser.department}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {roleActionWarning ? (
+                  <div className="space-y-3">
+                    <div className={`rounded-[1.75rem] border p-5 sm:p-6 ${roleActionWarning.type === 'promote' ? 'border-emerald-200 bg-emerald-50/80' : 'border-amber-200 bg-amber-50/80'}`}>
+                      <div className="flex items-start gap-4">
+                        <div className={`shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${roleActionWarning.type === 'promote' ? 'bg-emerald-600' : 'bg-amber-500'}`}>
+                          <AlertCircle className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="space-y-3">
+                          <p className={`text-xs font-semibold uppercase tracking-[0.28em] ${roleActionWarning.type === 'promote' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                            Final Confirmation
+                          </p>
+                          <p className={`text-lg font-bold ${roleActionWarning.type === 'promote' ? 'text-emerald-950' : 'text-amber-950'}`}>
+                            {roleActionWarning.title}
+                          </p>
+                          <p className={`text-sm leading-relaxed ${roleActionWarning.type === 'promote' ? 'text-emerald-900/80' : 'text-amber-900/80'}`}>
+                            {roleActionWarning.message}
+                          </p>
+                          <p className={`text-xs font-medium ${roleActionWarning.type === 'promote' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                            {roleActionWarning.note}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 rounded-2xl bg-white border border-slate-100 px-4 py-3 shadow-sm">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Ready to continue?</p>
+                        <p className="text-xs text-slate-500">Use confirm only if you want to apply the role update.</p>
+                      </div>
+                      <div className={`px-3 py-1.5 rounded-full text-[10px] font-semibold uppercase tracking-[0.22em] ${roleActionWarning.type === 'promote' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                        Second step
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-1">
+                      <button
+                        onClick={() => setRoleActionWarning(null)}
+                        disabled={isSaving || !canEditAccessGrants}
+                        className="px-5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl font-medium transition-colors text-sm disabled:opacity-60"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={roleActionWarning.type === 'promote' ? handlePromote : handleDemote}
+                        disabled={isSaving || !canEditAccessGrants}
+                        className={`px-5 py-2.5 text-white rounded-xl font-semibold transition-colors text-sm shadow-sm disabled:opacity-60 ${roleActionWarning.type === 'promote' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600'}`}
+                      >
+                        {isSaving ? 'Saving...' : roleActionWarning.type === 'promote' ? 'Confirm Promote' : 'Confirm Demote'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <h3 className="font-semibold text-slate-700 text-sm uppercase tracking-wider">Available Actions</h3>
+
+                    {!canEditAccessGrants && (
+                      <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
+                        Super-admins can review access details here, but only the workspace founder can promote, demote, or transfer founder access.
+                      </div>
+                    )}
+
+                    {nextLowerRole && (
+                      <button
+                        onClick={handleDemote}
+                        disabled={isSaving || !canEditAccessGrants}
+                        className="w-full p-3 bg-white hover:bg-amber-50 text-left rounded-[1.1rem] transition-colors group border border-slate-100 shadow-sm disabled:opacity-60"
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-4">
+                            <div className="w-9 h-9 bg-amber-100 group-hover:bg-amber-200 rounded-xl flex items-center justify-center transition-colors">
+                              <AlertCircle className="w-4 h-4 text-amber-600" />
+                            </div>
+                            <div>
+                              <div className="font-semibold text-[13px] text-slate-900">Demote User</div>
+                              <div className="text-xs text-slate-500 mt-0.5">Lower this user's role by one level</div>
+                            </div>
+                          </div>
+                          <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-amber-500 transition-colors" />
+                        </div>
+                      </button>
+                    )}
+
+                    {nextHigherRole && (
+                      <button
+                        onClick={handlePromote}
+                        disabled={isSaving || !canEditAccessGrants}
+                        className="w-full p-3 bg-white hover:bg-emerald-50 text-left rounded-[1.1rem] transition-colors group border border-slate-100 shadow-sm disabled:opacity-60"
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-4">
+                            <div className="w-9 h-9 bg-emerald-100 group-hover:bg-emerald-200 rounded-xl flex items-center justify-center transition-colors">
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                            </div>
+                            <div>
+                              <div className="font-semibold text-[13px] text-slate-900">Promote User</div>
+                              <div className="text-xs text-slate-500 mt-0.5">Raise this user to the next role level</div>
+                            </div>
+                          </div>
+                          <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-emerald-500 transition-colors" />
+                        </div>
+                      </button>
+                    )}
+
+                      {canTransferMembers && (
+                        <button
+                          onClick={() => handleOpenWorkspaceTransferDialog(selectedUser)}
+                        disabled={isSaving || !canEditAccessGrants}
+                        className="w-full p-3 bg-white hover:bg-indigo-50 text-left rounded-[1.1rem] transition-colors group border border-slate-100 shadow-sm disabled:opacity-60"
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-4">
+                            <div className="w-9 h-9 bg-indigo-100 group-hover:bg-indigo-200 rounded-xl flex items-center justify-center transition-colors">
+                              <ArrowRightLeft className="w-4 h-4 text-indigo-600" />
+                            </div>
+                            <div>
+                              <div className="font-semibold text-[13px] text-slate-900">Transfer Workspace</div>
+                              <div className="text-xs text-slate-500 mt-0.5">Move this user to another linked workspace</div>
+                            </div>
+                          </div>
+                          <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                          </div>
+                        </button>
+                      )}
+
+                      {canLinkMembers && (
+                        <button
+                          onClick={() => handleOpenWorkspaceLinkDialog(selectedUser)}
+                          disabled={isSaving || !canEditAccessGrants}
+                          className="w-full p-3 bg-white hover:bg-sky-50 text-left rounded-[1.1rem] transition-colors group border border-slate-100 shadow-sm disabled:opacity-60"
+                        >
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-4">
+                              <div className="w-9 h-9 bg-sky-100 group-hover:bg-sky-200 rounded-xl flex items-center justify-center transition-colors">
+                                <Users className="w-4 h-4 text-sky-600" />
+                              </div>
+                              <div>
+                                <div className="font-semibold text-[13px] text-slate-900">Add Workspace Access</div>
+                                <div className="text-xs text-slate-500 mt-0.5">Keep this user here and add another workspace</div>
+                              </div>
+                            </div>
+                            <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-sky-500 transition-colors" />
+                          </div>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+        )}
+
+        {showMemberAccessDialog && memberAccessTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/10 bg-white shadow-2xl">
+              <div className="flex items-center justify-between bg-slate-900 px-6 py-5">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">Sidebar Access</p>
+                  <h3 className="mt-1 text-lg font-semibold text-white">{memberAccessTarget.name}</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowMemberAccessDialog(false)}
+                  className="rounded-xl border border-white/10 p-2.5 text-slate-300 transition-colors hover:bg-white/10"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="max-h-[70vh] space-y-5 overflow-y-auto bg-slate-50 p-6">
+                {[
+                  { key: 'common', title: 'Common Modules', modules: sharedCommonModules },
+                  { key: 'extra', title: 'Extra Modules', modules: sharedExtraModules },
+                  ...getMemberCoreSections(memberAccessTarget).map((section) => ({ key: 'core', title: section.title, modules: section.modules })),
+                ].map((section, sectionIndex) => (
+                  <div key={`${section.key}-${section.title}-${sectionIndex}`} className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">{section.title}</h4>
+                    <div className="space-y-2">
+                      {section.modules.map((module) => {
+                        const locked = section.key === 'common' &&
+                          !isOwnerLikeMember(memberAccessTarget);
+                        const moduleDraftKey = section.key === 'core' ? (module.toggleId || module.id) : module.id;
+                        const checked = Boolean(memberAccessDraft?.[section.key]?.[moduleDraftKey]);
+                        return (
+                          <div key={moduleDraftKey} className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">{module.label}</p>
+                              <p className="text-[11px] text-slate-500">{module.description}</p>
+                            </div>
+                            <Switch checked={checked} disabled={locked} onCheckedChange={() => toggleMemberModule(section.key, moduleDraftKey)} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 ))}
               </div>
-            </div>
 
-            <div className="mt-4 space-y-3">
-              {filteredUsers.map((user) => (
-                <button key={user.id} onClick={() => setSelectedUserId(user.id)} className={`w-full rounded-2xl border p-4 text-left transition ${selectedUserId === user.id ? "border-[#2563EB] bg-[#2563EB]/5" : "border-slate-200 hover:bg-slate-50"}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">{user.name}</p>
-                      <p className="text-xs text-slate-500">{user.email}</p>
-                      <p className="mt-2 text-xs font-medium text-slate-600">{user.department}</p>
-                    </div>
-                    {getRoleBadge(user.roleGroup)}
-                  </div>
+              <div className="flex justify-end gap-3 border-t border-slate-100 bg-white px-6 py-4">
+                <button
+                  type="button"
+                  onClick={() => setShowMemberAccessDialog(false)}
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                >
+                  Cancel
                 </button>
-              ))}
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={handleSaveMemberAccess}
+                  className="rounded-xl bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {isSaving ? 'Saving...' : 'Save Access'}
+                </button>
+              </div>
             </div>
           </div>
+        )}
 
-          <div className="rounded-[2rem] border border-slate-100 bg-gradient-to-b from-slate-50 to-white p-5">
-            {selectedUser ? (
-              <>
-                <div className="flex items-start justify-between gap-3">
+          {showWorkspaceLinkDialog && selectedUser && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm">
+              <div className="my-6 w-full max-w-xl overflow-hidden rounded-[2.25rem] border border-white/10 bg-white shadow-2xl">
+                <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-5 sm:p-6">
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Member Summary</p>
-                    <h2 className="mt-1 text-lg font-bold text-slate-900">{selectedUser.name}</h2>
-                    <p className="text-sm text-slate-500">{selectedUser.email}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">Workspace Access</p>
+                    <h2 className="mt-1 text-lg font-semibold text-white">Add access for {selectedUser.name}</h2>
                   </div>
-                  {getRoleBadge(selectedUser.roleGroup)}
+                  <button
+                    onClick={() => setShowWorkspaceLinkDialog(false)}
+                    className="rounded-xl border border-white/5 p-2.5 transition-colors hover:bg-white/10"
+                  >
+                    <X className="h-5 w-5 text-slate-300" />
+                  </button>
                 </div>
 
-                <div className="mt-4 grid gap-3">
-                  <div className="rounded-2xl border border-slate-200 bg-white p-3"><p className="text-[10px] uppercase tracking-wider text-slate-400">Department</p><p className="mt-1 text-sm font-medium text-slate-700">{selectedUser.department}</p></div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-3"><p className="text-[10px] uppercase tracking-wider text-slate-400">Status</p><p className="mt-1 text-sm font-medium text-emerald-700 inline-flex items-center gap-1"><CheckCircle size={14} /> Active</p></div>
-                </div>
+                <div className="space-y-5 bg-gradient-to-b from-slate-50 to-white p-5 sm:p-6">
+                  <div className="rounded-[1.75rem] border border-slate-100 bg-white p-4 shadow-sm">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Current workspaces</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {(selectedUser.workspaceAccesses || []).map((access) => (
+                        <span key={access.id} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                          {access.workspaceName}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
 
-                <div className="mt-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Granted Modules</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {selectedUser.grantedModules.map((moduleName) => (
-                      <span key={moduleName} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700">{moduleName}</span>
-                    ))}
+                  <div>
+                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Target Workspace</label>
+                    <div className="relative">
+                      <select
+                        value={workspaceLinkForm.targetWorkspaceId}
+                        onChange={(event) =>
+                          setWorkspaceLinkForm((current) => ({
+                            ...current,
+                            targetWorkspaceId: event.target.value,
+                          }))
+                        }
+                        className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+                      >
+                        <option value="">Select workspace</option>
+                        {linkWorkspaceOptions.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.workspaceName}{item.location ? ` - ${item.location}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Link Note</label>
+                    <textarea
+                      rows={3}
+                      value={workspaceLinkForm.note}
+                      onChange={(event) =>
+                        setWorkspaceLinkForm((current) => ({
+                          ...current,
+                          note: event.target.value,
+                        }))
+                      }
+                      placeholder="Optional note for this access grant..."
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+                    />
+                  </div>
+
+                  <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-800">
+                    The same login, role, departments, employee profile, attendance, and leave data will stay shared across both workspaces.
                   </div>
                 </div>
-              </>
-            ) : null}
+
+                <div className="flex justify-end gap-3 border-t border-slate-100/60 bg-white p-5 sm:p-6">
+                  <button
+                    onClick={() => setShowWorkspaceLinkDialog(false)}
+                    className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirmWorkspaceLink}
+                    disabled={isSaving}
+                    className="rounded-xl bg-[#2563EB] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
+                  >
+                    {isSaving ? 'Saving...' : 'Add Access'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showWorkspaceTransferDialog && selectedUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm">
+            <div className="my-6 w-full max-w-2xl overflow-hidden rounded-[2.25rem] border border-white/10 bg-white shadow-2xl">
+              <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-5 sm:p-6">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">Workspace Transfer</p>
+                  <h2 className="mt-1 text-lg font-semibold text-white">Transfer {selectedUser.name}</h2>
+                </div>
+                <button
+                  onClick={() => setShowWorkspaceTransferDialog(false)}
+                  className="rounded-xl border border-white/5 p-2.5 transition-colors hover:bg-white/10"
+                >
+                  <X className="h-5 w-5 text-slate-300" />
+                </button>
+              </div>
+
+              <div className="max-h-[calc(100vh-13rem)] space-y-5 overflow-y-auto bg-gradient-to-b from-slate-50 to-white p-5 sm:p-6">
+                <div className="rounded-[1.75rem] border border-slate-100 bg-white p-4 shadow-sm">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Current assignment</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-slate-900">{selectedUser.name}</span>
+                    {getRoleBadge(selectedUser.roleGroup)}
+                    <span className="text-xs text-slate-500">{selectedUser.department}</span>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Target Workspace</label>
+                    <div className="relative">
+                      <select
+                        value={workspaceTransferForm.targetWorkspaceId}
+                        onChange={(event) => {
+                          const nextWorkspace = transferWorkspaceOptions.find((item) => String(item.id) === String(event.target.value)) || null;
+                          const nextDepartmentIds =
+                            workspaceTransferForm.role === 'super_admin'
+                              ? []
+                              : workspaceTransferForm.role === 'admin'
+                                ? (nextWorkspace?.departments?.[0]?.id ? [nextWorkspace.departments[0].id] : [])
+                                : (nextWorkspace?.departments?.[0]?.id ? [nextWorkspace.departments[0].id] : []);
+                          setWorkspaceTransferForm((current) => ({
+                            ...current,
+                            targetWorkspaceId: event.target.value,
+                            departmentIds: nextDepartmentIds,
+                          }));
+                        }}
+                        className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+                      >
+                        {transferWorkspaceOptions.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.workspaceName}{item.location ? ` - ${item.location}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Role After Transfer</label>
+                    <div className="relative">
+                      <select
+                        value={workspaceTransferForm.role}
+                        onChange={(event) => {
+                          const nextRole = event.target.value;
+                          setWorkspaceTransferForm((current) => ({
+                            ...current,
+                            role: nextRole,
+                            departmentIds:
+                              nextRole === 'super_admin'
+                                ? []
+                                : nextRole === 'admin'
+                                  ? (current.departmentIds.length > 0
+                                      ? current.departmentIds
+                                      : (selectedTransferDepartmentOptions[0]?.id ? [selectedTransferDepartmentOptions[0].id] : []))
+                                  : [current.departmentIds[0] || selectedTransferDepartmentOptions[0]?.id || ''].filter(Boolean),
+                          }));
+                        }}
+                        className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+                      >
+                        {TRANSFER_ROLE_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Department After Transfer</label>
+                  {isSuperAdminTransferRole ? (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-500">
+                      All Departments
+                    </div>
+                  ) : isAdminTransferRole ? (
+                    <div className="rounded-2xl border border-slate-200 bg-white p-3">
+                      {selectedTransferDepartmentOptions.length > 0 ? (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {selectedTransferDepartmentOptions.map((department) => {
+                            const isChecked = workspaceTransferForm.departmentIds.includes(department.id);
+                            return (
+                              <label
+                                key={department.id}
+                                className="flex items-center gap-3 rounded-xl border border-slate-100 px-3 py-2 text-sm font-medium text-slate-700"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(event) =>
+                                    setWorkspaceTransferForm((current) => ({
+                                      ...current,
+                                      departmentIds: event.target.checked
+                                        ? [...current.departmentIds, department.id]
+                                        : current.departmentIds.filter((id) => id !== department.id),
+                                    }))
+                                  }
+                                  className="h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
+                                />
+                                <span className="truncate">{department.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="px-1 py-2 text-sm text-slate-400">No departments available.</div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <select
+                        value={selectedSingleTransferDepartmentId}
+                        onChange={(event) =>
+                          setWorkspaceTransferForm((current) => ({
+                            ...current,
+                            departmentIds: event.target.value ? [event.target.value] : [],
+                          }))
+                        }
+                        className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+                      >
+                        <option value="">Select department</option>
+                        {selectedTransferDepartmentOptions.map((department) => (
+                          <option key={department.id} value={department.id}>
+                            {department.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    </div>
+                  )}
+                  {selectedTransferWorkspace?.location ? (
+                    <p className="mt-2 text-xs font-medium text-slate-500">
+                      New location: {selectedTransferWorkspace.location}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Transfer Note</label>
+                  <textarea
+                    rows={3}
+                    value={workspaceTransferForm.note}
+                    onChange={(event) =>
+                      setWorkspaceTransferForm((current) => ({
+                        ...current,
+                        note: event.target.value,
+                      }))
+                    }
+                    placeholder="Optional note for this transfer..."
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+                  />
+                </div>
+
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
+                  The user will keep the same email and password. After transfer, they will sign in to the new workspace with the updated role and department shown here.
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 border-t border-slate-100/60 bg-white p-5 sm:p-6">
+                <button
+                  onClick={() => setShowWorkspaceTransferDialog(false)}
+                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmWorkspaceTransfer}
+                  disabled={isSaving}
+                  className="rounded-xl bg-[#2563EB] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
+                >
+                  {isSaving ? 'Saving...' : `Transfer as ${selectedTransferRole.label}`}
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
         {showTransferDialog && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="w-full max-w-md overflow-hidden rounded-[2rem] bg-white">
-              <div className="bg-[#1E293B] p-5"><h3 className="flex items-center gap-2 text-lg font-bold text-white"><AlertCircle className="h-5 w-5 text-amber-400" />Transfer Founder Access</h3></div>
-              <div className="space-y-4 p-5">
-                <p className="text-sm text-slate-600">Transfer founder ownership to a Super-Admin account. This should be used only for intentional handover.</p>
-                <div className="rounded-2xl border border-amber-100 bg-amber-50 p-3 text-sm text-amber-800">Current founder will be downgraded to Super-Admin after confirmation.</div>
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-[2rem] max-w-md w-full overflow-hidden">
+              <div className="p-5 sm:p-6 bg-[#1E293B]">
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-400" />
+                  Transfer Founder Access
+                </h2>
               </div>
-              <div className="flex justify-end gap-3 border-t border-slate-100 p-5">
-                <button onClick={() => setShowTransferDialog(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm">Cancel</button>
-                <button onClick={() => setShowTransferDialog(false)} className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600">Confirm Transfer</button>
-              </div>
-            </div>
-          </div>
-        )}
+              <div className="p-5 sm:p-6 space-y-4">
+                {!showTransferWarning ? (
+                  <>
+                    <p className="text-slate-500 text-sm">
+                      You are about to transfer workspace founder access to a Super-Admin. This will move founder access to the selected account and refresh your current session.
+                    </p>
 
-        {showWorkspaceTransferDialog && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
-            <div className="w-full max-w-2xl overflow-hidden rounded-[2rem] bg-white">
-              <div className="flex items-center justify-between bg-slate-900 p-5">
-                <h3 className="flex items-center gap-2 text-lg font-semibold text-white"><ArrowRightLeft size={18} />Workspace Transfer</h3>
-                <button onClick={() => setShowWorkspaceTransferDialog(false)} className="rounded-lg p-2 hover:bg-white/10"><X className="h-4 w-4 text-slate-300" /></button>
-              </div>
-              <div className="space-y-4 p-5">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">Target Workspace</label>
-                <div className="relative">
-                  <select value={selectedWorkspaceId} onChange={(e) => setSelectedWorkspaceId(e.target.value)} className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm">
-                    {workspaceOptions.map((w) => <option key={w.id} value={w.id}>{w.workspaceName} - {w.location}</option>)}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                </div>
-                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-3 text-sm text-blue-800">The same login credentials remain valid after transfer.</div>
-              </div>
-              <div className="flex justify-end gap-3 border-t border-slate-100 p-5">
-                <button onClick={() => setShowWorkspaceTransferDialog(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm">Cancel</button>
-                <button onClick={() => setShowWorkspaceTransferDialog(false)} className="rounded-xl bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white">Transfer</button>
-              </div>
-            </div>
-          </div>
-        )}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Select New Founder</label>
+                      <select
+                        value={transferTargetUserId || eligibleOwnershipCandidates[0]?.id || ''}
+                        onChange={(event) => setTransferTargetUserId(event.target.value)}
+                        className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-100/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent text-sm"
+                      >
+                        {eligibleOwnershipCandidates.map((member) => (
+                          <option key={member.id} value={member.id}>
+                            {member.name} - {member.role}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-        {showLinkDialog && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
-            <div className="w-full max-w-xl overflow-hidden rounded-[2rem] bg-white">
-              <div className="flex items-center justify-between bg-slate-900 p-5">
-                <h3 className="text-lg font-semibold text-white">Link Workspace Access</h3>
-                <button onClick={() => setShowLinkDialog(false)} className="rounded-lg p-2 hover:bg-white/10"><X className="h-4 w-4 text-slate-300" /></button>
+                    {eligibleOwnershipCandidates.length === 0 && (
+                      <p className="text-xs font-medium text-amber-600">
+                        No eligible Super-Admin users are available for founder access transfer yet.
+                      </p>
+                    )}
+
+                    <p className="text-xs text-slate-400">
+                      Current founder: {ownerName}
+                    </p>
+                  </>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="mt-0.5 h-5 w-5 text-amber-600 shrink-0" />
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold text-amber-900">
+                            Final warning before transfer
+                          </p>
+                          <p className="text-sm text-amber-800 leading-relaxed">
+                            All platform access will move with this transfer. The selected Super-Admin will be promoted to Founder, and the current Founder will be demoted to Super-Admin.
+                          </p>
+                          <p className="text-xs font-medium text-amber-700">
+                            Selected recipient: {transferTargetUser?.name || 'Unknown user'} - {transferTargetUser?.role || 'Super-Admin'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-slate-400">
+                      This action should only be used when you are ready to hand over the workspace.
+                    </p>
+                  </div>
+                )}
               </div>
-              <div className="space-y-4 p-5">
-                <p className="text-sm text-slate-600">Grant this member access to another linked workspace while preserving shared profile identity.</p>
-                <div className="rounded-2xl border border-sky-100 bg-sky-50 p-3 text-sm text-sky-800">Role and employee profile remain aligned across linked workspaces.</div>
-              </div>
-              <div className="flex justify-end gap-3 border-t border-slate-100 p-5">
-                <button onClick={() => setShowLinkDialog(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm">Cancel</button>
-                <button onClick={() => setShowLinkDialog(false)} className="rounded-xl bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white">Add Access</button>
+              <div className="p-5 sm:p-6 border-t border-slate-100/60 flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowTransferDialog(false);
+                    setShowTransferWarning(false);
+                    setTransferTargetUserId('');
+                  }}
+                  className="px-5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl font-medium transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleTransferOwnership}
+                  disabled={isSaving || !canEditAccessGrants || eligibleOwnershipCandidates.length === 0}
+                  className="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors text-sm disabled:opacity-60"
+                >
+                  {isSaving ? 'Saving...' : showTransferWarning ? 'Confirm Transfer' : 'Review Transfer'}
+                </button>
               </div>
             </div>
           </div>
@@ -271,6 +1746,12 @@ const AccessGrant = () => {
       </div>
     </PageFrame>
   );
-};
+}
 
-export default AccessGrant;
+
+
+
+
+
+
+

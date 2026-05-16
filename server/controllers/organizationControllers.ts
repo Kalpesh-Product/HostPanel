@@ -23,6 +23,38 @@ const toRoleLabel = (role) => {
   return normalized || "member";
 };
 
+const normalizeRoleForStorage = (role = "") => {
+  const normalized = String(role || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (normalized === "founder") return "owner";
+  if (normalized === "superadmin") return "super_admin";
+  return normalized || "employee";
+};
+
+const buildLinkedWorkspaceOptions = async (workspace) => {
+  if (!workspace?.owner) return [];
+  const workspaces = await Workspace.find({
+    owner: workspace.owner,
+    isActive: true,
+  })
+    .lean()
+    .exec();
+
+  return workspaces.map((item) => ({
+    id: toId(item._id),
+    workspaceName: item.workspaceName || item.businessName || "Workspace",
+    location: [item.city, item.state, item.country].filter(Boolean).join(", "),
+    isCurrentWorkspace: toId(item._id) === toId(workspace._id),
+    departments: Array.isArray(item.organizationDepartments)
+      ? item.organizationDepartments
+          .filter((department) => department?.isActive !== false)
+          .map((department) => ({
+            id: toId(department?._id),
+            name: department?.name || "",
+          }))
+      : [],
+  }));
+};
+
 const ensureWorkspaceDepartments = async (workspace) => {
   if (!workspace) {
     return [];
@@ -132,6 +164,15 @@ export const getOrganizationOverview = async (req, res, next) => {
       };
     });
 
+    const linkedWorkspaces = await buildLinkedWorkspaceOptions(workspace);
+    const ownerWorkspaceIds = linkedWorkspaces.map((item) => item.id);
+    const linkedMemberships = await WorkspaceMember.find({
+      workspace: { $in: ownerWorkspaceIds },
+      isActive: true,
+    })
+      .lean()
+      .exec();
+
     const teamMembers = members.map((member) => ({
       id: toId(member._id),
       userId: toId(member.user?._id),
@@ -140,6 +181,14 @@ export const getOrganizationOverview = async (req, res, next) => {
       role: toRoleLabel(member.role),
       status: member.isActive === false ? "disabled" : "joined",
       departmentNames: Array.isArray(member.departments) ? member.departments : [],
+      grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],
+      workspaceAccesses: linkedWorkspaces.filter((item) =>
+        linkedMemberships.some(
+          (accessMembership) =>
+            toId(accessMembership.workspace) === String(item.id) &&
+            toId(accessMembership.user) === toId(member.user?._id),
+        ),
+      ),
       joinedAt: member.createdAt,
     }));
 
@@ -150,6 +199,7 @@ export const getOrganizationOverview = async (req, res, next) => {
           id: toId(workspace._id),
           organizationDepartments: workspace.organizationDepartments || [],
         },
+        linkedWorkspaces,
         departments,
         teamMembers,
         transferredTeamMembers: [],
@@ -440,6 +490,199 @@ export const removeOrganizationActingManager = async (req, res, next) => {
     }
 
     return res.status(200).json({ message: "Acting manager removed successfully." });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateOrganizationMemberRole = async (req, res, next) => {
+  try {
+    const { workspace } = await getCurrentWorkspace(req.user);
+    if (!workspace) return res.status(404).json({ message: "Workspace not found for this user." });
+
+    const member = await WorkspaceMember.findOne({
+      _id: req.params.memberId,
+      workspace: workspace._id,
+      isActive: true,
+    });
+    if (!member) return res.status(404).json({ message: "Member not found." });
+
+    member.role = normalizeRoleForStorage(req.body?.role || member.role);
+    await member.save();
+
+    return res.status(200).json({ message: "Member role updated successfully." });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateOrganizationMemberAccess = async (req, res, next) => {
+  try {
+    const { workspace } = await getCurrentWorkspace(req.user);
+    if (!workspace) return res.status(404).json({ message: "Workspace not found for this user." });
+
+    const member = await WorkspaceMember.findOne({
+      _id: req.params.memberId,
+      workspace: workspace._id,
+      isActive: true,
+    });
+    if (!member) return res.status(404).json({ message: "Member not found." });
+
+    member.grantedModules = Array.isArray(req.body?.accessModules)
+      ? req.body.accessModules.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    await member.save();
+
+    return res.status(200).json({
+      message: "Member access updated successfully.",
+      data: { memberId: toId(member._id), grantedModules: member.grantedModules },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const transferOrganizationMember = async (req, res, next) => {
+  try {
+    const { workspace } = await getCurrentWorkspace(req.user);
+    if (!workspace) return res.status(404).json({ message: "Workspace not found for this user." });
+
+    const targetWorkspaceId = String(req.body?.targetWorkspaceId || "").trim();
+    if (!targetWorkspaceId) return res.status(400).json({ message: "Target workspace is required." });
+
+    const member = await WorkspaceMember.findOne({
+      _id: req.params.memberId,
+      workspace: workspace._id,
+      isActive: true,
+    });
+    if (!member) return res.status(404).json({ message: "Member not found." });
+
+    const targetWorkspace = await Workspace.findOne({
+      _id: targetWorkspaceId,
+      owner: workspace.owner,
+      isActive: true,
+    });
+    if (!targetWorkspace) return res.status(404).json({ message: "Target workspace not found." });
+
+    const nextRole = normalizeRoleForStorage(req.body?.role || member.role);
+    const requestedDepartmentIds = Array.isArray(req.body?.departments) ? req.body.departments : [];
+    const targetDepartments = requestedDepartmentIds
+      .map((departmentId) => targetWorkspace.organizationDepartments?.id(departmentId)?.name || String(departmentId || "").trim())
+      .filter(Boolean);
+
+    await WorkspaceMember.findOneAndUpdate(
+      { workspace: targetWorkspace._id, user: member.user },
+      {
+        $set: {
+          role: nextRole,
+          departments: targetDepartments,
+          status: "joined",
+          isActive: true,
+          grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],
+        },
+        $push: {
+          transferHistory: {
+            fromWorkspaceId: workspace._id,
+            toWorkspaceId: targetWorkspace._id,
+            previousRole: member.role,
+            nextRole,
+            note: String(req.body?.note || "").trim(),
+          },
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+
+    member.isActive = false;
+    member.status = "disabled";
+    await member.save();
+
+    return res.status(200).json({ message: "Member transferred successfully." });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const linkOrganizationMember = async (req, res, next) => {
+  try {
+    const { workspace } = await getCurrentWorkspace(req.user);
+    if (!workspace) return res.status(404).json({ message: "Workspace not found for this user." });
+
+    const targetWorkspaceId = String(req.body?.targetWorkspaceId || "").trim();
+    if (!targetWorkspaceId) return res.status(400).json({ message: "Target workspace is required." });
+
+    const member = await WorkspaceMember.findOne({
+      _id: req.params.memberId,
+      workspace: workspace._id,
+      isActive: true,
+    });
+    if (!member) return res.status(404).json({ message: "Member not found." });
+
+    const targetWorkspace = await Workspace.findOne({
+      _id: targetWorkspaceId,
+      owner: workspace.owner,
+      isActive: true,
+    });
+    if (!targetWorkspace) return res.status(404).json({ message: "Target workspace not found." });
+
+    await WorkspaceMember.findOneAndUpdate(
+      { workspace: targetWorkspace._id, user: member.user },
+      {
+        $set: {
+          role: member.role,
+          departments: Array.isArray(member.departments) ? member.departments : [],
+          status: "joined",
+          isActive: true,
+          grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+
+    return res.status(200).json({ message: "Workspace access added successfully." });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const transferOrganizationOwnership = async (req, res, next) => {
+  try {
+    const { user, workspace } = await getCurrentWorkspace(req.user);
+    if (!user || !workspace) return res.status(404).json({ message: "Workspace not found for this user." });
+
+    const targetMember = await WorkspaceMember.findOne({
+      _id: req.body?.memberId,
+      workspace: workspace._id,
+      isActive: true,
+    });
+    if (!targetMember) return res.status(404).json({ message: "Selected member not found." });
+
+    const nextOwner = await HostUser.findById(targetMember.user);
+    if (!nextOwner) return res.status(404).json({ message: "Selected user not found." });
+
+    const previousOwner = await HostUser.findById(workspace.owner);
+    workspace.owner = nextOwner._id;
+    await workspace.save();
+
+    if (previousOwner) {
+      previousOwner.role = "super_admin";
+      await previousOwner.save();
+      await WorkspaceMember.findOneAndUpdate(
+        { workspace: workspace._id, user: previousOwner._id },
+        { $set: { role: "super_admin", isActive: true, status: "joined" } },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      );
+    }
+
+    nextOwner.role = "owner";
+    await nextOwner.save();
+    await WorkspaceMember.findOneAndUpdate(
+      { workspace: workspace._id, user: nextOwner._id },
+      { $set: { role: "owner", isActive: true, status: "joined" } },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+
+    return res.status(200).json({ message: "Founder access transferred successfully." });
   } catch (error) {
     next(error);
   }

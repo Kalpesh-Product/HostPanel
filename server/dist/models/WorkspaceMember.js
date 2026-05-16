@@ -25,6 +25,23 @@ const workspaceMemberSchema = new mongoose.Schema({
         type: [String],
         default: [],
     },
+    grantedModules: {
+        type: [String],
+        default: [],
+    },
+    transferHistory: {
+        type: [
+            {
+                fromWorkspaceId: { type: mongoose.Schema.Types.ObjectId, ref: "Workspace", default: null },
+                toWorkspaceId: { type: mongoose.Schema.Types.ObjectId, ref: "Workspace", default: null },
+                previousRole: { type: String, default: "", trim: true },
+                nextRole: { type: String, default: "", trim: true },
+                note: { type: String, default: "", trim: true },
+                transferredAt: { type: Date, default: Date.now },
+            },
+        ],
+        default: [],
+    },
     isPrimary: {
         type: Boolean,
         default: true,

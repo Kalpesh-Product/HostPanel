@@ -58,3 +58,31 @@ export const removeOrganizationActingManager = (
   axiosPrivate.delete(
     `/api/organization/departments/${departmentId}/acting-manager/${assignedUserId}`,
   );
+
+export const updateOrganizationMemberRole = (
+  axiosPrivate: AxiosInstance,
+  memberId: string,
+  payload: { role: string },
+) => axiosPrivate.patch(`/api/organization/members/${memberId}/role`, payload);
+
+export const transferOrganizationMember = (
+  axiosPrivate: AxiosInstance,
+  memberId: string,
+  payload: {
+    targetWorkspaceId: string;
+    role: string;
+    departments: string[];
+    note?: string;
+  },
+) => axiosPrivate.post(`/api/organization/members/${memberId}/transfer`, payload);
+
+export const linkOrganizationMember = (
+  axiosPrivate: AxiosInstance,
+  memberId: string,
+  payload: { targetWorkspaceId: string; note?: string },
+) => axiosPrivate.post(`/api/organization/members/${memberId}/link-workspace`, payload);
+
+export const transferOrganizationOwnership = (
+  axiosPrivate: AxiosInstance,
+  payload: { memberId: string },
+) => axiosPrivate.post("/api/organization/ownership/transfer", payload);
