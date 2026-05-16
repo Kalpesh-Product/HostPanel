@@ -13,7 +13,7 @@ import {
 import { toast } from "sonner";
 import Footer from "../../components/Footer";
 import { api } from "../../utils/axios";
-import type { PlanType } from "../../utils/inviteOnboarding";
+import type { InviteType, PlanType } from "../../utils/inviteOnboarding";
 import logo from "../../assets/WONO_LOGO_Black_TP.png";
 import "./ClientLogin.css";
 import "./ClientSpecialClasses.css";
@@ -23,7 +23,35 @@ interface PrefillState {
   email: string;
   selectedPlan: PlanType;
   businessName: string;
+  inviteType: InviteType;
+  country: string;
+  state: string;
+  city: string;
+  businessTypes: string[];
 }
+
+const parseBusinessTypes = (payload: Record<string, unknown>): string[] => {
+  const raw =
+    payload.businessTypes ??
+    payload.businessType ??
+    payload.companyTypes ??
+    payload.companyType ??
+    payload.verticalTypes ??
+    payload.verticalType ??
+    payload.verticals ??
+    payload.workspaceType ??
+    payload.workspaceTypes ??
+    [];
+
+  if (Array.isArray(raw)) {
+    return raw.map((item) => String(item || "").trim()).filter(Boolean);
+  }
+
+  return String(raw || "")
+    .split(/[,|/;]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
 
 export default function RegisterPage() {
   const { token } = useParams();
@@ -33,6 +61,11 @@ export default function RegisterPage() {
     email: "",
     selectedPlan: "basic",
     businessName: "",
+    inviteType: "master",
+    country: "",
+    state: "",
+    city: "",
+    businessTypes: [],
   });
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -57,6 +90,11 @@ export default function RegisterPage() {
           email: response.data.email || "",
           selectedPlan: response.data.selectedPlan || "basic",
           businessName: response.data.businessName || "",
+          inviteType: response.data.inviteType === "workspace" ? "workspace" : "master",
+          country: response.data.country || "",
+          state: response.data.state || "",
+          city: response.data.city || "",
+          businessTypes: parseBusinessTypes(response.data as Record<string, unknown>),
         });
       } catch (error) {
         const message = (error as AxiosError<{ message?: string }>).response?.data?.message;
@@ -88,6 +126,11 @@ export default function RegisterPage() {
           fullName: prefill.fullName,
           selectedPlan: prefill.selectedPlan,
           businessName: prefill.businessName,
+          inviteType: prefill.inviteType,
+          country: prefill.country,
+          state: prefill.state,
+          city: prefill.city,
+          businessTypes: prefill.businessTypes,
         },
       });
     } catch (error) {

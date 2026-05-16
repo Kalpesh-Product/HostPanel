@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import Company from "../models/Company.js";
 import Otp from "../models/Otp.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
+import Workspace from "../models/Workspace.js";
 import { sendMail } from "../config/mailer.js";
 import crypto from "crypto";
 
@@ -46,11 +47,80 @@ const extractInviteIdentity = (decoded: any) => {
     decoded?.userInfo?.businessName ||
     decoded?.userInfo?.companyName ||
     "";
+  const inviteType =
+    decoded?.inviteType ||
+    decoded?.userInfo?.inviteType ||
+    "master";
+  const country =
+    decoded?.country ||
+    decoded?.companyCountry ||
+    decoded?.workspaceCountry ||
+    decoded?.userInfo?.country ||
+    decoded?.userInfo?.companyCountry ||
+    decoded?.userInfo?.workspaceCountry ||
+    "";
+  const state =
+    decoded?.state ||
+    decoded?.companyState ||
+    decoded?.workspaceState ||
+    decoded?.userInfo?.state ||
+    decoded?.userInfo?.companyState ||
+    decoded?.userInfo?.workspaceState ||
+    "";
+  const city =
+    decoded?.city ||
+    decoded?.companyCity ||
+    decoded?.workspaceCity ||
+    decoded?.userInfo?.city ||
+    decoded?.userInfo?.companyCity ||
+    decoded?.userInfo?.workspaceCity ||
+    "";
+  const businessTypesRaw =
+    decoded?.businessTypes ||
+    decoded?.businessType ||
+    decoded?.verticalTypes ||
+    decoded?.verticalType ||
+    decoded?.verticals ||
+    decoded?.companyTypes ||
+    decoded?.companyType ||
+    decoded?.workspaceType ||
+    decoded?.workspaceTypes ||
+    decoded?.userInfo?.businessTypes ||
+    decoded?.userInfo?.businessType ||
+    decoded?.userInfo?.verticalTypes ||
+    decoded?.userInfo?.verticalType ||
+    decoded?.userInfo?.verticals ||
+    decoded?.userInfo?.companyTypes ||
+    decoded?.userInfo?.companyType ||
+    decoded?.userInfo?.workspaceType ||
+    decoded?.userInfo?.workspaceTypes ||
+    [];
+  const businessTypes = Array.isArray(businessTypesRaw)
+    ? businessTypesRaw.map((item: any) => String(item || "").trim()).filter(Boolean)
+    : String(businessTypesRaw || "")
+        .split(/[,\|\/;]+/)
+        .map((item) => item.trim())
+        .filter(Boolean);
 
-  return { inviteEmail, inviteName, selectedPlan, businessName };
+  return {
+    inviteEmail,
+    inviteName,
+    selectedPlan,
+    businessName,
+    inviteType,
+    country,
+    state,
+    city,
+    businessTypes,
+  };
 };
 
-const buildAuthUserPayload = (user: any, company: any, workspaceCount = 0) => ({
+const buildAuthUserPayload = (
+  user: any,
+  company: any,
+  workspaceCount = 0,
+  workspaceMembership: any = null,
+) => ({
   ...user,
   companyName: company?.companyName,
   logo: company?.logo,
@@ -58,10 +128,43 @@ const buildAuthUserPayload = (user: any, company: any, workspaceCount = 0) => ({
   hasCompletedWorkspaceSetup: Boolean(user?.hasCompletedWorkspaceSetup),
   primaryWorkspace: user?.primaryWorkspace || null,
   workspaceCount,
+  workspaceMembership: workspaceMembership
+    ? {
+        role: workspaceMembership.role,
+        isPrimary: workspaceMembership.isPrimary,
+        isActive: workspaceMembership.isActive,
+      }
+    : user?.workspaceMembership || null,
 });
 
 const normalizeInviteEmail = (email: string) =>
   String(email || "").trim().toLowerCase();
+
+const getFounderEmailForWorkspace = async (workspaceId: any) => {
+  if (!workspaceId) return "";
+  const workspace = await Workspace.findById(workspaceId).populate("owner", "email").lean().exec();
+  return workspace?.owner?.email || "";
+};
+
+const resolveActiveWorkspaceMembership = async (user: any) => {
+  const preferredMembership = await WorkspaceMember.findOne({
+    user: user._id,
+    isActive: true,
+    ...(user?.primaryWorkspace ? { workspace: user.primaryWorkspace } : {}),
+  })
+    .sort({ isPrimary: -1, createdAt: 1 })
+    .lean()
+    .exec();
+
+  if (preferredMembership) {
+    return preferredMembership;
+  }
+
+  return WorkspaceMember.findOne({ user: user._id, isActive: true })
+    .sort({ isPrimary: -1, createdAt: 1 })
+    .lean()
+    .exec();
+};
 
 const ensureInviteUserRecord = async (inviteEmail: string, inviteName: string) => {
   const normalizedEmail = normalizeInviteEmail(inviteEmail);
@@ -89,6 +192,79 @@ const ensureInviteUserRecord = async (inviteEmail: string, inviteName: string) =
   return user;
 };
 
+const enrichInviteLocationAndTypes = async ({
+  businessName,
+  country,
+  state,
+  city,
+  businessTypes,
+}: {
+  businessName: string;
+  country: string;
+  state: string;
+  city: string;
+  businessTypes: string[];
+}) => {
+  const normalizedBusinessName = String(businessName || "").trim();
+  let resolvedCountry = String(country || "").trim();
+  let resolvedState = String(state || "").trim();
+  let resolvedCity = String(city || "").trim();
+  let resolvedBusinessTypes = Array.isArray(businessTypes)
+    ? businessTypes.map((item) => String(item || "").trim()).filter(Boolean)
+    : [];
+
+  if (!normalizedBusinessName) {
+    return {
+      country: resolvedCountry,
+      state: resolvedState,
+      city: resolvedCity,
+      businessTypes: resolvedBusinessTypes,
+    };
+  }
+
+  const workspace = await Workspace.findOne({
+    businessName: normalizedBusinessName,
+    isActive: true,
+  })
+    .sort({ updatedAt: -1, createdAt: -1 })
+    .lean()
+    .exec();
+
+  if (workspace) {
+    resolvedCountry = resolvedCountry || String(workspace.country || "").trim();
+    resolvedState = resolvedState || String(workspace.state || "").trim();
+    resolvedCity = resolvedCity || String(workspace.city || "").trim();
+    if (!resolvedBusinessTypes.length) {
+      resolvedBusinessTypes = Array.isArray(workspace.businessTypes)
+        ? workspace.businessTypes
+            .map((item: any) => String(item || "").trim())
+            .filter(Boolean)
+        : [];
+    }
+  }
+
+  if (!resolvedCountry || !resolvedState || !resolvedCity) {
+    const company = await Company.findOne({
+      companyName: normalizedBusinessName,
+    })
+      .lean()
+      .exec();
+
+    if (company) {
+      resolvedCountry = resolvedCountry || String(company.companyCountry || "").trim();
+      resolvedState = resolvedState || String(company.companyState || "").trim();
+      resolvedCity = resolvedCity || String(company.companyCity || "").trim();
+    }
+  }
+
+  return {
+    country: resolvedCountry,
+    state: resolvedState,
+    city: resolvedCity,
+    businessTypes: resolvedBusinessTypes,
+  };
+};
+
 export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -102,6 +278,29 @@ export const login = async (req, res, next) => {
     const user = await HostUser.findOne({ email }).lean().exec();
 
     if (!user) return res.status(404).json({ message: "No user found" });
+    if (user?.isActive === false) {
+      return res.status(403).json({
+        code: "ACCOUNT_DISABLED",
+        message: "Account access disabled by founder.",
+      });
+    }
+
+    const activeMembership = await resolveActiveWorkspaceMembership(user);
+    if (!activeMembership && user?.hasCompletedWorkspaceSetup) {
+      const lastMembership = await WorkspaceMember.findOne({ user: user._id })
+        .sort({ updatedAt: -1, createdAt: -1 })
+        .lean()
+        .exec();
+      const founderEmail = await getFounderEmailForWorkspace(lastMembership?.workspace);
+      return res.status(403).json({
+        code: "ACCESS_DENIED",
+        founderEmail: founderEmail || "",
+        message: founderEmail
+          ? `Access denied. Contact founder at ${founderEmail} to regain access.`
+          : "Access denied. Contact founder to regain access.",
+      });
+    }
+
     const company = await Company.findOne({ companyId: user?.companyId })
       .lean()
       .exec();
@@ -109,6 +308,7 @@ export const login = async (req, res, next) => {
       user: user._id,
       isActive: true,
     });
+    const workspaceMembership = activeMembership;
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid)
@@ -139,8 +339,9 @@ export const login = async (req, res, next) => {
     });
 
     res.status(200).json({
-      user: buildAuthUserPayload(user, company, workspaceCount),
+      user: buildAuthUserPayload(user, company, workspaceCount, workspaceMembership),
       accessToken,
+      refreshToken,
     });
   } catch (error) {
     next(error);
@@ -150,11 +351,15 @@ export const login = async (req, res, next) => {
 export const logout = async (req, res, next) => {
   try {
     const cookies = req.cookies;
-    if (!cookies?.clientCookie) {
+    const headerRefreshToken =
+      req.headers["x-refresh-token"] ||
+      (String(req.headers?.authorization || "").startsWith("Bearer ")
+        ? String(req.headers.authorization).split(" ")[1]
+        : "");
+    const refreshToken = String(headerRefreshToken || cookies?.clientCookie || "");
+    if (!refreshToken) {
       return res.sendStatus(201);
     }
-
-    const refreshToken = cookies?.clientCookie;
     const user = await HostUser.findOne({ refreshToken }).lean().exec();
     if (!user) {
       res.clearCookie("clientCookie", {
@@ -327,7 +532,17 @@ export const getRegisterPrefill = async (req, res, next) => {
     if (!token) return res.status(400).json({ message: "Invite token is required." });
 
     const decoded = decodeSignupInviteToken(token);
-    const { inviteEmail, inviteName, selectedPlan, businessName } =
+    const {
+      inviteEmail,
+      inviteName,
+      selectedPlan,
+      businessName,
+      inviteType,
+      country,
+      state,
+      city,
+      businessTypes,
+    } =
       extractInviteIdentity(decoded);
 
     if (!inviteEmail || !inviteName) {
@@ -342,11 +557,24 @@ export const getRegisterPrefill = async (req, res, next) => {
       });
     }
 
+    const enriched = await enrichInviteLocationAndTypes({
+      businessName,
+      country,
+      state,
+      city,
+      businessTypes,
+    });
+
     res.status(200).json({
       fullName: inviteName,
       email: inviteEmail,
       selectedPlan,
       businessName,
+      inviteType,
+      country: enriched.country,
+      state: enriched.state,
+      city: enriched.city,
+      businessTypes: enriched.businessTypes,
     });
   } catch (error) {
     if (error?.message === "INVITE_COMPANY_NOT_FOUND") {

@@ -117,7 +117,7 @@ const companySettingsData: NavNode[] = [
   { id: "reviews", label: "Reviews", icon: ClipboardCheck, route: "/company-reviews" },
   { id: "organization-management", label: "Organization Management", icon: Building, route: "/company-settings/organization-management" },
   { id: "module-management", label: "Module Management", icon: Boxes, disabled: true },
-  { id: "access-grants", label: "Access Grants", icon: UserCog, disabled: true },
+  { id: "access-grants", label: "Access Grants", icon: UserCog, route: "/company-settings/access-grants" },
   { id: "workspace-settings", label: "Workspace Settings", icon: Settings, disabled: true },
   { id: "workspace-management", label: "Workspace Management", icon: MonitorCog, disabled: true },
   { id: "analytics", label: "Analytics", icon: BarChart, disabled: true },

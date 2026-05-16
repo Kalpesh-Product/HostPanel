@@ -8,6 +8,7 @@ export const OWNER_DEPARTMENT_CATALOG: DepartmentDef[] = [
   { key: "finance", label: "Finance", summary: "Finance and compliance", tone: "emerald" },
   { key: "maintenance", label: "Maintenance", summary: "Maintenance operations", tone: "orange" },
   { key: "technology", label: "Technology", summary: "Technology and product", tone: "cyan" },
+  { key: "it", label: "IT", summary: "IT infrastructure and support", tone: "cyan" },
 ];
 
 const SHARED_MODULES: ModuleDef[] = [
@@ -110,4 +111,3 @@ export const toggleSharedModuleInState = (
   departmentKey: string,
   checked: boolean,
 ) => toggleModuleInState(state, departmentKey, moduleId, departmentKey, checked);
-

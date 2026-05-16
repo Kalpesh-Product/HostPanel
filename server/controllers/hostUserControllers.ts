@@ -2,6 +2,7 @@
 import HostUser from "../models/HostUser.js";
 import bcrypt from "bcryptjs";
 import Workspace from "../models/Workspace.js";
+import WorkspaceMember from "../models/WorkspaceMember.js";
 
 export const updateProfile = async (req, res) => {
   try {
@@ -209,10 +210,40 @@ export const getMyProfile = async (req, res) => {
         .exec();
     }
 
+    if (!workspace) {
+      const membershipWorkspace = await WorkspaceMember.findOne({
+        user: user._id,
+        isActive: true,
+      })
+        .sort({ isPrimary: -1, createdAt: 1 })
+        .populate("workspace")
+        .lean()
+        .exec();
+      workspace = membershipWorkspace?.workspace || null;
+    }
+
+    const workspaceMembership = await WorkspaceMember.findOne({
+      user: user._id,
+      isActive: true,
+      ...(workspace?._id ? { workspace: workspace._id } : {}),
+    })
+      .sort({ isPrimary: -1, createdAt: 1 })
+      .lean()
+      .exec();
+
     return res.status(200).json({
       success: true,
       data: {
-        user,
+        user: {
+          ...user,
+          workspaceMembership: workspaceMembership
+            ? {
+                role: workspaceMembership.role,
+                isPrimary: workspaceMembership.isPrimary,
+                isActive: workspaceMembership.isActive,
+              }
+            : user?.workspaceMembership || null,
+        },
         workspace: workspace || null,
       },
     });

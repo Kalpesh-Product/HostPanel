@@ -19,6 +19,7 @@ import { GiHamburgerMenu } from "react-icons/gi";
 import { FaUserTie } from "react-icons/fa6";
 import { FiLogOut } from "react-icons/fi";
 import { HiOutlineRefresh } from "react-icons/hi";
+import { BellRing } from "lucide-react";
 import { useSidebar } from "../context/SideBarContext";
 import useAuth from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -42,10 +43,19 @@ interface HeaderProps {
 
 const Header = ({
   notifications = [],
-  unseenCount = 0,
+  unseenCount,
   onRefreshNotifications,
   isRefreshingNotifications = false,
 }: HeaderProps) => {
+  const getStoredUser = () => {
+    try {
+      const raw = localStorage.getItem("hostpanel_auth_user");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+
   const axios = useAxiosPrivate();
   const { isSidebarOpen, setIsSidebarOpen } = useSidebar();
   const navigate = useNavigate();
@@ -54,6 +64,7 @@ const Header = ({
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [notificationAnchorEl, setNotificationAnchorEl] = useState<HTMLElement | null>(null);
+  const storedUser = getStoredUser();
 
   const { data: companyLogo } = useQuery({
     queryKey: ["companyLogo"] as const,
@@ -91,6 +102,10 @@ const Header = ({
     setAnchorEl(event.currentTarget);
   };
 
+  const handleNotificationClick = (event: MouseEvent<HTMLElement>) => {
+    setNotificationAnchorEl(event.currentTarget);
+  };
+
   const handlePopoverClose = () => {
     setAnchorEl(null);
   };
@@ -109,6 +124,76 @@ const Header = ({
 
   const openNotification = Boolean(notificationAnchorEl);
   const notificationId = openNotification ? "notification-popover" : undefined;
+  const computedUnseenCount =
+    typeof unseenCount === "number"
+      ? unseenCount
+      : notifications.filter((item) => !item?.isRead && !item?.read).length;
+  const roleSource = auth?.user?.role ?? storedUser?.role;
+  const roleArrayTitles = Array.isArray(roleSource)
+    ? roleSource
+        .map((entry) => entry?.roleTitle || entry?.title || entry?.name)
+        .filter(Boolean)
+    : [];
+
+  const roleCandidates = [
+    auth?.user?.workspaceMembership?.role,
+    storedUser?.workspaceMembership?.role,
+    auth?.user?.role,
+    storedUser?.role,
+    auth?.user?.designation,
+    storedUser?.designation,
+    auth?.user?.title,
+    storedUser?.title,
+    auth?.user?.workspaceRole,
+    storedUser?.workspaceRole,
+    auth?.user?.workspaceMembership?.designation,
+    storedUser?.workspaceMembership?.designation,
+    ...roleArrayTitles,
+  ]
+    .filter(Boolean)
+    .map((value) => value.toString().trim().toLowerCase().replace(/_/g, "-"));
+
+  const normalizedRole = roleCandidates[0] || "";
+  const rawPermissions = Array.isArray(auth?.user?.permissions?.permissions)
+    ? auth.user.permissions.permissions
+    : [];
+  const hasFounderPermission = rawPermissions.some((permission) => {
+    const value = String(permission || "").toLowerCase();
+    return value.includes("owner") || value.includes("founder");
+  });
+  const isFounderByFlag = Boolean(
+    auth?.user?.isOwner ||
+      auth?.user?.isFounder ||
+      auth?.user?.workspaceMembership?.isOwner ||
+      auth?.user?.workspaceMembership?.isFounder ||
+      storedUser?.isOwner ||
+      storedUser?.isFounder ||
+      storedUser?.workspaceMembership?.isOwner ||
+      storedUser?.workspaceMembership?.isFounder,
+  );
+  const isFounderRole = roleCandidates.some((role) => {
+    if (role === "owner" || role === "founder") {
+      return true;
+    }
+    return role.includes("founder");
+  });
+
+  const roleLabelMap: Record<string, string> = {
+    owner: "Founder",
+    founder: "Founder",
+    "founder-&-ceo": "Founder",
+    "co-founder-&-coo": "Founder",
+    "co-founder": "Founder",
+    "master-admin": "Founder",
+    "super-admin": "Super Admin",
+    admin: "Department Admin",
+    manager: "Department Manager",
+    employee: "Employee",
+  };
+  const roleLabel =
+    isFounderRole || isFounderByFlag || hasFounderPermission
+      ? "Founder"
+      : roleLabelMap[normalizedRole] || "Team Member";
 
   return (
     <>
@@ -135,6 +220,21 @@ const Header = ({
         </div>
         {!isMobile && <div className="w-full flex items-center pl-20" />}
         <div className="flex items-center gap-4 md:w-fit w-fit">
+          <button
+            type="button"
+            data-notification-trigger
+            onClick={handleNotificationClick}
+            className="relative h-9 w-9 rounded-lg text-slate-600 hover:text-[#2563EB] transition-colors flex items-center justify-center"
+            aria-label="Open notifications"
+          >
+            <BellRing size={18} strokeWidth={2.25} />
+            {computedUnseenCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold leading-[18px] text-center">
+                {computedUnseenCount > 9 ? "9+" : computedUnseenCount}
+              </span>
+            )}
+          </button>
+
           <Avatar onClick={handleAvatarClick} className="cursor-pointer">
             {auth?.user?.profilePicture?.url ? (
               <img src={auth?.user?.profilePicture?.url} alt="" />
@@ -145,9 +245,14 @@ const Header = ({
 
           <div className="w-full relative">
             {!isMobile && (
-              <h1 className="text-xl font-semibold text-start">
-                {auth?.user?.name?.split(" ")[0] || ""}
-              </h1>
+              <div className="leading-tight">
+                <h1 className="text-[14px] font-semibold text-start">
+                  {auth?.user?.name?.split(" ")[0] || ""}
+                </h1>
+                <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
+                  {roleLabel}
+                </p>
+              </div>
             )}
           </div>
         </div>
@@ -211,7 +316,7 @@ const Header = ({
             <div className="flex items-center gap-5 rounded-full">
               <span className="font-pmedium text-subtitle">Notifications</span>
               <Badge
-                badgeContent={unseenCount > 9 ? "9+" : unseenCount}
+                badgeContent={computedUnseenCount > 9 ? "9+" : computedUnseenCount}
                 color="error"
                 anchorOrigin={{ vertical: "top", horizontal: "right" }}
                 overlap="circular"

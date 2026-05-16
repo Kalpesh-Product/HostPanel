@@ -441,6 +441,10 @@ export const routes = createBrowserRouter([
                     path: "organization-management",
                     element: <OrganizationPage />,
                   },
+                  {
+                    path: "access-grants",
+                    element: <AccessGrant />,
+                  },
                 ],
               },
               {

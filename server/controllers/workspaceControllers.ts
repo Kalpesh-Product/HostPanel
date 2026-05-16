@@ -9,7 +9,7 @@ const normalizeStringArray = (value: unknown) =>
     ? value.map((item) => String(item).trim()).filter(Boolean)
     : [];
 
-const buildAuthUserPayload = (user: any, company: any) => ({
+const buildAuthUserPayload = (user: any, company: any, workspaceMembership: any = null) => ({
   ...user,
   companyName: company?.companyName,
   logo: company?.logo,
@@ -17,6 +17,13 @@ const buildAuthUserPayload = (user: any, company: any) => ({
   hasCompletedWorkspaceSetup: Boolean(user?.hasCompletedWorkspaceSetup),
   primaryWorkspace: user?.primaryWorkspace || null,
   workspaceCount: 1,
+  workspaceMembership: workspaceMembership
+    ? {
+        role: workspaceMembership.role,
+        isPrimary: workspaceMembership.isPrimary,
+        isActive: workspaceMembership.isActive,
+      }
+    : user?.workspaceMembership || null,
 });
 
 export const completeWorkspaceSetup = async (req, res, next) => {
@@ -97,7 +104,7 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       isActive: true,
     });
 
-    await WorkspaceMember.findOneAndUpdate(
+    const workspaceMembership = await WorkspaceMember.findOneAndUpdate(
       { workspace: workspace._id, user: user._id },
       {
         $set: {
@@ -123,7 +130,7 @@ export const completeWorkspaceSetup = async (req, res, next) => {
     return res.status(201).json({
       message: "Workspace created successfully.",
       workspace,
-      user: buildAuthUserPayload(updatedUser, updatedCompany),
+      user: buildAuthUserPayload(updatedUser, updatedCompany, workspaceMembership),
     });
   } catch (error) {
     next(error);

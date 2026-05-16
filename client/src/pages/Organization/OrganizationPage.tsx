@@ -35,6 +35,7 @@ import {
   toggleSharedModuleInState,
   writeStoredOwnerAccessState,
 } from '../../lib/owner-access';
+import { getWorkspaceCount } from '../../utils/workspacePlanAccess';
 
 const getStoredUser = () => {
   try {
@@ -97,6 +98,16 @@ type DepartmentOption = {
 const getDepartmentToneClass = (dept: DepartmentOption) => {
   const definition = getDepartmentDefinition(dept?.name || '');
   return DEPARTMENT_TONE_CLASSES[definition?.tone || 'blue'] || DEPARTMENT_TONE_CLASSES.blue;
+};
+
+const normalizeDepartmentLabel = (value = '') => {
+  const normalized = String(value || '').trim();
+  const lower = normalized.toLowerCase();
+  if (lower === 'it') {
+    return 'IT';
+  }
+  const definition = getDepartmentDefinition(normalized);
+  return definition?.label || normalized;
 };
 
 type TeamMember = {
@@ -239,33 +250,30 @@ export function OrganizationPage() {
         .trim()
         .toLowerCase()
         .replace(/_/g, "-");
-      const mergedDepartments =
-        roleSnapshot === "owner"
-          ? OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
-              const existingDepartment = nextDepartments.find((department) => {
-                const normalizedName = String(department?.name || "")
-                  .trim()
-                  .toLowerCase();
-                return (
-                  normalizedName === catalogDepartment.label.toLowerCase() ||
-                  normalizedName === catalogDepartment.key.toLowerCase()
-                );
-              });
+      const mergedDepartments = OWNER_DEPARTMENT_CATALOG.map((catalogDepartment) => {
+        const existingDepartment = nextDepartments.find((department) => {
+          const normalizedName = String(department?.name || "")
+            .trim()
+            .toLowerCase();
+          return (
+            normalizedName === catalogDepartment.label.toLowerCase() ||
+            normalizedName === catalogDepartment.key.toLowerCase()
+          );
+        });
 
-              return (
-                existingDepartment || {
-                  id: `virtual-${catalogDepartment.key}`,
-                  name: catalogDepartment.label,
-                  description: catalogDepartment.summary,
-                  employeeCount: 0,
-                  employees: [],
-                  managerUserId: "",
-                  managerName: "",
-                  actingManagers: [],
-                }
-              );
-            })
-          : nextDepartments;
+        return (
+          existingDepartment || {
+            id: `virtual-${catalogDepartment.key}`,
+            name: catalogDepartment.label,
+            description: catalogDepartment.summary,
+            employeeCount: 0,
+            employees: [],
+            managerUserId: "",
+            managerName: "",
+            actingManagers: [],
+          }
+        );
+      });
       const nextMembers = Array.isArray(payload.teamMembers) ? payload.teamMembers : [];
       const nextTransferredMembers = Array.isArray(payload.transferredTeamMembers)
         ? payload.transferredTeamMembers
@@ -355,9 +363,22 @@ export function OrganizationPage() {
     .toLowerCase()
     .replace(/_/g, '-');
   const currentUserId = (currentUser?.id || currentUser?._id || '').toString();
-  const canInviteSuperAdmin = currentUserRole === 'owner';
-  const canManageDepartments = currentUserRole === 'owner';
-  const canManageActingAssignments = currentUserRole === 'owner' || currentUserRole === 'super-admin';
+  const isFounderRole = currentUserRole === 'owner' || currentUserRole === 'founder';
+  const isFounderFromTeamRecord = teamMembers.some((member) => {
+    const memberUserId = (member.userId || member.id || member._id || '').toString();
+    if (!memberUserId || !currentUserId || memberUserId !== currentUserId) {
+      return false;
+    }
+    const memberRole = normalizeRoleValue(member.role);
+    return memberRole === 'owner' || memberRole === 'founder';
+  });
+  const canInviteSuperAdmin = isFounderRole || isFounderFromTeamRecord;
+  const canManageDepartments = isFounderRole || isFounderFromTeamRecord;
+  const canManageActingAssignments = canManageDepartments || currentUserRole === 'super-admin';
+  const workspaceCount = getWorkspaceCount(
+    (currentUser as { workspaceCount?: number } | null)?.workspaceCount,
+  );
+  const shouldShowTransferredReferences = canManageDepartments && workspaceCount > 1;
   const formatJoinedDate = (value) => {
     if (!value) {
       return '—';
@@ -616,7 +637,7 @@ export function OrganizationPage() {
     return teamMembers.filter((member) => {
       const normalizedRole = normalizeRoleValue(member.role);
       const isEligibleRole =
-        currentUserRole === 'owner'
+        isFounderRole
           ? normalizedRole === 'admin' || normalizedRole === 'super-admin'
           : normalizedRole === 'admin';
 
@@ -625,7 +646,7 @@ export function OrganizationPage() {
 
       return isEligibleRole && isEligibleStatus;
     });
-  }, [teamMembers, currentUserRole]);
+  }, [teamMembers, isFounderRole]);
 
   // --- UI HELPERS ---
   const getRoleIcon = (role) => {
@@ -675,58 +696,58 @@ export function OrganizationPage() {
 
   return (
     <>
-      <div className="p-6 lg:p-8 min-h-full text-[#0F172A] font-sans">
+      <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       
       {/* HEADER & TOP KPIs */}
-      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+      <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-slate-800">Organization Management</h1>
-          <p className="text-sm font-medium text-slate-500 mt-1">Manage structural hierarchy, department rosters, and platform access.</p>
+          <h1 className="text-base lg:text-lg font-black tracking-tight text-slate-800">Organization Management</h1>
+          <p className="text-xs font-medium text-slate-500 mt-1">Manage structural hierarchy, department rosters, and platform access.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-4xl border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+        <div className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
            <div>
              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Platform Users</p>
-             <p className="text-3xl font-black text-[#2563EB]">{teamMembers.length}</p>
+             <p className="text-[15px] font-black text-[#2563EB]">{teamMembers.length}</p>
            </div>
-           <div className="p-3.5 rounded-2xl bg-blue-50 text-[#2563EB]"><Shield size={24}/></div>
+           <div className="p-2 rounded-2xl bg-blue-50 text-[#2563EB]"><Shield size={16}/></div>
         </div>
-        <div className="bg-white p-6 rounded-4xl border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
+        <div className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
            <div>
              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Depts</p>
-             <p className="text-3xl font-black text-slate-800">{departments.length}</p>
+             <p className="text-[15px] font-black text-slate-800">{departments.length}</p>
            </div>
-           <div className="p-3.5 rounded-2xl bg-slate-50 text-slate-600"><Building2 size={24}/></div>
+           <div className="p-2 rounded-2xl bg-slate-50 text-slate-600"><Building2 size={16}/></div>
         </div>
-        <div className="bg-white p-6 rounded-4xl border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
+        <div className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
            <div>
              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Global Headcount</p>
-             <p className="text-3xl font-black text-emerald-600">{totalEmployees}</p>
+             <p className="text-[15px] font-black text-emerald-600">{totalEmployees}</p>
            </div>
-           <div className="p-3.5 rounded-2xl bg-emerald-50 text-emerald-600"><Users size={24}/></div>
+           <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600"><Users size={16}/></div>
         </div>
         <div
-          className="relative overflow-hidden bg-gradient-to-br from-[#0b3aa8] via-[#1d4ed8] to-[#2563EB] p-6 rounded-4xl border border-blue-300/40 shadow-lg shadow-blue-300/40 flex justify-between items-center cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all group"
+          className="relative overflow-hidden bg-gradient-to-br from-[#0b3aa8] via-[#1d4ed8] to-[#2563EB] p-2.5 rounded-[2rem] border border-blue-300/40 shadow-lg shadow-blue-300/40 flex justify-between items-center cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all group"
              onClick={() => { setActiveTab('users'); setTeamMemberFormData({ name: '', email: '', role: 'manager', departments: [] }); setShowTeamMemberModal(true); }}>
-          <div className="absolute -right-6 -top-6 h-20 w-20 rounded-full bg-white/15 blur-[1px]" />
-          <div className="absolute -left-5 -bottom-6 h-16 w-16 rounded-full bg-black/10" />
+          <div className="absolute -right-5 -top-5 h-16 w-16 rounded-full bg-white/15 blur-[1px]" />
+          <div className="absolute -left-4 -bottom-5 h-14 w-14 rounded-full bg-black/10" />
            <div>
               <p className="text-[10px] font-black text-blue-100/90 uppercase tracking-widest mb-1">Quick Action</p>
-             <p className="text-lg font-black text-white group-hover:scale-105 transition-transform origin-left">Add User</p>
-             <p className="text-[11px] mt-1 text-blue-100/90 font-semibold">Invite and onboard instantly</p>
+             <p className="text-[13px] font-black text-white group-hover:scale-105 transition-transform origin-left">Add User</p>
+             <p className="text-[10px] mt-1 text-blue-100/90 font-semibold">Invite and onboard instantly</p>
            </div>
-           <div className="p-3.5 rounded-2xl bg-white/20 text-white border border-white/30"><UserPlus size={24}/></div>
+           <div className="p-2 rounded-2xl bg-white/20 text-white border border-white/30"><UserPlus size={16}/></div>
         </div>
       </div>
 
       {/* CUSTOM TABS */}
-      <div className="flex bg-white p-1.5 rounded-2xl w-full md:w-max mb-8 shadow-sm border border-slate-200/60 overflow-x-auto">
-        <button onClick={() => setActiveTab('users')} className={`flex-1 md:px-8 py-2.5 rounded-xl text-[13px] font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'users' ? 'bg-[#2563EB] shadow-sm text-white' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>
+      <div className="flex bg-white p-1 rounded-2xl w-full md:w-max mb-3 shadow-sm border border-slate-200/60 overflow-x-auto">
+        <button onClick={() => setActiveTab('users')} className={`flex-1 md:px-5 py-1.5 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${activeTab === 'users' ? 'bg-[#2563EB] shadow-sm text-white' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>
           <Shield size={16}/> PLATFORM USERS
         </button>
-        <button onClick={() => { setActiveTab('departments'); setView('list'); }} className={`flex-1 md:px-8 py-2.5 rounded-xl text-[13px] font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'departments' ? 'bg-[#2563EB] shadow-sm text-white' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>
+        <button onClick={() => { setActiveTab('departments'); setView('list'); }} className={`flex-1 md:px-5 py-1.5 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${activeTab === 'departments' ? 'bg-[#2563EB] shadow-sm text-white' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>
           <Building2 size={16}/> DEPARTMENTS
         </button>
       </div>
@@ -735,31 +756,31 @@ export function OrganizationPage() {
       {/* TAB 1: PLATFORM USERS (DEFAULT)            */}
       {/* ========================================== */}
       {activeTab === 'users' && (
-        <div className="space-y-6 animate-in fade-in duration-300">
-        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-125">
+        <div className="space-y-4 animate-in fade-in duration-300">
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-110">
           
-            <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0">
+            <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-2.5 shrink-0">
               <div className="relative w-full md:w-88">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input 
                   type="text" placeholder="Search platform users..." 
-                  className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" 
+                  className="w-full pl-10 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" 
                   onChange={(e) => setSearchQuery(e.target.value)} 
                 />
               </div>
               <button onClick={() => { setTeamMemberFormData({ name: '', email: '', role: 'manager', departments: [] }); setShowTeamMemberModal(true); }} 
-                      className="w-full md:w-auto px-6 py-3 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-all shadow-sm shadow-blue-200 flex items-center justify-center gap-2">
-              <Plus size={18}/> Add User
+                      className="w-full md:w-auto px-3.5 py-2.5 bg-[#2563EB] hover:bg-blue-700 text-white rounded-2xl font-bold text-[11px] leading-none transition-all shadow-sm shadow-blue-200 inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
+              <Plus size={13}/> Add User
               </button>
             </div>
 
-            <div className="px-6 pb-5 flex flex-col md:flex-row gap-3 md:gap-4">
+            <div className="px-4 pb-3.5 flex flex-col md:flex-row gap-2.5 md:gap-3">
               <div className="w-full md:w-48">
                 <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Status</label>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                 >
                   <option value="all">All Statuses</option>
                   <option value="pending">Pending</option>
@@ -770,16 +791,16 @@ export function OrganizationPage() {
                 </select>
               </div>
               <div className="w-full md:w-60">
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Department</label>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Department</label>
                 <select
                   value={departmentFilter}
                   onChange={(e) => setDepartmentFilter(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                 >
                   <option value="all">All Departments</option>
                   {departments.map((department) => (
                     <option key={department.id} value={department.id}>
-                      {department.name}
+                      {normalizeDepartmentLabel(department.name)}
                     </option>
                   ))}
                 </select>
@@ -825,7 +846,7 @@ export function OrganizationPage() {
                             ? departments.map((department) => department.name)
                             : []
                         ).map((dept, i) => (
-                          <span key={i} className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold tracking-wide">{dept}</span>
+                          <span key={i} className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold tracking-wide">{normalizeDepartmentLabel(dept)}</span>
                         ))}
                       </div>
                     </td>
@@ -847,7 +868,7 @@ export function OrganizationPage() {
                           return (
                         <div
                           onClick={() => canToggleAccess && toggleMemberStatus(member.id)}
-                          className={`w-11 h-6 rounded-full flex items-center p-0.5 transition-all duration-300 ${member.role === 'owner' || isProtectedSelf ? 'bg-slate-200 cursor-not-allowed' : member.status === 'joined' ? 'bg-emerald-500 cursor-pointer shadow-inner' : member.status === 'disabled' ? 'bg-red-500 cursor-pointer shadow-inner' : 'bg-amber-300 cursor-not-allowed'}`}
+                          className={`w-11 h-6 rounded-full flex items-center p-0.5 transition-all duration-300 ${member.role === 'owner' || isProtectedSelf ? 'bg-slate-200 cursor-not-allowed' : member.status === 'joined' ? 'bg-emerald-500 cursor-pointer shadow-inner' : member.status === 'disabled' ? 'bg-red-500 cursor-pointer shadow-inner' : 'bg-amber-200 cursor-not-allowed'}`}
                           title={member.role === 'owner' ? 'Founder access' : isProtectedSelf ? 'Super admin access cannot be disabled' : member.status === 'joined' ? 'Disable access' : member.status === 'disabled' ? 'Enable access' : 'Pending Invite'}
                         >
                           <div className={`bg-white w-4.5 h-4.5 rounded-full shadow-sm transition-all duration-300 flex items-center justify-center ${member.role === 'owner' || isProtectedSelf ? 'translate-x-0' : member.status === 'joined' ? 'translate-x-5' : 'translate-x-0'}`}>
@@ -878,6 +899,7 @@ export function OrganizationPage() {
             </table>
           </div>
         </div>
+        {shouldShowTransferredReferences ? (
         <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-3">
             <div>
@@ -925,7 +947,7 @@ export function OrganizationPage() {
                       <div className="flex flex-wrap gap-1.5 max-w-62.5">
                         {((member as TeamMember & { previousDepartments?: string[] }).previousDepartments || member.departmentNames || []).map((dept, index) => (
                           <span key={`${member.id}-${dept}-${index}`} className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold tracking-wide">
-                            {dept}
+                            {normalizeDepartmentLabel(dept)}
                           </span>
                         ))}
                       </div>
@@ -955,6 +977,7 @@ export function OrganizationPage() {
             </table>
           </div>
         </div>
+        ) : null}
         </div>
       )}
 
@@ -963,57 +986,57 @@ export function OrganizationPage() {
       {/* ========================================== */}
       {activeTab === 'departments' && view === 'list' && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
             <div>
-              <h2 className="text-2xl font-black text-slate-900">Departments</h2>
-              <p className="text-sm text-slate-500 mt-1">
+              <h2 className="font-sans text-base lg:text-lg font-black tracking-tight text-slate-800" style={{ fontFamily: "inherit" }}>Departments</h2>
+              <p className="text-xs font-medium text-slate-500 mt-1">
                 Review existing departments and enable the ones that were missed during setup.
               </p>
             </div>
             {canManageDepartments ? (
               <button
                 onClick={() => openDepartmentModal()}
-                className="w-full md:w-auto px-6 py-3 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-all shadow-sm shadow-blue-200 flex items-center justify-center gap-2"
+                className="w-full md:w-auto px-5 py-2.5 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-bold text-[13px] transition-all shadow-sm shadow-blue-200 flex items-center justify-center gap-2"
               >
-                <Plus size={18} />
+                <Plus size={16} />
                 Manage Departments
               </button>
             ) : null}
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-7">
            {departments.map((dept) => (
-            <div key={dept.id} onClick={() => { setSelectedDepartment(dept); setView('detail'); }} className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all overflow-hidden flex flex-col relative cursor-pointer">
-              <div className={`h-2.5 w-full ${getDepartmentToneClass(dept)}`}></div>
-              <div className="p-6 flex flex-col flex-1">
-                <div className="flex justify-between items-start mb-4">
+            <div key={dept.id} onClick={() => { setSelectedDepartment(dept); setView('detail'); }} className="bg-white rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden flex flex-col relative cursor-pointer">
+              <div className={`h-2 w-full ${getDepartmentToneClass(dept)}`}></div>
+              <div className="p-3.5 flex flex-col flex-1">
+                <div className="flex justify-between items-start mb-3">
                   <div>
-                    <h3 className="text-xl font-bold text-slate-900 transition-colors">{dept.name}</h3>
-                    <p className="text-sm text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">{dept.description}</p>
+                    <h3 className="text-[15px] font-bold text-slate-900 transition-colors">{dept.name}</h3>
+                    <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">{dept.description}</p>
                   </div>
                   </div>
                 
-                <div className="mt-auto pt-5 border-t border-slate-100 space-y-4">
+                <div className="mt-auto pt-2.5 border-t border-slate-100 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Briefcase size={14}/> Manager</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"><Briefcase size={12}/> Manager</span>
                     <span className={`text-[11px] font-bold px-2 py-1 rounded-md ${dept.managerName ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
                       {dept.managerName || 'Unassigned'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Users size={14}/> Team Size</span>
-                    <span className="font-bold text-slate-800 text-sm">{dept.employeeCount} <span className="text-slate-400 text-xs font-medium">Staff</span></span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"><Users size={12}/> Team Size</span>
+                    <span className="font-bold text-slate-800 text-[11px]">{dept.employeeCount} <span className="text-slate-400 text-[10px] font-medium">Staff</span></span>
                   </div>
                     <div className="space-y-2">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Users size={14}/> Selected Members</span>
-                      <div className="flex flex-wrap gap-2">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"><Users size={12}/> Selected Members</span>
+                      <div className="flex flex-wrap gap-1.5">
                         {(dept.employees || []).slice(0, 3).map((employee) => (
-                          <span key={employee.id} className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold tracking-wide">
+                          <span key={employee.id} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[9px] font-bold tracking-wide">
                             {employee.employeeId ? `${employee.employeeId} · ` : ''}{employee.name}
                           </span>
                         ))}
                       {(dept.employees || []).length > 3 && (
-                        <span className="px-2.5 py-1 bg-blue-50 text-[#2563EB] rounded-md text-[10px] font-bold tracking-wide">
+                        <span className="px-1.5 py-0.5 bg-blue-50 text-[#2563EB] rounded-md text-[9px] font-bold tracking-wide">
                           +{(dept.employees || []).length - 3} more
                         </span>
                       )}
@@ -1032,39 +1055,39 @@ export function OrganizationPage() {
       {/* ========================================== */}
       {activeTab === 'departments' && view === 'detail' && selectedDepartment && (
         <div className="animate-in slide-in-from-bottom-4 duration-300">
-          <button onClick={() => setView('list')} className="mb-6 px-4 py-2 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl font-bold text-xs transition-all flex items-center gap-2 shadow-sm">
+          <button onClick={() => setView('list')} className="mb-4 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl font-bold text-[11px] transition-all flex items-center gap-2 shadow-sm">
             <ArrowLeft size={16} /> Directory
           </button>
 
           {/* Dept Header Card */}
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 mb-6 relative overflow-hidden">
-            <div className={`absolute top-0 right-0 w-48 h-48 opacity-10 rounded-bl-full ${getDepartmentToneClass(selectedDepartment)}`}></div>
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
+          <div className="bg-white rounded-[1.6rem] border border-slate-100 shadow-sm p-4.5 mb-4 relative overflow-hidden">
+            <div className={`absolute top-0 right-0 w-32 h-32 opacity-10 rounded-bl-full ${getDepartmentToneClass(selectedDepartment)}`}></div>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
               <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className={`w-3 h-8 rounded-full ${getDepartmentToneClass(selectedDepartment)}`}></div>
-                  <h1 className="text-3xl font-black text-slate-900">{selectedDepartment.name}</h1>
+                <div className="flex items-center gap-2.5 mb-1.5">
+                  <div className={`w-2 h-6 rounded-full ${getDepartmentToneClass(selectedDepartment)}`}></div>
+                  <h1 className="text-xl font-black text-slate-900">{selectedDepartment.name}</h1>
                 </div>
-                <p className="text-sm text-slate-500 max-w-2xl leading-relaxed">{selectedDepartment.description}</p>
+                <p className="text-[12px] text-slate-500 max-w-2xl leading-relaxed">{selectedDepartment.description}</p>
               </div>
-              <div className="flex gap-3 w-full md:w-auto">
+              <div className="flex gap-2.5 w-full md:w-auto">
                 {canManageDepartments ? (
                   <button
                     onClick={() => openDepartmentModal(selectedDepartment)}
-                    className="flex-1 md:flex-none px-6 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
+                    className="flex-1 md:flex-none px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-bold text-[12px] transition-all flex items-center justify-center gap-1.5"
                   >
-                    <Plus size={18} />
+                    <Plus size={16} />
                     Manage Departments
                   </button>
                 ) : null}
-                <button onClick={() => setShowEmployeeModal(true)} className="flex-1 md:flex-none px-6 py-3 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-all shadow-sm shadow-blue-200 flex items-center justify-center gap-2">
-                  <UserPlus size={18}/> Add Employee
+                <button onClick={() => setShowEmployeeModal(true)} className="flex-1 md:flex-none px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-bold text-[12px] transition-all shadow-sm shadow-blue-200 flex items-center justify-center gap-1.5">
+                  <UserPlus size={16}/> Add Employee
                 </button>
               </div>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 pt-8 border-t border-slate-100">
-               <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5 pt-5 border-t border-slate-100">
+               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Assigned Manager</p>
                  {selectedDepartment.managerName ? (
                    <p className="font-bold text-emerald-700 flex items-center gap-2"><CheckCircle2 size={16}/> {selectedDepartment.managerName}</p>
@@ -1072,15 +1095,15 @@ export function OrganizationPage() {
                    <p className="font-bold text-amber-600 flex items-center gap-2"><AlertCircle size={16}/> Action Required</p>
                  )}
                </div>
-               <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Manager Transfer</p>
-                 <p className="font-bold text-slate-800 leading-relaxed text-sm">
+                 <p className="font-bold text-slate-800 leading-relaxed text-[12px]">
                    Change the department head when a manager leaves or access needs to move to another department lead.
                  </p>
                </div>
             </div>
             {Array.isArray(selectedDepartment.actingManagers) && selectedDepartment.actingManagers.length > 0 ? (
-              <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50/60 p-5">
+              <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
                 <p className="text-[11px] font-bold text-blue-600 uppercase tracking-widest mb-3">Active Acting Managers</p>
                 <div className="flex flex-wrap gap-3">
                   {selectedDepartment.actingManagers.map((assignment) => (
@@ -1583,32 +1606,34 @@ export function OrganizationPage() {
 
       {/* 4. Add Platform Administrator Modal */}
       {showTeamMemberModal && (
-        <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[2.5rem] max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70">
-            <div className="p-6 sm:p-8 border-b border-slate-100 bg-blue-50/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm flex items-center justify-center z-50 p-3">
+          <div className="bg-white rounded-[2rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70">
+            <div className="p-5 sm:p-6 border-b border-slate-100 bg-blue-50/30 flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-bold text-[#0F172A] flex items-center gap-2">
-                  <span className="p-1.5 bg-[#2563EB] text-white rounded-lg"><UserPlus size={18}/></span>
-                  Add Platform User
-                </h2>
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 bg-[#2563EB] text-white rounded-lg"><UserPlus size={16}/></span>
+                  <h2 className="text-base lg:text-lg font-black tracking-tight text-slate-800 font-sans" style={{ fontFamily: "inherit" }}>
+                    Add Platform User
+                  </h2>
+                </div>
               </div>
-              <button onClick={() => setShowTeamMemberModal(false)} className="w-9 h-9 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors absolute top-6 right-6 md:static"><X size={18} /></button>
+              <button onClick={() => setShowTeamMemberModal(false)} className="w-8 h-8 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-slate-700 hover:bg-slate-50 transition-colors absolute top-5 right-5 md:static"><X size={16} /></button>
             </div>
             
-            <div className="p-6 sm:p-8 space-y-6 overflow-y-auto max-h-[60vh] bg-white">
-              <div className="grid md:grid-cols-2 gap-5">
+            <div className="p-5 sm:p-6 space-y-5 overflow-y-auto max-h-[58vh] bg-white">
+              <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Full Name *</label>
-                  <input type="text" placeholder="Enter your name" value={teamMemberFormData.name} onChange={(e) => setTeamMemberFormData({ ...teamMemberFormData, name: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Full Name *</label>
+                  <input type="text" placeholder="Enter full name" value={teamMemberFormData.name} onChange={(e) => setTeamMemberFormData({ ...teamMemberFormData, name: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Work Email *</label>
-                  <input type="email" placeholder="admin@company.com" value={teamMemberFormData.email} onChange={(e) => setTeamMemberFormData({ ...teamMemberFormData, email: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Work Email *</label>
+                  <input type="email" placeholder="Enter work email" value={teamMemberFormData.email} onChange={(e) => setTeamMemberFormData({ ...teamMemberFormData, email: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Platform Role *</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Platform Role *</label>
                 <select
                   value={teamMemberFormData.role}
                   onChange={(e) =>
@@ -1623,7 +1648,7 @@ export function OrganizationPage() {
                             : teamMemberFormData.departments,
                     })
                   }
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                 >
                    <option value="manager">Department Manager</option>
                    <option value="admin">Department Admin</option>
@@ -1645,7 +1670,7 @@ export function OrganizationPage() {
                     <p className="text-[11px] text-slate-500 -mt-1">
                       Department managers stay attached to one department. Department admins may cover multiple departments.
                     </p>
-                    <div className="flex flex-wrap gap-2.5">
+                    <div className="flex flex-wrap gap-1.5">
                     {departments.map((dept) => {
                       const isSelected = dept.id ? teamMemberFormData.departments.includes(dept.id) : false;
                       return (
@@ -1653,7 +1678,7 @@ export function OrganizationPage() {
                             if (teamMemberFormData.role === 'manager') { setTeamMemberFormData({ ...teamMemberFormData, departments: dept.id ? [dept.id] : [] }); } 
                             else { setTeamMemberFormData({ ...teamMemberFormData, departments: isSelected ? teamMemberFormData.departments.filter((departmentId) => departmentId !== dept.id) : dept.id ? [...teamMemberFormData.departments, dept.id] : teamMemberFormData.departments }); }
                           }} 
-                          className={`px-4 py-2.5 rounded-[10px] text-[13px] font-semibold border transition-all ${isSelected ? 'border-[#2563EB] bg-[#2563EB] text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-[#2563EB] hover:text-[#2563EB]'}`}
+                          className={`px-3 py-2 rounded-[10px] text-[12px] font-semibold border transition-all ${isSelected ? 'border-[#2563EB] bg-[#2563EB] text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-[#2563EB] hover:text-[#2563EB]'}`}
                         >
                           {dept.name}
                         </button>
@@ -1662,15 +1687,15 @@ export function OrganizationPage() {
                   </div>
                 </div>
               ) : (
-                <div className="bg-blue-50/50 p-5 rounded-2xl flex gap-4 items-center border border-blue-100">
-                   <div className="p-2.5 bg-white rounded-xl shadow-sm"><Crown className="text-[#2563EB]" size={24}/></div>
-                   <p className="text-sm font-medium text-slate-700 leading-relaxed">Super Admins automatically receive top-level access to ALL departments and platform modules.</p>
+                <div className="bg-blue-50/50 p-4 rounded-2xl flex gap-3 items-center border border-blue-100">
+                   <div className="p-2 bg-white rounded-xl shadow-sm"><Crown className="text-[#2563EB]" size={20}/></div>
+                   <p className="text-[12px] font-medium text-slate-700 leading-relaxed">Super Admins automatically receive top-level access to ALL departments and platform modules.</p>
                 </div>
               )}
             </div>
 
-            <div className="p-5 sm:p-6 bg-slate-50 border-t border-slate-100 flex gap-3 shrink-0">
-              <button onClick={() => setShowTeamMemberModal(false)} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+            <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 flex gap-2.5 shrink-0">
+              <button onClick={() => setShowTeamMemberModal(false)} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[12px] hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
               <button
                 onClick={handleSendInvite}
                 disabled={
@@ -1679,9 +1704,9 @@ export function OrganizationPage() {
                   (teamMemberFormData.role !== 'super-admin' && teamMemberFormData.departments.length === 0) ||
                   (teamMemberFormData.role === 'super-admin' && !canInviteSuperAdmin)
                 }
-                className="flex-2 py-3 bg-[#2563EB] text-white rounded-xl font-bold text-sm shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                className="flex-2 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[12px] shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >
-                <Send size={16}/> Send Secure Invite
+                <Send size={14}/> Send Secure Invite
               </button>
             </div>
           </div>
@@ -1694,3 +1719,5 @@ export function OrganizationPage() {
 }
 
 export default OrganizationPage;
+
+

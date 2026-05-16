@@ -20,6 +20,15 @@ export default function RegisterOtpVerification() {
   const fullName = location.state?.fullName || "";
   const selectedPlan = location.state?.selectedPlan || "basic";
   const businessName = location.state?.businessName || "";
+  const inviteType = location.state?.inviteType === "workspace" ? "workspace" : "master";
+  const country = location.state?.country || "";
+  const state = location.state?.state || "";
+  const city = location.state?.city || "";
+  const businessTypes = Array.isArray(location.state?.businessTypes)
+    ? location.state.businessTypes
+        .map((item: unknown) => String(item || "").trim())
+        .filter(Boolean)
+    : [];
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -46,6 +55,11 @@ export default function RegisterOtpVerification() {
           fullName,
           selectedPlan,
           businessName,
+          inviteType,
+          country,
+          state,
+          city,
+          businessTypes,
         });
       }
       toast.success(response.data?.message || "Registration complete.");

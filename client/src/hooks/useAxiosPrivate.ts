@@ -2,9 +2,12 @@ import { axiosPrivate } from "../utils/axios";
 import { useEffect } from "react";
 import useRefresh from "./useRefresh";
 import useAuth from "./useAuth";
+import { toast } from "sonner";
+import { clearAuthTabSession } from "../utils/authSession";
+import { clearTabRefreshToken } from "../utils/refreshTokenSession";
 
 export default function useAxiosPrivate() {
-  const { auth } = useAuth();
+  const { auth, setAuth } = useAuth();
   const refresh = useRefresh();
 
   useEffect(() => {
@@ -21,9 +24,28 @@ export default function useAxiosPrivate() {
       (response) => response,
       async (error) => {
         const prevRequest = error?.config;
+        const errorCode = error?.response?.data?.code;
+        const errorMessage = error?.response?.data?.message;
+
+        if (error?.response?.status === 403 && (errorCode === "ACCOUNT_DISABLED" || errorCode === "ACCESS_DENIED")) {
+          setAuth((prevState) => ({
+            ...prevState,
+            accessToken: "",
+            user: null,
+          }));
+          clearAuthTabSession();
+          clearTabRefreshToken();
+          toast.error(errorMessage || "Access denied. Contact founder to regain access.");
+          window.location.href = "/";
+          return Promise.reject(error);
+        }
+
         if (error?.response?.status === 403 && !prevRequest.sent) {
           prevRequest.sent = true;
           const authData = await refresh();
+          if (!authData?.accessToken) {
+            return Promise.reject(error);
+          }
           prevRequest.headers[
             "Authorization"
           ] = `Bearer ${authData?.accessToken}`;
@@ -36,7 +58,7 @@ export default function useAxiosPrivate() {
       axiosPrivate.interceptors.request.eject(requestIntercept);
       axiosPrivate.interceptors.response.eject(responseIntercept);
     };
-  }, [auth, refresh]);
+  }, [auth, refresh, setAuth]);
 
   return axiosPrivate;
 }

@@ -27,6 +27,84 @@ interface CityOption {
 const getFlagUrl = (isoCode: string) =>
   `https://flagcdn.com/w40/${String(isoCode || "").toLowerCase()}.png`;
 
+const normalizeCountryName = (value: unknown) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const countries = Country.getAllCountries();
+  const byName = countries.find(
+    (item) => item.name.toLowerCase() === raw.toLowerCase(),
+  );
+  if (byName) return byName.name;
+  const byIso = countries.find(
+    (item) => item.isoCode.toLowerCase() === raw.toLowerCase(),
+  );
+  return byIso?.name || raw;
+};
+
+const normalizeStateName = (countryName: string, value: unknown) => {
+  const raw = String(value || "").trim();
+  if (!raw || !countryName) return "";
+  const country = Country.getAllCountries().find(
+    (item) => item.name.toLowerCase() === countryName.toLowerCase(),
+  );
+  if (!country?.isoCode) return raw;
+  const statesOfCountry = State.getStatesOfCountry(country.isoCode);
+  const byName = statesOfCountry.find(
+    (item) => item.name.toLowerCase() === raw.toLowerCase(),
+  );
+  if (byName) return byName.name;
+  const byIso = statesOfCountry.find(
+    (item) => item.isoCode.toLowerCase() === raw.toLowerCase(),
+  );
+  return byIso?.name || raw;
+};
+
+const normalizeBusinessTypes = (values: unknown): string[] => {
+  const input = Array.isArray(values)
+    ? values
+    : String(values || "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+  const aliasMap: Record<string, string> = {
+    coworking: "Co-Working",
+    "co-working": "Co-Working",
+    "co working": "Co-Working",
+    "co-working space": "Co-Working",
+    "coworking space": "Co-Working",
+    coliving: "Co-Living",
+    "co-living": "Co-Living",
+    "co living": "Co-Living",
+    workation: "Workation",
+    cafe: "Cafe",
+    hostels: "Hostels",
+    hostel: "Hostels",
+    "hostel stay": "Hostels",
+    "meeting room": "Meeting Rooms",
+    "meeting rooms": "Meeting Rooms",
+    meetings: "Meeting Rooms",
+  };
+
+  const normalized = input
+    .map((item) => {
+      const original = String(item || "").trim();
+      const lower = original.toLowerCase();
+      if (aliasMap[lower]) return aliasMap[lower];
+      if (lower.includes("cowork")) return "Co-Working";
+      if (lower.includes("co-work")) return "Co-Working";
+      if (lower.includes("co liv") || lower.includes("coliv")) return "Co-Living";
+      if (lower.includes("workation")) return "Workation";
+      if (lower.includes("cafe")) return "Cafe";
+      if (lower.includes("hostel")) return "Hostels";
+      if (lower.includes("meeting")) return "Meeting Rooms";
+      return original;
+    })
+    .filter(Boolean);
+
+  return Array.from(new Set(normalized));
+};
+
 const CreateWorkspacePage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -41,17 +119,35 @@ const CreateWorkspacePage: React.FC = () => {
     inviteOnboarding.email === authUserEmail
       ? inviteOnboarding
       : null;
+  const normalizedInviteCountry = normalizeCountryName(
+    activeInviteOnboarding?.country || "",
+  );
+  const normalizedInviteState = normalizeStateName(
+    normalizedInviteCountry,
+    activeInviteOnboarding?.state || "",
+  );
+  const normalizedInviteBusinessTypes = normalizeBusinessTypes(
+    activeInviteOnboarding?.businessTypes || [],
+  );
+  const initialCountryValue = String(
+    location.state?.workspaceDetails?.country || normalizedInviteCountry || "",
+  ).trim();
+  const initialStateValue = String(
+    location.state?.workspaceDetails?.state || normalizedInviteState || "",
+  ).trim();
   const [countries, setCountries] = useState<CountryOption[]>([]);
   const [states, setStates] = useState<StateOption[]>([]);
   const [cities, setCities] = useState<CityOption[]>([]);
 
   const [country, setCountry] = useState(
-    location.state?.workspaceDetails?.country || "",
+    location.state?.workspaceDetails?.country || normalizedInviteCountry || "",
   );
   const [stateName, setStateName] = useState(
-    location.state?.workspaceDetails?.state || "",
+    location.state?.workspaceDetails?.state || normalizedInviteState || "",
   );
-  const [city, setCity] = useState(location.state?.workspaceDetails?.city || "");
+  const [city, setCity] = useState(
+    location.state?.workspaceDetails?.city || activeInviteOnboarding?.city || "",
+  );
   const [address, setAddress] = useState(
     location.state?.workspaceDetails?.address || "",
   );
@@ -68,7 +164,9 @@ const CreateWorkspacePage: React.FC = () => {
   );
   const [businessTypes, setBusinessTypes] = useState<string[]>(
     Array.isArray(location.state?.workspaceDetails?.businessTypes)
-      ? location.state.workspaceDetails.businessTypes
+      ? normalizeBusinessTypes(location.state.workspaceDetails.businessTypes)
+      : Array.isArray(normalizedInviteBusinessTypes)
+      ? normalizedInviteBusinessTypes
       : [],
   );
   const [isBusinessTypeOpen, setIsBusinessTypeOpen] = useState(false);
@@ -78,6 +176,23 @@ const CreateWorkspacePage: React.FC = () => {
     countries.find((item) => item.name === country) || null;
   const selectedStateOption =
     states.find((item) => item.name === stateName) || null;
+  const hasLockedInviteCountry = Boolean(normalizedInviteCountry);
+  const hasLockedInviteState = Boolean(
+    normalizedInviteState &&
+      states.some((item) => item.name.toLowerCase() === normalizedInviteState.toLowerCase()),
+  );
+  const hasLockedInviteCity = Boolean(
+    activeInviteOnboarding?.city &&
+      cities.some(
+        (item) =>
+          item.name.toLowerCase() ===
+          String(activeInviteOnboarding.city || "").trim().toLowerCase(),
+      ),
+  );
+  const hasLockedInviteBusinessTypes = Boolean(
+    activeInviteOnboarding?.businessTypes?.length &&
+      businessTypes.length,
+  );
 
   const [isCountriesLoading, setIsCountriesLoading] = useState(false);
   const [isStatesLoading, setIsStatesLoading] = useState(false);
@@ -155,7 +270,7 @@ const CreateWorkspacePage: React.FC = () => {
       try {
         setIsStatesLoading(true);
         setStates([]);
-        if (country !== initialWorkspaceDetails.country) {
+        if (country !== initialCountryValue) {
           setStateName("");
           setCities([]);
           setCity("");
@@ -180,7 +295,7 @@ const CreateWorkspacePage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [country, initialWorkspaceDetails.country, selectedCountryOption?.isoCode]);
+  }, [country, initialCountryValue, selectedCountryOption?.isoCode]);
 
   useEffect(() => {
     let active = true;
@@ -194,7 +309,7 @@ const CreateWorkspacePage: React.FC = () => {
       try {
         setIsCitiesLoading(true);
         setCities([]);
-        if (stateName !== initialWorkspaceDetails.state) {
+        if (stateName !== initialStateValue) {
           setCity("");
         }
         const result = City.getCitiesOfState(
@@ -222,7 +337,7 @@ const CreateWorkspacePage: React.FC = () => {
   }, [
     country,
     stateName,
-    initialWorkspaceDetails.state,
+    initialStateValue,
     selectedCountryOption?.isoCode,
     selectedStateOption?.isoCode,
   ]);
@@ -378,7 +493,7 @@ const CreateWorkspacePage: React.FC = () => {
                   options={countries}
                   value={selectedCountryOption}
                   onChange={(_, newValue) => setCountry(newValue?.name || "")}
-                  disabled={isCountriesLoading}
+                  disabled={isCountriesLoading || hasLockedInviteCountry}
                   getOptionLabel={(option) => option.name}
                   isOptionEqualToValue={(option, value) => option.isoCode === value.isoCode}
                   noOptionsText="No countries found"
@@ -486,7 +601,7 @@ const CreateWorkspacePage: React.FC = () => {
               <select
                 value={stateName}
                 onChange={(e) => setStateName(e.target.value)}
-                disabled={!country || isStatesLoading}
+                disabled={!country || isStatesLoading || hasLockedInviteState}
                 className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff] disabled:bg-[#eef1f5] disabled:text-[#8d99ad]"
               >
                 <option value="">
@@ -513,7 +628,9 @@ const CreateWorkspacePage: React.FC = () => {
               <select
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                disabled={!country || !stateName || isCitiesLoading}
+                disabled={
+                  !country || !stateName || isCitiesLoading || hasLockedInviteCity
+                }
                 className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff] disabled:bg-[#eef1f5] disabled:text-[#8d99ad]"
               >
                 <option value="">
@@ -538,7 +655,11 @@ const CreateWorkspacePage: React.FC = () => {
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => setIsBusinessTypeOpen((prev) => !prev)}
+                  onClick={() => {
+                    if (hasLockedInviteBusinessTypes) return;
+                    setIsBusinessTypeOpen((prev) => !prev);
+                  }}
+                  disabled={hasLockedInviteBusinessTypes}
                   className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-[#334155] text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
                 >
                   <span className={businessTypes.length ? "text-[#334155]" : "text-[#8d99ad]"}>

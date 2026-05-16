@@ -81,6 +81,51 @@ const UserDetails = () => {
     avatarColor: "#1976d2",
     workLocation: auth?.user?.address || workspaceProfile?.workspace?.address || "",
   };
+  const normalizeRole = (value: unknown) =>
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/_/g, "-");
+  const roleArrayTitles = Array.isArray(auth?.user?.role)
+    ? auth.user.role
+        .map((entry: any) => entry?.roleTitle || entry?.title || entry?.name)
+        .filter(Boolean)
+    : [];
+  const roleCandidates = [
+    auth?.user?.workspaceMembership?.role,
+    auth?.user?.role,
+    auth?.user?.designation,
+    ...roleArrayTitles,
+  ]
+    .filter(Boolean)
+    .map((value) => normalizeRole(value));
+  const rawPermissions = Array.isArray(auth?.user?.permissions?.permissions)
+    ? auth.user.permissions.permissions
+    : [];
+  const isFounder =
+    roleCandidates.some((role) => role === "owner" || role === "founder" || role.includes("founder")) ||
+    Boolean(
+      auth?.user?.isOwner ||
+        auth?.user?.isFounder ||
+        auth?.user?.workspaceMembership?.isOwner ||
+        auth?.user?.workspaceMembership?.isFounder,
+    ) ||
+    rawPermissions.some((permission: any) =>
+      String(permission || "").toLowerCase().includes("owner") ||
+      String(permission || "").toLowerCase().includes("founder"),
+    );
+  const roleLabelMap: Record<string, string> = {
+    owner: "Founder",
+    founder: "Founder",
+    "super-admin": "Super Admin",
+    "master-admin": "Founder",
+    admin: "Department Admin",
+    manager: "Department Manager",
+    employee: "Employee",
+  };
+  const resolvedRoleLabel = isFounder
+    ? "Founder"
+    : roleLabelMap[roleCandidates[0] || ""] || "Team Member";
 
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
@@ -175,7 +220,7 @@ const UserDetails = () => {
 
           <div className="md:w-96 flex flex-col gap-1">
             <span className="text-title flex items-center gap-3">{user.name}</span>
-            <span className="text-subtitle">{user.designation}</span>
+            <span className="text-subtitle">{resolvedRoleLabel}</span>
 
             {previewUrl && (
               <div className="flex flex-col items-start gap-2">
@@ -208,10 +253,12 @@ const UserDetails = () => {
             <div className="flex gap-2">
               <div className="flex flex-col gap-4 text-gray-600 min-w-20">
                 <span>Email :</span>
+                <span>Role :</span>
                 <span>Work Location :</span>
               </div>
               <div className="flex flex-col gap-4 text-gray-500">
                 <span>{user.email}</span>
+                <span>{resolvedRoleLabel}</span>
                 <span>{user.workLocation}</span>
               </div>
             </div>

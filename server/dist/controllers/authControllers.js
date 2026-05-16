@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import Company from "../models/Company.js";
 import Otp from "../models/Otp.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
+import Workspace from "../models/Workspace.js";
 import { sendMail } from "../config/mailer.js";
 import crypto from "crypto";
 const getInviteSecret = () => process.env.HOST_INVITE_TOKEN_SECRET ||
@@ -39,9 +40,12 @@ const extractInviteIdentity = (decoded) => {
         decoded?.userInfo?.businessName ||
         decoded?.userInfo?.companyName ||
         "";
-    return { inviteEmail, inviteName, selectedPlan, businessName };
+    const inviteType = decoded?.inviteType ||
+        decoded?.userInfo?.inviteType ||
+        "master";
+    return { inviteEmail, inviteName, selectedPlan, businessName, inviteType };
 };
-const buildAuthUserPayload = (user, company, workspaceCount = 0) => ({
+const buildAuthUserPayload = (user, company, workspaceCount = 0, workspaceMembership = null) => ({
     ...user,
     companyName: company?.companyName,
     logo: company?.logo,
@@ -49,8 +53,38 @@ const buildAuthUserPayload = (user, company, workspaceCount = 0) => ({
     hasCompletedWorkspaceSetup: Boolean(user?.hasCompletedWorkspaceSetup),
     primaryWorkspace: user?.primaryWorkspace || null,
     workspaceCount,
+    workspaceMembership: workspaceMembership
+        ? {
+            role: workspaceMembership.role,
+            isPrimary: workspaceMembership.isPrimary,
+            isActive: workspaceMembership.isActive,
+        }
+        : user?.workspaceMembership || null,
 });
 const normalizeInviteEmail = (email) => String(email || "").trim().toLowerCase();
+const getFounderEmailForWorkspace = async (workspaceId) => {
+    if (!workspaceId)
+        return "";
+    const workspace = await Workspace.findById(workspaceId).populate("owner", "email").lean().exec();
+    return workspace?.owner?.email || "";
+};
+const resolveActiveWorkspaceMembership = async (user) => {
+    const preferredMembership = await WorkspaceMember.findOne({
+        user: user._id,
+        isActive: true,
+        ...(user?.primaryWorkspace ? { workspace: user.primaryWorkspace } : {}),
+    })
+        .sort({ isPrimary: -1, createdAt: 1 })
+        .lean()
+        .exec();
+    if (preferredMembership) {
+        return preferredMembership;
+    }
+    return WorkspaceMember.findOne({ user: user._id, isActive: true })
+        .sort({ isPrimary: -1, createdAt: 1 })
+        .lean()
+        .exec();
+};
 const ensureInviteUserRecord = async (inviteEmail, inviteName) => {
     const normalizedEmail = normalizeInviteEmail(inviteEmail);
     let user = await HostUser.findOne({ email: normalizedEmail }).exec();
@@ -84,6 +118,27 @@ export const login = async (req, res, next) => {
         const user = await HostUser.findOne({ email }).lean().exec();
         if (!user)
             return res.status(404).json({ message: "No user found" });
+        if (user?.isActive === false) {
+            return res.status(403).json({
+                code: "ACCOUNT_DISABLED",
+                message: "Account access disabled by founder.",
+            });
+        }
+        const activeMembership = await resolveActiveWorkspaceMembership(user);
+        if (!activeMembership && user?.hasCompletedWorkspaceSetup) {
+            const lastMembership = await WorkspaceMember.findOne({ user: user._id })
+                .sort({ updatedAt: -1, createdAt: -1 })
+                .lean()
+                .exec();
+            const founderEmail = await getFounderEmailForWorkspace(lastMembership?.workspace);
+            return res.status(403).json({
+                code: "ACCESS_DENIED",
+                founderEmail: founderEmail || "",
+                message: founderEmail
+                    ? `Access denied. Contact founder at ${founderEmail} to regain access.`
+                    : "Access denied. Contact founder to regain access.",
+            });
+        }
         const company = await Company.findOne({ companyId: user?.companyId })
             .lean()
             .exec();
@@ -91,6 +146,7 @@ export const login = async (req, res, next) => {
             user: user._id,
             isActive: true,
         });
+        const workspaceMembership = activeMembership;
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid)
             return res.status(400).json({ message: "Invalid password" });
@@ -106,8 +162,9 @@ export const login = async (req, res, next) => {
             maxAge: 15 * 24 * 60 * 60 * 1000,
         });
         res.status(200).json({
-            user: buildAuthUserPayload(user, company, workspaceCount),
+            user: buildAuthUserPayload(user, company, workspaceCount, workspaceMembership),
             accessToken,
+            refreshToken,
         });
     }
     catch (error) {
@@ -117,10 +174,14 @@ export const login = async (req, res, next) => {
 export const logout = async (req, res, next) => {
     try {
         const cookies = req.cookies;
-        if (!cookies?.clientCookie) {
+        const headerRefreshToken = req.headers["x-refresh-token"] ||
+            (String(req.headers?.authorization || "").startsWith("Bearer ")
+                ? String(req.headers.authorization).split(" ")[1]
+                : "");
+        const refreshToken = String(headerRefreshToken || cookies?.clientCookie || "");
+        if (!refreshToken) {
             return res.sendStatus(201);
         }
-        const refreshToken = cookies?.clientCookie;
         const user = await HostUser.findOne({ refreshToken }).lean().exec();
         if (!user) {
             res.clearCookie("clientCookie", {
@@ -271,7 +332,7 @@ export const getRegisterPrefill = async (req, res, next) => {
         if (!token)
             return res.status(400).json({ message: "Invite token is required." });
         const decoded = decodeSignupInviteToken(token);
-        const { inviteEmail, inviteName, selectedPlan, businessName } = extractInviteIdentity(decoded);
+        const { inviteEmail, inviteName, selectedPlan, businessName, inviteType } = extractInviteIdentity(decoded);
         if (!inviteEmail || !inviteName) {
             return res.status(400).json({ message: "Invalid invite token payload." });
         }
@@ -286,6 +347,7 @@ export const getRegisterPrefill = async (req, res, next) => {
             email: inviteEmail,
             selectedPlan,
             businessName,
+            inviteType,
         });
     }
     catch (error) {

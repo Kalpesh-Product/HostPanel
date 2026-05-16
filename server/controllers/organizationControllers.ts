@@ -52,6 +52,23 @@ const getCurrentWorkspace = async (userId) => {
     workspace = await Workspace.findOne({ owner: user._id, isActive: true }).sort({ createdAt: -1 });
   }
 
+  if (!workspace) {
+    const membership = await WorkspaceMember.findOne({
+      user: user._id,
+      isActive: true,
+    })
+      .sort({ isPrimary: -1, createdAt: 1 })
+      .lean()
+      .exec();
+    if (membership?.workspace) {
+      workspace = await Workspace.findById(membership.workspace);
+      if (workspace && !user.primaryWorkspace) {
+        user.primaryWorkspace = workspace._id;
+        await user.save();
+      }
+    }
+  }
+
   return { user, workspace };
 };
 
@@ -242,6 +259,9 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
     member.isActive = !member.isActive;
     member.status = member.isActive ? "joined" : "disabled";
     await member.save();
+    if (member.isActive === false) {
+      await HostUser.findByIdAndUpdate(member.user, { refreshToken: "" }).exec();
+    }
 
     return res.status(200).json({ message: "Member status updated successfully." });
   } catch (error) {
@@ -319,6 +339,7 @@ export const inviteOrganizationMember = async (req, res, next) => {
         {
           inviteEmail: email,
           inviteName: name,
+          inviteType: "workspace",
           selectedPlan: workspace.selectedPlan || "basic",
           businessName: workspace.businessName || "",
         },

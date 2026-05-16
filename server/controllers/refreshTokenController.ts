@@ -3,8 +3,14 @@ import jwt from "jsonwebtoken";
 import HostUser from "../models/HostUser.js";
 import Company from "../models/Company.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
+import Workspace from "../models/Workspace.js";
 
-const buildAuthUserPayload = (user: any, company: any, workspaceCount = 0) => ({
+const buildAuthUserPayload = (
+  user: any,
+  company: any,
+  workspaceCount = 0,
+  workspaceMembership: any = null,
+) => ({
   ...user,
   companyName: company?.companyName,
   logo: company?.logo,
@@ -12,16 +18,98 @@ const buildAuthUserPayload = (user: any, company: any, workspaceCount = 0) => ({
   hasCompletedWorkspaceSetup: Boolean(user?.hasCompletedWorkspaceSetup),
   primaryWorkspace: user?.primaryWorkspace || null,
   workspaceCount,
+  workspaceMembership: workspaceMembership
+    ? {
+        role: workspaceMembership.role,
+        isPrimary: workspaceMembership.isPrimary,
+        isActive: workspaceMembership.isActive,
+      }
+    : user?.workspaceMembership || null,
 });
+
+const getFounderEmailForWorkspace = async (workspaceId: any) => {
+  if (!workspaceId) return "";
+  const workspace = await Workspace.findById(workspaceId).populate("owner", "email").lean().exec();
+  return workspace?.owner?.email || "";
+};
+
+const resolveActiveWorkspaceMembership = async (user: any) => {
+  const preferredMembership = await WorkspaceMember.findOne({
+    user: user._id,
+    isActive: true,
+    ...(user?.primaryWorkspace ? { workspace: user.primaryWorkspace } : {}),
+  })
+    .sort({ isPrimary: -1, createdAt: 1 })
+    .lean()
+    .exec();
+
+  if (preferredMembership) {
+    return preferredMembership;
+  }
+
+  return WorkspaceMember.findOne({ user: user._id, isActive: true })
+    .sort({ isPrimary: -1, createdAt: 1 })
+    .lean()
+    .exec();
+};
 
 const refreshTokenController = async (req, res, next) => {
   try {
     const cookie = req.cookies;
-    if (!cookie?.clientCookie) {
+    const headerRefreshToken =
+      req.headers["x-refresh-token"] ||
+      (String(req.headers?.authorization || "").startsWith("Bearer ")
+        ? String(req.headers.authorization).split(" ")[1]
+        : "");
+    const refreshToken = String(headerRefreshToken || cookie?.clientCookie || "");
+    if (!refreshToken) {
       return res.sendStatus(401);
     }
-    const refreshToken = cookie?.clientCookie;
     const user = await HostUser.findOne({ refreshToken }).lean().exec();
+    if (user?.isActive === false) {
+      res.clearCookie("clientCookie", {
+        httpOnly: true,
+        sameSite: "None",
+        secure: true,
+      });
+      return res.status(403).json({
+        code: "ACCOUNT_DISABLED",
+        message: "Account access disabled by founder.",
+      });
+    }
+    const activeMembership = user ? await resolveActiveWorkspaceMembership(user) : null;
+    if (user?.hasCompletedWorkspaceSetup && !activeMembership) {
+      const lastMembership = await WorkspaceMember.findOne({ user: user._id })
+        .sort({ updatedAt: -1, createdAt: -1 })
+        .lean()
+        .exec();
+      const founderEmail = await getFounderEmailForWorkspace(lastMembership?.workspace);
+      await HostUser.findByIdAndUpdate(user._id, { refreshToken: "" }).exec();
+      res.clearCookie("clientCookie", {
+        httpOnly: true,
+        sameSite: "None",
+        secure: true,
+      });
+      const disabledByFounder =
+        lastMembership &&
+        (lastMembership.isActive === false ||
+          String(lastMembership.status || "").toLowerCase() === "disabled");
+      if (disabledByFounder) {
+        return res.status(403).json({
+          code: "ACCOUNT_DISABLED",
+          founderEmail: founderEmail || "",
+          message: "Account access disabled by founder.",
+        });
+      }
+
+      return res.status(403).json({
+        code: "ACCESS_DENIED",
+        founderEmail: founderEmail || "",
+        message: founderEmail
+          ? `Access denied. Contact founder at ${founderEmail} to regain access.`
+          : "Access denied. Contact founder to regain access.",
+      });
+    }
     const company = await Company.findOne({ companyId: user?.companyId })
       .lean()
       .exec();
@@ -32,6 +120,7 @@ const refreshTokenController = async (req, res, next) => {
       user: user._id,
       isActive: true,
     });
+    const workspaceMembership = activeMembership;
     jwt.verify(
       refreshToken,
       process.env.REFRESH_TOKEN_SECRET,
@@ -47,8 +136,9 @@ const refreshTokenController = async (req, res, next) => {
         delete user.password;
         delete user.refreshToken;
         res.status(200).json({
-          user: buildAuthUserPayload(user, company, workspaceCount),
+          user: buildAuthUserPayload(user, company, workspaceCount, workspaceMembership),
           accessToken,
+          refreshToken,
         });
       }
     );

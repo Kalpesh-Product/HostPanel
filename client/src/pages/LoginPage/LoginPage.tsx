@@ -15,6 +15,8 @@ import MenuIcon from "@mui/icons-material/Menu";
 import { IoCloseSharp } from "react-icons/io5";
 import logo from "../../assets/WONO_LOGO_Black_TP.png";
 import { readInviteOnboardingState } from "../../utils/inviteOnboarding";
+import { setAuthTabSessionActive } from "../../utils/authSession";
+import { setTabRefreshToken } from "../../utils/refreshTokenSession";
 
 const LoginPage = () => {
   const { auth, setAuth } = useAuth();
@@ -108,7 +110,7 @@ const LoginPage = () => {
       pendingInviteOnboarding.email &&
       pendingInviteOnboarding.email === userData?.email
     ) {
-      return true;
+      return pendingInviteOnboarding.inviteType !== "workspace";
     }
 
     if (userData?.hasCompletedWorkspaceSetup === false) {
@@ -143,12 +145,14 @@ const LoginPage = () => {
           user: response.data.user,
         };
       });
+      setTabRefreshToken(response?.data?.refreshToken || "");
+      setAuthTabSessionActive();
       console.log(response.data.user);
       toast.success("Successfully logged in");
       if (shouldGoToCreateWorkspace(response?.data?.user)) {
-        navigate("/create-workspace");
+        navigate("/create-workspace", { replace: true });
       } else {
-        navigate("/company-settings");
+        navigate("/company-settings", { replace: true });
       }
     } catch (error) {
       toast.error(error.response?.data.message);
