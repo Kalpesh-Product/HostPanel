@@ -136,6 +136,8 @@ import EditWebsite from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/Edi
 import Websites from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/Websites";
 import WebsitesLayout from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsitesLayout";
 import InActiveWebsites from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/InActiveWebsites";
+import WebsiteTypeSelector from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsiteTypeSelector";
+import WebsiteBuilderTypeActions from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsiteBuilderTypeActions";
 
 import Companies from "../pages/Dashboard/FrontendDashboard/Companies";
 import CompanyLeads from "../pages/Dashboard/FrontendDashboard/CompanyLeads";
@@ -247,7 +249,7 @@ export const routes = createBrowserRouter([
                     path: "website-builder",
                     element: <FrontendLayout />,
                     children: [
-                      { index: true, element: <FrontendDashboard /> },
+                      { index: true, element: <WebsiteTypeSelector /> },
                       { path: "select-theme", element: <ThemeGrid /> },
                       { path: "view-theme", element: <ViewTheme /> },
                       { path: "leads", element: <CompanyLeads /> },
@@ -257,10 +259,12 @@ export const routes = createBrowserRouter([
                         path: "edit-website/:website",
                         element: <EditWebsite />,
                       }, // with param
-                      {
-                        path: "create-website",
-                        element: <CreateWebsite />,
-                      },
+                      { path: "static", element: <WebsiteBuilderTypeActions type="static" /> },
+                      { path: "dynamic", element: <WebsiteBuilderTypeActions type="dynamic" /> },
+                      { path: "static/create-website", element: <CreateWebsite /> },
+                      { path: "dynamic/create-website", element: <CreateWebsite /> },
+                      { path: "static/leads", element: <CompanyLeads /> },
+                      { path: "dynamic/leads", element: <CompanyLeads /> },
                       {
                         path: "edit-website/:website",
                         element: <EditWebsite />,
@@ -362,7 +366,7 @@ export const routes = createBrowserRouter([
                     path: "website-builder",
                     element: <FrontendLayout />,
                     children: [
-                      { index: true, element: <FrontendDashboard /> },
+                      { index: true, element: <WebsiteTypeSelector /> },
                       { path: "select-theme", element: <ThemeGrid /> },
                       { path: "view-theme", element: <ViewTheme /> },
                       { path: "leads", element: <CompanyLeads /> },
@@ -372,10 +376,12 @@ export const routes = createBrowserRouter([
                         path: "edit-website/:website",
                         element: <EditWebsite />,
                       }, // with param
-                      {
-                        path: "create-website",
-                        element: <CreateWebsite />,
-                      },
+                      { path: "static", element: <WebsiteBuilderTypeActions type="static" /> },
+                      { path: "dynamic", element: <WebsiteBuilderTypeActions type="dynamic" /> },
+                      { path: "static/create-website", element: <CreateWebsite /> },
+                      { path: "dynamic/create-website", element: <CreateWebsite /> },
+                      { path: "static/leads", element: <CompanyLeads /> },
+                      { path: "dynamic/leads", element: <CompanyLeads /> },
                       {
                         path: "edit-website/:website",
                         element: <EditWebsite />,

@@ -970,6 +970,9 @@ export default function AccessGrantsPage() {
 
   const nextHigherRole = selectedUser ? getNextHigherRole(selectedUser.rawRole) : null;
   const nextLowerRole = selectedUser ? getNextLowerRole(selectedUser.rawRole) : null;
+  const workspaceDepartmentCount = Array.isArray(workspace?.organizationDepartments)
+    ? workspace.organizationDepartments.length
+    : 0;
 
   const todayCounts = [
     { label: 'Founder', value: stats.owner, color: 'text-purple-600' },
@@ -991,12 +994,12 @@ export default function AccessGrantsPage() {
 
   return (
     <PageFrame>
-      <div className="p-2.5 lg:p-3.5 min-h-full text-[#0F172A] font-sans">
+      <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
         <div className="space-y-3">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
-              <h1 className="text-[24px] md:text-[28px] leading-[0.98] font-black tracking-tight text-slate-800">Access Grants</h1>
-              <p className="text-[17px] font-medium text-slate-600 mt-0.5">
+              <h1 className="text-base lg:text-lg font-black tracking-tight text-slate-800">Access Grants</h1>
+              <p className="text-xs font-medium text-slate-500 mt-1">
                 Manage user roles and founder access for {workspace?.workspaceName || 'this workspace'}.
               </p>
             </div>
@@ -1021,20 +1024,20 @@ export default function AccessGrantsPage() {
               }[stat.label] || 'text-slate-800';
 
               return (
-                <div key={stat.label} className="bg-white px-3.5 py-2.5 rounded-[1.35rem] border border-slate-200 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
+                <div key={stat.label} className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em] mb-1">{stat.label}</p>
-                    <p className={`text-[18px] leading-none font-black ${valueColor}`}>{stat.value}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
+                    <p className={`text-[15px] font-black ${valueColor}`}>{stat.value}</p>
                   </div>
-                  <div className={`p-2 rounded-xl ${iconBg}`}>
-                    <Shield size={18} />
+                  <div className={`p-2 rounded-2xl ${iconBg}`}>
+                    <Shield size={16} />
                   </div>
                 </div>
               );
             })}
           </div>
 
-          <div className="bg-gradient-to-br from-[#2563EB] to-blue-700 px-3.5 py-2.5 rounded-[1.35rem] shadow-md shadow-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all group"
+          <div className="bg-gradient-to-br from-[#2563EB] to-blue-700 p-2.5 rounded-[2rem] shadow-md shadow-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all group"
             onClick={() => {
               setTransferTargetUserId(eligibleOwnershipCandidates[0]?.id || '');
               setShowTransferWarning(false);
@@ -1043,36 +1046,36 @@ export default function AccessGrantsPage() {
             style={{ pointerEvents: (!canEditAccessGrants || eligibleOwnershipCandidates.length === 0) ? 'none' : 'auto', opacity: (!canEditAccessGrants || eligibleOwnershipCandidates.length === 0) ? 0.6 : 1 }}
           >
             <div>
-              <p className="text-[10px] font-black text-blue-200 uppercase tracking-[0.16em] mb-1">Founder Action</p>
-              <p className="text-[15px] leading-none font-black text-white group-hover:scale-105 transition-transform origin-left">Transfer Founder Access</p>
+              <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Founder Action</p>
+              <p className="text-[13px] leading-none font-black text-white group-hover:scale-105 transition-transform origin-left">Transfer Founder Access</p>
               <p className="text-[10px] font-medium text-blue-100 mt-1">{eligibleOwnershipCandidates.length} eligible Super-Admin{eligibleOwnershipCandidates.length !== 1 ? 's' : ''} • {accessGrantsModeLabel}</p>
             </div>
-            <div className="p-1.5 rounded-lg bg-white/20 text-white">
-              <Users size={15} />
+            <div className="p-2 rounded-2xl bg-white/20 text-white border border-white/30">
+              <Users size={16} />
             </div>
           </div>
 
           <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-0">
-            <div className="p-3 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-2.5 shrink-0">
-              <div className="relative w-full md:w-[300px]">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-2.5 shrink-0">
+              <div className="relative w-full md:w-88">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input
                   type="text"
                   placeholder="Search by name, email, or department..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                  className="w-full pl-10 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                 />
               </div>
             </div>
 
-            <div className="px-3.5 pb-2.5 flex flex-col md:flex-row gap-2.5 md:gap-3">
-              <div className="w-full md:w-44">
-                <label className="block text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 mb-1.5">Role</label>
+            <div className="px-4 pb-3.5 flex flex-col md:flex-row gap-2.5 md:gap-3">
+              <div className="w-full md:w-48">
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Role</label>
                 <select
                   value={selectedRole}
                   onChange={(e) => setSelectedRole(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                 >
                   {ROLE_FILTERS.map((role) => (
                     <option key={role} value={role}>{role}</option>
@@ -1103,6 +1106,16 @@ export default function AccessGrantsPage() {
                         currentUserId &&
                         rowUserId &&
                         currentUserId === rowUserId;
+                      const normalizedDepartments = Array.isArray(user.departments)
+                        ? user.departments.filter(Boolean)
+                        : [];
+                      const hasAllDepartmentsAccess =
+                        (user.roleGroup === 'Founder' || user.roleGroup === 'Super-Admin') &&
+                        (normalizedDepartments.length === 0 ||
+                          (workspaceDepartmentCount > 0 && normalizedDepartments.length >= workspaceDepartmentCount));
+                      const departmentBadges = hasAllDepartmentsAccess
+                        ? ['All Departments']
+                        : (normalizedDepartments.length > 0 ? normalizedDepartments : [user.department]).filter(Boolean);
 
                       return (
                       <tr key={user.id} className={`transition-all ${user.roleGroup === 'Founder' ? 'bg-slate-50/50' : 'hover:bg-blue-50/30'}`}>
@@ -1120,7 +1133,7 @@ export default function AccessGrantsPage() {
                         <td className="px-3.5 py-2">{getRoleBadge(user.roleGroup)}</td>
                         <td className="px-3.5 py-2">
                           <div className="flex flex-wrap gap-1.5 max-w-56">
-                            {(user.departments && user.departments.length > 0 ? user.departments : [user.department]).filter(Boolean).map((dept, i) => (
+                            {departmentBadges.map((dept, i) => (
                               <span key={i} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[9px] font-bold tracking-wide">{dept}</span>
                             ))}
                           </div>

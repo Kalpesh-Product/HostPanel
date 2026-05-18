@@ -15,7 +15,15 @@ export const createTemplate = async (req, res, next) => {
 
     // `products` might arrive as a JSON string in multipart. Normalize it.
 
-    let { products, testimonials, about, source = "Host Panel" } = req.body;
+    let {
+      products,
+      testimonials,
+      about,
+      enabledSections,
+      sectionOverrides,
+      styleConfig,
+      source = "Host Panel",
+    } = req.body;
 
     const safeParse = (val, fallback) => {
       try {
@@ -28,6 +36,9 @@ export const createTemplate = async (req, res, next) => {
     about = safeParse(about, []);
     products = safeParse(products, []);
     testimonials = safeParse(testimonials, []);
+    enabledSections = safeParse(enabledSections, []);
+    sectionOverrides = safeParse(sectionOverrides, {});
+    styleConfig = safeParse(styleConfig, {});
 
     const TEXT_LIMITS = {
       title: 120,
@@ -223,6 +234,12 @@ export const createTemplate = async (req, res, next) => {
       address: req.body.address,
       registeredCompanyName: req.body.registeredCompanyName,
       copyrightText: req.body.copyrightText,
+      verticalType: req.body.verticalType || "co-working",
+      heroVariant: req.body.heroVariant || "text-image",
+      themeVariant: req.body.themeVariant || "default",
+      enabledSections: Array.isArray(enabledSections) ? enabledSections : [],
+      sectionOverrides,
+      styleConfig,
       isWebsiteTemplate: true,
       products: [],
       testimonials: [],
@@ -566,7 +583,15 @@ export const editTemplate = async (req, res, next) => {
   session.startTransaction();
 
   try {
-    let { products, testimonials, about, companyName } = req.body;
+    let {
+      products,
+      testimonials,
+      about,
+      enabledSections,
+      sectionOverrides,
+      styleConfig,
+      companyName,
+    } = req.body;
 
     const safeParse = (val, fallback) => {
       try {
@@ -579,6 +604,9 @@ export const editTemplate = async (req, res, next) => {
     about = safeParse(about, []);
     products = safeParse(products, []);
     testimonials = safeParse(testimonials, []);
+    enabledSections = safeParse(enabledSections, null);
+    sectionOverrides = safeParse(sectionOverrides, null);
+    styleConfig = safeParse(styleConfig, null);
 
     const formatCompanyName = (name) =>
       (name || "").toLowerCase().split("-")[0].replace(/\s+/g, "");
@@ -767,6 +795,18 @@ export const editTemplate = async (req, res, next) => {
       registeredCompanyName:
         req.body.registeredCompanyName ?? template.registeredCompanyName,
       copyrightText: req.body.copyrightText ?? template.copyrightText,
+      verticalType: req.body.verticalType ?? template.verticalType ?? "co-working",
+      heroVariant: req.body.heroVariant ?? template.heroVariant ?? "text-image",
+      themeVariant: req.body.themeVariant ?? template.themeVariant ?? "default",
+      enabledSections:
+        enabledSections === null
+          ? template.enabledSections
+          : Array.isArray(enabledSections)
+            ? enabledSections
+            : template.enabledSections,
+      sectionOverrides:
+        sectionOverrides === null ? template.sectionOverrides : sectionOverrides,
+      styleConfig: styleConfig === null ? template.styleConfig : styleConfig,
     });
 
     // === 🏢 COMPANY LOGO (limit 1) ===
