@@ -118,8 +118,8 @@ const companySettingsData: NavNode[] = [
   { id: "organization-management", label: "Organization Management", icon: Building, route: "/company-settings/organization-management" },
   { id: "module-management", label: "Module Management", icon: Boxes, disabled: true },
   { id: "access-grants", label: "Access Grants", icon: UserCog, route: "/company-settings/access-grants" },
-  { id: "workspace-settings", label: "Workspace Settings", icon: Settings, disabled: true },
-  { id: "workspace-management", label: "Workspace Management", icon: MonitorCog, disabled: true },
+  { id: "workspace-settings", label: "Workspace Settings", icon: Settings, route: "/company-settings/workspace-settings", disabled: true },
+  { id: "workspace-management", label: "Workspace Management", icon: MonitorCog, route: "/company-settings/workspace-management", disabled: true },
   { id: "analytics", label: "Analytics", icon: BarChart, disabled: true },
 ];
 
@@ -337,6 +337,22 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const workspaceCount = getWorkspaceCount(
     (auth.user as { workspaceCount?: number } | null)?.workspaceCount,
   );
+  const currentRole = String(
+    (
+      auth.user as
+        | { workspaceMembership?: { role?: string }; role?: string }
+        | null
+    )?.workspaceMembership?.role ||
+      (
+        auth.user as
+          | { workspaceMembership?: { role?: string }; role?: string }
+          | null
+      )?.role ||
+      "",
+  )
+    .trim()
+    .toLowerCase();
+  const isFounderRole = currentRole === "founder" || currentRole === "owner";
   const enabledIds = new Set([
     ...getEnabledModuleIdsForPlan(planLabel, workspaceCount),
     ...(workspaceSetup.enabledModuleIds || []),
@@ -352,6 +368,12 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
         };
       }
       if (!item.disabled) return item;
+      if (item.id === "workspace-management" && !isFounderRole) {
+        return {
+          ...item,
+          disabled: true,
+        };
+      }
       return {
         ...item,
         disabled: !enabledIds.has(item.id),

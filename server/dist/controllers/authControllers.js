@@ -101,7 +101,7 @@ const extractInviteIdentity = (decoded) => {
         businessTypes,
     };
 };
-const buildAuthUserPayload = (user, company, workspaceCount = 0, workspaceMembership = null) => ({
+const buildAuthUserPayload = (user, company, workspaceCount = 0, workspaceMembership = null, accessibleWorkspaces = []) => ({
     ...user,
     companyName: company?.companyName,
     logo: company?.logo,
@@ -116,7 +116,30 @@ const buildAuthUserPayload = (user, company, workspaceCount = 0, workspaceMember
             isActive: workspaceMembership.isActive,
         }
         : user?.workspaceMembership || null,
+    accessibleWorkspaces,
 });
+const getAccessibleWorkspaces = async (userId) => {
+    const memberships = await WorkspaceMember.find({
+        user: userId,
+        isActive: true,
+    })
+        .sort({ isPrimary: -1, createdAt: 1 })
+        .populate("workspace")
+        .lean()
+        .exec();
+    return memberships
+        .filter((membership) => membership?.workspace)
+        .map((membership) => {
+        const workspace = membership.workspace;
+        return {
+            id: String(workspace?._id || ""),
+            workspaceName: workspace?.workspaceName || "Workspace",
+            businessName: workspace?.businessName || "",
+            location: [workspace?.city, workspace?.state, workspace?.country].filter(Boolean).join(", "),
+            isPrimary: Boolean(membership?.isPrimary),
+        };
+    });
+};
 const normalizeInviteEmail = (email) => String(email || "").trim().toLowerCase();
 const getFounderEmailForWorkspace = async (workspaceId) => {
     if (!workspaceId)
@@ -257,6 +280,7 @@ export const login = async (req, res, next) => {
             isActive: true,
         });
         const workspaceMembership = activeMembership;
+        const accessibleWorkspaces = await getAccessibleWorkspaces(user._id);
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid)
             return res.status(400).json({ message: "Invalid password" });
@@ -272,7 +296,7 @@ export const login = async (req, res, next) => {
             maxAge: 15 * 24 * 60 * 60 * 1000,
         });
         res.status(200).json({
-            user: buildAuthUserPayload(user, company, workspaceCount, workspaceMembership),
+            user: buildAuthUserPayload(user, company, workspaceCount, workspaceMembership, accessibleWorkspaces),
             accessToken,
             refreshToken,
         });

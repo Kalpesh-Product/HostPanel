@@ -149,11 +149,14 @@ import ForgotPassword from "../pages/LoginPage/ForgotPassword";
 import ResetPassword from "../pages/LoginPage/ResetPassword";
 import RegisterPage from "../pages/LoginPage/RegisterPage";
 import RegisterOtpVerification from "../pages/LoginPage/RegisterOtpVerification";
+import FounderWorkspaceSelectionPage from "../pages/LoginPage/FounderWorkspaceSelectionPage";
 import CompanyReviews from "../pages/Dashboard/FrontendDashboard/CompanyReviews";
 import CreateWorkspacePage from "../pages/WorkspaceSetup/CreateWorkspacePage";
 import SetupModulesPage from "../pages/WorkspaceSetup/SetupModulesPage";
 import FinalizeSetupPage from "../pages/WorkspaceSetup/FinalizeSetupPage";
 import OrganizationPage from "../pages/Organization/OrganizationPage";
+import WorkspaceSettingsPage from "../pages/WorkspaceSettings/WorkspaceSettingsPage";
+import WorkspaceManagementPage from "../pages/WorkspaceSettings/WorkspaceManagementPage";
 
 export const routes = createBrowserRouter([
   {
@@ -180,10 +183,14 @@ export const routes = createBrowserRouter([
     path: "/register/:token/verify",
     element: <RegisterOtpVerification />,
   },
-  {
-    path: "/register/verify",
-    element: <RegisterOtpVerification />,
-  },
+          {
+            path: "/register/verify",
+            element: <RegisterOtpVerification />,
+          },
+          {
+            path: "/select-workspace",
+            element: <FounderWorkspaceSelectionPage />,
+          },
   {
     path: "/signup/:token",
     element: <RegisterPage />,
@@ -444,6 +451,14 @@ export const routes = createBrowserRouter([
                   {
                     path: "access-grants",
                     element: <AccessGrant />,
+                  },
+                  {
+                    path: "workspace-settings",
+                    element: <WorkspaceSettingsPage />,
+                  },
+                  {
+                    path: "workspace-management",
+                    element: <WorkspaceManagementPage />,
                   },
                 ],
               },

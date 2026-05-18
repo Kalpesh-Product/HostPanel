@@ -782,7 +782,7 @@ export function OrganizationPage() {
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                 >
-                  <option value="all">All Statuses</option>
+                  <option value="all">All Status</option>
                   <option value="pending">Pending</option>
                   <option value="accepted">Accepted</option>
                   <option value="joined">Joined</option>

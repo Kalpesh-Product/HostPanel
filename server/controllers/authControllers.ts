@@ -120,6 +120,7 @@ const buildAuthUserPayload = (
   company: any,
   workspaceCount = 0,
   workspaceMembership: any = null,
+  accessibleWorkspaces: any[] = [],
 ) => ({
   ...user,
   companyName: company?.companyName,
@@ -135,7 +136,32 @@ const buildAuthUserPayload = (
         isActive: workspaceMembership.isActive,
       }
     : user?.workspaceMembership || null,
+  accessibleWorkspaces,
 });
+
+const getAccessibleWorkspaces = async (userId: any) => {
+  const memberships = await WorkspaceMember.find({
+    user: userId,
+    isActive: true,
+  })
+    .sort({ isPrimary: -1, createdAt: 1 })
+    .populate("workspace")
+    .lean()
+    .exec();
+
+  return memberships
+    .filter((membership: any) => membership?.workspace)
+    .map((membership: any) => {
+      const workspace = membership.workspace;
+      return {
+        id: String(workspace?._id || ""),
+        workspaceName: workspace?.workspaceName || "Workspace",
+        businessName: workspace?.businessName || "",
+        location: [workspace?.city, workspace?.state, workspace?.country].filter(Boolean).join(", "),
+        isPrimary: Boolean(membership?.isPrimary),
+      };
+    });
+};
 
 const normalizeInviteEmail = (email: string) =>
   String(email || "").trim().toLowerCase();
@@ -309,6 +335,7 @@ export const login = async (req, res, next) => {
       isActive: true,
     });
     const workspaceMembership = activeMembership;
+    const accessibleWorkspaces = await getAccessibleWorkspaces(user._id);
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid)
@@ -339,7 +366,13 @@ export const login = async (req, res, next) => {
     });
 
     res.status(200).json({
-      user: buildAuthUserPayload(user, company, workspaceCount, workspaceMembership),
+      user: buildAuthUserPayload(
+        user,
+        company,
+        workspaceCount,
+        workspaceMembership,
+        accessibleWorkspaces,
+      ),
       accessToken,
       refreshToken,
     });

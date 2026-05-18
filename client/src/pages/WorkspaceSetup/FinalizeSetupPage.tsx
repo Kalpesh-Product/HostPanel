@@ -231,8 +231,9 @@ const FinalizeSetupPage: React.FC = () => {
   const axiosPrivate = useAxiosPrivate();
   const { auth, setAuth } = useAuth();
   const workspaceDetails = location.state?.workspaceDetails || {};
+  const isAdditionalWorkspaceMode = Boolean(location.state?.additionalWorkspaceMode);
   const inviteOnboarding = readInviteOnboardingState();
-  const initialSelectedPlan = "basic" as PlanType;
+  const initialSelectedPlan = (location.state?.selectedPlan || "basic") as PlanType;
 
   const [selectedPlan, setSelectedPlan] = useState<PlanType>(initialSelectedPlan);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
@@ -284,6 +285,7 @@ const FinalizeSetupPage: React.FC = () => {
         selectedPlan,
         enabledModuleIds,
         modules: [],
+        additionalWorkspaceMode: isAdditionalWorkspaceMode,
       });
 
       localStorage.setItem(
@@ -375,13 +377,15 @@ const FinalizeSetupPage: React.FC = () => {
               onAction={() => {}}
               isSelected={true}
               useNeutralButton={true}
-              secondaryActionLabel={upgradePlanOptions.length ? "Upgrade Plan" : undefined}
               onSecondaryAction={
-                upgradePlanOptions.length
+                !isAdditionalWorkspaceMode && upgradePlanOptions.length
                   ? () => {
                       setIsUpgradeModalOpen(true);
                     }
                   : undefined
+              }
+              secondaryActionLabel={
+                !isAdditionalWorkspaceMode && upgradePlanOptions.length ? "Upgrade Plan" : undefined
               }
             />
 
@@ -440,7 +444,7 @@ const FinalizeSetupPage: React.FC = () => {
         </div>
       </main>
 
-      {isUpgradeModalOpen ? (
+      {isUpgradeModalOpen && !isAdditionalWorkspaceMode ? (
         <div className="fixed inset-0 z-50 bg-[#0f172a]/45 backdrop-blur-[2px] px-4 py-6 flex items-center justify-center overflow-hidden">
           <div className="w-full max-w-fit max-h-[90vh] overflow-y-auto rounded-[32px] bg-[linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] shadow-[0_20px_80px_rgba(15,23,42,0.28)] p-5 sm:p-6 border border-[#dbe5f2] my-auto">
             <div className="flex items-start justify-between gap-4 mb-5">
