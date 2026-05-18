@@ -11,6 +11,7 @@ import { useSidebar } from "../context/SideBarContext";
 import ScrollToTop from "../components/ScrollToTop";
 import useAuth from "../hooks/useAuth";
 import { PERMISSIONS } from "../constants/permissions";
+import AiChat from "../components/AiChat";
 
 const MainLayout = () => {
   const { auth } = useAuth();
@@ -117,12 +118,12 @@ const MainLayout = () => {
           </main>
         </div>
       </div>
+      <AiChat />
 
       {showFooter && (
         <footer
-          className={`transition-all duration-500 transform ${
-            showFooter ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
-          }`}
+          className={`transition-all duration-500 transform ${showFooter ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
+            }`}
         >
           <Footer />
         </footer>
