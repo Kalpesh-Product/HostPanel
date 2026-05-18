@@ -96,7 +96,7 @@ export default function FounderWorkspaceSelectionPage() {
         </div>
       </div>
 
-      <div className="mx-auto flex w-full max-w-[44rem] flex-1 px-3 py-5 sm:px-5">
+      <div className="mx-auto flex w-full max-w-[38rem] flex-1 px-3 py-5 sm:px-5">
         <div className="grid w-full min-h-[56vh] grid-rows-[auto_1fr_auto] rounded-[2.2rem] border border-slate-200 bg-[#f5f7fb] p-4 shadow-[0_14px_28px_rgba(15,23,42,0.08)] sm:p-5">
           <div className="self-start">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e8edf8] px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-[#2563EB]">

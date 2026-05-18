@@ -274,18 +274,30 @@ export function OrganizationPage() {
           }
         );
       });
+      const planScopedDepartmentKeys = new Set(
+        nextWorkspaceDepartments
+          .map((department: any) => getDepartmentDefinition(department?.name || '')?.key)
+          .filter(Boolean),
+      );
+      const visibleDepartments =
+        planScopedDepartmentKeys.size > 0
+          ? mergedDepartments.filter((department) => {
+              const key = getDepartmentDefinition(department?.name || '')?.key;
+              return !!key && planScopedDepartmentKeys.has(key);
+            })
+          : mergedDepartments;
       const nextMembers = Array.isArray(payload.teamMembers) ? payload.teamMembers : [];
       const nextTransferredMembers = Array.isArray(payload.transferredTeamMembers)
         ? payload.transferredTeamMembers
         : [];
 
       setWorkspaceOrganizationDepartments(nextWorkspaceDepartments);
-      setDepartments(mergedDepartments);
+      setDepartments(visibleDepartments);
       setTeamMembers(nextMembers);
       setTransferredTeamMembers(nextTransferredMembers);
       setPermissions(payload.metrics || {});
       setDepartmentFilter((current) =>
-        current === 'all' || mergedDepartments.some((department) => department.id === current)
+        current === 'all' || visibleDepartments.some((department) => department.id === current)
           ? current
           : 'all',
       );
@@ -294,10 +306,10 @@ export function OrganizationPage() {
         const targetId = preferredDepartmentId || current?.id;
 
         if (targetId) {
-          return mergedDepartments.find((department) => department.id === targetId) || mergedDepartments[0] || null;
+          return visibleDepartments.find((department) => department.id === targetId) || visibleDepartments[0] || null;
         }
 
-        return mergedDepartments[0] || null;
+        return visibleDepartments[0] || null;
       });
     } catch (error) {
       console.error("Failed to load organization overview", error);
@@ -702,7 +714,7 @@ export function OrganizationPage() {
       <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
         <div>
           <h1 className="text-base lg:text-lg font-black tracking-tight text-slate-800">Organization Management</h1>
-          <p className="text-xs font-medium text-slate-500 mt-1">Manage structural hierarchy, department rosters, and platform access.</p>
+          <p className="text-xs font-medium text-slate-500 mt-1">Manage platform users and organization access.</p>
         </div>
       </div>
 
@@ -993,15 +1005,7 @@ export function OrganizationPage() {
                 Review existing departments and enable the ones that were missed during setup.
               </p>
             </div>
-            {canManageDepartments ? (
-              <button
-                onClick={() => openDepartmentModal()}
-                className="w-full md:w-auto px-5 py-2.5 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-bold text-[13px] transition-all shadow-sm shadow-blue-200 flex items-center justify-center gap-2"
-              >
-                <Plus size={16} />
-                Manage Departments
-              </button>
-            ) : null}
+
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-7">
@@ -1071,15 +1075,7 @@ export function OrganizationPage() {
                 <p className="text-[12px] text-slate-500 max-w-2xl leading-relaxed">{selectedDepartment.description}</p>
               </div>
               <div className="flex gap-2.5 w-full md:w-auto">
-                {canManageDepartments ? (
-                  <button
-                    onClick={() => openDepartmentModal(selectedDepartment)}
-                    className="flex-1 md:flex-none px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-bold text-[12px] transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <Plus size={16} />
-                    Manage Departments
-                  </button>
-                ) : null}
+
                 <button onClick={() => setShowEmployeeModal(true)} className="flex-1 md:flex-none px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-bold text-[12px] transition-all shadow-sm shadow-blue-200 flex items-center justify-center gap-1.5">
                   <UserPlus size={16}/> Add Employee
                 </button>

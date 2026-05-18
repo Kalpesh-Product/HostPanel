@@ -37,7 +37,7 @@ export const PLAN_UI_DATA: PlanCardData[] = [
       },
       {
         title: "Key Apps",
-        items: ["Tickets", "Visitor Management", "Chat Bot"],
+        items: ["Customer Support", "Visitor Management", "Chat Bot"],
       },
     ],
   },
@@ -51,7 +51,7 @@ export const PLAN_UI_DATA: PlanCardData[] = [
     moduleGroups: [
       {
         title: "Everything in Basic",
-        items: ["All Company Settings modules", "Tickets", "Visitor Management", "Chat Bot"],
+        items: ["All Company Settings modules", "Customer Support", "Visitor Management", "Chat Bot"],
       },
       {
         title: "Add-On Key Apps",

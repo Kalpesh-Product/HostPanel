@@ -121,6 +121,7 @@ const companySettingsData: NavNode[] = [
   { id: "workspace-settings", label: "Workspace Settings", icon: Settings, route: "/company-settings/workspace-settings", disabled: true },
   { id: "workspace-management", label: "Workspace Management", icon: MonitorCog, route: "/company-settings/workspace-management", disabled: true },
   { id: "analytics", label: "Analytics", icon: BarChart, disabled: true },
+  { id: "customer-support", label: "Customer Support", icon: MessageSquareCode, disabled: true },
 ];
 
 const keyAppsData: NavNode[] = [

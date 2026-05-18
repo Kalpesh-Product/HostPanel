@@ -2,6 +2,7 @@
 import { Router } from "express";
 import {
   completeWorkspaceSetup,
+  getCurrentHostCompanyIdentity,
   getWorkspaceManagementOverview,
   getWorkspaceSettings,
   switchWorkspace,
@@ -19,5 +20,6 @@ router.patch("/management/:workspaceId", updateManagedWorkspace);
 router.post("/management/switch", switchWorkspace);
 router.get("/settings", getWorkspaceSettings);
 router.patch("/settings", updateWorkspaceSettings);
+router.get("/host-company", getCurrentHostCompanyIdentity);
 
 export default router;

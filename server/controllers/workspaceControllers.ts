@@ -577,3 +577,42 @@ export const updateWorkspaceSettings = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getCurrentHostCompanyIdentity = async (req, res, next) => {
+  try {
+    const user = await HostUser.findById(req.user).select("company companyId").lean().exec();
+    if (!user) {
+      return res.status(404).json({ message: "Host user not found." });
+    }
+
+    let companyRecord = null;
+    if (user.company) {
+      companyRecord = await Company.findById(user.company)
+        .select("_id companyId companyName")
+        .lean()
+        .exec();
+    }
+
+    if (!companyRecord && user.companyId) {
+      companyRecord = await Company.findOne({ companyId: user.companyId })
+        .select("_id companyId companyName")
+        .lean()
+        .exec();
+    }
+
+    if (!companyRecord) {
+      return res.status(404).json({ message: "Host company not found for this user." });
+    }
+
+    return res.status(200).json({
+      message: "Host company loaded successfully.",
+      data: {
+        companyObjectId: String(companyRecord._id),
+        companyId: companyRecord.companyId || "",
+        companyName: companyRecord.companyName || "",
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
