@@ -1,124 +1,157 @@
+export type ChatbotFollowUpStep = {
+  question: string;
+  answers: string[];
+};
+
 export type ChatbotFlowItem = {
   id: string;
   generalQuestion: string;
-  followUpQuestions: string[];
-  showCustomerSupportWhen: string[];
+  followUpSteps: ChatbotFollowUpStep[];
 };
 
 export const chatbotFlow: ChatbotFlowItem[] = [
   {
-    id: "services",
-    generalQuestion: "What services do you offer?",
-    followUpQuestions: [
-      "Can you explain which plan is best for a small business?",
-      "What is included in the basic plan?",
-      "Do you offer a demo or trial?",
-    ],
-    showCustomerSupportWhen: [
-      "The user asks for custom pricing.",
-      "The user still does not understand the plan differences after 2 to 3 replies.",
-    ],
-  },
-  {
-    id: "pricing",
-    generalQuestion: "How much does it cost?",
-    followUpQuestions: [
-      "Do you have monthly and yearly pricing?",
-      "Are there any setup charges?",
-      "Is there a discount for multiple users?",
-    ],
-    showCustomerSupportWhen: [
-      "Pricing depends on a custom requirement.",
-      "The user asks for a formal quote.",
+    id: "getting-started",
+    generalQuestion: "How do I get started?",
+    followUpSteps: [
+      {
+        question: "Are you trying to create a new account or use an existing one?",
+        answers: ["Create a new account", "Use existing account", "Not sure"],
+      },
+      {
+        question: "Which step are you currently on?",
+        answers: ["Sign up", "Verification", "Login", "Dashboard access"],
+      },
+      {
+        question: "What result are you expecting to see?",
+        answers: ["Account created", "Access granted", "Setup completed", "Something else"],
+      },
     ],
   },
   {
-    id: "signup",
-    generalQuestion: "How do I sign up?",
-    followUpQuestions: [
-      "What details do I need to register?",
-      "Will I get a verification email or OTP?",
-      "Can I sign up as a company or individual?",
-    ],
-    showCustomerSupportWhen: [
-      "Signup fails more than once.",
-      "OTP or email verification is not working after retry.",
-    ],
-  },
-  {
-    id: "login",
-    generalQuestion: "I cannot log in.",
-    followUpQuestions: [
-      "Are you seeing an invalid password error or OTP issue?",
-      "Did you forget your password?",
-      "Are you trying to log in with email, phone, or Google?",
-    ],
-    showCustomerSupportWhen: [
-      "The issue remains after password reset or retry.",
-      "The account seems locked or inaccessible.",
+    id: "plans-pricing",
+    generalQuestion: "Can you explain plans or pricing?",
+    followUpSteps: [
+      {
+        question: "Are you comparing plans, billing cycles, or included features?",
+        answers: ["Plans", "Billing cycles", "Included features", "All of these"],
+      },
+      {
+        question: "Do you need pricing for personal use, team use, or enterprise use?",
+        answers: ["Personal", "Team", "Enterprise", "Not sure"],
+      },
+      {
+        question: "Are you looking for monthly cost, annual cost, or both?",
+        answers: ["Monthly", "Annual", "Both"],
+      },
     ],
   },
   {
-    id: "feature",
-    generalQuestion: "How does this feature work?",
-    followUpQuestions: [
-      "Do you want a basic overview or step-by-step guide?",
-      "Are you using this as an admin, manager, or employee?",
-      "Are you trying to set it up or just use it?",
-    ],
-    showCustomerSupportWhen: [
-      "The feature depends on role-specific access.",
-      "The user says the feature is missing or not visible.",
-    ],
-  },
-  {
-    id: "error",
-    generalQuestion: "Why am I getting this error?",
-    followUpQuestions: [
-      "What exact error message do you see?",
-      "When does it happen?",
-      "Did this work before or is this your first time trying it?",
-    ],
-    showCustomerSupportWhen: [
-      "The same error continues after basic troubleshooting.",
-      "The error looks account-specific or technical.",
+    id: "account-access",
+    generalQuestion: "I need help with account access.",
+    followUpSteps: [
+      {
+        question: "Are you unable to sign in, verify your account, or reset credentials?",
+        answers: ["Sign in", "Verification", "Reset credentials", "All of these"],
+      },
+      {
+        question: "Do you see an error message during access?",
+        answers: ["Yes", "No", "Not sure"],
+      },
+      {
+        question: "Did this issue start recently or has it never worked?",
+        answers: ["Started recently", "Never worked", "Not sure"],
+      },
     ],
   },
   {
-    id: "upgrade",
-    generalQuestion: "Can I change my subscription or upgrade?",
-    followUpQuestions: [
-      "Which plan are you on now?",
-      "Which plan do you want to move to?",
-      "Do you want to upgrade immediately or next billing cycle?",
-    ],
-    showCustomerSupportWhen: [
-      "Billing adjustment is needed.",
-      "Upgrade rules depend on account history.",
+    id: "feature-guidance",
+    generalQuestion: "How does a specific feature work?",
+    followUpSteps: [
+      {
+        question: "Which feature are you trying to use?",
+        answers: ["Dashboard", "Reports", "Billing", "Another feature"],
+      },
+      {
+        question: "Do you want a quick overview or step-by-step instructions?",
+        answers: ["Quick overview", "Step-by-step instructions"],
+      },
+      {
+        question: "Are you setting it up for the first time or troubleshooting it?",
+        answers: ["First-time setup", "Troubleshooting", "Both"],
+      },
     ],
   },
   {
-    id: "contact",
-    generalQuestion: "How do I contact someone?",
-    followUpQuestions: [
-      "Do you need technical help, billing help, or sales help?",
-      "Is this urgent?",
-      "Would you like chat, email, or call support?",
+    id: "technical-issue",
+    generalQuestion: "I am seeing an error or technical issue.",
+    followUpSteps: [
+      {
+        question: "What exact message or behavior are you seeing?",
+        answers: ["Login error", "Page not loading", "Something broke", "Not sure"],
+      },
+      {
+        question: "When does the issue happen?",
+        answers: ["At login", "During setup", "While using a feature", "All the time"],
+      },
+      {
+        question: "Does it happen every time or only sometimes?",
+        answers: ["Every time", "Sometimes", "Only once so far"],
+      },
     ],
-    showCustomerSupportWhen: [
-      "Show customer support immediately because the user is asking for human help.",
+  },
+  {
+    id: "billing-subscription",
+    generalQuestion: "Can I update my billing or subscription?",
+    followUpSteps: [
+      {
+        question: "Are you trying to upgrade, downgrade, renew, or cancel?",
+        answers: ["Upgrade", "Downgrade", "Renew", "Cancel"],
+      },
+      {
+        question: "When do you want this change to take effect?",
+        answers: ["Immediately", "Next billing cycle", "Not sure"],
+      },
+      {
+        question: "Are you asking about charges, invoices, or payment methods?",
+        answers: ["Charges", "Invoices", "Payment methods", "All of these"],
+      },
+    ],
+  },
+  {
+    id: "integrations-setup",
+    generalQuestion: "Can you help me connect tools or integrations?",
+    followUpSteps: [
+      {
+        question: "Which integration are you trying to connect?",
+        answers: ["Email", "CRM", "Payments", "Another integration"],
+      },
+      {
+        question: "Are you at the authorization step or configuration step?",
+        answers: ["Authorization", "Configuration", "Not sure"],
+      },
+      {
+        question: "Do you see any connection or permission error?",
+        answers: ["Connection error", "Permission error", "No error", "Not sure"],
+      },
+    ],
+  },
+  {
+    id: "contact-support",
+    generalQuestion: "How can I contact support?",
+    followUpSteps: [
+      {
+        question: "Is this a technical, billing, or account-related request?",
+        answers: ["Technical", "Billing", "Account-related", "Other"],
+      },
+      {
+        question: "Is this urgent or blocking your work right now?",
+        answers: ["Urgent", "Blocking work", "Not urgent"],
+      },
+      {
+        question: "Do you prefer chat, email, or callback support?",
+        answers: ["Chat", "Email", "Callback"],
+      },
     ],
   },
 ];
-
-export const supportTriggerRules = [
-  "Show Customer Support after 2 to 3 follow-up answers if the issue is still not solved.",
-  "Show Customer Support if the user repeats the same issue.",
-  "Show Customer Support for billing, account access, or custom setup questions.",
-  "Show Customer Support if the bot cannot confidently answer.",
-  "Show Customer Support if the user asks for a human.",
-];
-
-export const initialSuggestionQuestions = chatbotFlow.map(
-  (item) => item.generalQuestion
-);
