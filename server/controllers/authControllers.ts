@@ -327,9 +327,17 @@ export const login = async (req, res, next) => {
       });
     }
 
-    const company = await Company.findOne({ companyId: user?.companyId })
-      .lean()
-      .exec();
+    const linkedCompanyId =
+      typeof user?.company === "string"
+        ? user.company
+        : user?.company?._id || user?.company?.id || null;
+    const company =
+      (linkedCompanyId
+        ? await Company.findById(linkedCompanyId).lean().exec()
+        : null) ||
+      (user?.companyId
+        ? await Company.findOne({ companyId: user.companyId }).lean().exec()
+        : null);
     const workspaceCount = await WorkspaceMember.countDocuments({
       user: user._id,
       isActive: true,

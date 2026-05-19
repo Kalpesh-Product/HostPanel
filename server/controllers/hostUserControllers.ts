@@ -3,6 +3,8 @@ import HostUser from "../models/HostUser.js";
 import bcrypt from "bcryptjs";
 import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
+import HostCompany from "../models/Company.js";
+import { uploadFileToS3, deleteFileFromS3ByUrl } from "../config/s3config.js";
 
 export const updateProfile = async (req, res) => {
   try {
@@ -231,11 +233,48 @@ export const getMyProfile = async (req, res) => {
       .lean()
       .exec();
 
+    const workspaceBusinessName = String(workspace?.businessName || "")
+      .trim()
+      .toLowerCase();
+
+    const linkedCompanyId =
+      typeof user?.company === "string"
+        ? user.company
+        : user?.company?._id || user?.company?.id || null;
+
+    let company =
+      (linkedCompanyId
+        ? await HostCompany.findById(linkedCompanyId).lean().exec()
+        : null) ||
+      (user?.companyId
+        ? await HostCompany.findOne({ companyId: user.companyId }).lean().exec()
+        : null);
+
+    if (workspaceBusinessName) {
+      const companyName = String(company?.companyName || "").trim().toLowerCase();
+      if (!company || (companyName && companyName !== workspaceBusinessName)) {
+        const workspaceMatchedCompany = await HostCompany.findOne({
+          companyName: new RegExp(`^${workspaceBusinessName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+        })
+          .lean()
+          .exec();
+        if (workspaceMatchedCompany) {
+          company = workspaceMatchedCompany;
+          await HostUser.findByIdAndUpdate(userId, {
+            company: workspaceMatchedCompany._id,
+            companyId: workspaceMatchedCompany.companyId,
+          }).exec();
+        }
+      }
+    }
+
     return res.status(200).json({
       success: true,
       data: {
         user: {
           ...user,
+          logo: company?.logo || null,
+          companyName: company?.companyName || user?.companyName || "",
           workspaceMembership: workspaceMembership
             ? {
                 role: workspaceMembership.role,
@@ -252,6 +291,142 @@ export const getMyProfile = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message || "Failed to load profile.",
+    });
+  }
+};
+
+export const updateCompanyLogo = async (req, res) => {
+  try {
+    const userId = req.user;
+    const user = await HostUser.findById(userId).lean().exec();
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "Logo file is required.",
+      });
+    }
+
+    let workspace = null;
+    if (user.primaryWorkspace) {
+      workspace = await Workspace.findById(user.primaryWorkspace).lean().exec();
+    }
+    if (!workspace) {
+      workspace = await Workspace.findOne({ owner: user._id, isActive: true })
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec();
+    }
+    if (!workspace) {
+      const membershipWorkspace = await WorkspaceMember.findOne({
+        user: user._id,
+        isActive: true,
+      })
+        .sort({ isPrimary: -1, createdAt: 1 })
+        .populate("workspace")
+        .lean()
+        .exec();
+      workspace = membershipWorkspace?.workspace || null;
+    }
+
+    const workspaceBusinessName = String(workspace?.businessName || "")
+      .trim()
+      .toLowerCase();
+
+    const linkedCompanyId =
+      typeof user?.company === "string"
+        ? user.company
+        : user?.company?._id || user?.company?.id || null;
+
+    let company =
+      (linkedCompanyId ? await HostCompany.findById(linkedCompanyId).exec() : null) ||
+      (user?.companyId
+        ? await HostCompany.findOne({ companyId: user.companyId }).exec()
+        : null);
+
+    if (workspaceBusinessName) {
+      const companyName = String(company?.companyName || "").trim().toLowerCase();
+      if (!company || (companyName && companyName !== workspaceBusinessName)) {
+        const workspaceMatchedCompany = await HostCompany.findOne({
+          companyName: new RegExp(`^${workspaceBusinessName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+        }).exec();
+
+        if (workspaceMatchedCompany) {
+          company = workspaceMatchedCompany;
+          await HostUser.findByIdAndUpdate(userId, {
+            company: workspaceMatchedCompany._id,
+            companyId: workspaceMatchedCompany.companyId,
+          }).exec();
+        } else if (workspace?.businessName) {
+          const requestedCompanyId = String(user?.companyId || "").trim();
+          const existingCompanyWithSameId = requestedCompanyId
+            ? await HostCompany.findOne({ companyId: requestedCompanyId }).select("_id").lean().exec()
+            : null;
+          const fallbackCompanyId =
+            requestedCompanyId && !existingCompanyWithSameId
+              ? requestedCompanyId
+              : `${requestedCompanyId || "CMP"}-${Date.now()}`;
+          const createdCompany = await HostCompany.create({
+            companyId: fallbackCompanyId,
+            companyName: String(workspace.businessName || "").trim(),
+            companyCity: String(workspace.city || "").trim(),
+            companyState: String(workspace.state || "").trim(),
+            companyCountry: String(workspace.country || "").trim(),
+            isRegistered: true,
+          });
+          company = createdCompany;
+          await HostUser.findByIdAndUpdate(userId, {
+            company: createdCompany._id,
+            companyId: createdCompany.companyId,
+          }).exec();
+        }
+      }
+    }
+
+    if (!company) {
+      return res.status(404).json({
+        success: false,
+        message: "Company not found.",
+      });
+    }
+
+    const safeFileName = String(req.file.originalname || "logo")
+      .replace(/\s+/g, "-")
+      .replace(/[^a-zA-Z0-9._-]/g, "");
+    const route = `company/logo/${company.companyId}-${Date.now()}-${safeFileName}`;
+    const uploadedLogo = await uploadFileToS3(route, req.file);
+
+    const previousLogoUrl = company?.logo?.url;
+    company.logo = uploadedLogo;
+    await company.save();
+
+    if (previousLogoUrl) {
+      try {
+        await deleteFileFromS3ByUrl(previousLogoUrl);
+      } catch {
+        // keep request successful even if old cleanup fails
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Company logo updated successfully.",
+      data: {
+        logo: company.logo,
+      },
+    });
+  } catch (error) {
+    console.error("Update Company Logo Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to update company logo.",
     });
   }
 };

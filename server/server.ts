@@ -51,7 +51,7 @@ app.use("/api/review", verifyJwt, reviewRoutes);
 app.use("/api/workspaces", verifyJwt, workspaceRoutes);
 app.use("/api/organization", verifyJwt, organizationRoutes);
 app.use("/api/subscription", verifyJwt, subscriptionRoutes);
-app.use("/api/support-tickets", verifyJwt, supportTicketRoutes);
+app.use("/api/tickets/support-tickets", verifyJwt, supportTicketRoutes);
 
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {

@@ -26,6 +26,14 @@ const normalizeVertical = (value) => {
   return VALID_VERTICALS.has(value) ? value : "co-working";
 };
 
+const deductWorkspaceCreditOnSuccess = async (workspaceId) => {
+  if (!workspaceId) return;
+  const subscription = await WorkspaceSubscription.findOne({ workspaceId });
+  if (!subscription) return;
+  subscription.creditsUsed = Number(subscription.creditsUsed || 0) + 1;
+  await subscription.save();
+};
+
 export const createTemplate = async (req, res, next) => {
   try {
     const { company } = req.query;
@@ -213,9 +221,20 @@ export const createTemplate = async (req, res, next) => {
       return res.status(400).json({ message: validationError });
     }
 
-    const hostCompanyExists = await HostCompany.findOne(
-      { companyName: req.body.companyName }, //can't use company Id as the host signup form can't send any company Id
-    );
+    const hostCompanyExists = await HostCompany.findOne({
+      $or: [
+        {
+          companyName: {
+            $regex: new RegExp(`^${req.body.companyName}$`, "i"),
+          },
+        },
+        { companyId: req.body.companyId },
+      ],
+    });
+
+    console.log("COMPANY NAME RECEIVED:", req.body.companyName);
+    console.log("COMPANY FOUND:", hostCompanyExists);
+    console.log("FULL BODY KEYS:", Object.keys(req.body));
 
     if (!hostCompanyExists && source !== "Nomad") {
       return res.status(400).json({ message: "Company not found" });
@@ -479,6 +498,8 @@ export const createTemplate = async (req, res, next) => {
     if (!savedTemplate) {
       return res.status(400).json({ message: "Failed to create template" });
     }
+
+    await deductWorkspaceCreditOnSuccess(req.body?.workspaceId);
 
     if (source !== "Nomad") {
       const updateHostCompany = await HostCompany.findOneAndUpdate(
@@ -1088,6 +1109,8 @@ export const editTemplate = async (req, res, next) => {
     await template.save({ session });
     await session.commitTransaction();
     session.endSession();
+
+    await deductWorkspaceCreditOnSuccess(req.body?.workspaceId);
 
     res
       .status(200)

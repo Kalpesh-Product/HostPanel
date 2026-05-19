@@ -261,7 +261,7 @@ const VisitorDashboard = () => {
   });
 
   // Calculate total and gender-specific counts
-  const totalUsers = usersQuery.isLoading ? [] : usersQuery.data.length;
+  const totalUsers = Array.isArray(usersQuery.data) ? usersQuery.data.length : 0;
 
   const maleCount = visitorsData.filter(
     (user) => user.gender?.toLowerCase() === "male"
@@ -273,14 +273,15 @@ const VisitorDashboard = () => {
   const genderData = [
     {
       id: 0,
-      value: ((maleCount / totalUsers) * 100).toFixed(2),
+      value: totalUsers > 0 ? ((maleCount / totalUsers) * 100).toFixed(2) : "0.00",
       actualCount: maleCount,
       label: "Male",
       color: "#0056B3",
     },
     {
       id: 1,
-      value: ((femaleCount / totalUsers) * 100).toFixed(2),
+      value:
+        totalUsers > 0 ? ((femaleCount / totalUsers) * 100).toFixed(2) : "0.00",
       actualCount: femaleCount,
       label: "Female",
       color: "#FD507E",

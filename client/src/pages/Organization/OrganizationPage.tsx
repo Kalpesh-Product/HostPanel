@@ -9,6 +9,7 @@ import {
 import { Switch } from '@mui/material';
 import useAuth from '../../hooks/useAuth';
 import useAxiosPrivate from '../../hooks/useAxiosPrivate';
+import PageFrame from '../../components/Pages/PageFrame';
 import {
   assignOrganizationActingManager,
   assignOrganizationDepartmentManager,
@@ -716,11 +717,12 @@ export function OrganizationPage() {
   return (
     <>
       <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+      <PageFrame>
       
       {/* HEADER & TOP KPIs */}
       <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
         <div>
-          <h1 className="text-base lg:text-lg font-black tracking-tight text-slate-800">Organization Management</h1>
+          <h2 className="text-title font-pmedium text-primary uppercase">Organization Management</h2>
           <p className="text-xs font-medium text-slate-500 mt-1">Manage platform users and organization access.</p>
         </div>
       </div>
@@ -1508,6 +1510,8 @@ export function OrganizationPage() {
           </div>
         </div>
       )}
+
+      </PageFrame>
 
       {/* 3. Assign Manager Modal */}
       {showAssignManagerModal && selectedDepartment && (

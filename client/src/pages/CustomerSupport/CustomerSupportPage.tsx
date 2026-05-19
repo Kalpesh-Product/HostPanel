@@ -2,10 +2,12 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
+import PageFrame from "../../components/Pages/PageFrame";
 
 type TicketStatus =
   | "Open"
   | "In Progress"
+  | "Resolved"
   | "Closed"
   | "Pending"
   | "Escalated"
@@ -13,7 +15,6 @@ type TicketStatus =
 
 type SupportTicket = {
   id: string;
-  sr: number;
   ticketId: string;
   title: string;
   description: string;
@@ -43,11 +44,14 @@ type SupportPayload = {
 const statusPillClass: Record<TicketStatus, string> = {
   Open: "bg-blue-100 text-blue-700",
   "In Progress": "bg-amber-100 text-amber-700",
+  Resolved: "bg-emerald-100 text-emerald-700",
   Closed: "bg-green-100 text-green-700",
   Pending: "bg-slate-100 text-slate-700",
   Escalated: "bg-red-100 text-red-700",
   Rejected: "bg-rose-100 text-rose-700",
 };
+
+const SUPPORT_TICKETS_API = "/api/tickets/support-tickets";
 
 const formatDate = (value?: string | null) => {
   if (!value) return "-";
@@ -88,7 +92,7 @@ export default function CustomerSupportPage() {
   const loadTickets = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await axios.get("/api/support-tickets");
+      const response = await axios.get(SUPPORT_TICKETS_API);
       const payload = response?.data?.data || {};
       setSupportData({
         raised: Array.isArray(payload?.raised) ? payload.raised : [],
@@ -124,7 +128,7 @@ export default function CustomerSupportPage() {
       formData.append("description", description.trim());
       if (imageFile) formData.append("image", imageFile);
 
-      await axios.post("/api/support-tickets", formData, {
+      await axios.post(SUPPORT_TICKETS_API, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       toast.success("Support ticket submitted.");
@@ -144,7 +148,7 @@ export default function CustomerSupportPage() {
   const closeTicket = async (ticket: SupportTicket) => {
     try {
       setIsSubmitting(true);
-      await axios.patch(`/api/support-tickets/${ticket.id}/close`);
+      await axios.patch(`${SUPPORT_TICKETS_API}/${ticket.id}/close`);
       toast.success(`Ticket ${ticket.ticketId} closed.`);
       await loadTickets();
       setIsDetailsModalOpen(false);
@@ -163,7 +167,7 @@ export default function CustomerSupportPage() {
 
     try {
       setIsSubmitting(true);
-      await axios.post(`/api/support-tickets/${selectedTicket.id}/follow-up`, {
+      await axios.post(`${SUPPORT_TICKETS_API}/${selectedTicket.id}/follow-up`, {
         description: followUpDescription.trim(),
       });
       toast.success("Follow-up issue raised successfully.");
@@ -183,25 +187,25 @@ export default function CustomerSupportPage() {
   };
 
   return (
-    <div className="w-full min-h-screen p-4 sm:p-6 lg:p-8 bg-[#F5F7FB]">
-      <div className="max-w-[1440px] mx-auto">
+    <PageFrame>
+      <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-[28px] leading-tight font-semibold text-[#111827]">
-              Customer Support
-            </h1>
+            <h2 className="text-title font-pmedium text-primary uppercase">Customer Support</h2>
             <p className="text-sm text-gray-500 mt-1">
               Track issue lifecycle with clear ownership and resolution context.
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsCreateModalOpen(true)}
-            className="self-start md:self-auto bg-[#1E3D73] hover:bg-[#18335F] text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm"
-          >
-            Raise Issue
-          </button>
+          <div className="w-full md:w-auto md:flex md:justify-end">
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="w-full md:w-auto bg-[#2563EB] hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm"
+            >
+              Raise Issue
+            </button>
+          </div>
         </div>
 
         <div className="bg-white border border-[#E5EAF1] rounded-2xl shadow-[0_10px_30px_rgba(17,24,39,0.06)] overflow-hidden">
@@ -238,32 +242,29 @@ export default function CustomerSupportPage() {
             ) : currentList.length === 0 ? (
               <div className="text-sm text-gray-500">No issues found.</div>
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-[#EDF1F6]">
-                <table className="w-full table-fixed min-w-[1180px]">
+              <div className="w-full overflow-x-auto rounded-xl border border-[#EDF1F6]">
+                <table className="w-full min-w-[980px]">
                   <thead className="bg-[#F7F9FC]">
                     <tr>
-                      <th className="w-[80px] px-3 py-3 text-xs font-semibold text-[#4B5563] text-left whitespace-nowrap">
-                        SR No
-                      </th>
-                      <th className="w-[150px] px-3 py-3 text-xs font-semibold text-[#4B5563] text-left whitespace-nowrap">
+                      <th className="px-3 py-3 text-xs font-semibold text-[#4B5563] text-left whitespace-nowrap">
                         Ticket ID
                       </th>
-                      <th className="w-[280px] px-3 py-3 text-xs font-semibold text-[#4B5563] text-left whitespace-nowrap">
+                      <th className="px-3 py-3 text-xs font-semibold text-[#4B5563] text-left whitespace-nowrap">
                         Issue Title
                       </th>
-                      <th className="w-[180px] px-3 py-3 text-xs font-semibold text-[#4B5563] text-left whitespace-nowrap">
+                      <th className="px-3 py-3 text-xs font-semibold text-[#4B5563] text-left whitespace-nowrap">
                         Requested At
                       </th>
-                      <th className="w-[160px] px-3 py-3 text-xs font-semibold text-[#4B5563] text-left whitespace-nowrap">
+                      <th className="px-3 py-3 text-xs font-semibold text-[#4B5563] text-left whitespace-nowrap">
                         Resolved By
                       </th>
-                      <th className="w-[130px] px-3 py-3 text-xs font-semibold text-[#4B5563] text-left whitespace-nowrap">
+                      <th className="px-3 py-3 text-xs font-semibold text-[#4B5563] text-left whitespace-nowrap">
                         Status
                       </th>
-                      <th className="w-[160px] px-3 py-3 text-xs font-semibold text-[#4B5563] text-left whitespace-nowrap">
+                      <th className="px-3 py-3 text-xs font-semibold text-[#4B5563] text-left whitespace-nowrap">
                         Accepted By
                       </th>
-                      <th className="w-[140px] px-3 py-3 text-xs font-semibold text-[#4B5563] text-left whitespace-nowrap">
+                      <th className="px-3 py-3 text-xs font-semibold text-[#4B5563] text-left whitespace-nowrap">
                         Action
                       </th>
                     </tr>
@@ -271,9 +272,6 @@ export default function CustomerSupportPage() {
                   <tbody>
                     {currentList.map((ticket) => (
                       <tr key={ticket.id} className="hover:bg-[#FBFCFE]">
-                        <td className="px-3 py-3.5 text-sm text-gray-700 border-t border-[#EEF2F7] whitespace-nowrap">
-                          {ticket.sr || "-"}
-                        </td>
                         <td className="px-3 py-3.5 text-sm text-gray-700 border-t border-[#EEF2F7] whitespace-nowrap">
                           {ticket.ticketId || "-"}
                         </td>
@@ -408,7 +406,7 @@ export default function CustomerSupportPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="bg-[#1E3D73] hover:bg-[#17325E] text-white px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-70"
+                  className="bg-[#2563EB] hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-70"
                 >
                   {isSubmitting ? "Submitting..." : "Submit"}
                 </button>
@@ -440,7 +438,6 @@ export default function CustomerSupportPage() {
 
             <div className="p-3 sm:p-4 space-y-2.5 overflow-y-auto max-h-[calc(72vh-110px)]">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                <div><span className="text-gray-500">SR No:</span> <span className="font-medium text-gray-800">{selectedTicket.sr || "-"}</span></div>
                 <div><span className="text-gray-500">Ticket ID:</span> <span className="font-medium text-gray-800">{selectedTicket.ticketId || "-"}</span></div>
                 <div><span className="text-gray-500">Workspace:</span> <span className="font-medium text-gray-800">{selectedTicket.workspaceName || "-"}</span></div>
                 <div><span className="text-gray-500">Role:</span> <span className="font-medium text-gray-800">{selectedTicket.role || "-"}</span></div>
@@ -496,7 +493,7 @@ export default function CustomerSupportPage() {
             </div>
 
             <div className="px-4 py-2.5 border-t border-gray-200 flex flex-wrap gap-2 justify-end bg-white">
-              {selectedTicket.status !== "Closed" ? (
+              {selectedTicket.status === "Resolved" ? (
                 <button
                   type="button"
                   disabled={isSubmitting}
@@ -506,20 +503,18 @@ export default function CustomerSupportPage() {
                   Close Ticket
                 </button>
               ) : null}
-              <button
-                type="button"
-                onClick={() => {
-                  if (selectedTicket.status === "Closed") {
-                    toast.info("Follow-up cannot be sent after ticket is closed.");
-                    return;
-                  }
-                  setIsFollowUpModalOpen(true);
-                }}
-                className="px-4 py-2 rounded-md text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-60"
-                disabled={isSubmitting || selectedTicket.status === "Closed"}
-              >
-                Follow Up
-              </button>
+              {selectedTicket.status === "Resolved" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFollowUpModalOpen(true);
+                  }}
+                  className="px-4 py-2 rounded-md text-sm bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-60"
+                  disabled={isSubmitting}
+                >
+                  Follow Up
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -570,7 +565,7 @@ export default function CustomerSupportPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="bg-[#1E3D73] hover:bg-[#17325E] text-white px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-70"
+                  className="bg-[#2563EB] hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-70"
                 >
                   {isSubmitting ? "Submitting..." : "Submit Follow Up"}
                 </button>
@@ -579,6 +574,6 @@ export default function CustomerSupportPage() {
           </div>
         </div>
       ) : null}
-    </div>
+    </PageFrame>
   );
 }

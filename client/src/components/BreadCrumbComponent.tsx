@@ -8,22 +8,75 @@ const BreadCrumbComponent = () => {
   const searchParams = new URLSearchParams(location.search);
   const queryParamEntries = Array.from(searchParams.entries());
 
-  const pathSegments =
+  const rawSegments =
     location.pathname === "/dashboard"
       ? ["dashboard"]
       : location.pathname
           .split("/")
           .filter((segment) => segment && segment !== "app" && segment !== "dashboard");
 
-  const breadcrumbs = pathSegments.map((segment, index) => {
-    const isLast = index === pathSegments.length - 1;
-    const path = pathSegments.slice(0, index + 1).join("/");
-    const isDirectAppPath = location.pathname.startsWith(`/${path}`) && !location.pathname.includes("/dashboard");
-    const fullPath = isDirectAppPath ? `/${path}` : `/dashboard/${path}`;
+  const pathSegments = (() => {
+    if (
+      rawSegments.length >= 2 &&
+      rawSegments[0] === "visitors" &&
+      rawSegments[1] === "visitor-management"
+    ) {
+      return ["key-apps", "visitor-management", ...rawSegments.slice(2)];
+    }
 
-    const displayText = decodeURIComponent(segment)
+    if (
+      rawSegments.length >= 2 &&
+      rawSegments[0] === "company-settings" &&
+      ["wono-nomad", "nomad-listings", "reviews"].includes(rawSegments[1])
+    ) {
+      if (rawSegments[1] === "wono-nomad") return rawSegments;
+      return ["company-settings", "wono-nomad", ...rawSegments.slice(1)];
+    }
+
+    return rawSegments;
+  })();
+
+  const displayLabel = (segment: string, index: number) => {
+    const previousSegment = pathSegments[index - 1];
+
+    if (segment === "company-settings") return "Dashboard";
+    if (segment === "wono-nomad") return "Wono Nomad";
+    if (segment === "nomad-listings") return "Nomad Listings";
+    if (segment === "add" && previousSegment === "nomad-listings") return "Add Listing";
+    if (
+      previousSegment === "nomad-listings" &&
+      segment !== "add" &&
+      segment !== "nomad-listings"
+    ) {
+      return "Edit Listing";
+    }
+
+    return decodeURIComponent(segment)
       .replace(/-/g, " ")
       .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
+  const resolvePathForCrumb = (index: number) => {
+    const upto = pathSegments.slice(0, index + 1);
+    const isDashboardScoped = location.pathname === "/dashboard" || location.pathname.startsWith("/dashboard/");
+
+    if (
+      upto.length >= 3 &&
+      upto[0] === "company-settings" &&
+      upto[1] === "wono-nomad"
+    ) {
+      const realPathSegments = ["company-settings", ...upto.slice(2)];
+      return `/${realPathSegments.join("/")}`;
+    }
+
+    const basePath = `/${upto.join("/")}`;
+    return isDashboardScoped ? `/dashboard/${upto.join("/")}` : basePath;
+  };
+
+  const breadcrumbs = pathSegments.map((segment, index) => {
+    const isLast = index === pathSegments.length - 1;
+    const fullPath = resolvePathForCrumb(index);
+    const displayText = displayLabel(segment, index);
 
     return isLast ? (
       <Typography key={index} color="text.primary">

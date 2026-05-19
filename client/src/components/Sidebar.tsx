@@ -112,9 +112,8 @@ const readWorkspaceSetup = (): WorkspaceSetupState => {
 
 const companySettingsData: NavNode[] = [
   { id: "website-builder", label: "Website Builder", icon: Globe, route: "/company-settings/website-builder" },
-  { id: "nomad-listing", label: "Nomad Listing", icon: ShieldCheck, route: "/company-settings/nomad-listings" },
+  { id: "wono-nomad", label: "Wono Nomad", icon: ShieldCheck, route: "/company-settings/wono-nomad" },
   { id: "website-leads", label: "Website Leads", icon: NotebookText, route: "/company-settings/website-builder/leads" },
-  { id: "reviews", label: "Reviews", icon: ClipboardCheck, route: "/company-reviews" },
   { id: "organization-management", label: "Organization Management", icon: Building, route: "/company-settings/organization-management" },
   { id: "module-management", label: "Module Management", icon: Boxes, disabled: true },
   { id: "access-grants", label: "Access Grants", icon: UserCog, route: "/company-settings/access-grants" },
@@ -130,7 +129,13 @@ const keyAppsData: NavNode[] = [
   { id: "tickets", label: "Tickets", icon: Ticket, disabled: true },
   { id: "leave-requests", label: "Leave Requests", icon: CalendarClock, disabled: true },
   { id: "meeting-room-system", label: "Meeting Room System", icon: Presentation, disabled: true },
-  { id: "visitor-management", label: "Visitor Management", icon: ContactRound, disabled: true },
+  {
+    id: "visitor-management",
+    label: "Visitor Management",
+    icon: ContactRound,
+    route: "/visitors/visitor-management",
+    disabled: false,
+  },
   { id: "assets", label: "Assets", icon: Package, disabled: true },
   { id: "inventory", label: "Inventory", icon: Warehouse, disabled: true },
   { id: "finance-management", label: "Finance Management", icon: Wallet, disabled: true },
@@ -162,7 +167,13 @@ const departmentModules: NavNode[] = [
     children: [
       { id: "tenant-companies-admin", label: "Tenant Companies", icon: Building2, disabled: true },
       { id: "bookings", label: "Bookings", icon: Bed, disabled: true },
-      { id: "visitors-management", label: "Visitors Management", icon: ContactRound, disabled: true },
+      {
+        id: "visitors-management",
+        label: "Visitors Management",
+        icon: ContactRound,
+        route: "/visitors/visitor-management",
+        disabled: false,
+      },
       { id: "resource-management", label: "Resource Management", icon: HandCoins, disabled: true },
       { id: "house-keeping", label: "House Keeping", icon: Wrench, disabled: true },
       { id: "workspace-layout", label: "Workspace Layout", icon: LayoutDashboard, disabled: true },
@@ -218,7 +229,7 @@ const departmentModules: NavNode[] = [
 ];
 
 const generalData: NavNode[] = [
-  { id: "profile", label: "Profile", icon: User, route: "/profile/my-profile" },
+  { id: "profile", label: "Profile", icon: User, route: "/profile/company-profile" },
   { id: "logout", label: "Sign Out", icon: LogOut, isRed: true, route: "/sign-out" },
 ];
 

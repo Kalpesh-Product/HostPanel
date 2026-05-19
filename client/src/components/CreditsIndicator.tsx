@@ -7,11 +7,38 @@ const formatResetDate = (value) => {
   if (!value) return "-";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}, 12:00 AM`;
+};
+
+const getDaysLeft = (value) => {
+  if (!value) return null;
+  const reset = new Date(value);
+  if (Number.isNaN(reset.getTime())) return null;
+  const now = new Date();
+  const resetStart = new Date(
+    reset.getFullYear(),
+    reset.getMonth(),
+    reset.getDate(),
+    0,
+    0,
+    0,
+    0,
+  );
+  const nowStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    0,
+    0,
+    0,
+    0,
+  );
+  const diff = resetStart.getTime() - nowStart.getTime();
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  return Math.max(0, days);
 };
 
 const CreditsIndicator = ({ workspaceId }) => {
@@ -56,6 +83,7 @@ const CreditsIndicator = ({ workspaceId }) => {
   );
   const progress = creditsLimit > 0 ? (creditsRemaining / creditsLimit) * 100 : 0;
   const resetText = formatResetDate(subscription?.creditsResetDate);
+  const daysLeft = getDaysLeft(subscription?.creditsResetDate);
 
   const tone = useMemo(() => {
     if (creditsRemaining <= 0) {
@@ -85,13 +113,18 @@ const CreditsIndicator = ({ workspaceId }) => {
   if (!workspaceId) return null;
 
   return (
-    <div className={`rounded-full border px-4 py-2 w-fit ${tone.wrapper}`}>
+    <div className={`rounded-2xl border px-4 py-3 w-full max-w-xl ${tone.wrapper}`}>
       <div className={`text-sm font-medium ${tone.text}`}>
         {loading
           ? "Loading credits..."
           : `${creditsRemaining} / ${creditsLimit} credits`}
       </div>
-      <div className="mt-2 h-1.5 w-44 rounded-full bg-black/10 overflow-hidden">
+      {!loading ? (
+        <div className="mt-1 text-xs text-black/60">
+          Used: {creditsUsed} • Remaining: {creditsRemaining}
+        </div>
+      ) : null}
+      <div className="mt-2 h-2 w-full rounded-full bg-black/10 overflow-hidden">
         <div
           className={`h-full ${tone.bar} transition-all duration-300`}
           style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
@@ -101,6 +134,9 @@ const CreditsIndicator = ({ workspaceId }) => {
         <div className="mt-2 text-xs text-red-700">{tone.status}</div>
       ) : null}
       <div className="mt-1 text-xs text-black/50">Resets on {resetText}</div>
+      {daysLeft !== null ? (
+        <div className="mt-1 text-xs text-black/50">{daysLeft} day(s) left for renew</div>
+      ) : null}
     </div>
   );
 };

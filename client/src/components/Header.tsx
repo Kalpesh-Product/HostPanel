@@ -25,7 +25,7 @@ import useAuth from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import useLogout from "../hooks/useLogout";
 import useAxiosPrivate from "../hooks/useAxiosPrivate";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { queryClient } from "../main";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -67,17 +67,7 @@ const Header = ({
   const [notificationAnchorEl, setNotificationAnchorEl] = useState<HTMLElement | null>(null);
   const storedUser = getStoredUser();
 
-  const { data: companyLogo } = useQuery({
-    queryKey: ["companyLogo"] as const,
-    queryFn: async () => {
-      const response = await axios.get("/api/company/get-company-logo");
-      return response.data;
-    },
-  });
-
   const headerLogoUrl =
-    companyLogo?.logo?.url ||
-    companyLogo?.logo ||
     auth?.user?.logo?.url ||
     auth?.user?.logo ||
     WoNoLogo;
@@ -116,7 +106,7 @@ const Header = ({
   };
 
   const handleProfileClick = () => {
-    navigate("/profile");
+    navigate("/profile/my-profile");
     handlePopoverClose();
   };
 

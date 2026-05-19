@@ -136,9 +136,17 @@ const refreshTokenController = async (req, res, next) => {
           : "Access denied. Contact founder to regain access.",
       });
     }
-    const company = await Company.findOne({ companyId: user?.companyId })
-      .lean()
-      .exec();
+    const linkedCompanyId =
+      typeof user?.company === "string"
+        ? user.company
+        : user?.company?._id || user?.company?.id || null;
+    const company =
+      (linkedCompanyId
+        ? await Company.findById(linkedCompanyId).lean().exec()
+        : null) ||
+      (user?.companyId
+        ? await Company.findOne({ companyId: user.companyId }).lean().exec()
+        : null);
     if (!user) {
       return res.sendStatus(401);
     }

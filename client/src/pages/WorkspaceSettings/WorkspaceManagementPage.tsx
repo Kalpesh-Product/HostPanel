@@ -27,6 +27,7 @@ import {
   getWorkspaceManagementOverview,
   updateManagedWorkspace,
 } from "../../services/workspace-management";
+import PageFrame from "../../components/Pages/PageFrame";
 
 const getStoredUser = () => {
   try {
@@ -571,25 +572,21 @@ export default function WorkspaceManagementPage() {
 
   return (
     <>
-      <div className="min-h-full w-full bg-slate-50 p-4 text-slate-900 sm:p-5 lg:p-6">
-        <div className="w-full space-y-5">
-          <header className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm lg:flex-row lg:items-end lg:justify-between">
+        <PageFrame>
+        <div className="w-full space-y-5 p-2 lg:p-2.5">
+          <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#2563EB]">
-                <Building2 className="h-3.5 w-3.5" />
-                Multi-workspace founder view
-              </div>
-              <h1 className="mt-3 text-[28px] leading-none font-black tracking-tight text-slate-950">
+              <h2 className="text-title font-pmedium text-primary uppercase">
                 Workspace Management
-              </h1>
+              </h2>
               <p className="mt-2 max-w-3xl text-[12px] font-medium leading-6 text-slate-500">
                 Review every workspace linked to this founder account and compare operational health from one place.
               </p>
             </div>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] font-semibold text-slate-600 whitespace-nowrap">
-                Active workspace: <span className="text-slate-950">{activeWorkspaceName}</span>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="h-11 inline-flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] font-semibold text-slate-600 whitespace-nowrap">
+                Current workspace: <span className="text-slate-950 ml-1">{activeWorkspaceName}</span>
               </div>
               <label className="grid gap-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -628,7 +625,7 @@ export default function WorkspaceManagementPage() {
                 </select>
               </label>
             </div>
-          </header>
+            </header>
 
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-8">
             <MetricCard icon={Users} label="Employees" value={summary.totalEmployees} tone="blue" />
@@ -977,7 +974,7 @@ export default function WorkspaceManagementPage() {
             )}
           </section>
         </div>
-      </div>
+        </PageFrame>
 
       {editingWorkspace ? (
         <WorkspaceEditModal

@@ -1,24 +1,21 @@
-// src/pages/Dashboard/FrontendDashboard/CompanyOverview.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
 
 const cards = [
-  { title: "Website Builder", path: "website-builder" },
-  { title: "Wono Nomad", path: "wono-nomad" },
-  { title: "POC Details", path: "poc-details" },
-  { title: "Organization Management", path: "organization-management" },
+  { title: "Nomad Listings", path: "nomad-listings" },
+  { title: "Reviews", path: "reviews" },
 ];
 
-const CompanyOverview = () => {
+const WonoNomad = () => {
   const navigate = useNavigate();
 
   return (
     <div className="p-6">
       <h1 className="text-title font-pmedium text-primary uppercase mb-6">
-        Company Overview
+        Wono Nomad
       </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {cards.map((card) => (
           <div
             key={card.title}
@@ -38,4 +35,4 @@ const CompanyOverview = () => {
   );
 };
 
-export default CompanyOverview;
+export default WonoNomad;

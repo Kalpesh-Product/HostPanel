@@ -1,7 +1,16 @@
 // @ts-nocheck
 import React, { useRef, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
-import { TextField, MenuItem, CircularProgress } from "@mui/material";
+import {
+  TextField,
+  MenuItem,
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+} from "@mui/material";
 import PageFrame from "../../../../components/Pages/PageFrame";
 import PrimaryButton from "../../../../components/PrimaryButton";
 import SecondaryButton from "../../../../components/SecondaryButton";
@@ -13,6 +22,7 @@ import UploadFileInput from "../../../../components/UploadFileInput";
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
 import useAuth from "../../../../hooks/useAuth";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   VERTICAL_CONFIG,
   VERTICAL_KEYS,
@@ -36,13 +46,25 @@ const defaultTestimonial = {
 
 const CreateWebsite = () => {
   const axios = useAxiosPrivate();
+  const navigate = useNavigate();
+  const location = useLocation();
   const formRef = useRef(null);
   const { auth } = useAuth();
+  const [hostCompanyIdentity, setHostCompanyIdentity] = useState(null);
+  const [workspaceBusinessName, setWorkspaceBusinessName] = useState("");
+  const [isCheckingExistingWebsite, setIsCheckingExistingWebsite] = useState(true);
+  const [creditsUsed, setCreditsUsed] = useState(0);
+  const [creditsLimit, setCreditsLimit] = useState(5);
+  const [creditsResetDate, setCreditsResetDate] = useState(null);
+  const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
+  const [pendingSubmitValues, setPendingSubmitValues] = useState(null);
+  const [pendingSubmitEvent, setPendingSubmitEvent] = useState(null);
 
   const {
     control,
     handleSubmit,
     reset,
+    setValue,
     watch,
     getValues, // ✅ add this
     formState: { errors },
@@ -80,7 +102,24 @@ const CreateWebsite = () => {
   });
 
   const selectedCompany = useSelector((state) => state.company.selectedCompany);
-  const workspaceId = selectedCompany?.workspaceId || auth?.user?.workspaceId;
+  const builderBasePath = location.pathname.includes("/company-settings/website-builder")
+    ? "/company-settings/website-builder"
+    : "/dashboard/website-builder";
+  const workspaceId =
+    selectedCompany?.workspaceId ||
+    auth?.user?.primaryWorkspace ||
+    auth?.user?.workspaceId;
+  const prefillCompanyId =
+    selectedCompany?.companyId ||
+    hostCompanyIdentity?.companyId ||
+    auth?.user?.companyId ||
+    "";
+  const prefillCompanyName =
+    selectedCompany?.companyName ||
+    workspaceBusinessName ||
+    hostCompanyIdentity?.companyName ||
+    auth?.user?.companyName ||
+    "";
   const [creditsRemaining, setCreditsRemaining] = useState(5);
   const verticalFromState =
     selectedCompany?.vertical || auth?.user?.vertical || "co-working";
@@ -119,14 +158,105 @@ const CreateWebsite = () => {
     error || (limit ? `${(value || "").length}/${limit}` : undefined);
 
   useEffect(() => {
-    if (auth?.user) {
+    const fetchWorkspaceSettings = async () => {
+      try {
+        const res = await axios.get("/api/workspaces/settings");
+        const businessName = String(
+          res?.data?.data?.settings?.profile?.businessName || "",
+        ).trim();
+        setWorkspaceBusinessName(businessName);
+      } catch (error) {
+        setWorkspaceBusinessName("");
+      }
+    };
+
+    fetchWorkspaceSettings();
+  }, [axios, auth?.user?.primaryWorkspace]);
+
+  useEffect(() => {
+    const fetchHostCompanyIdentity = async () => {
+      try {
+        const res = await axios.get("/api/workspaces/host-company");
+        setHostCompanyIdentity(res?.data?.data || null);
+      } catch (error) {
+        setHostCompanyIdentity(null);
+      }
+    };
+
+    fetchHostCompanyIdentity();
+  }, [axios, auth?.user?.primaryWorkspace]);
+
+  useEffect(() => {
+    if (prefillCompanyId || prefillCompanyName) {
       reset({
         ...getValues(),
-        companyId: auth.user.companyId, // ✅ from token
-        companyName: auth.user.companyName, // ✅ also from token
+        companyId: prefillCompanyId,
+        companyName: prefillCompanyName,
       });
     }
-  }, [auth, reset, getValues]);
+  }, [prefillCompanyId, prefillCompanyName, reset, getValues]);
+
+  useEffect(() => {
+    if (prefillCompanyId) {
+      setValue("companyId", prefillCompanyId, {
+        shouldDirty: false,
+        shouldTouch: false,
+      });
+    }
+    if (prefillCompanyName) {
+      setValue("companyName", prefillCompanyName, {
+        shouldDirty: false,
+        shouldTouch: false,
+      });
+    }
+  }, [prefillCompanyId, prefillCompanyName, setValue]);
+
+  useEffect(() => {
+    const checkExistingWebsite = async () => {
+      try {
+        const response = await axios.get("/api/editor/get-websites");
+        const templates = Array.isArray(response?.data) ? response.data : [];
+        const found = templates.find((item) => {
+          const itemCompanyId = String(item?.companyId || "").trim();
+          const itemCompanyName = String(item?.companyName || "").trim().toLowerCase();
+          if (prefillCompanyId) {
+            return itemCompanyId === String(prefillCompanyId).trim();
+          }
+          return (
+            !itemCompanyId &&
+            prefillCompanyName &&
+            itemCompanyName === String(prefillCompanyName).trim().toLowerCase()
+          );
+        });
+
+        if (found) {
+          const websiteSlug = found.searchKey || found.companyName || "";
+          navigate(
+            `${builderBasePath}/edit-website/${encodeURIComponent(websiteSlug)}`,
+            { replace: true },
+          );
+          return;
+        }
+      } catch (error) {
+        // no-op: show create flow when lookup fails
+      } finally {
+        setIsCheckingExistingWebsite(false);
+      }
+    };
+
+    if (prefillCompanyId || prefillCompanyName) {
+      checkExistingWebsite();
+    } else {
+      setIsCheckingExistingWebsite(false);
+    }
+  }, [
+    axios,
+    navigate,
+    builderBasePath,
+    prefillCompanyId,
+    prefillCompanyName,
+    auth?.user?.primaryWorkspace,
+  ]);
 
   useEffect(() => {
     const fetchCredits = async () => {
@@ -138,8 +268,14 @@ const CreateWebsite = () => {
           },
         });
         setCreditsRemaining(Number(res?.data?.creditsRemaining ?? 5));
+        setCreditsUsed(Number(res?.data?.creditsUsed ?? 0));
+        setCreditsLimit(Number(res?.data?.creditsLimit ?? 5));
+        setCreditsResetDate(res?.data?.creditsResetDate || null);
       } catch (error) {
         setCreditsRemaining(5);
+        setCreditsUsed(0);
+        setCreditsLimit(5);
+        setCreditsResetDate(null);
       }
     };
 
@@ -164,7 +300,7 @@ const CreateWebsite = () => {
     remove: removeTestimonial,
   } = useFieldArray({ control, name: "testimonials" });
 
-  const onSubmit = (values, e) => {
+  const submitCreateWebsite = (values, e) => {
     const formEl = e?.target || formRef.current;
     const fd = new FormData(formEl);
 
@@ -210,7 +346,9 @@ const CreateWebsite = () => {
     });
 
     // ✅ Add companyId here
-    fd.set("companyId", values.companyId || auth?.user?.companyId || "");
+    fd.set("companyName", values.companyName || prefillCompanyName || "");
+    fd.set("companyId", values.companyId || prefillCompanyId || "");
+    fd.append("workspaceId", workspaceId || "");
     fd.set("vertical", vertical);
 
     // const srcFromIframe = raw.match(/src=["']([^"']+)["']/i)?.[1];
@@ -219,6 +357,12 @@ const CreateWebsite = () => {
     // console.log("src", srcUrl);
 
     createWebsite(fd);
+  };
+
+  const onSubmit = (values, e) => {
+    setPendingSubmitValues(values);
+    setPendingSubmitEvent(e);
+    setConfirmSubmitOpen(true);
   };
 
   const { mutate: createWebsite, isLoading: isCreateWebsiteLoading } =
@@ -233,7 +377,7 @@ const CreateWebsite = () => {
       onSuccess: () => {
         toast.success("Website created successfully");
         setCreditsRemaining((prev) => Math.max(0, prev - 1));
-        reset();
+        resetFormToEmpty();
       },
       onError: (err) => {
         if (err?.response?.status === 403 && err?.response?.data?.error === "no_credits_remaining") {
@@ -260,8 +404,8 @@ const CreateWebsite = () => {
     formRef.current?.reset(); // clears native file inputs
 
     reset({
-      companyId: auth?.user?.companyId || "",
-      companyName: auth?.user?.companyName || "",
+      companyId: prefillCompanyId,
+      companyName: prefillCompanyName,
 
       title: "",
       subTitle: "",
@@ -291,20 +435,63 @@ const CreateWebsite = () => {
     });
   };
 
+  const daysLeftForRenew = creditsResetDate
+    ? Math.max(0, Math.floor((() => {
+        const reset = new Date(creditsResetDate);
+        const now = new Date();
+        const resetStart = new Date(
+          reset.getFullYear(),
+          reset.getMonth(),
+          reset.getDate(),
+          0,
+          0,
+          0,
+          0,
+        );
+        const nowStart = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          0,
+          0,
+          0,
+          0,
+        );
+        return (resetStart.getTime() - nowStart.getTime()) / (1000 * 60 * 60 * 24);
+      })()))
+    : "-";
+  const creditResetText = creditsResetDate
+    ? (() => {
+        const d = new Date(creditsResetDate);
+        const day = String(d.getDate()).padStart(2, "0");
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const year = d.getFullYear();
+        return `${day}/${month}/${year}, 12:00 AM`;
+      })()
+    : "-";
+
+  if (isCheckingExistingWebsite) {
+    return (
+      <div className="p-4 flex items-center justify-center">
+        <CircularProgress />
+      </div>
+    );
+  }
+
   return (
     <div className="pb-2">
       <div className="p-4 flex flex-col gap-4">
-        <div className="themePage-content-header bg-white flex flex-col gap-4">
-          <h4 className="text-4xl text-left">Create Website</h4>
-          {workspaceId ? <CreditsIndicator workspaceId={workspaceId} /> : null}
-          <hr />
-        </div>
+        <PageFrame>
+          <div className="flex flex-col gap-5">
+            <h2 className="text-title font-pmedium text-primary uppercase">
+              Create Website
+            </h2>
 
-        <form
-          ref={formRef}
-          encType="multipart/form-data"
-          onSubmit={handleSubmit(onSubmit)}
-        >
+            <form
+              ref={formRef}
+              encType="multipart/form-data"
+              onSubmit={handleSubmit(onSubmit)}
+            >
           <div className="md:grid grid-cols-2 sm:grid-cols-1 md:grid-cols-2 gap-4">
             {/* HERO / COMPANY */}
             {activeSections.includes("hero") && (
@@ -1068,27 +1255,132 @@ const CreateWebsite = () => {
             )}
           </div>
 
-          {/* Submit / Reset */}
-          <div className="flex items-center justify-center gap-4">
-            <PrimaryButton
-              type="submit"
-              title={"Submit"}
-              isLoading={isCreateWebsiteLoading}
-              disabled={isCreateWebsiteLoading || creditsRemaining <= 0}
-            />
-            <button
-              type="button"
-              onClick={resetFormToEmpty}
-              className="px-6 py-2 bg-gray-200 text-black rounded-md"
+              {/* Submit / Reset */}
+              <div className="flex justify-center mb-3">
+                {workspaceId ? <CreditsIndicator workspaceId={workspaceId} /> : null}
+              </div>
+              <div className="flex items-center justify-center gap-4">
+                <PrimaryButton
+                  type="submit"
+                  title={"Submit"}
+                  isLoading={isCreateWebsiteLoading}
+                  disabled={isCreateWebsiteLoading || creditsRemaining <= 0}
+                />
+                <button
+                  type="button"
+                  onClick={resetFormToEmpty}
+                  className="px-6 py-2 bg-gray-200 text-black rounded-md"
+                >
+                  Reset
+                </button>
+              </div>
+            </form>
+
+            <Dialog
+              open={confirmSubmitOpen}
+              onClose={() => {
+                if (!isCreateWebsiteLoading) setConfirmSubmitOpen(false);
+              }}
+              fullWidth
+              maxWidth="sm"
+              PaperProps={{
+                sx: { borderRadius: 3, overflow: "hidden" },
+              }}
             >
-              Reset
-            </button>
+              <DialogTitle sx={{ pb: 1 }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-semibold text-slate-900">
+                    Confirm Submission
+                  </span>
+                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                    1 Credit
+                  </span>
+                </div>
+              </DialogTitle>
+              <DialogContent>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-700">
+                    You are about to submit this website update.
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Credits are deducted only after successful submission.
+                  </p>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-lg bg-white p-3 border border-slate-200">
+                      <div className="text-xs text-slate-500">Used</div>
+                      <div className="text-base font-semibold text-slate-900">{creditsUsed}</div>
+                    </div>
+                    <div className="rounded-lg bg-white p-3 border border-slate-200">
+                      <div className="text-xs text-slate-500">Remaining</div>
+                      <div className="text-base font-semibold text-slate-900">{creditsRemaining}</div>
+                    </div>
+                    <div className="rounded-lg bg-white p-3 border border-slate-200">
+                      <div className="text-xs text-slate-500">Monthly Limit</div>
+                      <div className="text-base font-semibold text-slate-900">{creditsLimit}</div>
+                    </div>
+                    <div className="rounded-lg bg-white p-3 border border-slate-200">
+                      <div className="text-xs text-slate-500">Days Left</div>
+                      <div className="text-base font-semibold text-slate-900">{daysLeftForRenew}</div>
+                    </div>
+                  </div>
+                  <div className="mt-3 rounded-lg bg-white p-3 border border-slate-200 text-xs text-slate-600">
+                    Resets on <span className="font-semibold text-slate-900">{creditResetText}</span>
+                  </div>
+                </div>
+              </DialogContent>
+              <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+                <Button
+                  onClick={() => setConfirmSubmitOpen(false)}
+                  disabled={isCreateWebsiteLoading}
+                  sx={{
+                    borderRadius: "6px",
+                    textTransform: "none",
+                    px: 3,
+                    py: 1,
+                    backgroundColor: "#e5e7eb",
+                    color: "#111111",
+                    "&:hover": {
+                      backgroundColor: "#d1d5db",
+                    },
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="contained"
+                  disabled={isCreateWebsiteLoading}
+                  sx={{
+                    borderRadius: "6px",
+                    textTransform: "none",
+                    px: 3,
+                    py: 1,
+                    backgroundColor: "#2563eb",
+                    color: "#ffffff",
+                    "&:hover": {
+                      backgroundColor: "#1d4ed8",
+                    },
+                  }}
+                  onClick={() => {
+                    if (pendingSubmitValues) {
+                      submitCreateWebsite(pendingSubmitValues, pendingSubmitEvent);
+                    }
+                    setConfirmSubmitOpen(false);
+                    setPendingSubmitValues(null);
+                    setPendingSubmitEvent(null);
+                  }}
+                >
+                  {isCreateWebsiteLoading ? "Submitting..." : "Confirm & Submit"}
+                </Button>
+              </DialogActions>
+            </Dialog>
           </div>
-        </form>
+        </PageFrame>
       </div>
     </div>
   );
 };
 
 export default CreateWebsite;
+
+
 
