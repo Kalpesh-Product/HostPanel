@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { TextField, MenuItem, CircularProgress } from "@mui/material";
 import PageFrame from "../../../../components/Pages/PageFrame";
@@ -13,6 +13,12 @@ import UploadFileInput from "../../../../components/UploadFileInput";
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
 import useAuth from "../../../../hooks/useAuth";
+import {
+  VERTICAL_CONFIG,
+  VERTICAL_KEYS,
+  type VerticalType,
+} from "../../../../constants/verticalConfig";
+import CreditsIndicator from "../../../../components/CreditsIndicator";
 
 const defaultProduct = {
   type: "",
@@ -74,6 +80,17 @@ const CreateWebsite = () => {
   });
 
   const selectedCompany = useSelector((state) => state.company.selectedCompany);
+  const workspaceId = selectedCompany?.workspaceId || auth?.user?.workspaceId;
+  const [creditsRemaining, setCreditsRemaining] = useState(5);
+  const verticalFromState =
+    selectedCompany?.vertical || auth?.user?.vertical || "co-working";
+  const vertical: VerticalType = (VERTICAL_KEYS as readonly string[]).includes(
+    verticalFromState,
+  )
+    ? verticalFromState
+    : "co-working";
+  const activeSections =
+    VERTICAL_CONFIG[vertical]?.sections ?? VERTICAL_CONFIG["co-working"].sections;
 
   const values = watch();
   const CHAR_LIMITS = {
@@ -110,6 +127,24 @@ const CreateWebsite = () => {
       });
     }
   }, [auth, reset, getValues]);
+
+  useEffect(() => {
+    const fetchCredits = async () => {
+      if (!workspaceId) return;
+      try {
+        const res = await axios.get(`/api/subscription/${workspaceId}`, {
+          headers: {
+            Authorization: `Bearer ${auth?.accessToken || ""}`,
+          },
+        });
+        setCreditsRemaining(Number(res?.data?.creditsRemaining ?? 5));
+      } catch (error) {
+        setCreditsRemaining(5);
+      }
+    };
+
+    fetchCredits();
+  }, [axios, workspaceId]);
 
   const {
     fields: aboutFields,
@@ -176,6 +211,7 @@ const CreateWebsite = () => {
 
     // ✅ Add companyId here
     fd.set("companyId", values.companyId || auth?.user?.companyId || "");
+    fd.set("vertical", vertical);
 
     // const srcFromIframe = raw.match(/src=["']([^"']+)["']/i)?.[1];
     // const srcUrl = values.mapUrl.split(" ")[1].split(" ")[1];
@@ -196,9 +232,19 @@ const CreateWebsite = () => {
       },
       onSuccess: () => {
         toast.success("Website created successfully");
+        setCreditsRemaining((prev) => Math.max(0, prev - 1));
         reset();
       },
       onError: (err) => {
+        if (err?.response?.status === 403 && err?.response?.data?.error === "no_credits_remaining") {
+          const resetDate = err?.response?.data?.resetDate
+            ? new Date(err.response.data.resetDate).toLocaleDateString()
+            : "-";
+          toast.error(
+            `You've used all 5 credits for this month. Your credits reset on ${resetDate}.`,
+          );
+          return;
+        }
         toast.error(err?.response?.data?.message || "Failed to create website");
         console.log(err?.response?.data?.message || err.message);
       },
@@ -250,6 +296,7 @@ const CreateWebsite = () => {
       <div className="p-4 flex flex-col gap-4">
         <div className="themePage-content-header bg-white flex flex-col gap-4">
           <h4 className="text-4xl text-left">Create Website</h4>
+          {workspaceId ? <CreditsIndicator workspaceId={workspaceId} /> : null}
           <hr />
         </div>
 
@@ -260,6 +307,7 @@ const CreateWebsite = () => {
         >
           <div className="md:grid grid-cols-2 sm:grid-cols-1 md:grid-cols-2 gap-4">
             {/* HERO / COMPANY */}
+            {activeSections.includes("hero") && (
             <div>
               <div className="py-4 border-b-default border-borderGray">
                 <span className="text-subtitle font-pmedium">Hero Section</span>
@@ -373,6 +421,7 @@ const CreateWebsite = () => {
                 />
               </div>
             </div>
+            )}
 
             {/* ABOUT */}
             {/* <div>
@@ -401,6 +450,7 @@ const CreateWebsite = () => {
             </div> */}
 
             {/* ABOUT */}
+            {activeSections.includes("about") && (
             <div>
               <div className="py-4 border-b-default border-borderGray">
                 <span className="text-subtitle font-pmedium">About</span>
@@ -456,8 +506,10 @@ const CreateWebsite = () => {
                 </div>
               </div>
             </div>
+            )}
 
             {/* PRODUCTS */}
+            {activeSections.includes("products") && (
             <div className="col-span-2">
               <div className="py-4 border-b-default border-borderGray">
                 <span className="text-subtitle font-pmedium">Products</span>
@@ -618,8 +670,10 @@ const CreateWebsite = () => {
                 </div>
               </div>
             </div>
+            )}
 
             {/* GALLERY */}
+            {activeSections.includes("gallery") && (
             <div>
               <div className="py-4 border-b-default border-borderGray">
                 <span className="text-subtitle font-pmedium">Gallery</span>
@@ -660,8 +714,10 @@ const CreateWebsite = () => {
                 />
               </div>
             </div>
+            )}
 
             {/* TESTIMONIALS */}
+            {activeSections.includes("testimonials") && (
             <div className="col-span-2">
               <div className="py-4 border-b-default border-borderGray">
                 <span className="text-subtitle font-pmedium">Testimonials</span>
@@ -818,8 +874,10 @@ const CreateWebsite = () => {
                 </div>
               </div>
             </div>
+            )}
 
             {/* CONTACT */}
+            {activeSections.includes("contact") && (
             <div>
               <div className="py-4 border-b-default border-borderGray">
                 <span className="text-subtitle font-pmedium">Contact</span>
@@ -954,8 +1012,10 @@ const CreateWebsite = () => {
                 />
               </div>
             </div>
+            )}
 
             {/* FOOTER */}
+            {activeSections.includes("footer") && (
             <div>
               <div className="py-4 border-b-default border-borderGray">
                 <span className="text-subtitle font-pmedium">Footer</span>
@@ -1005,6 +1065,7 @@ const CreateWebsite = () => {
                 />
               </div>
             </div>
+            )}
           </div>
 
           {/* Submit / Reset */}
@@ -1013,6 +1074,7 @@ const CreateWebsite = () => {
               type="submit"
               title={"Submit"}
               isLoading={isCreateWebsiteLoading}
+              disabled={isCreateWebsiteLoading || creditsRemaining <= 0}
             />
             <button
               type="button"

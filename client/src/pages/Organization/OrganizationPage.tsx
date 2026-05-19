@@ -274,18 +274,9 @@ export function OrganizationPage() {
           }
         );
       });
-      const planScopedDepartmentKeys = new Set(
-        nextWorkspaceDepartments
-          .map((department: any) => getDepartmentDefinition(department?.name || '')?.key)
-          .filter(Boolean),
-      );
-      const visibleDepartments =
-        planScopedDepartmentKeys.size > 0
-          ? mergedDepartments.filter((department) => {
-              const key = getDepartmentDefinition(department?.name || '')?.key;
-              return !!key && planScopedDepartmentKeys.has(key);
-            })
-          : mergedDepartments;
+      // Always show the full platform catalog (7 departments) on this screen.
+      // API workspace department payloads can temporarily be partial and hide one item.
+      const visibleDepartments = mergedDepartments;
       const nextMembers = Array.isArray(payload.teamMembers) ? payload.teamMembers : [];
       const nextTransferredMembers = Array.isArray(payload.transferredTeamMembers)
         ? payload.transferredTeamMembers
@@ -390,7 +381,15 @@ export function OrganizationPage() {
   const workspaceCount = getWorkspaceCount(
     (currentUser as { workspaceCount?: number } | null)?.workspaceCount,
   );
-  const shouldShowTransferredReferences = canManageDepartments && workspaceCount > 1;
+  const hasTransferredRecords =
+    transferredTeamMembers.length > 0 ||
+    departments.some(
+      (department) =>
+        Array.isArray((department as DepartmentOption)?.transferredEmployees) &&
+        ((department as DepartmentOption).transferredEmployees?.length || 0) > 0,
+    );
+  const shouldShowTransferredReferences =
+    canManageDepartments && workspaceCount > 1 && hasTransferredRecords;
   const formatJoinedDate = (value) => {
     if (!value) {
       return '—';

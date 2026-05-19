@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ArrowRight,
   Check,
@@ -13,6 +13,7 @@ import logo from "../../assets/WONO_LOGO_Black_TP.png";
 import Footer from "../../components/Footer";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useAuth from "../../hooks/useAuth";
+import { switchWorkspaceSession } from "../../services/workspace-session";
 import {
   clearInviteOnboardingState,
   readInviteOnboardingState,
@@ -24,6 +25,14 @@ import {
   type PlanCardData,
   type PlanType,
 } from "./workspaceSetupPlans";
+
+type UpgradeRequestStatus = "pending" | "approved" | "rejected";
+type UpgradeRequestState = {
+  companyId: string;
+  requestedPlan: string;
+  status: UpgradeRequestStatus;
+  requestedAt?: string;
+};
 
 const planCardHighlightStyles = {
   borderRadius: "40px",
@@ -249,6 +258,9 @@ const FinalizeSetupPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isUpgradeSubmitting, setIsUpgradeSubmitting] = useState(false);
+  const [upgradeRequestState, setUpgradeRequestState] = useState<UpgradeRequestState | null>(
+    null,
+  );
 
   const workspaceCount = getWorkspaceCount(
     (auth.user as { workspaceCount?: number } | null)?.workspaceCount,
@@ -272,6 +284,203 @@ const FinalizeSetupPage: React.FC = () => {
     },
   ].filter((row) => row.value);
 
+  const getUpgradeRequestStorageKey = (companyId: string) =>
+    `hostpanel_upgrade_request_status_${companyId}`;
+
+  const readStoredUpgradeRequest = (companyId: string): UpgradeRequestState | null => {
+    if (!companyId) return null;
+    try {
+      const raw = localStorage.getItem(getUpgradeRequestStorageKey(companyId));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as UpgradeRequestState;
+      if (!parsed?.status || !parsed?.requestedPlan) return null;
+      if (parsed.status === "approved" || parsed.status === "rejected") return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  };
+
+  const writeStoredUpgradeRequest = (requestState: UpgradeRequestState | null) => {
+    if (!requestState?.companyId) return;
+    const storageKey = getUpgradeRequestStorageKey(requestState.companyId);
+    if (requestState.status === "approved" || requestState.status === "rejected") {
+      localStorage.removeItem(storageKey);
+      return;
+    }
+    localStorage.setItem(storageKey, JSON.stringify(requestState));
+  };
+
+  const normalizeUpgradeStatus = (value: unknown): UpgradeRequestStatus | null => {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (
+      normalized === "pending" ||
+      normalized === "requested" ||
+      normalized === "in_review" ||
+      normalized === "under_review"
+    ) {
+      return "pending";
+    }
+    if (
+      normalized === "approved" ||
+      normalized === "accepted" ||
+      normalized === "completed" ||
+      normalized === "done"
+    ) {
+      return "approved";
+    }
+    if (
+      normalized === "rejected" ||
+      normalized === "declined" ||
+      normalized === "denied" ||
+      normalized === "cancelled"
+    ) {
+      return "rejected";
+    }
+    return null;
+  };
+
+  const resolveCompanyId = async (): Promise<string> => {
+    const authUser = auth.user as
+      | {
+          company?: string | { _id?: string; id?: string };
+          companyId?: string;
+          hostLeadCompanyId?: string;
+        }
+      | null;
+
+    let resolvedCompanyId = String(
+      hostLeadCompanyIdOverride ||
+        authUser?.hostLeadCompanyId ||
+        (typeof authUser?.company === "string"
+          ? authUser.company
+          : authUser?.company?._id || authUser?.company?.id) ||
+        authUser?.companyId ||
+        "",
+    ).trim();
+
+    const legacyCompanyId = String(authUser?.companyId || "").trim();
+    const looksLikeLegacyCompanyCode = /^CMP/i.test(legacyCompanyId);
+    const looksLikeLegacyResolvedId = /^CMP/i.test(resolvedCompanyId);
+    const companyNameHint = String(
+      (auth.user as { companyName?: string } | null)?.companyName ||
+        workspaceDetails.businessName ||
+        "",
+    )
+      .trim()
+      .toLowerCase();
+
+    if ((looksLikeLegacyCompanyCode || looksLikeLegacyResolvedId) && legacyCompanyId) {
+      try {
+        const hostCompaniesResponse = await axiosPrivate.get(
+          "http://localhost:5007/api/hosts/host-companies",
+        );
+        const hostCompanies =
+          (Array.isArray(hostCompaniesResponse?.data)
+            ? hostCompaniesResponse.data
+            : Array.isArray(hostCompaniesResponse?.data?.data)
+            ? hostCompaniesResponse.data.data
+            : Array.isArray(hostCompaniesResponse?.data?.companies)
+            ? hostCompaniesResponse.data.companies
+            : []) as Array<Record<string, unknown>>;
+
+        let matchedCompany = hostCompanies.find((company) => {
+          const leadId = String(company?.leadId || "").trim();
+          const companyId = String(company?.companyId || "").trim();
+          return leadId === legacyCompanyId || companyId === legacyCompanyId;
+        });
+
+        if (!matchedCompany && companyNameHint) {
+          matchedCompany = hostCompanies.find((company) => {
+            const name = String(company?.companyName || "").trim().toLowerCase();
+            return name && name === companyNameHint;
+          });
+        }
+
+        if (matchedCompany?.companyId) {
+          resolvedCompanyId = String(matchedCompany.companyId).trim();
+          localStorage.setItem("host_lead_company_id", resolvedCompanyId);
+        }
+      } catch {
+        // keep fallback
+      }
+    }
+
+    if (resolvedCompanyId && /^[a-f0-9]{24}$/i.test(resolvedCompanyId)) {
+      return "";
+    }
+
+    return resolvedCompanyId;
+  };
+
+  useEffect(() => {
+    if (isAdditionalWorkspaceMode) return;
+    let active = true;
+
+    const syncUpgradeRequestState = async () => {
+      const companyId = await resolveCompanyId();
+      if (!active || !companyId) return;
+
+      const localState = readStoredUpgradeRequest(companyId);
+      if (localState && active) setUpgradeRequestState(localState);
+
+      try {
+        const response = await axiosPrivate.get("http://localhost:5007/api/hosts/host-companies");
+        const companies = Array.isArray(response?.data)
+          ? response.data
+          : Array.isArray(response?.data?.data)
+          ? response.data.data
+          : Array.isArray(response?.data?.companies)
+          ? response.data.companies
+          : [];
+        const matched = companies.find(
+          (item: Record<string, unknown>) =>
+            String(item?.companyId || "").trim() === companyId ||
+            String(item?.leadId || "").trim() === companyId,
+        ) as Record<string, unknown> | undefined;
+        if (!matched) return;
+
+        const status =
+          normalizeUpgradeStatus(matched?.upgradeRequestStatus) ||
+          normalizeUpgradeStatus(matched?.planUpgradeStatus) ||
+          normalizeUpgradeStatus(matched?.requestedPlanStatus) ||
+          normalizeUpgradeStatus(matched?.upgradeStatus);
+        const requestedPlan = String(
+          matched?.requestedPlan || matched?.upgradeRequestedPlan || matched?.targetPlan || "",
+        )
+          .trim()
+          .toLowerCase();
+
+        if (!status || !requestedPlan) return;
+
+        const serverState: UpgradeRequestState = {
+          companyId,
+          requestedPlan,
+          status,
+          requestedAt: String(
+            matched?.requestedAt || matched?.upgradeRequestedAt || matched?.updatedAt || "",
+          ).trim(),
+        };
+
+        if (!active) return;
+        if (status === "pending") {
+          setUpgradeRequestState(serverState);
+          writeStoredUpgradeRequest(serverState);
+        } else {
+          setUpgradeRequestState(null);
+          writeStoredUpgradeRequest(serverState);
+        }
+      } catch {
+        // keep local fallback state
+      }
+    };
+
+    void syncUpgradeRequestState();
+    return () => {
+      active = false;
+    };
+  }, [axiosPrivate, auth.user, hostLeadCompanyIdOverride, isAdditionalWorkspaceMode, workspaceDetails.businessName]);
+
   const toggleGroup = (key: string) =>
     setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
@@ -279,75 +488,7 @@ const FinalizeSetupPage: React.FC = () => {
     const submitUpgradeRequest = async () => {
       try {
         setIsUpgradeSubmitting(true);
-        const authUser = auth.user as
-          | {
-              company?: string | { _id?: string; id?: string };
-              companyId?: string;
-              hostLeadCompanyId?: string;
-            }
-          | null;
-        let resolvedCompanyId = String(
-          hostLeadCompanyIdOverride ||
-            authUser?.hostLeadCompanyId ||
-            (typeof authUser?.company === "string"
-              ? authUser.company
-              : authUser?.company?._id || authUser?.company?.id) ||
-            authUser?.companyId ||
-            "",
-        ).trim();
-
-        const legacyCompanyId = String(authUser?.companyId || "").trim();
-        const looksLikeLegacyCompanyCode = /^CMP/i.test(legacyCompanyId);
-        const looksLikeLegacyResolvedId = /^CMP/i.test(resolvedCompanyId);
-        const companyNameHint = String(
-          (auth.user as { companyName?: string } | null)?.companyName ||
-            workspaceDetails.businessName ||
-            "",
-        )
-          .trim()
-          .toLowerCase();
-
-        // Permanent resolver: map legacy company code to master host lead company id.
-        if ((looksLikeLegacyCompanyCode || looksLikeLegacyResolvedId) && legacyCompanyId) {
-          try {
-            const hostCompaniesResponse = await axiosPrivate.get(
-              "http://localhost:5007/api/hosts/host-companies",
-            );
-            const hostCompanies =
-              (Array.isArray(hostCompaniesResponse?.data)
-                ? hostCompaniesResponse.data
-                : Array.isArray(hostCompaniesResponse?.data?.data)
-                ? hostCompaniesResponse.data.data
-                : Array.isArray(hostCompaniesResponse?.data?.companies)
-                ? hostCompaniesResponse.data.companies
-                : []) as Array<Record<string, unknown>>;
-
-            let matchedCompany = hostCompanies.find((company) => {
-              const leadId = String(company?.leadId || "").trim();
-              const companyId = String(company?.companyId || "").trim();
-              return leadId === legacyCompanyId || companyId === legacyCompanyId;
-            });
-
-            if (!matchedCompany && companyNameHint) {
-              matchedCompany = hostCompanies.find((company) => {
-                const name = String(company?.companyName || "").trim().toLowerCase();
-                return name && name === companyNameHint;
-              });
-            }
-
-            if (matchedCompany?.companyId) {
-              resolvedCompanyId = String(matchedCompany.companyId).trim();
-              localStorage.setItem("host_lead_company_id", resolvedCompanyId);
-            }
-          } catch {
-            // Keep fallback flow below.
-          }
-        }
-
-        if (resolvedCompanyId && /^[a-f0-9]{24}$/i.test(resolvedCompanyId)) {
-          resolvedCompanyId = "";
-        }
-
+        const resolvedCompanyId = await resolveCompanyId();
         if (!resolvedCompanyId) {
           toast.error("Company id not found in session. Please re-login and try again.");
           return;
@@ -356,6 +497,14 @@ const FinalizeSetupPage: React.FC = () => {
           companyId: resolvedCompanyId,
           requestedPlan: plan.key,
         });
+        const nextRequestState: UpgradeRequestState = {
+          companyId: resolvedCompanyId,
+          requestedPlan: String(plan.key || "").toLowerCase(),
+          status: "pending",
+          requestedAt: new Date().toISOString(),
+        };
+        setUpgradeRequestState(nextRequestState);
+        writeStoredUpgradeRequest(nextRequestState);
         setIsUpgradeModalOpen(false);
         toast.success(response.data?.message || "Request sent. Sales team will contact you soon.");
       } catch (error: any) {
@@ -367,6 +516,9 @@ const FinalizeSetupPage: React.FC = () => {
 
     void submitUpgradeRequest();
   };
+
+  const hasPendingUpgradeRequest = upgradeRequestState?.status === "pending";
+  const pendingUpgradePlan = String(upgradeRequestState?.requestedPlan || "").toLowerCase();
 
   const handleCompleteSetup = async () => {
     try {
@@ -388,9 +540,61 @@ const FinalizeSetupPage: React.FC = () => {
         }),
       );
       clearInviteOnboardingState();
+      const nextUser = response.data?.user || auth.user || null;
+      const createdWorkspaceId = String(
+        response?.data?.data?.workspaceId ||
+          response?.data?.workspaceId ||
+          response?.data?.workspace?._id ||
+          response?.data?.workspace?.id ||
+          "",
+      ).trim();
+      let activeWorkspaceId = createdWorkspaceId;
+      let nextAccessibleWorkspaces = Array.isArray(
+        (nextUser as { accessibleWorkspaces?: unknown[] } | null)?.accessibleWorkspaces,
+      )
+        ? ((nextUser as { accessibleWorkspaces?: unknown[] } | null)?.accessibleWorkspaces as Record<string, unknown>[])
+        : [];
+
+      if (!activeWorkspaceId && nextAccessibleWorkspaces.length) {
+        const matchedWorkspace = nextAccessibleWorkspaces.find((workspace) => {
+          const normalizedWorkspaceName = String(workspace?.workspaceName || "")
+            .trim()
+            .toLowerCase();
+          return (
+            normalizedWorkspaceName &&
+            normalizedWorkspaceName ===
+              String(workspaceDetails?.workspaceName || "").trim().toLowerCase()
+          );
+        });
+        activeWorkspaceId = String(matchedWorkspace?.id || matchedWorkspace?._id || "").trim();
+      }
+
+      if (activeWorkspaceId) {
+        try {
+          const switchResponse = await switchWorkspaceSession(axiosPrivate, activeWorkspaceId);
+          const switchedWorkspaceId = String(
+            switchResponse?.data?.data?.activeWorkspaceId || activeWorkspaceId,
+          );
+          activeWorkspaceId = switchedWorkspaceId;
+          nextAccessibleWorkspaces = Array.isArray(switchResponse?.data?.data?.accessibleWorkspaces)
+            ? switchResponse.data.data.accessibleWorkspaces
+            : nextAccessibleWorkspaces;
+        } catch {
+          // If switch API fails, continue with the created workspace context we already have.
+        }
+      }
+
       setAuth((prevState) => ({
         ...prevState,
-        user: response.data?.user || prevState.user,
+        user: nextUser
+          ? {
+              ...(nextUser as Record<string, unknown>),
+              ...(activeWorkspaceId ? { primaryWorkspace: activeWorkspaceId } : {}),
+              ...(nextAccessibleWorkspaces.length
+                ? { accessibleWorkspaces: nextAccessibleWorkspaces }
+                : {}),
+            }
+          : prevState.user,
       }));
       toast.success(response.data?.message || "Workspace created successfully.");
       navigate("/company-settings");
@@ -477,8 +681,13 @@ const FinalizeSetupPage: React.FC = () => {
                     : undefined
                 }
                 secondaryActionLabel={
-                  !isAdditionalWorkspaceMode && upgradePlanOptions.length ? "Upgrade Plan" : undefined
+                  !isAdditionalWorkspaceMode && upgradePlanOptions.length
+                    ? hasPendingUpgradeRequest
+                      ? "Upgrade Requested"
+                      : "Upgrade Plan"
+                    : undefined
                 }
+                actionDisabled={hasPendingUpgradeRequest}
               />
             </div>
 
@@ -566,15 +775,26 @@ const FinalizeSetupPage: React.FC = () => {
             </div>
 
             <div className="flex flex-wrap justify-center gap-4 mx-auto">
+              {hasPendingUpgradeRequest ? (
+                <div className="w-full rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-center text-[13px] font-semibold text-amber-800">
+                  Upgrade request for {pendingUpgradePlan.toUpperCase()} is pending. It will stay saved until approved or rejected.
+                </div>
+              ) : null}
               {upgradePlanOptions.map((plan) => (
                 <div key={plan.key} className="w-full max-w-[285px]">
                   <PlanCard
                     plan={plan}
                     openGroups={openGroups}
                     toggleGroup={toggleGroup}
-                    actionLabel={isUpgradeSubmitting ? "Sending..." : "Upgrade Plan"}
+                    actionLabel={
+                      pendingUpgradePlan === plan.key
+                        ? "Request Pending"
+                        : isUpgradeSubmitting
+                        ? "Sending..."
+                        : "Upgrade Plan"
+                    }
                     onAction={() => handleUpgradeAction(plan)}
-                    actionDisabled={isUpgradeSubmitting}
+                    actionDisabled={isUpgradeSubmitting || hasPendingUpgradeRequest}
                     isSelected={false}
                     footerNote={
                       selectedPlan === "basic"

@@ -28,6 +28,18 @@ const normalizeRoleForStorage = (role = "") => {
         return "super_admin";
     return normalized || "employee";
 };
+const getRoleBand = (role = "") => {
+    const normalized = normalizeRoleForStorage(role);
+    if (normalized === "owner")
+        return "owner";
+    if (normalized === "super_admin")
+        return "super_admin";
+    if (normalized === "admin" || normalized === "admin_manager")
+        return "admin";
+    if (normalized === "manager")
+        return "manager";
+    return "employee";
+};
 const buildLinkedWorkspaceOptions = async (workspace) => {
     if (!workspace?.owner)
         return [];
@@ -428,7 +440,30 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
         });
         if (!member)
             return res.status(404).json({ message: "Member not found." });
-        member.role = normalizeRoleForStorage(req.body?.role || member.role);
+        const previousRoleBand = getRoleBand(member.role);
+        const nextRole = normalizeRoleForStorage(req.body?.role || member.role);
+        const nextRoleBand = getRoleBand(nextRole);
+        const requestedDepartments = Array.isArray(req.body?.departments) ? req.body.departments : [];
+        const normalizedDepartments = requestedDepartments
+            .map((departmentId) => workspace.organizationDepartments?.id(departmentId)?.name || String(departmentId || "").trim())
+            .filter(Boolean);
+        const isSuperAdminToAdmin = previousRoleBand === "super_admin" && nextRoleBand === "admin";
+        const isAdminToManager = previousRoleBand === "admin" && nextRoleBand === "manager";
+        const isManagerToAdmin = previousRoleBand === "manager" && nextRoleBand === "admin";
+        if ((isSuperAdminToAdmin || isManagerToAdmin) && normalizedDepartments.length === 0) {
+            return res.status(400).json({
+                message: "Select at least one department for this role change.",
+            });
+        }
+        if (isAdminToManager && normalizedDepartments.length !== 1) {
+            return res.status(400).json({
+                message: "Manager role requires exactly one department.",
+            });
+        }
+        member.role = nextRole;
+        if (isSuperAdminToAdmin || isAdminToManager || isManagerToAdmin) {
+            member.departments = normalizedDepartments;
+        }
         await member.save();
         return res.status(200).json({ message: "Member role updated successfully." });
     }
@@ -564,6 +599,14 @@ export const transferOrganizationOwnership = async (req, res, next) => {
         });
         if (!targetMember)
             return res.status(404).json({ message: "Selected member not found." });
+        const normalizedTargetRole = String(targetMember.role || "")
+            .toLowerCase()
+            .replace(/-/g, "_");
+        if (normalizedTargetRole !== "super_admin") {
+            return res.status(400).json({
+                message: "Founder access can only be transferred to a Super Admin.",
+            });
+        }
         const nextOwner = await HostUser.findById(targetMember.user);
         if (!nextOwner)
             return res.status(404).json({ message: "Selected user not found." });

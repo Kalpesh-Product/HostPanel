@@ -77,6 +77,120 @@ const templateSchema = new mongoose.Schema({
     //footer
     registeredCompanyName: { type: String },
     copyrightText: { type: String },
+    vertical: {
+        type: String,
+        enum: [
+            "co-working",
+            "co-living",
+            "workation",
+            "hostel",
+            "meeting-rooms",
+            "cafe",
+        ],
+        default: "co-working",
+    },
+    themeId: { type: String, default: "co-working-default" },
+    activeSections: {
+        type: [String],
+        default: [
+            "hero",
+            "about",
+            "products",
+            "gallery",
+            "testimonials",
+            "contact",
+            "footer",
+        ],
+    },
+    rooms: {
+        type: [
+            {
+                title: { type: String },
+                description: { type: String },
+                images: [
+                    {
+                        id: { type: String },
+                        url: { type: String },
+                    },
+                ],
+                price: { type: String },
+            },
+        ],
+        default: [],
+    },
+    packages: {
+        type: [
+            {
+                title: { type: String },
+                description: { type: String },
+                price: { type: String },
+                duration: { type: String },
+                images: [
+                    {
+                        id: { type: String },
+                        url: { type: String },
+                    },
+                ],
+            },
+        ],
+        default: [],
+    },
+    dorms: {
+        type: [
+            {
+                title: { type: String },
+                description: { type: String },
+                capacity: { type: Number },
+                images: [
+                    {
+                        id: { type: String },
+                        url: { type: String },
+                    },
+                ],
+                price: { type: String },
+            },
+        ],
+        default: [],
+    },
+    menuItems: {
+        type: [
+            {
+                category: { type: String },
+                name: { type: String },
+                description: { type: String },
+                price: { type: String },
+                image: {
+                    id: { type: String },
+                    url: { type: String },
+                },
+            },
+        ],
+        default: [],
+    },
+    amenities: {
+        type: [
+            {
+                title: { type: String },
+                description: { type: String },
+                icon: { type: String },
+            },
+        ],
+        default: [],
+    },
+    pricing: {
+        type: [
+            {
+                title: { type: String },
+                price: { type: String },
+                duration: { type: String },
+                features: [{ type: String }],
+            },
+        ],
+        default: [],
+    },
+    isPublished: { type: Boolean, default: false },
+    deployedUrl: { type: String, default: null },
+    deployedAt: { type: Date, default: null },
 }, { timestamps: true });
 const WebsiteTemplate = mongoose.model("WebsiteTemplate", templateSchema);
 export default WebsiteTemplate;

@@ -16,6 +16,8 @@ import hostUserRoutes from "./routes/hostUserRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
 import workspaceRoutes from "./routes/workspaceRoutes.js";
 import organizationRoutes from "./routes/organizationRoutes.js";
+import subscriptionRoutes from "./routes/subscriptionRoutes.js";
+import supportTicketRoutes from "./routes/supportTicketRoutes.js";
 
 const app = express();
 dotenv.config();
@@ -48,6 +50,8 @@ app.use("/api/profile", verifyJwt, hostUserRoutes);
 app.use("/api/review", verifyJwt, reviewRoutes);
 app.use("/api/workspaces", verifyJwt, workspaceRoutes);
 app.use("/api/organization", verifyJwt, organizationRoutes);
+app.use("/api/subscription", verifyJwt, subscriptionRoutes);
+app.use("/api/support-tickets", verifyJwt, supportTicketRoutes);
 
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {

@@ -1,0 +1,63 @@
+// @ts-nocheck
+import { useFieldArray } from "react-hook-form";
+import { TextField } from "@mui/material";
+
+const AmenitiesSection = ({ control, register }) => {
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "amenities",
+  });
+
+  return (
+    <div className="col-span-2">
+      <div className="py-4 border-b-default border-borderGray">
+        <span className="text-subtitle font-pmedium">Amenities</span>
+      </div>
+      <div className="grid grid-cols-1 gap-4 p-4">
+        {fields.map((field, index) => (
+          <div key={field.id} className="rounded-xl border border-borderGray p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-pmedium">Amenity #{index + 1}</span>
+              <button
+                type="button"
+                onClick={() => remove(index)}
+                className="text-sm text-red-600"
+              >
+                Remove
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <TextField
+                size="small"
+                label="Title"
+                fullWidth
+                {...register(`amenities.${index}.title`)}
+              />
+              <TextField
+                size="small"
+                label="Icon"
+                fullWidth
+                {...register(`amenities.${index}.icon`)}
+              />
+              <TextField
+                size="small"
+                label="Description"
+                fullWidth
+                {...register(`amenities.${index}.description`)}
+              />
+            </div>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => append({ title: "", description: "", icon: "" })}
+          className="text-sm text-primary"
+        >
+          + Add item
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default AmenitiesSection;

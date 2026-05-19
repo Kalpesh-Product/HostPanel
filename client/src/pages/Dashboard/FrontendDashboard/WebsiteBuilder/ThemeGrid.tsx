@@ -25,10 +25,29 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import { CircularProgress, Skeleton } from "@mui/material";
+import { useSelector } from "react-redux";
+import useAuth from "../../../../hooks/useAuth";
+import {
+  VERTICAL_KEYS,
+  VERTICAL_CONFIG,
+  type VerticalType,
+} from "../../../../constants/verticalConfig";
 
 const ThemeGrid = () => {
   const navigate = useNavigate();
   const axios = useAxiosPrivate();
+  const { auth } = useAuth();
+  const selectedCompany = useSelector((state) => state.company.selectedCompany);
+  const verticalFromState =
+    selectedCompany?.vertical || auth?.user?.vertical || "co-working";
+  const currentVertical: VerticalType = (
+    VERTICAL_KEYS as readonly string[]
+  ).includes(verticalFromState)
+    ? verticalFromState
+    : "co-working";
+  const fallbackVertical = VERTICAL_CONFIG[currentVertical]
+    ? currentVertical
+    : "co-working";
 
   const fetchTemplates = async () => {
     try {
@@ -50,41 +69,75 @@ const ThemeGrid = () => {
       mockup: CoWorkingMewoMockup,
       alt: "CoWorkingMewo",
       tag: "co-working",
+      vertical: "co-working",
     },
     {
       src: CoWorkingImage,
       mockup: CoWorkingImageMockup,
       alt: "Co-Working Image",
       tag: "co-working",
+      vertical: "co-working",
     },
     {
       src: Boutique,
       mockup: BoutiqueMockup,
       alt: "Boutique Image",
       tag: "boutique",
+      vertical: "co-working",
     },
     {
       src: CoLivingImage,
       mockup: CoLivingImageMockup,
       alt: "Co-Living Image",
       tag: "co-living",
+      vertical: "co-living",
     },
     {
       src: CoWorkingImage_2,
       mockup: CoWorkingNomad,
       alt: "CoLivingImage_2",
       tag: "co-working",
+      vertical: "co-working",
     },
     {
       src: CoWorkingImage_3,
       mockup: CoWorkingImage_3_Mockup,
       alt: "CoLivingImage_3",
       tag: "co-working",
+      vertical: "co-working",
     },
-    { src: Cafe_2, mockup: Cafe2Mockup, alt: "Cafe_2", tag: "cafe" },
-    { src: Cafe_3, mockup: Cafe3Mockup, alt: "Cafe_3", tag: "cafe" },
-    { src: Hostels, mockup: Hostels_mockup, alt: "Hostels", tag: "hostels" },
+    {
+      src: Cafe_2,
+      mockup: Cafe2Mockup,
+      alt: "Cafe_2",
+      tag: "cafe",
+      vertical: "cafe",
+    },
+    {
+      src: Cafe_3,
+      mockup: Cafe3Mockup,
+      alt: "Cafe_3",
+      tag: "cafe",
+      vertical: "cafe",
+    },
+    {
+      src: Hostels,
+      mockup: Hostels_mockup,
+      alt: "Hostels",
+      tag: "hostel",
+      vertical: "hostel",
+    },
   ];
+
+  const filteredThemeImages = themeImages.filter((image) => {
+    const imageVertical = image.vertical || "co-working";
+    return imageVertical === "all" || imageVertical === fallbackVertical;
+  });
+
+  const filteredTemplates = (templates || []).filter((template) => {
+    const templateVertical = template?.vertical || "co-working";
+    return templateVertical === "all" || templateVertical === fallbackVertical;
+  });
 
   const themeWebsiteGridData = [
     {
@@ -128,7 +181,7 @@ const ThemeGrid = () => {
 
         {!isTemplatesPending ? (
           <div className="grid grid-cols-2 sm:grid-cols1 gap-6">
-            {templates.map((template, index) => (
+            {filteredTemplates.map((template, index) => (
               <div>
                 <div
                   className="theme-grid w-full h-full overflow-hidden shadow-lg rounded-xl"
@@ -138,7 +191,7 @@ const ThemeGrid = () => {
                       state: {
                         templateName: template.templateName,
                         pageName: template.pages[0]?.pageName,
-                        tag: "co-working",
+                        tag: template?.vertical || "co-working",
                         link : "https://www.biznest.co.in/"
                       },
                     })
@@ -152,7 +205,7 @@ const ThemeGrid = () => {
                 </div>
               </div>
             ))}
-            {themeImages.map((image, index) => (
+            {filteredThemeImages.map((image, index) => (
               <div
                 className="theme-grid w-full h-full overflow-hidden shadow-lg rounded-xl"
                 key={index}

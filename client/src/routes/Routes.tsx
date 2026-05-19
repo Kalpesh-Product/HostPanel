@@ -159,6 +159,7 @@ import FinalizeSetupPage from "../pages/WorkspaceSetup/FinalizeSetupPage";
 import OrganizationPage from "../pages/Organization/OrganizationPage";
 import WorkspaceSettingsPage from "../pages/WorkspaceSettings/WorkspaceSettingsPage";
 import WorkspaceManagementPage from "../pages/WorkspaceSettings/WorkspaceManagementPage";
+import CustomerSupportPage from "../pages/CustomerSupport/CustomerSupportPage";
 
 export const routes = createBrowserRouter([
   {
@@ -465,6 +466,10 @@ export const routes = createBrowserRouter([
                   {
                     path: "workspace-management",
                     element: <WorkspaceManagementPage />,
+                  },
+                  {
+                    path: "customer-support",
+                    element: <CustomerSupportPage />,
                   },
                 ],
               },
