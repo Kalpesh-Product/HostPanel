@@ -62,7 +62,7 @@ export const removeOrganizationActingManager = (
 export const updateOrganizationMemberRole = (
   axiosPrivate: AxiosInstance,
   memberId: string,
-  payload: { role: string },
+  payload: { role: string; departments?: string[] },
 ) => axiosPrivate.patch(`/api/organization/members/${memberId}/role`, payload);
 
 export const transferOrganizationMember = (

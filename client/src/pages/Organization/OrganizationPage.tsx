@@ -274,18 +274,30 @@ export function OrganizationPage() {
           }
         );
       });
+      const planScopedDepartmentKeys = new Set(
+        nextWorkspaceDepartments
+          .map((department: any) => getDepartmentDefinition(department?.name || '')?.key)
+          .filter(Boolean),
+      );
+      const visibleDepartments =
+        planScopedDepartmentKeys.size > 0
+          ? mergedDepartments.filter((department) => {
+              const key = getDepartmentDefinition(department?.name || '')?.key;
+              return !!key && planScopedDepartmentKeys.has(key);
+            })
+          : mergedDepartments;
       const nextMembers = Array.isArray(payload.teamMembers) ? payload.teamMembers : [];
       const nextTransferredMembers = Array.isArray(payload.transferredTeamMembers)
         ? payload.transferredTeamMembers
         : [];
 
       setWorkspaceOrganizationDepartments(nextWorkspaceDepartments);
-      setDepartments(mergedDepartments);
+      setDepartments(visibleDepartments);
       setTeamMembers(nextMembers);
       setTransferredTeamMembers(nextTransferredMembers);
       setPermissions(payload.metrics || {});
       setDepartmentFilter((current) =>
-        current === 'all' || mergedDepartments.some((department) => department.id === current)
+        current === 'all' || visibleDepartments.some((department) => department.id === current)
           ? current
           : 'all',
       );
@@ -294,10 +306,10 @@ export function OrganizationPage() {
         const targetId = preferredDepartmentId || current?.id;
 
         if (targetId) {
-          return mergedDepartments.find((department) => department.id === targetId) || mergedDepartments[0] || null;
+          return visibleDepartments.find((department) => department.id === targetId) || visibleDepartments[0] || null;
         }
 
-        return mergedDepartments[0] || null;
+        return visibleDepartments[0] || null;
       });
     } catch (error) {
       console.error("Failed to load organization overview", error);
@@ -688,6 +700,14 @@ export function OrganizationPage() {
     }
   };
 
+  const getInitials = (name) => {
+    if (!name) return '?';
+    const parts = String(name).trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  };
+
   if (isLoading) {
     return (
       <div className="p-6 lg:p-8">Loading organization...</div>
@@ -702,7 +722,7 @@ export function OrganizationPage() {
       <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
         <div>
           <h1 className="text-base lg:text-lg font-black tracking-tight text-slate-800">Organization Management</h1>
-          <p className="text-xs font-medium text-slate-500 mt-1">Manage structural hierarchy, department rosters, and platform access.</p>
+          <p className="text-xs font-medium text-slate-500 mt-1">Manage platform users and organization access.</p>
         </div>
       </div>
 
@@ -776,13 +796,13 @@ export function OrganizationPage() {
 
             <div className="px-4 pb-3.5 flex flex-col md:flex-row gap-2.5 md:gap-3">
               <div className="w-full md:w-48">
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Status</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Status</label>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                 >
-                  <option value="all">All Statuses</option>
+                  <option value="all">All Status</option>
                   <option value="pending">Pending</option>
                   <option value="accepted">Accepted</option>
                   <option value="joined">Joined</option>
@@ -791,11 +811,11 @@ export function OrganizationPage() {
                 </select>
               </div>
               <div className="w-full md:w-60">
-                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Department</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Department</label>
                 <select
                   value={departmentFilter}
                   onChange={(e) => setDepartmentFilter(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                 >
                   <option value="all">All Departments</option>
                   {departments.map((department) => (
@@ -809,53 +829,61 @@ export function OrganizationPage() {
 
             <div className="overflow-x-auto flex-1 p-2">
             <table className="w-full text-left">
-              <thead className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 sticky top-0 bg-white z-10">
+              <thead className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 sticky top-0 bg-white z-10">
                 <tr>
-                  <th className="px-6 py-4">Platform User</th>
-                  <th className="px-6 py-4">Access Role</th>
-                  <th className="px-6 py-4">Department</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4 text-right">Access</th>
+                  <th className="px-3.5 py-2">Platform User</th>
+                  <th className="px-3.5 py-2">Access Role</th>
+                  <th className="px-3.5 py-2">Department</th>
+                  <th className="px-3.5 py-2">Status</th>
+                  <th className="px-4 py-3 text-right">Access</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {filteredTeamMembers.map((member) => (
-                  <tr key={member.id} className={`transition-all ${member.status === 'disabled' ? 'bg-slate-50/50 opacity-75' : 'hover:bg-blue-50/30'}`}>
-                    <td className="px-6 py-4">
+                {filteredTeamMembers.map((member) => {
+                  const normalizedRole = normalizeRoleValue(member.role);
+                  const normalizedDepartments = Array.isArray(member.departmentNames)
+                    ? member.departmentNames.filter(Boolean)
+                    : [];
+                  const hasAllDepartmentsAccess =
+                    (normalizedRole === 'owner' || normalizedRole === 'super-admin') &&
+                    (normalizedDepartments.length === 0 ||
+                      (departments.length > 0 && normalizedDepartments.length >= departments.length));
+                  const departmentBadges = hasAllDepartmentsAccess
+                    ? ['All Departments']
+                    : normalizedDepartments;
+
+                  return (
+                  <tr key={member.id} className={`transition-all ${normalizedRole === 'owner' ? 'bg-slate-50/50' : member.status === 'disabled' ? 'bg-slate-50/50 opacity-75' : 'hover:bg-blue-50/30'}`}>
+                    <td className="px-3.5 py-2">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-black font-bold text-sm shadow-sm ${member.status === 'disabled' ? 'bg-slate-400' : 'bg-linear-to-br from-[#2563EB] to-blue-700'}`}>
-                          {member.name?.charAt(0) ?? '?'}
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-[10px] shadow-sm ${normalizedRole === 'owner' ? 'bg-[#111827]' : 'bg-gradient-to-br from-[#2563EB] to-blue-700'}`}>
+                          {getInitials(member.name)}
                         </div>
                         <div>
-                          <div className="font-bold text-slate-900">{member.name}</div>
-                          <div className="text-[12px] font-medium text-slate-500 mt-0.5">{member.email}</div>
+                          <div className="font-bold text-[11px] text-slate-900">{member.name}</div>
+                          <div className="text-[10px] font-medium text-slate-500">{member.email}</div>
                           {member.employeeId && (
-                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">
+                            <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-0.5">
                               {member.employeeId}
                             </div>
                           )}
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">{getRoleBadge(member.role)}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1.5 max-w-62.5">
-                        {((member.departmentNames && member.departmentNames.length > 0)
-                          ? member.departmentNames
-                          : member.role === 'owner'
-                            ? departments.map((department) => department.name)
-                            : []
-                        ).map((dept, i) => (
-                          <span key={i} className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold tracking-wide">{normalizeDepartmentLabel(dept)}</span>
+                    <td className="px-3.5 py-2">{getRoleBadge(member.role)}</td>
+                    <td className="px-3.5 py-2">
+                      <div className="flex flex-wrap gap-1.5 max-w-56">
+                        {departmentBadges.map((dept, i) => (
+                          <span key={i} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[9px] font-bold tracking-wide">{normalizeDepartmentLabel(dept)}</span>
                         ))}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3.5 py-2">
                       <div className="flex items-center justify-center">
                         {getStatusBadge(member.status)}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3.5 py-2">
                       <div className="flex flex-col items-end justify-center gap-1.5">
                         {(() => {
                           const isSelf = member.userId && String(member.userId) === currentUserId;
@@ -891,7 +919,7 @@ export function OrganizationPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                )})}
                 {filteredTeamMembers.length === 0 && (
                   <tr><td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-bold"><Shield size={32} className="mx-auto mb-3 opacity-50"/>No platform users found.</td></tr>
                 )}
@@ -993,15 +1021,7 @@ export function OrganizationPage() {
                 Review existing departments and enable the ones that were missed during setup.
               </p>
             </div>
-            {canManageDepartments ? (
-              <button
-                onClick={() => openDepartmentModal()}
-                className="w-full md:w-auto px-5 py-2.5 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-bold text-[13px] transition-all shadow-sm shadow-blue-200 flex items-center justify-center gap-2"
-              >
-                <Plus size={16} />
-                Manage Departments
-              </button>
-            ) : null}
+
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-7">
@@ -1071,15 +1091,7 @@ export function OrganizationPage() {
                 <p className="text-[12px] text-slate-500 max-w-2xl leading-relaxed">{selectedDepartment.description}</p>
               </div>
               <div className="flex gap-2.5 w-full md:w-auto">
-                {canManageDepartments ? (
-                  <button
-                    onClick={() => openDepartmentModal(selectedDepartment)}
-                    className="flex-1 md:flex-none px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-bold text-[12px] transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <Plus size={16} />
-                    Manage Departments
-                  </button>
-                ) : null}
+
                 <button onClick={() => setShowEmployeeModal(true)} className="flex-1 md:flex-none px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-bold text-[12px] transition-all shadow-sm shadow-blue-200 flex items-center justify-center gap-1.5">
                   <UserPlus size={16}/> Add Employee
                 </button>

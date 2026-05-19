@@ -149,8 +149,14 @@ const LoginPage = () => {
       setAuthTabSessionActive();
       console.log(response.data.user);
       toast.success("Successfully logged in");
+      const nextUser = response?.data?.user || null;
+      const multiWorkspaceAccess =
+        Array.isArray(nextUser?.accessibleWorkspaces) &&
+        nextUser.accessibleWorkspaces.length > 1;
       if (shouldGoToCreateWorkspace(response?.data?.user)) {
         navigate("/create-workspace", { replace: true });
+      } else if (multiWorkspaceAccess) {
+        navigate("/select-workspace", { replace: true });
       } else {
         navigate("/company-settings", { replace: true });
       }

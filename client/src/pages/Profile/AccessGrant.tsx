@@ -377,6 +377,19 @@ export default function AccessGrantsPage() {
   const selectedTransferDepartmentOptions = Array.isArray(selectedTransferWorkspace?.departments)
     ? selectedTransferWorkspace.departments
     : [];
+  const currentWorkspaceDepartmentOptions = useMemo(
+    () =>
+      Array.isArray(workspace?.organizationDepartments)
+        ? workspace.organizationDepartments
+            .filter((department) => department?.isActive !== false)
+            .map((department) => ({
+              id: String(department?._id || ''),
+              name: String(department?.name || '').trim(),
+            }))
+            .filter((department) => department.id && department.name)
+        : [],
+    [workspace],
+  );
   const isAdminTransferRole = workspaceTransferForm.role === 'admin';
   const isSuperAdminTransferRole = workspaceTransferForm.role === 'super_admin';
   const selectedSingleTransferDepartmentId = workspaceTransferForm.departmentIds[0] || '';
@@ -728,19 +741,41 @@ export default function AccessGrantsPage() {
     }
 
     if (!roleActionWarning || roleActionWarning.type !== 'promote') {
+      const isManagerToAdmin = normalizeRole(selectedUser.rawRole) === 'manager' && normalizeRole(nextRole) === 'admin';
+      const selectedDepartmentIds = currentWorkspaceDepartmentOptions
+        .filter((department) =>
+          Array.isArray(selectedUser?.departments) &&
+          selectedUser.departments.some((name) => String(name || '').trim().toLowerCase() === department.name.toLowerCase()),
+        )
+        .map((department) => department.id);
       setRoleActionWarning({
         type: 'promote',
         nextRole,
         title: `Confirm promotion for ${selectedUser.name}`,
         message: `${selectedUser.name} will be promoted to ${getRoleLabel(nextRole)}.`,
-        note: "This will expand the user's access to the next role level.",
+        note: isManagerToAdmin
+          ? "Select departments this admin should manage."
+          : "This will expand the user's access to the next role level.",
+        requiresDepartments: isManagerToAdmin,
+        departmentMode: 'multi',
+        departmentIds: selectedDepartmentIds,
       });
+      return;
+    }
+
+    const requiresDepartments = Boolean(roleActionWarning.requiresDepartments);
+    const departmentIds = Array.isArray(roleActionWarning.departmentIds) ? roleActionWarning.departmentIds.filter(Boolean) : [];
+    if (requiresDepartments && departmentIds.length === 0) {
+      toast.error('Select at least one department for this role change.');
       return;
     }
 
     setIsSaving(true);
     try {
-      const response = await updateOrganizationMemberRole(axiosPrivate, selectedUser.id, { role: roleActionWarning.nextRole || nextRole });
+      const response = await updateOrganizationMemberRole(axiosPrivate, selectedUser.id, {
+        role: roleActionWarning.nextRole || nextRole,
+        departments: requiresDepartments ? departmentIds : [],
+      });
       await reloadFromResponse(response);
       setShowDetailPanel(false);
       setSelectedUser(null);
@@ -770,19 +805,54 @@ export default function AccessGrantsPage() {
     }
 
     if (!roleActionWarning || roleActionWarning.type !== 'demote') {
+      const currentNormalizedRole = normalizeRole(selectedUser.rawRole);
+      const nextNormalizedRole = normalizeRole(nextRole);
+      const isSuperAdminToAdmin = currentNormalizedRole === 'super_admin' && nextNormalizedRole === 'admin';
+      const isAdminToManager = currentNormalizedRole === 'admin' && nextNormalizedRole === 'manager';
+      const selectedDepartmentIds = currentWorkspaceDepartmentOptions
+        .filter((department) =>
+          Array.isArray(selectedUser?.departments) &&
+          selectedUser.departments.some((name) => String(name || '').trim().toLowerCase() === department.name.toLowerCase()),
+        )
+        .map((department) => department.id);
       setRoleActionWarning({
         type: 'demote',
         nextRole,
         title: `Confirm demotion for ${selectedUser.name}`,
         message: `${selectedUser.name} will be demoted to ${getRoleLabel(nextRole)}.`,
-        note: "This will reduce the user's access to the next lower role level.",
+        note: isSuperAdminToAdmin
+          ? 'Select departments this admin can access after demotion.'
+          : isAdminToManager
+            ? 'Select one department this manager can access.'
+            : "This will reduce the user's access to the next lower role level.",
+        requiresDepartments: isSuperAdminToAdmin || isAdminToManager,
+        departmentMode: isAdminToManager ? 'single' : 'multi',
+        departmentIds:
+          isAdminToManager
+            ? [selectedDepartmentIds[0] || currentWorkspaceDepartmentOptions[0]?.id || ''].filter(Boolean)
+            : selectedDepartmentIds,
       });
+      return;
+    }
+
+    const requiresDepartments = Boolean(roleActionWarning.requiresDepartments);
+    const isSingleDepartmentMode = roleActionWarning.departmentMode === 'single';
+    const departmentIds = Array.isArray(roleActionWarning.departmentIds) ? roleActionWarning.departmentIds.filter(Boolean) : [];
+    if (requiresDepartments && departmentIds.length === 0) {
+      toast.error('Select at least one department for this role change.');
+      return;
+    }
+    if (requiresDepartments && isSingleDepartmentMode && departmentIds.length !== 1) {
+      toast.error('Select exactly one department for manager access.');
       return;
     }
 
     setIsSaving(true);
     try {
-      const response = await updateOrganizationMemberRole(axiosPrivate, selectedUser.id, { role: roleActionWarning.nextRole || nextRole });
+      const response = await updateOrganizationMemberRole(axiosPrivate, selectedUser.id, {
+        role: roleActionWarning.nextRole || nextRole,
+        departments: requiresDepartments ? departmentIds : [],
+      });
       await reloadFromResponse(response);
       setShowDetailPanel(false);
       setSelectedUser(null);
@@ -900,6 +970,9 @@ export default function AccessGrantsPage() {
 
   const nextHigherRole = selectedUser ? getNextHigherRole(selectedUser.rawRole) : null;
   const nextLowerRole = selectedUser ? getNextLowerRole(selectedUser.rawRole) : null;
+  const workspaceDepartmentCount = Array.isArray(workspace?.organizationDepartments)
+    ? workspace.organizationDepartments.length
+    : 0;
 
   const todayCounts = [
     { label: 'Founder', value: stats.owner, color: 'text-purple-600' },
@@ -921,12 +994,12 @@ export default function AccessGrantsPage() {
 
   return (
     <PageFrame>
-      <div className="p-2.5 lg:p-3.5 min-h-full text-[#0F172A] font-sans">
+      <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
         <div className="space-y-3">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
-              <h1 className="text-[24px] md:text-[28px] leading-[0.98] font-black tracking-tight text-slate-800">Access Grants</h1>
-              <p className="text-[17px] font-medium text-slate-600 mt-0.5">
+              <h1 className="text-base lg:text-lg font-black tracking-tight text-slate-800">Access Grants</h1>
+              <p className="text-xs font-medium text-slate-500 mt-1">
                 Manage user roles and founder access for {workspace?.workspaceName || 'this workspace'}.
               </p>
             </div>
@@ -951,20 +1024,20 @@ export default function AccessGrantsPage() {
               }[stat.label] || 'text-slate-800';
 
               return (
-                <div key={stat.label} className="bg-white px-3.5 py-2.5 rounded-[1.35rem] border border-slate-200 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
+                <div key={stat.label} className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em] mb-1">{stat.label}</p>
-                    <p className={`text-[18px] leading-none font-black ${valueColor}`}>{stat.value}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
+                    <p className={`text-[15px] font-black ${valueColor}`}>{stat.value}</p>
                   </div>
-                  <div className={`p-2 rounded-xl ${iconBg}`}>
-                    <Shield size={18} />
+                  <div className={`p-2 rounded-2xl ${iconBg}`}>
+                    <Shield size={16} />
                   </div>
                 </div>
               );
             })}
           </div>
 
-          <div className="bg-gradient-to-br from-[#2563EB] to-blue-700 px-3.5 py-2.5 rounded-[1.35rem] shadow-md shadow-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all group"
+          <div className="bg-gradient-to-br from-[#2563EB] to-blue-700 p-2.5 rounded-[2rem] shadow-md shadow-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all group"
             onClick={() => {
               setTransferTargetUserId(eligibleOwnershipCandidates[0]?.id || '');
               setShowTransferWarning(false);
@@ -973,36 +1046,36 @@ export default function AccessGrantsPage() {
             style={{ pointerEvents: (!canEditAccessGrants || eligibleOwnershipCandidates.length === 0) ? 'none' : 'auto', opacity: (!canEditAccessGrants || eligibleOwnershipCandidates.length === 0) ? 0.6 : 1 }}
           >
             <div>
-              <p className="text-[10px] font-black text-blue-200 uppercase tracking-[0.16em] mb-1">Founder Action</p>
-              <p className="text-[15px] leading-none font-black text-white group-hover:scale-105 transition-transform origin-left">Transfer Founder Access</p>
+              <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Founder Action</p>
+              <p className="text-[13px] leading-none font-black text-white group-hover:scale-105 transition-transform origin-left">Transfer Founder Access</p>
               <p className="text-[10px] font-medium text-blue-100 mt-1">{eligibleOwnershipCandidates.length} eligible Super-Admin{eligibleOwnershipCandidates.length !== 1 ? 's' : ''} • {accessGrantsModeLabel}</p>
             </div>
-            <div className="p-1.5 rounded-lg bg-white/20 text-white">
-              <Users size={15} />
+            <div className="p-2 rounded-2xl bg-white/20 text-white border border-white/30">
+              <Users size={16} />
             </div>
           </div>
 
           <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-0">
-            <div className="p-3 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-2.5 shrink-0">
-              <div className="relative w-full md:w-[300px]">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-2.5 shrink-0">
+              <div className="relative w-full md:w-88">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input
                   type="text"
                   placeholder="Search by name, email, or department..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                  className="w-full pl-10 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                 />
               </div>
             </div>
 
-            <div className="px-3.5 pb-2.5 flex flex-col md:flex-row gap-2.5 md:gap-3">
-              <div className="w-full md:w-44">
-                <label className="block text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400 mb-1.5">Role</label>
+            <div className="px-4 pb-3.5 flex flex-col md:flex-row gap-2.5 md:gap-3">
+              <div className="w-full md:w-48">
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Role</label>
                 <select
                   value={selectedRole}
                   onChange={(e) => setSelectedRole(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                 >
                   {ROLE_FILTERS.map((role) => (
                     <option key={role} value={role}>{role}</option>
@@ -1033,6 +1106,16 @@ export default function AccessGrantsPage() {
                         currentUserId &&
                         rowUserId &&
                         currentUserId === rowUserId;
+                      const normalizedDepartments = Array.isArray(user.departments)
+                        ? user.departments.filter(Boolean)
+                        : [];
+                      const hasAllDepartmentsAccess =
+                        (user.roleGroup === 'Founder' || user.roleGroup === 'Super-Admin') &&
+                        (normalizedDepartments.length === 0 ||
+                          (workspaceDepartmentCount > 0 && normalizedDepartments.length >= workspaceDepartmentCount));
+                      const departmentBadges = hasAllDepartmentsAccess
+                        ? ['All Departments']
+                        : (normalizedDepartments.length > 0 ? normalizedDepartments : [user.department]).filter(Boolean);
 
                       return (
                       <tr key={user.id} className={`transition-all ${user.roleGroup === 'Founder' ? 'bg-slate-50/50' : 'hover:bg-blue-50/30'}`}>
@@ -1050,7 +1133,7 @@ export default function AccessGrantsPage() {
                         <td className="px-3.5 py-2">{getRoleBadge(user.roleGroup)}</td>
                         <td className="px-3.5 py-2">
                           <div className="flex flex-wrap gap-1.5 max-w-56">
-                            {(user.departments && user.departments.length > 0 ? user.departments : [user.department]).filter(Boolean).map((dept, i) => (
+                            {departmentBadges.map((dept, i) => (
                               <span key={i} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[9px] font-bold tracking-wide">{dept}</span>
                             ))}
                           </div>
@@ -1111,11 +1194,11 @@ export default function AccessGrantsPage() {
 
         {showDetailPanel && selectedUser && (
           <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-[1.5rem] max-w-xl w-full overflow-hidden shadow-2xl border border-white/10">
-              <div className="p-3.5 sm:p-4 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 flex items-center justify-between">
+            <div className="bg-white rounded-[1rem] max-w-md w-full overflow-hidden shadow-2xl border border-white/10 scale-95 sm:scale-90">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">Access Control</p>
-                  <h2 className="text-[15px] sm:text-base font-semibold text-white mt-1">
+                  <h2 className="text-[13px] sm:text-sm font-semibold text-white mt-1">
                     {canEditAccessGrants ? 'Manage Access' : 'View Access'} - {selectedUser.name}
                   </h2>
                 </div>
@@ -1125,15 +1208,15 @@ export default function AccessGrantsPage() {
                     setSelectedUser(null);
                     setRoleActionWarning(null);
                   }}
-                  className="p-2.5 hover:bg-white/10 rounded-xl transition-colors border border-white/5"
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors border border-white/5"
                 >
                   <X className="w-5 h-5 text-slate-300" />
                 </button>
               </div>
 
-              <div className="p-3.5 sm:p-4 space-y-4 bg-gradient-to-b from-slate-50 to-white">
-                <div className="grid gap-4 md:grid-cols-[1.25fr_0.75fr]">
-                    <div className="w-11 h-11 bg-gradient-to-br from-[#2563EB] to-[#1e40af] rounded-full flex items-center justify-center text-white font-semibold text-sm">
+              <div className="p-2.5 sm:p-3 space-y-2.5 bg-gradient-to-b from-slate-50 to-white">
+                <div className="grid gap-3 md:grid-cols-[1.25fr_0.75fr]">
+                    <div className="w-10 h-10 bg-gradient-to-br from-[#2563EB] to-[#1e40af] rounded-full flex items-center justify-center text-white font-semibold text-xs">
                       {getInitials(selectedUser.name)}
                     </div>
                   <div className="flex-1">
@@ -1148,7 +1231,7 @@ export default function AccessGrantsPage() {
 
                 {roleActionWarning ? (
                   <div className="space-y-3">
-                    <div className={`rounded-[1.75rem] border p-5 sm:p-6 ${roleActionWarning.type === 'promote' ? 'border-emerald-200 bg-emerald-50/80' : 'border-amber-200 bg-amber-50/80'}`}>
+                    <div className={`rounded-[1.2rem] border p-4 sm:p-4 ${roleActionWarning.type === 'promote' ? 'border-emerald-200 bg-emerald-50/80' : 'border-amber-200 bg-amber-50/80'}`}>
                       <div className="flex items-start gap-4">
                         <div className={`shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${roleActionWarning.type === 'promote' ? 'bg-emerald-600' : 'bg-amber-500'}`}>
                           <AlertCircle className="w-6 h-6 text-white" />
@@ -1157,7 +1240,7 @@ export default function AccessGrantsPage() {
                           <p className={`text-xs font-semibold uppercase tracking-[0.28em] ${roleActionWarning.type === 'promote' ? 'text-emerald-700' : 'text-amber-700'}`}>
                             Final Confirmation
                           </p>
-                          <p className={`text-lg font-bold ${roleActionWarning.type === 'promote' ? 'text-emerald-950' : 'text-amber-950'}`}>
+                          <p className={`text-base font-bold ${roleActionWarning.type === 'promote' ? 'text-emerald-950' : 'text-amber-950'}`}>
                             {roleActionWarning.title}
                           </p>
                           <p className={`text-sm leading-relaxed ${roleActionWarning.type === 'promote' ? 'text-emerald-900/80' : 'text-amber-900/80'}`}>
@@ -1166,11 +1249,66 @@ export default function AccessGrantsPage() {
                           <p className={`text-xs font-medium ${roleActionWarning.type === 'promote' ? 'text-emerald-700' : 'text-amber-700'}`}>
                             {roleActionWarning.note}
                           </p>
+                          {roleActionWarning.requiresDepartments && (
+                            <div className="space-y-2 rounded-xl border border-white/70 bg-white/80 p-3">
+                              <label className="block text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                                Department Access
+                              </label>
+                              {roleActionWarning.departmentMode === 'single' ? (
+                                <select
+                                  value={(roleActionWarning.departmentIds?.[0] || '')}
+                                  onChange={(event) =>
+                                    setRoleActionWarning((current) => ({
+                                      ...current,
+                                      departmentIds: event.target.value ? [event.target.value] : [],
+                                    }))
+                                  }
+                                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                                >
+                                  <option value="">Select one department</option>
+                                  {currentWorkspaceDepartmentOptions.map((department) => (
+                                    <option key={department.id} value={department.id}>
+                                      {department.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <div className="max-h-36 space-y-1 overflow-auto rounded-lg border border-slate-200 bg-white p-2">
+                                  {currentWorkspaceDepartmentOptions.map((department) => {
+                                    const isChecked = Array.isArray(roleActionWarning.departmentIds)
+                                      ? roleActionWarning.departmentIds.includes(department.id)
+                                      : false;
+                                    return (
+                                      <label key={department.id} className="flex items-center gap-2 rounded px-1.5 py-1 text-sm text-slate-700 hover:bg-slate-50">
+                                        <input
+                                          type="checkbox"
+                                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                          checked={isChecked}
+                                          onChange={(event) =>
+                                            setRoleActionWarning((current) => ({
+                                              ...current,
+                                              departmentIds: event.target.checked
+                                                ? [...(Array.isArray(current.departmentIds) ? current.departmentIds : []), department.id]
+                                                : (Array.isArray(current.departmentIds) ? current.departmentIds : []).filter((id) => id !== department.id),
+                                            }))
+                                          }
+                                        />
+                                        <span>{department.name}</span>
+                                      </label>
+                                    );
+                                  })}
+                                  {currentWorkspaceDepartmentOptions.length === 0 && (
+                                    <div className="px-1 py-2 text-sm text-slate-400">No departments available.</div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-3 rounded-2xl bg-white border border-slate-100 px-4 py-3 shadow-sm">
+                    <div className="flex items-center justify-between gap-3 rounded-xl bg-white border border-slate-100 px-3 py-2.5 shadow-sm">
                       <div>
                         <p className="text-sm font-semibold text-slate-900">Ready to continue?</p>
                         <p className="text-xs text-slate-500">Use confirm only if you want to apply the role update.</p>
@@ -1184,14 +1322,14 @@ export default function AccessGrantsPage() {
                       <button
                         onClick={() => setRoleActionWarning(null)}
                         disabled={isSaving || !canEditAccessGrants}
-                        className="px-5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl font-medium transition-colors text-sm disabled:opacity-60"
+                        className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg font-medium transition-colors text-sm disabled:opacity-60"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={roleActionWarning.type === 'promote' ? handlePromote : handleDemote}
                         disabled={isSaving || !canEditAccessGrants}
-                        className={`px-5 py-2.5 text-white rounded-xl font-semibold transition-colors text-sm shadow-sm disabled:opacity-60 ${roleActionWarning.type === 'promote' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600'}`}
+                        className={`px-4 py-2 text-white rounded-lg font-semibold transition-colors text-sm shadow-sm disabled:opacity-60 ${roleActionWarning.type === 'promote' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600'}`}
                       >
                         {isSaving ? 'Saving...' : roleActionWarning.type === 'promote' ? 'Confirm Promote' : 'Confirm Demote'}
                       </button>
@@ -1366,11 +1504,11 @@ export default function AccessGrantsPage() {
 
           {showWorkspaceLinkDialog && selectedUser && (
             <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm">
-              <div className="my-6 w-full max-w-xl overflow-hidden rounded-[2.25rem] border border-white/10 bg-white shadow-2xl">
-                <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-5 sm:p-6">
+              <div className="my-6 w-full max-w-md overflow-hidden rounded-[1.1rem] border border-white/10 bg-white shadow-2xl scale-95 sm:scale-90">
+                <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-3 sm:p-3.5">
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">Workspace Access</p>
-                    <h2 className="mt-1 text-lg font-semibold text-white">Add access for {selectedUser.name}</h2>
+                    <h2 className="mt-1 text-sm font-semibold text-white">Add access for {selectedUser.name}</h2>
                   </div>
                   <button
                     onClick={() => setShowWorkspaceLinkDialog(false)}
@@ -1380,8 +1518,8 @@ export default function AccessGrantsPage() {
                   </button>
                 </div>
 
-                <div className="space-y-5 bg-gradient-to-b from-slate-50 to-white p-5 sm:p-6">
-                  <div className="rounded-[1.75rem] border border-slate-100 bg-white p-4 shadow-sm">
+                <div className="space-y-3 bg-gradient-to-b from-slate-50 to-white p-3 sm:p-3.5">
+                  <div className="rounded-[0.9rem] border border-slate-100 bg-white p-3 shadow-sm">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Current workspaces</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {(selectedUser.workspaceAccesses || []).map((access) => (
@@ -1437,17 +1575,17 @@ export default function AccessGrantsPage() {
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-3 border-t border-slate-100/60 bg-white p-5 sm:p-6">
+                <div className="flex justify-end gap-2 border-t border-slate-100/60 bg-white p-3 sm:p-3.5">
                   <button
                     onClick={() => setShowWorkspaceLinkDialog(false)}
-                    className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                    className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleConfirmWorkspaceLink}
                     disabled={isSaving}
-                    className="rounded-xl bg-[#2563EB] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
+                    className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
                   >
                     {isSaving ? 'Saving...' : 'Add Access'}
                   </button>
@@ -1458,11 +1596,11 @@ export default function AccessGrantsPage() {
 
           {showWorkspaceTransferDialog && selectedUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm">
-            <div className="my-6 w-full max-w-2xl overflow-hidden rounded-[2.25rem] border border-white/10 bg-white shadow-2xl">
-              <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-5 sm:p-6">
+            <div className="my-6 w-full max-w-lg overflow-hidden rounded-[1.1rem] border border-white/10 bg-white shadow-2xl scale-95 sm:scale-90">
+              <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-3 sm:p-3.5">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">Workspace Transfer</p>
-                  <h2 className="mt-1 text-lg font-semibold text-white">Transfer {selectedUser.name}</h2>
+                  <h2 className="mt-1 text-sm font-semibold text-white">Transfer {selectedUser.name}</h2>
                 </div>
                 <button
                   onClick={() => setShowWorkspaceTransferDialog(false)}
@@ -1472,8 +1610,8 @@ export default function AccessGrantsPage() {
                 </button>
               </div>
 
-              <div className="max-h-[calc(100vh-13rem)] space-y-5 overflow-y-auto bg-gradient-to-b from-slate-50 to-white p-5 sm:p-6">
-                <div className="rounded-[1.75rem] border border-slate-100 bg-white p-4 shadow-sm">
+              <div className="max-h-[calc(100vh-13rem)] space-y-3 overflow-y-auto bg-gradient-to-b from-slate-50 to-white p-3 sm:p-3.5">
+                <div className="rounded-[0.9rem] border border-slate-100 bg-white p-3 shadow-sm">
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Current assignment</p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-slate-900">{selectedUser.name}</span>
@@ -1636,17 +1774,17 @@ export default function AccessGrantsPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 border-t border-slate-100/60 bg-white p-5 sm:p-6">
+              <div className="flex justify-end gap-2 border-t border-slate-100/60 bg-white p-3 sm:p-3.5">
                 <button
                   onClick={() => setShowWorkspaceTransferDialog(false)}
-                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                  className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirmWorkspaceTransfer}
                   disabled={isSaving}
-                  className="rounded-xl bg-[#2563EB] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
+                  className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
                 >
                   {isSaving ? 'Saving...' : `Transfer as ${selectedTransferRole.label}`}
                 </button>

@@ -7,6 +7,7 @@ import Footer from "../../components/Footer";
 import logo from "../../assets/WONO_LOGO_Black_TP.png";
 import { toast } from "sonner";
 import useAuth from "../../hooks/useAuth";
+import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import { readInviteOnboardingState } from "../../utils/inviteOnboarding";
 
 interface CountryOption {
@@ -108,6 +109,7 @@ const normalizeBusinessTypes = (values: unknown): string[] => {
 const CreateWorkspacePage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const axiosPrivate = useAxiosPrivate();
   const { auth } = useAuth();
   const initialWorkspaceDetails = location.state?.workspaceDetails || {};
   const authUserEmail = String(
@@ -170,8 +172,14 @@ const CreateWorkspacePage: React.FC = () => {
       : [],
   );
   const [isBusinessTypeOpen, setIsBusinessTypeOpen] = useState(false);
+  const [usedVerticals, setUsedVerticals] = useState<string[]>([]);
+  const [workspaceNameStatus, setWorkspaceNameStatus] = useState<
+    "idle" | "checking" | "available" | "taken"
+  >("idle");
+  const [workspaceNameMessage, setWorkspaceNameMessage] = useState("");
   const selectedPlanFromInviteOrState =
     location.state?.selectedPlan || activeInviteOnboarding?.selectedPlan || "basic";
+  const isAdditionalWorkspaceMode = Boolean(location.state?.additionalWorkspaceMode);
   const selectedCountryOption =
     countries.find((item) => item.name === country) || null;
   const selectedStateOption =
@@ -193,6 +201,13 @@ const CreateWorkspacePage: React.FC = () => {
     activeInviteOnboarding?.businessTypes?.length &&
       businessTypes.length,
   );
+  const isCompanyNameLocked = Boolean(
+    activeInviteOnboarding?.businessName ||
+      (isAdditionalWorkspaceMode && businessName.trim()),
+  );
+  const isBrandNameLocked = Boolean(
+    isAdditionalWorkspaceMode && brandName.trim(),
+  );
 
   const [isCountriesLoading, setIsCountriesLoading] = useState(false);
   const [isStatesLoading, setIsStatesLoading] = useState(false);
@@ -207,6 +222,9 @@ const CreateWorkspacePage: React.FC = () => {
   ];
 
   const toggleBusinessType = (type: string) => {
+    if (isAdditionalWorkspaceMode && usedVerticals.includes(type) && !businessTypes.includes(type)) {
+      return;
+    }
     setBusinessTypes((prev) =>
       prev.includes(type) ? prev.filter((item) => item !== type) : [...prev, type],
     );
@@ -225,7 +243,10 @@ const CreateWorkspacePage: React.FC = () => {
     stateName.trim(),
     city.trim(),
     address.trim(),
-  ].every(Boolean) && businessTypes.length > 0;
+  ].every(Boolean) &&
+    businessTypes.length > 0 &&
+    workspaceNameStatus !== "taken" &&
+    workspaceNameStatus !== "checking";
 
   useEffect(() => {
     let active = true;
@@ -342,6 +363,70 @@ const CreateWorkspacePage: React.FC = () => {
     selectedStateOption?.isoCode,
   ]);
 
+  useEffect(() => {
+    if (!isAdditionalWorkspaceMode) {
+      setUsedVerticals([]);
+      return;
+    }
+    let active = true;
+    const loadUsedVerticals = async () => {
+      try {
+        const response = await axiosPrivate.get("/api/workspaces/management");
+        const workspaces = Array.isArray(response?.data?.data?.workspaces)
+          ? response.data.data.workspaces
+          : [];
+        const verticals = new Set<string>();
+        for (const workspace of workspaces) {
+          const values = String(workspace?.businessType || "")
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean);
+          for (const value of values) {
+            verticals.add(value);
+          }
+        }
+        if (active) {
+          setUsedVerticals(Array.from(verticals));
+        }
+      } catch {
+        if (active) setUsedVerticals([]);
+      }
+    };
+    void loadUsedVerticals();
+    return () => {
+      active = false;
+    };
+  }, [axiosPrivate, isAdditionalWorkspaceMode]);
+
+  useEffect(() => {
+    const normalized = workspaceName.trim();
+    if (!normalized) {
+      setWorkspaceNameStatus("idle");
+      setWorkspaceNameMessage("");
+      return;
+    }
+    setWorkspaceNameStatus("checking");
+    const timeoutId = setTimeout(async () => {
+      try {
+        const response = await axiosPrivate.get("/api/workspaces/validate-name", {
+          params: { workspaceName: normalized },
+        });
+        const available = Boolean(response?.data?.data?.available);
+        setWorkspaceNameStatus(available ? "available" : "taken");
+        setWorkspaceNameMessage(
+          available ? "Workspace name is available." : "Workspace name already taken.",
+        );
+      } catch (error: unknown) {
+        const message =
+          (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          "Unable to validate workspace name.";
+        setWorkspaceNameStatus("taken");
+        setWorkspaceNameMessage(message);
+      }
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [axiosPrivate, workspaceName]);
+
   return (
     <div className="min-h-screen bg-[#f4f4f4] text-[#0f172a] font-['Poppins'] flex flex-col">
       <div className="shadow-md bg-white/80 backdrop-blur-md">
@@ -404,6 +489,9 @@ const CreateWorkspacePage: React.FC = () => {
             onSubmit={(e) => {
               e.preventDefault();
               if (!isWorkspaceFormComplete) {
+                if (workspaceNameStatus === "taken") {
+                  toast.error("Workspace name already taken.");
+                }
                 return;
               }
               navigate("/create-workspace/finalize", {
@@ -419,6 +507,7 @@ const CreateWorkspacePage: React.FC = () => {
                     businessTypes,
                   },
                   selectedPlan: selectedPlanFromInviteOrState,
+                  additionalWorkspaceMode: isAdditionalWorkspaceMode,
                 },
               });
             }}
@@ -437,6 +526,15 @@ const CreateWorkspacePage: React.FC = () => {
                   onChange={(e) => setWorkspaceName(e.target.value)}
                   className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-[#9aa6b9] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
                 />
+                {workspaceNameStatus !== "idle" ? (
+                  <p
+                    className={`mt-1 text-[11px] font-semibold ${
+                      workspaceNameStatus === "available" ? "text-emerald-600" : "text-rose-600"
+                    }`}
+                  >
+                    {workspaceNameStatus === "checking" ? "Checking workspace name..." : workspaceNameMessage}
+                  </p>
+                ) : null}
               </div>
 
               <div className="flex flex-col">
@@ -448,7 +546,7 @@ const CreateWorkspacePage: React.FC = () => {
                   placeholder="Enter company name"
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
-                  disabled={Boolean(activeInviteOnboarding?.businessName)}
+                  disabled={isCompanyNameLocked}
                   className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-[#9aa6b9] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
                 />
               </div>
@@ -462,6 +560,7 @@ const CreateWorkspacePage: React.FC = () => {
                   placeholder="Enter brand name"
                   value={brandName}
                   onChange={(e) => setBrandName(e.target.value)}
+                  disabled={isBrandNameLocked}
                   className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-[#9aa6b9] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
                 />
               </div>
@@ -493,7 +592,7 @@ const CreateWorkspacePage: React.FC = () => {
                   options={countries}
                   value={selectedCountryOption}
                   onChange={(_, newValue) => setCountry(newValue?.name || "")}
-                  disabled={isCountriesLoading || hasLockedInviteCountry}
+                disabled={isCountriesLoading || hasLockedInviteCountry}
                   getOptionLabel={(option) => option.name}
                   isOptionEqualToValue={(option, value) => option.isoCode === value.isoCode}
                   noOptionsText="No countries found"
@@ -671,20 +770,29 @@ const CreateWorkspacePage: React.FC = () => {
                 {isBusinessTypeOpen && (
                   <div className="absolute z-20 mt-1 w-full rounded-xl border border-[#d2d9e5] bg-white shadow-lg p-3 max-h-52 overflow-auto">
                     <div className="grid grid-cols-1 gap-y-2">
-                      {allBusinessTypes.map((type) => (
-                        <label
-                          key={type}
-                          className="inline-flex items-center gap-2 text-[13px] text-[#334155] cursor-pointer select-none"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={businessTypes.includes(type)}
-                            onChange={() => toggleBusinessType(type)}
-                            className="h-3.5 w-3.5 accent-[#7d9de8]"
-                          />
-                          <span>{type}</span>
-                        </label>
-                      ))}
+                      {allBusinessTypes.map((type) => {
+                        const isLockedVertical =
+                          isAdditionalWorkspaceMode &&
+                          usedVerticals.includes(type) &&
+                          !businessTypes.includes(type);
+                        return (
+                          <label
+                            key={type}
+                            className={`inline-flex items-center gap-2 text-[13px] ${
+                              isLockedVertical ? "text-[#9aa6b9]" : "text-[#334155] cursor-pointer"
+                            } select-none`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={businessTypes.includes(type)}
+                              disabled={isLockedVertical}
+                              onChange={() => toggleBusinessType(type)}
+                              className="h-3.5 w-3.5 accent-[#7d9de8]"
+                            />
+                            <span>{type}{isLockedVertical ? " (already used)" : ""}</span>
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

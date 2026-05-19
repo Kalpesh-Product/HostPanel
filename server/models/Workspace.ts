@@ -79,6 +79,21 @@ const workspaceSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    preferences: {
+      timezone: { type: String, default: "Asia/Kolkata" },
+      currency: { type: String, default: "INR" },
+      dateFormat: { type: String, default: "DD MMM YYYY" },
+      timeFormat: { type: String, enum: ["12h", "24h"], default: "12h" },
+      weekStartsOn: { type: String, enum: ["monday", "sunday"], default: "monday" },
+      businessHours: {
+        start: { type: String, default: "09:00" },
+        end: { type: String, default: "18:00" },
+      },
+    },
+    branding: {
+      primaryColor: { type: String, default: "#2563EB" },
+      logoUrl: { type: String, default: "" },
+    },
     organizationDepartments: {
       type: [
         {

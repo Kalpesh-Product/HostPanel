@@ -31,6 +31,7 @@ import { queryClient } from "../main";
 import relativeTime from "dayjs/plugin/relativeTime";
 import dayjs from "dayjs";
 import WoNoLogo from "../assets/WONO_LOGO_Black_TP.png";
+import WorkspaceSwitcher from "./WorkspaceSwitcher";
 
 dayjs.extend(relativeTime);
 
@@ -197,7 +198,7 @@ const Header = ({
 
   return (
     <>
-      <div className="flex w-full justify-between gap-x-10 items-center py-2">
+      <div className="flex w-full justify-between gap-x-6 items-center py-2">
         <div>
           <div>
             <div className="w-60 flex justify-between items-center gap-16 h-full ">
@@ -218,8 +219,9 @@ const Header = ({
             </div>
           </div>
         </div>
-        {!isMobile && <div className="w-full flex items-center pl-20" />}
-        <div className="flex items-center gap-4 md:w-fit w-fit">
+        {!isMobile && <div className="w-full flex items-center pl-8" />}
+        <div className="flex items-center gap-3 md:w-fit w-fit">
+          <WorkspaceSwitcher />
           <button
             type="button"
             data-notification-trigger
@@ -243,7 +245,7 @@ const Header = ({
             )}
           </Avatar>
 
-          <div className="w-full relative">
+          <div className="relative pr-1">
             {!isMobile && (
               <div className="leading-tight">
                 <h1 className="text-[14px] font-semibold text-start">

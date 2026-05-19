@@ -40,6 +40,7 @@ const PlanCard = ({
   actionLabel,
   onAction,
   isSelected,
+  actionDisabled,
   useNeutralButton,
   secondaryActionLabel,
   onSecondaryAction,
@@ -51,6 +52,7 @@ const PlanCard = ({
   actionLabel: string;
   onAction: () => void;
   isSelected: boolean;
+  actionDisabled?: boolean;
   useNeutralButton?: boolean;
   secondaryActionLabel?: string;
   onSecondaryAction?: () => void;
@@ -183,7 +185,8 @@ const PlanCard = ({
     <button
       type="button"
       onClick={onAction}
-      className="w-full h-11 rounded-full text-[14px] font-bold border transition-colors"
+      disabled={actionDisabled}
+      className="w-full h-11 rounded-full text-[14px] font-bold border transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       style={
         useNeutralButton
           ? {
@@ -231,13 +234,21 @@ const FinalizeSetupPage: React.FC = () => {
   const axiosPrivate = useAxiosPrivate();
   const { auth, setAuth } = useAuth();
   const workspaceDetails = location.state?.workspaceDetails || {};
+  const isAdditionalWorkspaceMode = Boolean(location.state?.additionalWorkspaceMode);
   const inviteOnboarding = readInviteOnboardingState();
-  const initialSelectedPlan = "basic" as PlanType;
+  const initialSelectedPlan = (location.state?.selectedPlan || "basic") as PlanType;
+  const hostLeadCompanyIdOverride =
+    String(
+      location.state?.hostLeadCompanyId ||
+        localStorage.getItem("host_lead_company_id") ||
+        "",
+    ).trim();
 
   const [selectedPlan, setSelectedPlan] = useState<PlanType>(initialSelectedPlan);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isUpgradeSubmitting, setIsUpgradeSubmitting] = useState(false);
 
   const workspaceCount = getWorkspaceCount(
     (auth.user as { workspaceCount?: number } | null)?.workspaceCount,
@@ -265,15 +276,96 @@ const FinalizeSetupPage: React.FC = () => {
     setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const handleUpgradeAction = (plan: PlanCardData) => {
-    if (selectedPlan === "basic") {
-      setSelectedPlan(plan.key);
-      setIsUpgradeModalOpen(false);
-      toast.success(`${plan.title} plan selected for this workspace.`);
-      return;
-    }
+    const submitUpgradeRequest = async () => {
+      try {
+        setIsUpgradeSubmitting(true);
+        const authUser = auth.user as
+          | {
+              company?: string | { _id?: string; id?: string };
+              companyId?: string;
+              hostLeadCompanyId?: string;
+            }
+          | null;
+        let resolvedCompanyId = String(
+          hostLeadCompanyIdOverride ||
+            authUser?.hostLeadCompanyId ||
+            (typeof authUser?.company === "string"
+              ? authUser.company
+              : authUser?.company?._id || authUser?.company?.id) ||
+            authUser?.companyId ||
+            "",
+        ).trim();
 
-    setIsUpgradeModalOpen(false);
-    toast.success("Request submitted. Sales team will contact you soon.");
+        const legacyCompanyId = String(authUser?.companyId || "").trim();
+        const looksLikeLegacyCompanyCode = /^CMP/i.test(legacyCompanyId);
+        const looksLikeLegacyResolvedId = /^CMP/i.test(resolvedCompanyId);
+        const companyNameHint = String(
+          (auth.user as { companyName?: string } | null)?.companyName ||
+            workspaceDetails.businessName ||
+            "",
+        )
+          .trim()
+          .toLowerCase();
+
+        // Permanent resolver: map legacy company code to master host lead company id.
+        if ((looksLikeLegacyCompanyCode || looksLikeLegacyResolvedId) && legacyCompanyId) {
+          try {
+            const hostCompaniesResponse = await axiosPrivate.get(
+              "http://localhost:5007/api/hosts/host-companies",
+            );
+            const hostCompanies =
+              (Array.isArray(hostCompaniesResponse?.data)
+                ? hostCompaniesResponse.data
+                : Array.isArray(hostCompaniesResponse?.data?.data)
+                ? hostCompaniesResponse.data.data
+                : Array.isArray(hostCompaniesResponse?.data?.companies)
+                ? hostCompaniesResponse.data.companies
+                : []) as Array<Record<string, unknown>>;
+
+            let matchedCompany = hostCompanies.find((company) => {
+              const leadId = String(company?.leadId || "").trim();
+              const companyId = String(company?.companyId || "").trim();
+              return leadId === legacyCompanyId || companyId === legacyCompanyId;
+            });
+
+            if (!matchedCompany && companyNameHint) {
+              matchedCompany = hostCompanies.find((company) => {
+                const name = String(company?.companyName || "").trim().toLowerCase();
+                return name && name === companyNameHint;
+              });
+            }
+
+            if (matchedCompany?.companyId) {
+              resolvedCompanyId = String(matchedCompany.companyId).trim();
+              localStorage.setItem("host_lead_company_id", resolvedCompanyId);
+            }
+          } catch {
+            // Keep fallback flow below.
+          }
+        }
+
+        if (resolvedCompanyId && /^[a-f0-9]{24}$/i.test(resolvedCompanyId)) {
+          resolvedCompanyId = "";
+        }
+
+        if (!resolvedCompanyId) {
+          toast.error("Company id not found in session. Please re-login and try again.");
+          return;
+        }
+        const response = await axiosPrivate.patch("http://localhost:5007/api/hosts/request-upgrade-plan", {
+          companyId: resolvedCompanyId,
+          requestedPlan: plan.key,
+        });
+        setIsUpgradeModalOpen(false);
+        toast.success(response.data?.message || "Request sent. Sales team will contact you soon.");
+      } catch (error: any) {
+        toast.error(error?.response?.data?.message || "Failed to send upgrade request.");
+      } finally {
+        setIsUpgradeSubmitting(false);
+      }
+    };
+
+    void submitUpgradeRequest();
   };
 
   const handleCompleteSetup = async () => {
@@ -284,6 +376,7 @@ const FinalizeSetupPage: React.FC = () => {
         selectedPlan,
         enabledModuleIds,
         modules: [],
+        additionalWorkspaceMode: isAdditionalWorkspaceMode,
       });
 
       localStorage.setItem(
@@ -366,26 +459,31 @@ const FinalizeSetupPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[285px_minmax(0,1fr)] gap-4 md:gap-4 mb-4 sm:mb-5 items-start">
-            <PlanCard
-              plan={currentPlanCard}
-              openGroups={openGroups}
-              toggleGroup={toggleGroup}
-              actionLabel="Current Plan"
-              onAction={() => {}}
-              isSelected={true}
-              useNeutralButton={true}
-              secondaryActionLabel={upgradePlanOptions.length ? "Upgrade Plan" : undefined}
-              onSecondaryAction={
-                upgradePlanOptions.length
-                  ? () => {
-                      setIsUpgradeModalOpen(true);
-                    }
-                  : undefined
-              }
-            />
+          <div className="grid grid-cols-1 md:grid-cols-[285px_minmax(0,1fr)] gap-4 md:gap-4 mb-4 sm:mb-5 items-start">
+            <div className="min-w-0">
+              <PlanCard
+                plan={currentPlanCard}
+                openGroups={openGroups}
+                toggleGroup={toggleGroup}
+                actionLabel="Current Plan"
+                onAction={() => {}}
+                isSelected={true}
+                useNeutralButton={true}
+                onSecondaryAction={
+                  !isAdditionalWorkspaceMode && upgradePlanOptions.length
+                    ? () => {
+                        setIsUpgradeModalOpen(true);
+                      }
+                    : undefined
+                }
+                secondaryActionLabel={
+                  !isAdditionalWorkspaceMode && upgradePlanOptions.length ? "Upgrade Plan" : undefined
+                }
+              />
+            </div>
 
-            <div className="rounded-[38px] bg-[#eef2f7] p-4 md:p-4 flex flex-col min-h-[360px] h-full shadow-[0_4px_18px_rgba(15,27,53,0.05)] border border-[#d9e1ec]">
+            <div className="min-w-0 md:sticky md:top-6 self-start">
+              <div className="rounded-[38px] bg-[#eef2f7] p-4 md:p-4 flex flex-col min-h-[360px] shadow-[0_4px_18px_rgba(15,27,53,0.05)] border border-[#d9e1ec]">
               <p className="text-[16px] font-bold text-[#111b33] mb-2 text-center mt-2">
                 Business Location Details
               </p>
@@ -414,6 +512,7 @@ const FinalizeSetupPage: React.FC = () => {
                 You can still edit these details later from workspace settings.
               </p>
             </div>
+            </div>
           </div>
 
           <div className="pt-4 border-t border-[#e1e6ef] mt-3 sm:mt-4 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3">
@@ -440,7 +539,7 @@ const FinalizeSetupPage: React.FC = () => {
         </div>
       </main>
 
-      {isUpgradeModalOpen ? (
+      {isUpgradeModalOpen && !isAdditionalWorkspaceMode ? (
         <div className="fixed inset-0 z-50 bg-[#0f172a]/45 backdrop-blur-[2px] px-4 py-6 flex items-center justify-center overflow-hidden">
           <div className="w-full max-w-fit max-h-[90vh] overflow-y-auto rounded-[32px] bg-[linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] shadow-[0_20px_80px_rgba(15,23,42,0.28)] p-5 sm:p-6 border border-[#dbe5f2] my-auto">
             <div className="flex items-start justify-between gap-4 mb-5">
@@ -473,8 +572,9 @@ const FinalizeSetupPage: React.FC = () => {
                     plan={plan}
                     openGroups={openGroups}
                     toggleGroup={toggleGroup}
-                    actionLabel={selectedPlan === "basic" ? "Select Plan" : "Upgrade Plan"}
+                    actionLabel={isUpgradeSubmitting ? "Sending..." : "Upgrade Plan"}
                     onAction={() => handleUpgradeAction(plan)}
+                    actionDisabled={isUpgradeSubmitting}
                     isSelected={false}
                     footerNote={
                       selectedPlan === "basic"
@@ -489,8 +589,11 @@ const FinalizeSetupPage: React.FC = () => {
             <div className="pt-4 mt-5 border-t border-[#e1e6ef] flex justify-center">
               <button
                 type="button"
-                onClick={() => setIsUpgradeModalOpen(false)}
-                className="h-10 px-6 rounded-xl border border-[#d0d8e5] text-[#5b6b83] text-[14px] font-medium bg-transparent"
+                onClick={() => {
+                  setIsUpgradeModalOpen(false);
+                  navigate("/dashboard");
+                }}
+                className="h-10 px-6 rounded-xl border border-[#2d67f0] text-white text-[14px] font-medium bg-[#2d67f0] hover:bg-[#2558d5] transition-colors"
               >
                 Continue now with current plan
               </button>
