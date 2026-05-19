@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import { useLocation, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
+import useAuth from "../../../../hooks/useAuth";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import UploadMultipleFilesInput from "../../../../components/UploadMultipleFilesInput";
@@ -44,6 +45,10 @@ const EditWebsite = () => {
   const { state } = useLocation();
   const formRef = useRef(null);
   const tenant = "spring";
+  const { auth } = useAuth();
+  const selectedCompany = useSelector((state) => state.company.selectedCompany);
+  const workspaceId = selectedCompany?.workspaceId || auth?.user?.workspaceId;
+  const [creditsRemaining, setCreditsRemaining] = useState(5);
   // const website = useSelector((state) => state.company.selectedCompany);
   //  const tpl = website || "";
   //  const isLoading = state.isLoading || false;
@@ -102,6 +107,24 @@ const EditWebsite = () => {
       return res.data;
     },
   });
+
+  useEffect(() => {
+    const fetchCredits = async () => {
+      if (!workspaceId) return;
+      try {
+        const res = await axios.get(`/api/subscription/${workspaceId}`, {
+          headers: {
+            Authorization: `Bearer ${auth?.accessToken || ""}`,
+          },
+        });
+        setCreditsRemaining(Number(res?.data?.creditsRemaining ?? 5));
+      } catch (error) {
+        setCreditsRemaining(5);
+      }
+    };
+
+    fetchCredits();
+  }, [axios, workspaceId]);
 
   const {
     fields: productFields,
@@ -249,8 +272,18 @@ const EditWebsite = () => {
     },
     onSuccess: () => {
       toast.success("Website updated successfully");
+      setCreditsRemaining((prev) => Math.max(0, prev - 1));
     },
     onError: (err) => {
+      if (err?.response?.status === 403 && err?.response?.data?.error === "no_credits_remaining") {
+        const resetDate = err?.response?.data?.resetDate
+          ? new Date(err.response.data.resetDate).toLocaleDateString()
+          : "-";
+        toast.error(
+          `You've used all 5 credits for this month. Your credits reset on ${resetDate}.`,
+        );
+        return;
+      }
       toast.error(err?.response?.data?.message || "Update failed");
     },
   });
@@ -1223,7 +1256,7 @@ const EditWebsite = () => {
               type="submit"
               title={isUpdating ? "Updating..." : "Submit"}
               isLoading={isUpdating}
-              disabled={isUpdating}
+              disabled={isUpdating || creditsRemaining <= 0}
             />
             <button
               type="button"

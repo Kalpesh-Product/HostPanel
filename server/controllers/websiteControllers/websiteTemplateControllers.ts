@@ -8,6 +8,23 @@ import {
 } from "../../config/s3config.js";
 import HostCompany from "../../models/Company.js";
 import axios from "axios";
+import { VERTICAL_CONFIG } from "../../config/verticalConfig.js";
+import { THEME_TOKENS } from "../../config/themeTokens.js";
+import WorkspaceSubscription from "../../models/WorkspaceSubscription.js";
+
+const VALID_VERTICALS = new Set([
+  "co-working",
+  "co-living",
+  "workation",
+  "hostel",
+  "meeting-rooms",
+  "cafe",
+]);
+
+const normalizeVertical = (value) => {
+  if (typeof value !== "string") return "co-working";
+  return VALID_VERTICALS.has(value) ? value : "co-working";
+};
 
 export const createTemplate = async (req, res, next) => {
   try {
@@ -39,6 +56,24 @@ export const createTemplate = async (req, res, next) => {
     enabledSections = safeParse(enabledSections, []);
     sectionOverrides = safeParse(sectionOverrides, {});
     styleConfig = safeParse(styleConfig, {});
+
+    const vertical = normalizeVertical(req.body.vertical);
+    const themeIdFromConfig = VERTICAL_CONFIG?.[vertical]?.themeId;
+    const themeId =
+      themeIdFromConfig && THEME_TOKENS?.[themeIdFromConfig]
+        ? themeIdFromConfig
+        : "co-working-default";
+    const activeSections = Array.isArray(VERTICAL_CONFIG?.[vertical]?.sections)
+      ? VERTICAL_CONFIG[vertical].sections
+      : [
+          "hero",
+          "about",
+          "products",
+          "gallery",
+          "testimonials",
+          "contact",
+          "footer",
+        ];
 
     const TEXT_LIMITS = {
       title: 120,
@@ -237,6 +272,9 @@ export const createTemplate = async (req, res, next) => {
       verticalType: req.body.verticalType || "co-working",
       heroVariant: req.body.heroVariant || "text-image",
       themeVariant: req.body.themeVariant || "default",
+      vertical,
+      themeId,
+      activeSections,
       enabledSections: Array.isArray(enabledSections) ? enabledSections : [],
       sectionOverrides,
       styleConfig,
@@ -612,6 +650,19 @@ export const editTemplate = async (req, res, next) => {
       (name || "").toLowerCase().split("-")[0].replace(/\s+/g, "");
     const searchKey = formatCompanyName(companyName);
     const baseFolder = `hosts/template/${searchKey}`;
+    const hasVerticalInBody = Object.prototype.hasOwnProperty.call(
+      req.body,
+      "vertical",
+    );
+    const normalizedVertical = hasVerticalInBody
+      ? normalizeVertical(req.body.vertical)
+      : null;
+    const derivedThemeId = normalizedVertical
+      ? VERTICAL_CONFIG?.[normalizedVertical]?.themeId
+      : null;
+    const derivedActiveSections = normalizedVertical
+      ? VERTICAL_CONFIG?.[normalizedVertical]?.sections
+      : null;
 
     const TEXT_LIMITS = {
       title: 120,
@@ -808,6 +859,17 @@ export const editTemplate = async (req, res, next) => {
         sectionOverrides === null ? template.sectionOverrides : sectionOverrides,
       styleConfig: styleConfig === null ? template.styleConfig : styleConfig,
     });
+
+    if (hasVerticalInBody && normalizedVertical) {
+      template.vertical = normalizedVertical;
+      template.themeId =
+        derivedThemeId && THEME_TOKENS?.[derivedThemeId]
+          ? derivedThemeId
+          : "co-working-default";
+      template.activeSections = Array.isArray(derivedActiveSections)
+        ? derivedActiveSections
+        : template.activeSections;
+    }
 
     // === 🏢 COMPANY LOGO (limit 1) ===
     if (filesByField.companyLogo?.length) {
@@ -1044,6 +1106,54 @@ export const editTemplate = async (req, res, next) => {
 
     // Return the original error, not the transaction abort error
     res.status(400).json({ message: originalError });
+  }
+};
+
+export const publishWebsite = async (req, res, next) => {
+  try {
+    const { workspaceId, websiteId } = req.body || {};
+
+    const subscription = await WorkspaceSubscription.findOne({ workspaceId });
+
+    if (!subscription) {
+      return res.status(404).json({ error: "Workspace subscription not found" });
+    }
+
+    if (
+      subscription.publishedProjectId &&
+      String(subscription.publishedProjectId) !== String(websiteId)
+    ) {
+      return res.status(403).json({
+        error: "publish_limit_reached",
+        message:
+          "You already have 1 published project. Unpublish it before publishing a new one.",
+      });
+    }
+
+    const template = await WebsiteTemplate.findById(websiteId);
+    if (!template) {
+      return res.status(404).json({ error: "Website template not found" });
+    }
+
+    const deployedUrl = `https://sites.yourplatform.com/${template.searchKey}`;
+    const deployedAt = new Date();
+
+    template.isPublished = true;
+    template.deployedAt = deployedAt;
+    template.deployedUrl = deployedUrl;
+    await template.save();
+
+    subscription.publishedProjectId = websiteId;
+    subscription.publishedProjectUrl = deployedUrl;
+    await subscription.save();
+
+    return res.status(200).json({
+      success: true,
+      deployedUrl,
+      deployedAt,
+    });
+  } catch (error) {
+    return next(error);
   }
 };
 

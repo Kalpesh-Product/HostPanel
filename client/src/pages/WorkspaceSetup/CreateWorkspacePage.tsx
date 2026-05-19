@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { City, Country, State } from "country-state-city";
@@ -172,6 +172,7 @@ const CreateWorkspacePage: React.FC = () => {
       : [],
   );
   const [isBusinessTypeOpen, setIsBusinessTypeOpen] = useState(false);
+  const businessTypeDropdownRef = useRef<HTMLDivElement | null>(null);
   const [usedVerticals, setUsedVerticals] = useState<string[]>([]);
   const [workspaceNameStatus, setWorkspaceNameStatus] = useState<
     "idle" | "checking" | "available" | "taken"
@@ -426,6 +427,24 @@ const CreateWorkspacePage: React.FC = () => {
     }, 500);
     return () => clearTimeout(timeoutId);
   }, [axiosPrivate, workspaceName]);
+
+  useEffect(() => {
+    if (!isBusinessTypeOpen) return;
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (
+        businessTypeDropdownRef.current &&
+        !businessTypeDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsBusinessTypeOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [isBusinessTypeOpen]);
 
   return (
     <div className="min-h-screen bg-[#f4f4f4] text-[#0f172a] font-['Poppins'] flex flex-col">
@@ -751,7 +770,7 @@ const CreateWorkspacePage: React.FC = () => {
               <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
                 Type of Vertical
               </label>
-              <div className="relative">
+              <div ref={businessTypeDropdownRef} className="relative">
                 <button
                   type="button"
                   onClick={() => {
