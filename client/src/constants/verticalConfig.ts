@@ -9,6 +9,15 @@ export const VERTICAL_KEYS = [
 
 export type VerticalType = (typeof VERTICAL_KEYS)[number];
 
+export const BUSINESS_TYPE_TO_VERTICAL_KEY: Record<string, VerticalType> = {
+  "Co-Working": "co-working",
+  "Co-Living": "co-living",
+  Hostels: "hostel",
+  Workation: "workation",
+  "Meeting Rooms": "meeting-rooms",
+  Cafe: "cafe",
+};
+
 type VerticalConfigEntry = {
   label: string;
   pages: string[];

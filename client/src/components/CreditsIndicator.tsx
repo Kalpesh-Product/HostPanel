@@ -41,20 +41,21 @@ const getDaysLeft = (value) => {
   return Math.max(0, days);
 };
 
-const CreditsIndicator = ({ workspaceId }) => {
+const CreditsIndicator = ({ workspaceId, companyId }) => {
   const axios = useAxiosPrivate();
   const { auth } = useAuth();
   const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(false);
+  const subscriptionId = companyId || workspaceId;
 
   useEffect(() => {
     let mounted = true;
 
     const fetchSubscription = async () => {
-      if (!workspaceId) return;
+      if (!subscriptionId) return;
       setLoading(true);
       try {
-        const res = await axios.get(`/api/subscription/${workspaceId}`, {
+        const res = await axios.get(`/api/subscription/${subscriptionId}`, {
           headers: {
             Authorization: `Bearer ${auth?.accessToken || ""}`,
           },
@@ -71,7 +72,7 @@ const CreditsIndicator = ({ workspaceId }) => {
     return () => {
       mounted = false;
     };
-  }, [axios, workspaceId]);
+  }, [axios, subscriptionId]);
 
   const creditsLimit = Number(subscription?.creditsLimit || 5);
   const creditsUsed = Number(subscription?.creditsUsed || 0);
@@ -110,7 +111,7 @@ const CreditsIndicator = ({ workspaceId }) => {
     };
   }, [creditsRemaining, resetText]);
 
-  if (!workspaceId) return null;
+  if (!subscriptionId) return null;
 
   return (
     <div className={`rounded-2xl border px-4 py-3 w-full max-w-xl ${tone.wrapper}`}>

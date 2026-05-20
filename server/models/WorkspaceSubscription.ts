@@ -7,7 +7,8 @@ const getFirstDayOfNextMonthUtc = () => {
 };
 
 const workspaceSubscriptionSchema = new mongoose.Schema({
-  workspaceId: { type: String, required: true, unique: true },
+  companyId: { type: String, unique: true, sparse: true },
+  workspaceId: { type: String, unique: true, sparse: true },
   plan: { type: String, enum: ["static-free"], default: "static-free" },
   creditsLimit: { type: Number, default: 5 },
   creditsUsed: { type: Number, default: 0 },

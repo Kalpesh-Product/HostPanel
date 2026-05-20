@@ -10,17 +10,23 @@ const getFirstDayOfNextMonthUtc = () => {
 
 export const getSubscription = async (req, res, next) => {
   try {
-    const workspaceId = req.params?.workspaceId || req.query?.workspaceId;
+    const companyId =
+      req.params?.companyId ||
+      req.query?.companyId ||
+      req.params?.workspaceId ||
+      req.query?.workspaceId;
 
-    if (!workspaceId) {
-      return res.status(400).json({ error: "workspaceId is required" });
+    if (!companyId) {
+      return res.status(400).json({ error: "companyId is required" });
     }
 
-    let subscription = await WorkspaceSubscription.findOne({ workspaceId });
+    let subscription =
+      (await WorkspaceSubscription.findOne({ companyId })) ||
+      (await WorkspaceSubscription.findOne({ workspaceId: companyId }));
 
     if (!subscription) {
       subscription = await WorkspaceSubscription.create({
-        workspaceId,
+        companyId,
         creditsLimit: 5,
         creditsUsed: 0,
         creditsResetDate: getFirstDayOfNextMonthUtc(),

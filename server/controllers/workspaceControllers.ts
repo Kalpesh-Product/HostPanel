@@ -9,6 +9,23 @@ const normalizeStringArray = (value: unknown) =>
     ? value.map((item) => String(item).trim()).filter(Boolean)
     : [];
 
+const derivePrimaryVertical = (businessTypes: string[] = []) => {
+  const normalized = businessTypes.map((item) => String(item || "").trim().toLowerCase());
+  if (normalized.includes("co-working")) return "co-working";
+  if (normalized.includes("co-living")) return "co-living";
+  if (normalized.includes("workation")) return "workation";
+  if (normalized.includes("hostels") || normalized.includes("hostel")) return "hostel";
+  if (normalized.includes("meeting rooms") || normalized.includes("meeting-rooms")) return "meeting-rooms";
+  if (normalized.includes("cafe")) return "cafe";
+  return "";
+};
+
+const formatIndustryFromBusinessTypes = (businessTypes: string[] = []) =>
+  businessTypes
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .join(", ");
+
 const buildAuthUserPayload = (
   user: any,
   company: any,
@@ -79,6 +96,8 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       return res.status(409).json({ message: "Workspace name already taken." });
     }
 
+    const normalizedBusinessTypes = normalizeStringArray(workspaceDetails.businessTypes);
+
     let company =
       (user.companyId && (await Company.findOne({ companyId: user.companyId }))) ||
       (user.company && (await Company.findById(user.company)));
@@ -90,6 +109,10 @@ export const completeWorkspaceSetup = async (req, res, next) => {
         companyCity: workspaceDetails.city || "",
         companyState: workspaceDetails.state || "",
         companyCountry: workspaceDetails.country || "",
+        businessTypes: normalizedBusinessTypes,
+        industry: formatIndustryFromBusinessTypes(normalizedBusinessTypes),
+        verticalType: derivePrimaryVertical(normalizedBusinessTypes),
+        vertical: derivePrimaryVertical(normalizedBusinessTypes),
         logo: null,
         isRegistered: true,
       });
@@ -99,6 +122,10 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       company.companyCity = String(workspaceDetails.city || "").trim();
       company.companyState = String(workspaceDetails.state || "").trim();
       company.companyCountry = String(workspaceDetails.country || "").trim();
+      company.businessTypes = normalizedBusinessTypes;
+      company.industry = formatIndustryFromBusinessTypes(normalizedBusinessTypes);
+      company.verticalType = derivePrimaryVertical(normalizedBusinessTypes);
+      company.vertical = derivePrimaryVertical(normalizedBusinessTypes);
       // New workspaces should not inherit a stale logo from an unrelated company record.
       company.logo = null;
       company.isRegistered = true;
@@ -116,7 +143,7 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       state: String(workspaceDetails.state || "").trim(),
       city: String(workspaceDetails.city || "").trim(),
       address: String(workspaceDetails.address || "").trim(),
-      businessTypes: normalizeStringArray(workspaceDetails.businessTypes),
+      businessTypes: normalizedBusinessTypes,
       selectedPlan,
       enabledModuleIds: normalizeStringArray(enabledModuleIds),
       modules: Array.isArray(modules) ? modules : [],

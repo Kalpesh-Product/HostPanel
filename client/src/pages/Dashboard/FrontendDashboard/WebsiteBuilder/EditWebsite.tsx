@@ -52,7 +52,8 @@ const fileUrl = (file) => (file ? URL.createObjectURL(file) : "");
 
 const EditWebsite = () => {
   const axios = useAxiosPrivate();
-  const { state } = useLocation();
+  const location = useLocation();
+  const { state } = location;
   const formRef = useRef(null);
   const tenant = "spring";
   const { auth } = useAuth();
@@ -110,19 +111,30 @@ const EditWebsite = () => {
     },
   });
 
-  const { website } = useParams();
-
-  const formatCompanyName = (name) => {
-    if (!name) return "";
-    return name.toLowerCase().split("-")[0].replace(/\s+/g, "");
+  const { companyName: paramCompanyName } = useParams();
+  const searchKey =
+    paramCompanyName || location.state?.searchKey || location.state?.companyName;
+  const selectedVertical =
+    localStorage.getItem("selectedVerticalLabel") || "Co-Working";
+  const verticalBadgeMap = {
+    "Co-Working": "\u{1F5A5}\uFE0F Co-Working",
+    "Co-Living": "\u{1F3E0} Co-Living",
+    Hostels: "\u{1F6CF}\uFE0F Hostels",
+    Workation: "\u{2708}\uFE0F Workation",
+    "Meeting Rooms": "\u{1F4C5} Meeting Rooms",
+    Cafe: "\u{2615} Cafe",
   };
+  const verticalBadgeText = verticalBadgeMap[selectedVertical] || "\u{1F5A5}\uFE0F Co-Working";
 
   const { data: tpl, isLoading } = useQuery({
-    queryKey: ["website-data", website],
+    queryKey: ["website-data", searchKey],
     queryFn: async () => {
-      const formatted = formatCompanyName(website);
-      const res = await axios.get(`/api/editor/get-website/${formatted}`);
-      return res.data;
+      const routeCompanyName = String(searchKey || "").trim();
+      const response = await axios.get(
+        `/api/editor/get-website/${encodeURIComponent(routeCompanyName)}`,
+      );
+      const fetchedWebsite = response.data;
+      return fetchedWebsite;
     },
   });
 
@@ -526,9 +538,14 @@ const EditWebsite = () => {
       <div className="p-4 flex flex-col gap-4">
         <PageFrame>
           <div className="flex flex-col gap-5">
-            <h2 className="text-title font-pmedium text-primary uppercase">
-              Edit Website
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-title font-pmedium text-primary uppercase">
+                {tpl?.companyName ? `Edit Website - ${tpl.companyName}` : "Edit Website"}
+              </h2>
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                {verticalBadgeText}
+              </span>
+            </div>
 
             <form
               ref={formRef}

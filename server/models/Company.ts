@@ -37,6 +37,18 @@ const hostCompanySchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    businessTypes: {
+      type: [String],
+      default: [],
+    },
+    verticalType: {
+      type: String,
+      trim: true,
+    },
+    vertical: {
+      type: String,
+      trim: true,
+    },
     websiteURL: {
       type: String,
       trim: true,
@@ -44,6 +56,40 @@ const hostCompanySchema = new mongoose.Schema(
     linkedinURL: {
       type: String,
       trim: true,
+    },
+    plan: {
+      type: String,
+      trim: true,
+    },
+    requestedPlan: {
+      type: String,
+      trim: true,
+    },
+    status: {
+      type: String,
+      trim: true,
+    },
+    paymentStatus: {
+      type: Boolean,
+      default: false,
+    },
+    pocName: {
+      type: String,
+      trim: true,
+    },
+    pocEmail: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
+    pocPhone: {
+      type: String,
+      trim: true,
+    },
+    comment: {
+      type: String,
+      trim: true,
+      default: "",
     },
     selectedServices: {
       apps: {

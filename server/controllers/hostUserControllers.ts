@@ -6,6 +6,23 @@ import WorkspaceMember from "../models/WorkspaceMember.js";
 import HostCompany from "../models/Company.js";
 import { uploadFileToS3, deleteFileFromS3ByUrl } from "../config/s3config.js";
 
+const derivePrimaryVertical = (businessTypes = []) => {
+  const normalized = businessTypes.map((item) => String(item || "").trim().toLowerCase());
+  if (normalized.includes("co-working")) return "co-working";
+  if (normalized.includes("co-living")) return "co-living";
+  if (normalized.includes("workation")) return "workation";
+  if (normalized.includes("hostels") || normalized.includes("hostel")) return "hostel";
+  if (normalized.includes("meeting rooms") || normalized.includes("meeting-rooms")) return "meeting-rooms";
+  if (normalized.includes("cafe")) return "cafe";
+  return "";
+};
+
+const formatIndustryFromBusinessTypes = (businessTypes = []) =>
+  businessTypes
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .join(", ");
+
 export const updateProfile = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -384,6 +401,16 @@ export const updateCompanyLogo = async (req, res) => {
             companyCity: String(workspace.city || "").trim(),
             companyState: String(workspace.state || "").trim(),
             companyCountry: String(workspace.country || "").trim(),
+            businessTypes: Array.isArray(workspace.businessTypes) ? workspace.businessTypes : [],
+            industry: formatIndustryFromBusinessTypes(
+              Array.isArray(workspace.businessTypes) ? workspace.businessTypes : [],
+            ),
+            verticalType: derivePrimaryVertical(
+              Array.isArray(workspace.businessTypes) ? workspace.businessTypes : [],
+            ),
+            vertical: derivePrimaryVertical(
+              Array.isArray(workspace.businessTypes) ? workspace.businessTypes : [],
+            ),
             isRegistered: true,
           });
           company = createdCompany;

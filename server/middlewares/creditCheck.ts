@@ -10,25 +10,21 @@ const getFirstDayOfNextMonthUtc = () => {
 
 export const checkAndDeductCredit = async (req, res, next) => {
   try {
-    console.log("CREDIT CHECK HIT");
-    console.log("BODY:", req.body);
-    console.log("QUERY:", req.query);
-    console.log("HEADERS workspaceId:", req.headers["x-workspace-id"]);
-
-    const workspaceId =
+    const companyId =
+      req.body?.companyId ||
       req.body?.workspaceId ||
       req.query?.workspaceId ||
       req.headers["x-workspace-id"];
 
-    if (!workspaceId) {
-      return res.status(400).json({ error: "workspaceId is required" });
+    if (!companyId) {
+      return res.status(400).json({ error: "companyId is required" });
     }
 
-    let subscription = await WorkspaceSubscription.findOne({ workspaceId });
+    let subscription = await WorkspaceSubscription.findOne({ companyId });
 
     if (!subscription) {
       subscription = await WorkspaceSubscription.create({
-        workspaceId,
+        companyId,
         creditsLimit: 5,
         creditsUsed: 0,
         creditsResetDate: getFirstDayOfNextMonthUtc(),

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, useLocation } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import AuthLayout from "../layouts/AuthLayout";
 import LoginPage from "../pages/LoginPage/LoginPage";
@@ -140,6 +140,7 @@ import WebsitesLayout from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/
 import InActiveWebsites from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/InActiveWebsites";
 import WebsiteTypeSelector from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsiteTypeSelector";
 import WebsiteBuilderTypeActions from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsiteBuilderTypeActions";
+import VerticalPicker from "../components/VerticalPicker";
 
 import Companies from "../pages/Dashboard/FrontendDashboard/Companies";
 import CompanyLeads from "../pages/Dashboard/FrontendDashboard/CompanyLeads";
@@ -164,6 +165,12 @@ import OrganizationPage from "../pages/Organization/OrganizationPage";
 import WorkspaceSettingsPage from "../pages/WorkspaceSettings/WorkspaceSettingsPage";
 import WorkspaceManagementPage from "../pages/WorkspaceSettings/WorkspaceManagementPage";
 import CustomerSupportPage from "../pages/CustomerSupport/CustomerSupportPage";
+
+function VerticalPickerRoute() {
+  const location = useLocation();
+  const workspaceId = new URLSearchParams(location.search).get("workspaceId") || "";
+  return <VerticalPicker workspaceId={workspaceId} />;
+}
 
 export const routes = createBrowserRouter([
   {
@@ -274,6 +281,7 @@ export const routes = createBrowserRouter([
                       }, // with param
                       { path: "static", element: <WebsiteBuilderTypeActions type="static" /> },
                       { path: "dynamic", element: <WebsiteBuilderTypeActions type="dynamic" /> },
+                      { path: "static/select-vertical", element: <VerticalPickerRoute /> },
                       { path: "static/create-website", element: <CreateWebsite /> },
                       { path: "dynamic/create-website", element: <CreateWebsite /> },
                       { path: "static/leads", element: <CompanyLeads /> },
@@ -399,6 +407,7 @@ export const routes = createBrowserRouter([
                       }, // with param
                       { path: "static", element: <WebsiteBuilderTypeActions type="static" /> },
                       { path: "dynamic", element: <WebsiteBuilderTypeActions type="dynamic" /> },
+                      { path: "static/select-vertical", element: <VerticalPickerRoute /> },
                       { path: "static/create-website", element: <CreateWebsite /> },
                       { path: "dynamic/create-website", element: <CreateWebsite /> },
                       { path: "static/leads", element: <CompanyLeads /> },

@@ -26,6 +26,15 @@ const normalizeVertical = (value) => {
   return VALID_VERTICALS.has(value) ? value : "co-working";
 };
 
+const businessTypeLabelByVertical = {
+  "co-working": "Co-Working",
+  "co-living": "Co-Living",
+  workation: "Workation",
+  hostel: "Hostels",
+  "meeting-rooms": "Meetings",
+  cafe: "Cafe",
+};
+
 const deductWorkspaceCreditOnSuccess = async (workspaceId) => {
   if (!workspaceId) return;
   const subscription = await WorkspaceSubscription.findOne({ workspaceId });
@@ -231,10 +240,6 @@ export const createTemplate = async (req, res, next) => {
         { companyId: req.body.companyId },
       ],
     });
-
-    console.log("COMPANY NAME RECEIVED:", req.body.companyName);
-    console.log("COMPANY FOUND:", hostCompanyExists);
-    console.log("FULL BODY KEYS:", Object.keys(req.body));
 
     if (!hostCompanyExists && source !== "Nomad") {
       return res.status(400).json({ message: "Company not found" });
@@ -502,10 +507,26 @@ export const createTemplate = async (req, res, next) => {
     await deductWorkspaceCreditOnSuccess(req.body?.workspaceId);
 
     if (source !== "Nomad") {
+      const derivedBusinessType = businessTypeLabelByVertical[vertical] || "Co-Working";
+      const normalizedIndustry = [derivedBusinessType].filter(Boolean).join(", ");
+
       const updateHostCompany = await HostCompany.findOneAndUpdate(
-        { companyName: req.body.companyName }, //can't use company Id as the host signup form can't send any company Id
         {
-          isWebsiteTemplate: true,
+          $or: [
+            { companyId: req.body.companyId },
+            { companyName: new RegExp(`^${String(req.body.companyName || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+          ],
+        },
+        {
+          $set: {
+            isWebsiteTemplate: true,
+            vertical,
+            verticalType: req.body.verticalType || vertical,
+            industry: normalizedIndustry,
+          },
+          $addToSet: {
+            businessTypes: derivedBusinessType,
+          },
         },
       );
 
