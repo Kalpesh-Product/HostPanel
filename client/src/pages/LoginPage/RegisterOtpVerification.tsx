@@ -185,7 +185,7 @@ export default function RegisterOtpVerification() {
                           type="submit"
                           className="loginButtonStyling text-decoration-none text-subtitle w-40"
                         >
-                          {isSubmitting ? <CircularProgress size={20} color="white" /> : "VERIFY"}
+                          {isSubmitting ? <CircularProgress size={20} sx={{ color: "#fff" }} /> : "VERIFY"}
                         </button>
                       </div>
                     </Grid>
