@@ -1,7 +1,15 @@
 // @ts-nocheck
 import React, { useState, useEffect, useRef } from "react";
 import { Controller, useForm, useFieldArray } from "react-hook-form";
-import { TextField, CircularProgress } from "@mui/material";
+import {
+  TextField,
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+} from "@mui/material";
 import PrimaryButton from "../../../../components/PrimaryButton";
 import SecondaryButton from "../../../../components/SecondaryButton";
 import { toast } from "sonner";
@@ -15,6 +23,8 @@ import UploadMultipleFilesInput from "../../../../components/UploadMultipleFiles
 import UploadFileInput from "../../../../components/UploadFileInput";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { FiTrash2, FiX } from "react-icons/fi";
+import PageFrame from "../../../../components/Pages/PageFrame";
+import CreditsIndicator from "../../../../components/CreditsIndicator";
 
 dayjs.extend(customParseFormat);
 
@@ -47,8 +57,16 @@ const EditWebsite = () => {
   const tenant = "spring";
   const { auth } = useAuth();
   const selectedCompany = useSelector((state) => state.company.selectedCompany);
-  const workspaceId = selectedCompany?.workspaceId || auth?.user?.workspaceId;
+  const workspaceId =
+    selectedCompany?.workspaceId ||
+    auth?.user?.primaryWorkspace ||
+    auth?.user?.workspaceId;
   const [creditsRemaining, setCreditsRemaining] = useState(5);
+  const [creditsUsed, setCreditsUsed] = useState(0);
+  const [creditsLimit, setCreditsLimit] = useState(5);
+  const [creditsResetDate, setCreditsResetDate] = useState(null);
+  const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
+  const [pendingSubmitValues, setPendingSubmitValues] = useState(null);
   // const website = useSelector((state) => state.company.selectedCompany);
   //  const tpl = website || "";
   //  const isLoading = state.isLoading || false;
@@ -118,8 +136,14 @@ const EditWebsite = () => {
           },
         });
         setCreditsRemaining(Number(res?.data?.creditsRemaining ?? 5));
+        setCreditsUsed(Number(res?.data?.creditsUsed ?? 0));
+        setCreditsLimit(Number(res?.data?.creditsLimit ?? 5));
+        setCreditsResetDate(res?.data?.creditsResetDate || null);
       } catch (error) {
         setCreditsRemaining(5);
+        setCreditsUsed(0);
+        setCreditsLimit(5);
+        setCreditsResetDate(null);
       }
     };
 
@@ -235,6 +259,40 @@ const EditWebsite = () => {
   }, [tpl, isLoading, reset]);
 
   const values = watch();
+  const daysLeftForRenew = creditsResetDate
+    ? Math.max(0, Math.floor((() => {
+        const reset = new Date(creditsResetDate);
+        const now = new Date();
+        const resetStart = new Date(
+          reset.getFullYear(),
+          reset.getMonth(),
+          reset.getDate(),
+          0,
+          0,
+          0,
+          0,
+        );
+        const nowStart = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+          0,
+          0,
+          0,
+          0,
+        );
+        return (resetStart.getTime() - nowStart.getTime()) / (1000 * 60 * 60 * 24);
+      })()))
+    : "-";
+  const creditResetText = creditsResetDate
+    ? (() => {
+        const d = new Date(creditsResetDate);
+        const day = String(d.getDate()).padStart(2, "0");
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const year = d.getFullYear();
+        return `${day}/${month}/${year}, 12:00 AM`;
+      })()
+    : "-";
 
   const CHAR_LIMITS = {
     heroTitle: 100,
@@ -288,11 +346,15 @@ const EditWebsite = () => {
     },
   });
 
-  const onSubmit = (vals, e) => {
+  const submitWebsiteUpdate = (vals) => {
     const fd = new FormData();
+    fd.append("workspaceId", workspaceId || "");
 
     // text fields used by server (companyName builds searchKey)
-    fd.append("companyName", vals.companyName || "");
+    fd.append(
+      "companyName",
+      vals.companyName || selectedCompany?.companyName || auth?.user?.companyName || "",
+    );
     fd.append("title", vals.title || "");
     fd.append("subTitle", vals.subTitle || "");
     fd.append("CTAButtonText", vals.CTAButtonText || "");
@@ -397,6 +459,11 @@ const EditWebsite = () => {
     updateTemplate(fd);
   };
 
+  const onSubmit = (vals) => {
+    setPendingSubmitValues(vals);
+    setConfirmSubmitOpen(true);
+  };
+
   const handleReset = () => {
     // const node = formRef.current;
     // node && node.reset();
@@ -457,16 +524,17 @@ const EditWebsite = () => {
   return (
     <div className="pb-2">
       <div className="p-4 flex flex-col gap-4">
-        <div className="themePage-content-header bg-white flex flex-col gap-4">
-          <h4 className="text-4xl text-left">Edit Website</h4>
-          <hr />
-        </div>
+        <PageFrame>
+          <div className="flex flex-col gap-5">
+            <h2 className="text-title font-pmedium text-primary uppercase">
+              Edit Website
+            </h2>
 
-        <form
-          ref={formRef}
-          encType="multipart/form-data"
-          onSubmit={handleSubmit(onSubmit)}
-        >
+            <form
+              ref={formRef}
+              encType="multipart/form-data"
+              onSubmit={handleSubmit(onSubmit)}
+            >
           <div className="md:grid grid-cols-2 sm:grid-cols-1 md:grid-cols-2 gap-4">
             {/* HERO / COMPANY */}
             <div>
@@ -1250,23 +1318,125 @@ const EditWebsite = () => {
             </div>
           </div>
 
-          {/* Submit / Reset */}
-          <div className="flex items-center justify-center gap-4">
-            <PrimaryButton
-              type="submit"
-              title={isUpdating ? "Updating..." : "Submit"}
-              isLoading={isUpdating}
-              disabled={isUpdating || creditsRemaining <= 0}
-            />
-            <button
-              type="button"
-              onClick={resetFormToEmpty}
-              className="px-6 py-2 bg-gray-200 text-black rounded-md"
+              {/* Submit / Reset */}
+              <div className="flex justify-center mb-3">
+                {workspaceId ? <CreditsIndicator workspaceId={workspaceId} /> : null}
+              </div>
+              <div className="flex items-center justify-center gap-4">
+                <PrimaryButton
+                  type="submit"
+                  title={isUpdating ? "Updating..." : "Submit"}
+                  isLoading={isUpdating}
+                  disabled={isUpdating || creditsRemaining <= 0}
+                />
+                <button
+                  type="button"
+                  onClick={resetFormToEmpty}
+                  className="px-6 py-2 bg-gray-200 text-black rounded-md"
+                >
+                  Reset
+                </button>
+              </div>
+            </form>
+
+            <Dialog
+              open={confirmSubmitOpen}
+              onClose={() => {
+                if (!isUpdating) setConfirmSubmitOpen(false);
+              }}
+              fullWidth
+              maxWidth="sm"
+              PaperProps={{
+                sx: { borderRadius: 3, overflow: "hidden" },
+              }}
             >
-              Reset
-            </button>
+              <DialogTitle sx={{ pb: 1 }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-semibold text-slate-900">
+                    Confirm Submission
+                  </span>
+                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                    1 Credit
+                  </span>
+                </div>
+              </DialogTitle>
+              <DialogContent>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-700">
+                    You are about to submit this website update.
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Credits are deducted only after successful submission.
+                  </p>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-lg bg-white p-3 border border-slate-200">
+                      <div className="text-xs text-slate-500">Used</div>
+                      <div className="text-base font-semibold text-slate-900">{creditsUsed}</div>
+                    </div>
+                    <div className="rounded-lg bg-white p-3 border border-slate-200">
+                      <div className="text-xs text-slate-500">Remaining</div>
+                      <div className="text-base font-semibold text-slate-900">{creditsRemaining}</div>
+                    </div>
+                    <div className="rounded-lg bg-white p-3 border border-slate-200">
+                      <div className="text-xs text-slate-500">Monthly Limit</div>
+                      <div className="text-base font-semibold text-slate-900">{creditsLimit}</div>
+                    </div>
+                    <div className="rounded-lg bg-white p-3 border border-slate-200">
+                      <div className="text-xs text-slate-500">Days Left</div>
+                      <div className="text-base font-semibold text-slate-900">{daysLeftForRenew}</div>
+                    </div>
+                  </div>
+                  <div className="mt-3 rounded-lg bg-white p-3 border border-slate-200 text-xs text-slate-600">
+                    Resets on <span className="font-semibold text-slate-900">{creditResetText}</span>
+                  </div>
+                </div>
+              </DialogContent>
+              <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+                <Button
+                  onClick={() => setConfirmSubmitOpen(false)}
+                  disabled={isUpdating}
+                  sx={{
+                    borderRadius: "6px",
+                    textTransform: "none",
+                    px: 3,
+                    py: 1,
+                    backgroundColor: "#e5e7eb",
+                    color: "#111111",
+                    "&:hover": {
+                      backgroundColor: "#d1d5db",
+                    },
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="contained"
+                  disabled={isUpdating}
+                  sx={{
+                    borderRadius: "6px",
+                    textTransform: "none",
+                    px: 3,
+                    py: 1,
+                    backgroundColor: "#2563eb",
+                    color: "#ffffff",
+                    "&:hover": {
+                      backgroundColor: "#1d4ed8",
+                    },
+                  }}
+                  onClick={() => {
+                    if (pendingSubmitValues) {
+                      submitWebsiteUpdate(pendingSubmitValues);
+                    }
+                    setConfirmSubmitOpen(false);
+                    setPendingSubmitValues(null);
+                  }}
+                >
+                  {isUpdating ? "Submitting..." : "Confirm & Submit"}
+                </Button>
+              </DialogActions>
+            </Dialog>
           </div>
-        </form>
+        </PageFrame>
       </div>
     </div>
   );

@@ -998,7 +998,7 @@ export default function AccessGrantsPage() {
         <div className="space-y-3">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
-              <h1 className="text-base lg:text-lg font-black tracking-tight text-slate-800">Access Grants</h1>
+              <h2 className="text-title font-pmedium text-primary uppercase">Access Grants</h2>
               <p className="text-xs font-medium text-slate-500 mt-1">
                 Manage user roles and founder access for {workspace?.workspaceName || 'this workspace'}.
               </p>

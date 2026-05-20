@@ -27,6 +27,8 @@ import YearWiseTable from "../../components/Tables/YearWiseTable";
 import humanDate from "../../utils/humanDateForamt";
 import { isAlphanumeric, noOnlyWhitespace } from "../../utils/validators";
 
+const SUPPORT_TICKETS_API = "/api/tickets/support-tickets";
+
 const RaiseTicket = () => {
   const [selectedDepartment, setSelectedDepartment] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -91,7 +93,7 @@ const RaiseTicket = () => {
         formData.append("issue", data.image); // Key name should match backend expectations
       }
 
-      const response = await axios.post("/api/tickets/raise-ticket", formData, {
+      const response = await axios.post(SUPPORT_TICKETS_API, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },

@@ -1,296 +1,157 @@
 // @ts-nocheck
 import SupportTicket from "../models/SupportTicket.js";
-import HostUser from "../models/HostUser.js";
-import Company from "../models/Company.js";
-import WorkspaceMember from "../models/WorkspaceMember.js";
-import Workspace from "../models/Workspace.js";
 import { uploadFileToS3 } from "../config/s3config.js";
 
-const getUserContext = async (userId: string, workspaceId: string) => {
-  const user = await HostUser.findById(userId).lean().exec();
-  if (!user) return null;
+const buildTicketId = () => `ST-${Date.now().toString().slice(-8)}`;
 
-  const membership = workspaceId
-    ? await WorkspaceMember.findOne({
-        user: userId,
-        workspace: workspaceId,
-        isActive: true,
-      })
-        .lean()
-        .exec()
-    : null;
-  const workspace = workspaceId
-    ? await Workspace.findById(workspaceId).select("_id workspaceName").lean().exec()
-    : null;
-
-  let company = null;
-  if (user?.company) {
-    company = await Company.findById(user.company)
-      .select("_id companyName")
-      .lean()
-      .exec();
-  }
-  if (!company && user?.companyId) {
-    company = await Company.findOne({ companyId: user.companyId })
-      .select("_id companyName")
-      .lean()
-      .exec();
-  }
-
-  return { user, membership, company, workspace };
+const normalizeStatus = (value: any) => {
+  const raw = String(value || "").trim().toLowerCase();
+  if (raw === "in-progress" || raw === "in progress") return "In Progress";
+  if (raw === "resolved") return "Resolved";
+  if (raw === "closed") return "Closed";
+  if (raw === "pending") return "Pending";
+  if (raw === "escalated") return "Escalated";
+  if (raw === "rejected") return "Rejected";
+  return "Open";
 };
 
-const normalizeTicket = (ticket: any) => ({
-  id: String(ticket?._id || ""),
-  sr: Number(ticket?.sr || 0),
-  ticketId: String(ticket?.ticketId || ""),
-  title: String(ticket?.title || ""),
-  description: String(ticket?.description || ""),
-  status: String(ticket?.status || ""),
+const userToName = (user: any) => {
+  if (!user) return "";
+  if (user.name) return user.name;
+  const first = user.firstName || "";
+  const last = user.lastName || "";
+  return `${first} ${last}`.trim();
+};
+
+const mapTicket = (ticket: any, sr: number) => ({
+  id: String(ticket?._id || ticket?.id || ""),
+  sr,
+  ticketId: ticket?.ticketId || ticket?.ticketID || "",
+  title: ticket?.title || ticket?.ticket || ticket?.ticketTitle || "",
+  description: ticket?.description || "",
+  status: normalizeStatus(ticket?.status),
   requestedAt: ticket?.requestedAt || ticket?.createdAt || null,
-  requestedByName: String(ticket?.requestedBy?.name || ""),
-  requestedByEmail: String(ticket?.requestedBy?.email || ""),
-  acceptedByName: String(ticket?.acceptedBy?.name || ""),
-  acceptedByEmail: String(ticket?.acceptedBy?.email || ""),
-  resolvedByName: String(ticket?.resolvedBy?.name || ""),
-  resolvedByEmail: String(ticket?.resolvedBy?.email || ""),
-  role: String(ticket?.role || ""),
-  department: String(ticket?.department || ""),
-  workspaceName: String(ticket?.workspaceName || ""),
-  image: {
-    id: String(ticket?.image?.id || ""),
-    url: String(ticket?.image?.url || ""),
-  },
-  resolutionMessage: String(ticket?.resolutionMessage || ""),
-  resolutionAttachment: {
-    id: String(ticket?.resolutionAttachment?.id || ""),
-    url: String(ticket?.resolutionAttachment?.url || ""),
-  },
+  requestedByName: userToName(ticket?.requestedBy),
+  requestedByEmail: ticket?.requestedBy?.email || "",
+  acceptedByName: userToName(ticket?.acceptedBy),
+  acceptedByEmail: ticket?.acceptedBy?.email || "",
+  resolvedByName: userToName(ticket?.resolvedBy),
+  resolvedByEmail: ticket?.resolvedBy?.email || "",
+  role: ticket?.role || "",
+  department: ticket?.department || null,
+  workspaceName: ticket?.workspace?.workspaceName || ticket?.workspaceName || "",
+  image: ticket?.image || { id: "", url: "" },
+  resolutionMessage: ticket?.resolutionMessage || "",
+  resolutionAttachment: ticket?.resolutionAttachment || { id: "", url: "" },
   resolvedAt: ticket?.resolvedAt || null,
   closedByUserAt: ticket?.closedByUserAt || null,
 });
 
-export const createSupportTicket = async (req, res) => {
+export const getSupportTickets = async (req, res, next) => {
   try {
+    const workspaceId = req.workspaceMembership?.workspace || null;
     const userId = req.user;
-    const workspaceId = String(req.workspaceMembership?.workspace || "");
+    const query: any = {};
+    if (workspaceId) query.workspace = workspaceId;
+    if (userId) query.requestedBy = userId;
+
+    const tickets = await SupportTicket.find(query)
+      .sort({ createdAt: -1 })
+      .populate("requestedBy", "name firstName lastName email")
+      .populate("acceptedBy", "name firstName lastName email")
+      .populate("resolvedBy", "name firstName lastName email")
+      .populate("workspace", "workspaceName")
+      .lean()
+      .exec();
+
+    const raised = tickets
+      .filter((ticket) => normalizeStatus(ticket.status) !== "Closed")
+      .map((ticket, index) => mapTicket(ticket, index + 1));
+    const history = tickets
+      .filter((ticket) => normalizeStatus(ticket.status) === "Closed")
+      .map((ticket, index) => mapTicket(ticket, index + 1));
+
+    return res.status(200).json({ data: { raised, history } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createSupportTicket = async (req, res, next) => {
+  try {
     const { title, description } = req.body;
-
-    const trimmedTitle = String(title || "").trim();
-    const trimmedDescription = String(description || "").trim();
-    if (!trimmedTitle || !trimmedDescription) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Title and description are required." });
+    if (!title?.trim() || !description?.trim()) {
+      return res.status(400).json({ message: "Title and description are required." });
     }
 
-    const context = await getUserContext(userId, workspaceId);
-    if (!context?.user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Host user not found." });
-    }
-
-    let uploadedImage = { id: "", url: "" };
+    let image = { id: "", url: "" };
     if (req.file) {
-      const ext = String(req.file.originalname || "")
-        .split(".")
-        .pop()
-        ?.toLowerCase();
-      const imageRoute = `support-tickets/${Date.now()}-${Math.round(
-        Math.random() * 1e9,
-      )}.${ext || "png"}`;
-      uploadedImage = await uploadFileToS3(imageRoute, req.file);
+      const cleanName = String(req.file.originalname || "file").replace(/[/\\?%*:|"<>]/g, "_");
+      const route = `support-tickets/${req.workspaceMembership?.workspace || "default"}/${Date.now()}-${cleanName}`;
+      image = await uploadFileToS3(route, req.file);
     }
-
-    const normalizedRole = String(context?.membership?.role || "")
-      .trim()
-      .toLowerCase();
-    const isTopRole =
-      normalizedRole === "founder" || normalizedRole === "super_admin";
-
-    const departmentList = Array.isArray(context?.membership?.departments)
-      ? context.membership.departments.filter(Boolean)
-      : [];
 
     const ticket = await SupportTicket.create({
-      user: context.user._id,
-      requestedBy: context.user._id,
-      title: trimmedTitle,
-      description: trimmedDescription,
-      company: context?.company?._id || null,
-      companyName: context?.company?.companyName || "",
-      workspace: context?.workspace?._id || null,
-      workspaceName: context?.workspace?.workspaceName || "",
-      role: context?.membership?.role || "",
-      department: isTopRole ? null : departmentList.join(", "),
-      requestedAt: new Date(),
-      status: "Pending",
-      image: uploadedImage,
+      ticketId: buildTicketId(),
+      title: String(title).trim(),
+      description: String(description).trim(),
+      status: "Open",
+      requestedBy: req.user || null,
+      workspace: req.workspaceMembership?.workspace || null,
+      role: req.workspaceMembership?.role || "",
+      image,
     });
 
-    const populated = await SupportTicket.findById(ticket._id)
-      .populate("requestedBy", "name email")
-      .populate("acceptedBy", "name email")
-      .populate("resolvedBy", "name email")
-      .lean()
-      .exec();
-
-    return res.status(201).json({
-      success: true,
-      message: "Support ticket raised successfully.",
-      data: normalizeTicket(populated),
-    });
+    return res.status(201).json({ message: "Support ticket submitted.", data: ticket });
   } catch (error) {
-    console.error("createSupportTicket error", error);
-    return res.status(500).json({
-      success: false,
-      message: error?.message || "Failed to raise support ticket.",
-    });
+    next(error);
   }
 };
 
-export const getSupportTickets = async (req, res) => {
+export const closeSupportTicket = async (req, res, next) => {
   try {
-    const userId = String(req.user || "");
-    const tickets = await SupportTicket.find({ user: userId })
-      .populate("requestedBy", "name email")
-      .populate("acceptedBy", "name email")
-      .populate("resolvedBy", "name email")
-      .sort({ createdAt: -1 })
-      .lean()
-      .exec();
-
-    const history = tickets
-      .filter(
-        (ticket) =>
-          ticket.status === "Closed" ||
-          ticket.status === "Rejected" ||
-          Boolean(ticket.resolvedAt) ||
-          Boolean(String(ticket.resolutionMessage || "").trim()),
-      )
-      .map(normalizeTicket);
-    const historyIdSet = new Set(history.map((item) => item.id));
-    const raised = tickets
-      .filter((ticket) => !historyIdSet.has(String(ticket?._id || "")))
-      .map(normalizeTicket);
-
-    return res.status(200).json({
-      success: true,
-      data: { raised, history },
-    });
-  } catch (error) {
-    console.error("getSupportTickets error", error);
-    return res.status(500).json({
-      success: false,
-      message: error?.message || "Failed to load support tickets.",
-    });
-  }
-};
-
-export const closeSupportTicketByUser = async (req, res) => {
-  try {
-    const userId = String(req.user || "");
-    const ticketId = String(req.params.ticketId || "");
-
-    const ticket = await SupportTicket.findOne({ _id: ticketId, user: userId });
-    if (!ticket) {
+    const ticket = await SupportTicket.findById(req.params.ticketId).exec();
+    if (!ticket) return res.status(404).json({ message: "Support ticket not found." });
+    if (normalizeStatus(ticket.status) !== "Resolved") {
       return res
-        .status(404)
-        .json({ success: false, message: "Support ticket not found." });
+        .status(400)
+        .json({ message: "Ticket can be closed only after it is resolved." });
     }
-
     ticket.status = "Closed";
+    ticket.closedBy = req.user || null;
     ticket.closedByUserAt = new Date();
-    if (!ticket.resolvedAt) {
-      ticket.resolvedAt = new Date();
-    }
     await ticket.save();
-
-    const updated = await SupportTicket.findById(ticket._id)
-      .populate("requestedBy", "name email")
-      .populate("acceptedBy", "name email")
-      .populate("resolvedBy", "name email")
-      .lean()
-      .exec();
-
-    return res.status(200).json({
-      success: true,
-      message: "Ticket closed successfully.",
-      data: normalizeTicket(updated),
-    });
+    return res.status(200).json({ message: "Ticket closed successfully." });
   } catch (error) {
-    console.error("closeSupportTicketByUser error", error);
-    return res.status(500).json({
-      success: false,
-      message: error?.message || "Failed to close ticket.",
-    });
+    next(error);
   }
 };
 
-export const followUpSupportTicket = async (req, res) => {
+export const createFollowUpTicket = async (req, res, next) => {
   try {
-    const userId = req.user;
-    const workspaceId = String(req.workspaceMembership?.workspace || "");
-    const ticketId = String(req.params.ticketId || "");
-    const { description } = req.body;
-
-    const ticket = await SupportTicket.findOne({ _id: ticketId, user: userId }).lean();
-    if (!ticket) {
+    const parent = await SupportTicket.findById(req.params.ticketId).exec();
+    if (!parent) return res.status(404).json({ message: "Support ticket not found." });
+    if (normalizeStatus(parent.status) !== "Resolved") {
       return res
-        .status(404)
-        .json({ success: false, message: "Support ticket not found." });
+        .status(400)
+        .json({ message: "Follow-up can be raised only after the ticket is resolved." });
     }
 
-    const context = await getUserContext(userId, workspaceId);
-    const normalizedRole = String(context?.membership?.role || ticket.role || "")
-      .trim()
-      .toLowerCase();
-    const isTopRole =
-      normalizedRole === "founder" || normalizedRole === "super_admin";
-
-    const followUpDescription = String(description || "").trim();
-
-    const newDescription = followUpDescription
-      ? `${ticket.description}\n\nFollow-up: ${followUpDescription}`
-      : `${ticket.description}\n\nFollow-up requested by user.`;
-
-    const newTicket = await SupportTicket.create({
-      user: context?.user?._id || userId,
-      requestedBy: context?.user?._id || userId,
-      title: ticket.title,
-      description: newDescription,
-      company: context?.company?._id || ticket.company || null,
-      companyName: context?.company?.companyName || ticket.companyName || "",
-      workspace: context?.workspace?._id || ticket.workspace || null,
-      workspaceName:
-        context?.workspace?.workspaceName || ticket.workspaceName || "",
-      role: context?.membership?.role || ticket.role || "",
-      department: isTopRole
-        ? null
-        : context?.membership?.departments?.join(", ") || ticket.department || "",
-      requestedAt: new Date(),
-      status: "Pending",
-      image: ticket.image || { id: "", url: "" },
+    const followUp = await SupportTicket.create({
+      ticketId: buildTicketId(),
+      title: `Follow-up: ${parent.title || "Support Issue"}`,
+      description: String(req.body?.description || "").trim() || `Follow-up for ${parent.ticketId || "ticket"}`,
+      status: "Open",
+      requestedBy: req.user || parent.requestedBy || null,
+      workspace: parent.workspace || req.workspaceMembership?.workspace || null,
+      role: req.workspaceMembership?.role || parent.role || "",
+      department: parent.department || "",
+      parentTicket: parent._id,
+      image: parent.image || { id: "", url: "" },
     });
 
-    const populated = await SupportTicket.findById(newTicket._id)
-      .populate("requestedBy", "name email")
-      .populate("acceptedBy", "name email")
-      .populate("resolvedBy", "name email")
-      .lean()
-      .exec();
-
-    return res.status(201).json({
-      success: true,
-      message: "Follow-up ticket created successfully.",
-      data: normalizeTicket(populated),
-    });
+    return res.status(201).json({ message: "Follow-up issue raised successfully.", data: followUp });
   } catch (error) {
-    console.error("followUpSupportTicket error", error);
-    return res.status(500).json({
-      success: false,
-      message: error?.message || "Failed to create follow-up ticket.",
-    });
+    next(error);
   }
 };

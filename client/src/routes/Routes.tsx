@@ -83,6 +83,7 @@ import VisitorReports from "../pages/Visitors/VisitorReports";
 import VisitorReviews from "../pages/Visitors/VisitorReviews";
 import VisitorSettings from "../pages/Visitors/VisitorSettings/VisitorSettings";
 import VisitorBulkUpload from "../pages/Visitors/VisitorSettings/VisitorBulkUpload";
+import VisitorManagement from "../pages/Visitors/VisitorManagement";
 import ProfileLayout from "../pages/Profile/ProfileLayout";
 import ChangePassword from "../pages/Profile/ChangePassword";
 import AccessGrant from "../pages/Profile/AccessGrant";
@@ -115,6 +116,7 @@ import Vendor from "../components/Vendor";
 import ViewVendor from "../components/vendor/ViewVendor";
 import MonthlyInvoiceCommon from "../components/Pages/MonthlyInvoiceCommon";
 import UserDetails from "../pages/Profile/UserDetails";
+import CompanyProfile from "../pages/Profile/CompanyProfile";
 import BudgetPage from "../components/Pages/BudgetPage";
 import PaymentScheduleCommon from "../components/Pages/PaymentScheduleCommon";
 import DepartmentAssetCommon from "../components/Pages/DepartmentAssetCommon";
@@ -141,7 +143,7 @@ import WebsiteBuilderTypeActions from "../pages/Dashboard/FrontendDashboard/Webs
 
 import Companies from "../pages/Dashboard/FrontendDashboard/Companies";
 import CompanyLeads from "../pages/Dashboard/FrontendDashboard/CompanyLeads";
-import CompanyOverview from "../pages/Dashboard/FrontendDashboard/CompanyOverview";
+import CompanySettingsDashboard from "../pages/Dashboard/FrontendDashboard/CompanySettingsDashboard";
 import NomadListing from "../pages/Dashboard/FrontendDashboard/NomadListing";
 import PocDetails from "../pages/Dashboard/FrontendDashboard/PocDetails";
 import NomadListingsOverview from "../pages/Dashboard/FrontendDashboard/NomadListingsOverview";
@@ -153,6 +155,7 @@ import RegisterPage from "../pages/LoginPage/RegisterPage";
 import RegisterOtpVerification from "../pages/LoginPage/RegisterOtpVerification";
 import FounderWorkspaceSelectionPage from "../pages/LoginPage/FounderWorkspaceSelectionPage";
 import CompanyReviews from "../pages/Dashboard/FrontendDashboard/CompanyReviews";
+import WonoNomad from "../pages/Dashboard/FrontendDashboard/WonoNomad";
 import CreateWorkspacePage from "../pages/WorkspaceSetup/CreateWorkspacePage";
 import SetupModulesPage from "../pages/WorkspaceSetup/SetupModulesPage";
 import FinalizeSetupPage from "../pages/WorkspaceSetup/FinalizeSetupPage";
@@ -348,9 +351,13 @@ export const routes = createBrowserRouter([
                 children: [
                   {
                     index: true, // login lands here
-                    element: <CompanyOverview />,
+                    element: <CompanySettingsDashboard />,
                   },
 
+                  {
+                    path: "wono-nomad",
+                    element: <WonoNomad />,
+                  },
                   {
                     path: "nomad-listings",
                     element: <NomadListingsOverview />,
@@ -362,6 +369,10 @@ export const routes = createBrowserRouter([
                   {
                     path: "nomad-listings/:listingId",
                     element: <EditNomadListing />,
+                  },
+                  {
+                    path: "reviews",
+                    element: <CompanyReviews />,
                   },
                   {
                     path: "website-builder",
@@ -516,6 +527,10 @@ export const routes = createBrowserRouter([
                   {
                     path: "my-profile",
                     element: <UserDetails />,
+                  },
+                  {
+                    path: "company-profile",
+                    element: <CompanyProfile />,
                   },
                   {
                     path: "change-password",
@@ -906,8 +921,12 @@ export const routes = createBrowserRouter([
                 children: [
                   {
                     path: "", // Default route for /app/visitors
-                    element: <VisitorDashboard />,
+                    element: <VisitorManagement />,
                     index: true,
+                  },
+                  {
+                    path: "dashboard",
+                    element: <VisitorDashboard />,
                   },
                   {
                     path: "add-visitor", // Page with form to Add a new Visitor
@@ -916,6 +935,10 @@ export const routes = createBrowserRouter([
                   {
                     path: "add-client", // Page with form to Add a new Visitor
                     element: <AddClient />,
+                  },
+                  {
+                    path: "visitor-management",
+                    element: <VisitorManagement />,
                   },
                   {
                     path: "manage-visitors",

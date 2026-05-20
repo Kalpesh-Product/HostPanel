@@ -2,9 +2,9 @@
 import { Router } from "express";
 import upload from "../config/multerConfig.js";
 import {
-  closeSupportTicketByUser,
+  closeSupportTicket,
+  createFollowUpTicket,
   createSupportTicket,
-  followUpSupportTicket,
   getSupportTickets,
 } from "../controllers/supportTicketControllers.js";
 
@@ -12,8 +12,8 @@ const router = Router();
 
 router.get("/", getSupportTickets);
 router.post("/", upload.single("image"), createSupportTicket);
-router.patch("/:ticketId/close", closeSupportTicketByUser);
-router.post("/:ticketId/follow-up", followUpSupportTicket);
+router.patch("/:ticketId/close", closeSupportTicket);
+router.post("/:ticketId/follow-up", createFollowUpTicket);
 
 export default router;
 

@@ -11,9 +11,9 @@ import {
   MapPin,
   PanelsTopLeft,
   Plus,
-  Sparkles,
   Users,
 } from "lucide-react";
+import PageFrame from "../../components/Pages/PageFrame";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useAuth from "../../hooks/useAuth";
 import { getWorkspaceManagementOverview } from "../../services/workspace-management";
@@ -172,18 +172,15 @@ export default function WorkspaceSettingsPage() {
   };
 
   return (
-    <div className="min-h-full w-full bg-slate-50 p-4 text-slate-900 sm:p-5 lg:p-6">
-      <div className="w-full space-y-4">
-        <header className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#2563EB]">
-            <Sparkles className="h-3.5 w-3.5" />
-            Workspace setting and creation
-          </div>
-          <h1 className="mt-2.5 text-[28px] leading-none font-black tracking-tight text-slate-950">Workspace Settings</h1>
-          <p className="mt-2 max-w-3xl text-[11px] font-medium leading-6 text-slate-500">
-            Manage the founder-level workspace flow. Create new workspace branches securely and unlock workspace management once you have more than one workspace.
-          </p>
-        </header>
+    <>
+    <PageFrame>
+        <div className="w-full space-y-4 p-2 lg:p-2.5">
+          <header>
+            <h2 className="text-title font-pmedium text-primary uppercase">Workspace Settings</h2>
+            <p className="mt-2 max-w-3xl text-[11px] font-medium leading-6 text-slate-500">
+              Manage the founder-level workspace flow. Create new workspace branches securely and unlock workspace management once you have more than one workspace.
+            </p>
+          </header>
 
         <section className="grid gap-3 md:grid-cols-3">
           <StatCard label="Owned Workspaces" value={workspaceCount} icon={Briefcase} />
@@ -350,7 +347,8 @@ export default function WorkspaceSettingsPage() {
             </section>
           </aside>
         </div>
-      </div>
+        </div>
+    </PageFrame>
 
       {isPasswordModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
@@ -403,7 +401,6 @@ export default function WorkspaceSettingsPage() {
           </div>
         </div>
       ) : null}
-    </div>
+    </>
   );
 }
-

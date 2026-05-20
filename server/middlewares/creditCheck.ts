@@ -10,6 +10,11 @@ const getFirstDayOfNextMonthUtc = () => {
 
 export const checkAndDeductCredit = async (req, res, next) => {
   try {
+    console.log("CREDIT CHECK HIT");
+    console.log("BODY:", req.body);
+    console.log("QUERY:", req.query);
+    console.log("HEADERS workspaceId:", req.headers["x-workspace-id"]);
+
     const workspaceId =
       req.body?.workspaceId ||
       req.query?.workspaceId ||
@@ -50,9 +55,6 @@ export const checkAndDeductCredit = async (req, res, next) => {
         resetDate: subscription.creditsResetDate,
       });
     }
-
-    subscription.creditsUsed += 1;
-    await subscription.save();
 
     req.subscription = subscription;
     return next();

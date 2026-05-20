@@ -94,7 +94,7 @@ const hostCompanySchema = new mongoose.Schema(
       default: false,
     },
   },
-  { timestamps: true },
+  { timestamps: true, collection: "hostleadcompanies" },
 );
 
 const HostCompany = mongoose.model("HostCompany", hostCompanySchema);

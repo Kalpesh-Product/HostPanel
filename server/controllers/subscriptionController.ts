@@ -67,3 +67,33 @@ export const resetCredits = async (req, res, next) => {
     return next(error);
   }
 };
+
+// DEV ONLY - REMOVE BEFORE PRODUCTION.
+export const devResetCredits = async (req, res, next) => {
+  try {
+    const workspaceId = req.params?.workspaceId || req.query?.workspaceId;
+
+    if (!workspaceId) {
+      return res.status(400).json({ error: "workspaceId is required" });
+    }
+
+    let subscription = await WorkspaceSubscription.findOne({ workspaceId });
+
+    if (!subscription) {
+      subscription = await WorkspaceSubscription.create({
+        workspaceId,
+        creditsLimit: 5,
+        creditsUsed: 0,
+        creditsResetDate: getFirstDayOfNextMonthUtc(),
+      });
+    } else {
+      subscription.creditsUsed = 0;
+      await subscription.save();
+    }
+
+    const doc = subscription.toObject({ virtuals: true });
+    return res.status(200).json(doc);
+  } catch (error) {
+    return next(error);
+  }
+};

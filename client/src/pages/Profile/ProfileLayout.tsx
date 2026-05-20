@@ -7,13 +7,14 @@ const ProfileLayout = () => {
   const navigate = useNavigate();
 
   const tabs = [
-    { label: "Profile", path: "my-profile" },
+    { label: "Company Profile", path: "company-profile" },
+    { label: "My Profile", path: "my-profile" },
     { label: "Change Password", path: "change-password" },
   ];
 
   useEffect(() => {
     if (location.pathname === "/profile") {
-      navigate("/profile/my-profile", {
+      navigate("/profile/company-profile", {
         replace: true,
       });
     }
