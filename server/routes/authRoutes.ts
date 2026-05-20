@@ -8,6 +8,9 @@ import {
   login,
   logout,
   resetPassword,
+  resetPasswordWithOtpSession,
+  startForgotPasswordWithOtp,
+  verifyForgotPasswordOtp,
   startRegisterDirect,
   startRegisterWithOtp,
   sendFounderSignupOtp,
@@ -22,6 +25,9 @@ router.get("/refresh", refreshTokenController);
 router.get("/logout", logout);
 router.patch("/forgot-password", forgotPassword);
 router.patch("/reset-password/:token", resetPassword);
+router.post("/forgot-password/start", startForgotPasswordWithOtp);
+router.post("/forgot-password/verify-otp", verifyForgotPasswordOtp);
+router.post("/forgot-password/reset", resetPasswordWithOtpSession);
 router.get("/signup/:token/prefill", getFounderSignupPrefill);
 router.post("/signup/:token/send-otp", sendFounderSignupOtp);
 router.post("/signup/:token/complete", completeFounderSignup);

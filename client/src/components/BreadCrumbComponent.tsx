@@ -8,12 +8,11 @@ const BreadCrumbComponent = () => {
   const searchParams = new URLSearchParams(location.search);
   const queryParamEntries = Array.from(searchParams.entries());
 
-  const rawSegments =
-    location.pathname === "/dashboard"
-      ? ["dashboard"]
-      : location.pathname
-          .split("/")
-          .filter((segment) => segment && segment !== "app" && segment !== "dashboard");
+  const rawSegments = location.pathname.startsWith("/dashboard")
+    ? ["dashboard"]
+    : location.pathname
+        .split("/")
+        .filter((segment) => segment && segment !== "app" && segment !== "dashboard");
 
   const pathSegments = (() => {
     if (
@@ -39,7 +38,8 @@ const BreadCrumbComponent = () => {
   const displayLabel = (segment: string, index: number) => {
     const previousSegment = pathSegments[index - 1];
 
-    if (segment === "company-settings") return "Dashboard";
+    if (segment === "key-apps") return "Key Apps";
+    if (segment === "company-settings") return "Company Settings";
     if (segment === "wono-nomad") return "Wono Nomad";
     if (segment === "nomad-listings") return "Nomad Listings";
     if (segment === "add" && previousSegment === "nomad-listings") return "Add Listing";
@@ -59,6 +59,18 @@ const BreadCrumbComponent = () => {
   const resolvePathForCrumb = (index: number) => {
     const upto = pathSegments.slice(0, index + 1);
     const isDashboardScoped = location.pathname === "/dashboard" || location.pathname.startsWith("/dashboard/");
+
+    if (upto.length === 1 && upto[0] === "company-settings") {
+      return "/company-settings";
+    }
+
+    if (upto.length === 1 && upto[0] === "key-apps") {
+      return "/key-apps";
+    }
+
+    if (upto.length >= 2 && upto[0] === "key-apps" && upto[1] === "visitor-management") {
+      return `/visitors/visitor-management${upto.length > 2 ? `/${upto.slice(2).join("/")}` : ""}`;
+    }
 
     if (
       upto.length >= 3 &&

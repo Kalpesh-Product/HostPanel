@@ -18,6 +18,21 @@ const hostUserSchema = new mongoose.Schema(
       minlength: [8, "Password must be at least 8 characters long"],
       maxlength: [72, "Password cannot exceed 72 characters"],
     },
+    passwordHistory: {
+      type: [
+        {
+          hash: {
+            type: String,
+            required: true,
+          },
+          changedAt: {
+            type: Date,
+            default: Date.now,
+          },
+        },
+      ],
+      default: [],
+    },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
     refreshToken: {

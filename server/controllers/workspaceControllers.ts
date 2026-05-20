@@ -80,8 +80,8 @@ export const completeWorkspaceSetup = async (req, res, next) => {
     }
 
     let company =
-      (user.company && (await Company.findById(user.company))) ||
-      (user.companyId && (await Company.findOne({ companyId: user.companyId })));
+      (user.companyId && (await Company.findOne({ companyId: user.companyId }))) ||
+      (user.company && (await Company.findById(user.company)));
 
     if (!company) {
       company = await Company.create({
@@ -90,6 +90,7 @@ export const completeWorkspaceSetup = async (req, res, next) => {
         companyCity: workspaceDetails.city || "",
         companyState: workspaceDetails.state || "",
         companyCountry: workspaceDetails.country || "",
+        logo: null,
         isRegistered: true,
       });
       user.company = company._id;
@@ -98,6 +99,8 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       company.companyCity = String(workspaceDetails.city || "").trim();
       company.companyState = String(workspaceDetails.state || "").trim();
       company.companyCountry = String(workspaceDetails.country || "").trim();
+      // New workspaces should not inherit a stale logo from an unrelated company record.
+      company.logo = null;
       company.isRegistered = true;
       await company.save();
     }

@@ -243,11 +243,11 @@ export const getMyProfile = async (req, res) => {
         : user?.company?._id || user?.company?.id || null;
 
     let company =
-      (linkedCompanyId
-        ? await HostCompany.findById(linkedCompanyId).lean().exec()
-        : null) ||
       (user?.companyId
         ? await HostCompany.findOne({ companyId: user.companyId }).lean().exec()
+        : null) ||
+      (linkedCompanyId
+        ? await HostCompany.findById(linkedCompanyId).lean().exec()
         : null);
 
     if (workspaceBusinessName) {
@@ -268,12 +268,17 @@ export const getMyProfile = async (req, res) => {
       }
     }
 
+    const resolvedCompanyName = String(company?.companyName || "").trim().toLowerCase();
+    const shouldSuppressLogoForMismatch = Boolean(
+      workspaceBusinessName && resolvedCompanyName && resolvedCompanyName !== workspaceBusinessName,
+    );
+
     return res.status(200).json({
       success: true,
       data: {
         user: {
           ...user,
-          logo: company?.logo || null,
+          logo: shouldSuppressLogoForMismatch ? null : company?.logo || null,
           companyName: company?.companyName || user?.companyName || "",
           workspaceMembership: workspaceMembership
             ? {
@@ -346,10 +351,10 @@ export const updateCompanyLogo = async (req, res) => {
         : user?.company?._id || user?.company?.id || null;
 
     let company =
-      (linkedCompanyId ? await HostCompany.findById(linkedCompanyId).exec() : null) ||
       (user?.companyId
         ? await HostCompany.findOne({ companyId: user.companyId }).exec()
-        : null);
+        : null) ||
+      (linkedCompanyId ? await HostCompany.findById(linkedCompanyId).exec() : null);
 
     if (workspaceBusinessName) {
       const companyName = String(company?.companyName || "").trim().toLowerCase();

@@ -159,7 +159,6 @@ const ClockInOutAttendance = () => {
     lastUserId,
     workHours,
     breakHours,
-    calculateTotalHoursServer,
   ]);
 
   useEffect(() => {

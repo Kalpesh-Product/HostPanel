@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Eye, EyeOff, Lock } from "lucide-react";
+import { CheckCircle, Eye, EyeOff, Lock, XCircle } from "lucide-react";
 import type { AxiosError } from "axios";
 import {
   Box,
   CircularProgress,
   Container,
   Grid,
+  IconButton,
   InputAdornment,
   TextField,
 } from "@mui/material";
@@ -75,6 +76,32 @@ export default function RegisterPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isTokenMissing = useMemo(() => !token, [token]);
+  const passwordChecks = [
+    {
+      key: "length",
+      label: "Must be at least 8 characters long.",
+      passed: password.length >= 8,
+    },
+    {
+      key: "case",
+      label: "Should include uppercase and lowercase letters.",
+      passed: /[a-z]/.test(password) && /[A-Z]/.test(password),
+    },
+    {
+      key: "digitOrSpecial",
+      label: "Must contain at least one number or special character.",
+      passed: /[\d\W]/.test(password),
+    },
+  ];
+  const hasAllPasswordChecks = passwordChecks.every((rule) => rule.passed);
+  const hasConfirmValue = confirmPassword.length > 0;
+  const isPasswordMatch = password === confirmPassword;
+  const canSubmitRegister =
+    hasAllPasswordChecks &&
+    hasConfirmValue &&
+    isPasswordMatch &&
+    Boolean(password) &&
+    !(isSubmitting || (!isTokenMissing && isLoadingPrefill));
 
   useEffect(() => {
     const loadPrefill = async () => {
@@ -142,20 +169,12 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#efefef] text-gray-900 font-pregular">
-      <header className="bg-[#efefef] border-b border-gray-300 shadow-sm">
+    <div className="min-h-screen flex flex-col bg-white text-gray-900 font-pregular">
+      <header className="bg-white/80 backdrop-blur-md border-b border-gray-300 shadow-sm">
         <div className="min-w-[75%] max-w-[80rem] mx-0 md:mx-auto px-6 sm:px-6 lg:px-0 flex items-center justify-between py-4">
           <a href="https://wono.co">
             <img src={logo} alt="wono" className="w-36 h-10" />
           </a>
-          <button
-            type="button"
-            onClick={() => (window.location.href = "https://nomad.wono.co")}
-            className="relative pb-1 transition-all duration-300 group font-bold bg-transparent uppercase border-none"
-          >
-            Become a nomad
-            <span className="absolute left-0 w-0 bottom-0 block h-[2px] bg-blue-500 transition-all duration-300 group-hover:w-full" />
-          </button>
         </div>
       </header>
 
@@ -214,48 +233,95 @@ export default function RegisterPage() {
                     />
                   </Grid>
                   <Grid size={12}>
-                    <div className="relative">
-                      <TextField
-                        label="Password"
-                        variant="standard"
-                        type={showPassword ? "text" : "password"}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        fullWidth
-                      />
-                      <button type="button" onClick={() => setShowPassword((prev) => !prev)} className="absolute right-2 top-2 text-gray-500 hover:text-black">
-                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                      </button>
-                    </div>
+                    <TextField
+                      label="Password"
+                      variant="standard"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      fullWidth
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              onClick={() => setShowPassword((prev) => !prev)}
+                              edge="end"
+                              size="small"
+                              aria-label={showPassword ? "Hide password" : "Show password"}
+                              title={showPassword ? "Hide password" : "Show password"}
+                            >
+                              {showPassword ? <EyeOff size={16} className="text-gray-500" /> : <Eye size={16} className="text-gray-500" />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
                   </Grid>
                   <Grid size={12}>
-                    <div className="relative">
-                      <TextField
-                        label="Confirm Password"
-                        variant="standard"
-                        type={showConfirmPassword ? "text" : "password"}
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        required
-                        fullWidth
-                      />
-                      <button type="button" onClick={() => setShowConfirmPassword((prev) => !prev)} className="absolute right-2 top-2 text-gray-500 hover:text-black">
-                        {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                      </button>
-                    </div>
+                    <TextField
+                      label="Confirm Password"
+                      variant="standard"
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      fullWidth
+                      InputProps={{
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton
+                              onClick={() => setShowConfirmPassword((prev) => !prev)}
+                              edge="end"
+                              size="small"
+                              aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                              title={showConfirmPassword ? "Hide password" : "Show password"}
+                            >
+                              {showConfirmPassword ? <EyeOff size={16} className="text-gray-500" /> : <Eye size={16} className="text-gray-500" />}
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
                   </Grid>
+                </div>
+                <div className="mt-2 col-span-2 text-end min-h-[1.5rem]" />
+                {hasConfirmValue ? (
+                  <div
+                    className={`w-full text-left text-xs mt-1 ml-1 ${
+                      isPasswordMatch ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {isPasswordMatch ? "Passwords match." : "Passwords do not match."}
+                  </div>
+                ) : null}
+                <div className="w-full text-left text-xs mt-2 leading-6 ml-1">
+                  {passwordChecks.map((rule) => (
+                    <p
+                      key={rule.key}
+                      className={`flex items-center gap-1 ${
+                        rule.passed ? "text-green-600" : "text-red-600"
+                      }`}
+                    >
+                      {rule.passed ? <CheckCircle size={14} /> : <XCircle size={14} />}
+                      <span>{rule.label}</span>
+                    </p>
+                  ))}
                 </div>
 
                 <div className="flex">
-                  <div className="flex flex-col justify-center w-full items-center gap-4 mt-6">
-                    <button
-                      disabled={isSubmitting || (!isTokenMissing && isLoadingPrefill)}
-                      type="submit"
-                      className="loginButtonStyling text-decoration-none text-subtitle w-40"
-                    >
-                      {isSubmitting ? <CircularProgress size={20} color="inherit" /> : "CONTINUE"}
-                    </button>
+                  <div className="flex flex-col justify-center w-full items-center gap-4 mt-4">
+                    <Grid size={12}>
+                      <div className="centerInPhone">
+                        <button
+                          disabled={!canSubmitRegister}
+                          type="submit"
+                          className="loginButtonStyling text-decoration-none text-subtitle w-40"
+                        >
+                          {isSubmitting ? <CircularProgress size={20} color="white" /> : "CONTINUE"}
+                        </button>
+                      </div>
+                    </Grid>
                     <p className="text-[0.9rem]">
                       Already have an account?{" "}
                       <Link to="/" className="underline hover:text-primary">

@@ -412,17 +412,32 @@ const CreateWorkspacePage: React.FC = () => {
         const response = await axiosPrivate.get("/api/workspaces/validate-name", {
           params: { workspaceName: normalized },
         });
-        const available = Boolean(response?.data?.data?.available);
+        const apiAvailable = response?.data?.data?.available;
+        const rootAvailable = response?.data?.available;
+        const available =
+          typeof apiAvailable === "boolean"
+            ? apiAvailable
+            : typeof rootAvailable === "boolean"
+            ? rootAvailable
+            : null;
+        if (available === null) {
+          setWorkspaceNameStatus("idle");
+          setWorkspaceNameMessage(
+            "Could not confirm name availability right now. We'll re-check on continue.",
+          );
+          return;
+        }
         setWorkspaceNameStatus(available ? "available" : "taken");
         setWorkspaceNameMessage(
           available ? "Workspace name is available." : "Workspace name already taken.",
         );
       } catch (error: unknown) {
-        const message =
-          (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-          "Unable to validate workspace name.";
-        setWorkspaceNameStatus("taken");
-        setWorkspaceNameMessage(message);
+        const message = (error as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message;
+        setWorkspaceNameStatus("idle");
+        setWorkspaceNameMessage(
+          message || "Unable to validate workspace name right now. We'll re-check on continue.",
+        );
       }
     }, 500);
     return () => clearTimeout(timeoutId);
@@ -447,7 +462,7 @@ const CreateWorkspacePage: React.FC = () => {
   }, [isBusinessTypeOpen]);
 
   return (
-    <div className="min-h-screen bg-[#f4f4f4] text-[#0f172a] font-['Poppins'] flex flex-col">
+    <div className="min-h-screen bg-white text-[#0f172a] font-['Poppins'] flex flex-col">
       <div className="shadow-md bg-white/80 backdrop-blur-md">
         <div className="max-w-[80rem] mx-auto px-4 sm:px-6 lg:px-0">
           <div className="flex items-center py-3">
@@ -496,7 +511,7 @@ const CreateWorkspacePage: React.FC = () => {
 
           <div className="text-center mb-6 sm:mb-7">
             <h1 className="text-[26px] sm:text-[30px] md:text-[38px] font-bold text-[#111b33] mb-3 sm:mb-4">
-              Create New Business Location
+              CREATE NEW BUSINESS LOCATION
             </h1>
           <p className="text-sm md:text-[15px] text-[#63738d]">
             Start with the main identity of your business location. You can still refine and

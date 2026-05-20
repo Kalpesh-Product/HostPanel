@@ -79,6 +79,50 @@ const resolveActiveWorkspaceMembership = async (user: any) => {
     .exec();
 };
 
+const resolveCompanyForActiveWorkspace = async (user: any, activeMembership: any) => {
+  if (activeMembership?.workspace) {
+    const activeWorkspace = await Workspace.findById(activeMembership.workspace)
+      .select("company companyId businessName")
+      .lean()
+      .exec();
+
+    if (activeWorkspace) {
+      const companyFromWorkspace =
+        (activeWorkspace?.company
+          ? await Company.findById(activeWorkspace.company).lean().exec()
+          : null) ||
+        (activeWorkspace?.companyId
+          ? await Company.findOne({ companyId: activeWorkspace.companyId }).lean().exec()
+          : null);
+
+      if (companyFromWorkspace) {
+        const workspaceBusinessName = String(activeWorkspace?.businessName || "")
+          .trim()
+          .toLowerCase();
+        const resolvedCompanyName = String(companyFromWorkspace?.companyName || "")
+          .trim()
+          .toLowerCase();
+
+        if (workspaceBusinessName && resolvedCompanyName && workspaceBusinessName !== resolvedCompanyName) {
+          return null;
+        }
+
+        return companyFromWorkspace;
+      }
+    }
+  }
+
+  const linkedCompanyId =
+    typeof user?.company === "string"
+      ? user.company
+      : user?.company?._id || user?.company?.id || null;
+
+  return (
+    (user?.companyId ? await Company.findOne({ companyId: user.companyId }).lean().exec() : null) ||
+    (linkedCompanyId ? await Company.findById(linkedCompanyId).lean().exec() : null)
+  );
+};
+
 const refreshTokenController = async (req, res, next) => {
   try {
     const cookie = req.cookies;
@@ -136,17 +180,7 @@ const refreshTokenController = async (req, res, next) => {
           : "Access denied. Contact founder to regain access.",
       });
     }
-    const linkedCompanyId =
-      typeof user?.company === "string"
-        ? user.company
-        : user?.company?._id || user?.company?.id || null;
-    const company =
-      (linkedCompanyId
-        ? await Company.findById(linkedCompanyId).lean().exec()
-        : null) ||
-      (user?.companyId
-        ? await Company.findOne({ companyId: user.companyId }).lean().exec()
-        : null);
+    const company = await resolveCompanyForActiveWorkspace(user, activeMembership);
     if (!user) {
       return res.sendStatus(401);
     }

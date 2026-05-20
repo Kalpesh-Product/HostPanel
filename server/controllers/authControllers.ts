@@ -9,6 +9,58 @@ import Workspace from "../models/Workspace.js";
 import { sendMail } from "../config/mailer.js";
 import crypto from "crypto";
 
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[\d\W]).+$/;
+
+const validateStrongPassword = (password: string) => {
+  if (!password || password.length < 8) return "Must be at least 8 characters long.";
+  if (password.length > 72) return "Password cannot exceed 72 characters.";
+  if (!PASSWORD_REGEX.test(password)) {
+    return "Should include both uppercase and lowercase letters and at least one number or special character.";
+  }
+  return "";
+};
+
+const getPasswordResetSessionSecret = () =>
+  process.env.PASSWORD_RESET_OTP_SECRET || process.env.ACCESS_TOKEN_SECRET;
+
+const signPasswordResetSession = (email: string) => {
+  const secret = getPasswordResetSessionSecret();
+  if (!secret) throw new Error("Password reset secret not configured");
+  return jwt.sign(
+    { purpose: "password_reset_session", email: String(email || "").trim().toLowerCase() },
+    secret,
+    { expiresIn: "15m" },
+  );
+};
+
+const verifyPasswordResetSession = (token: string) => {
+  const secret = getPasswordResetSessionSecret();
+  if (!secret) throw new Error("Password reset secret not configured");
+  return jwt.verify(token, secret);
+};
+
+const hasPasswordBeenUsedRecently = async (user: any, plainPassword: string) => {
+  const currentHash = String(user?.password || "");
+  if (currentHash && (await bcrypt.compare(plainPassword, currentHash))) return true;
+  const history = Array.isArray(user?.passwordHistory) ? user.passwordHistory : [];
+  for (const entry of history.slice(0, 2)) {
+    const oldHash = String(entry?.hash || "");
+    if (oldHash && (await bcrypt.compare(plainPassword, oldHash))) return true;
+  }
+  return false;
+};
+
+const applyPasswordUpdateWithHistory = async (user: any, nextPassword: string) => {
+  const currentHash = String(user?.password || "");
+  user.password = nextPassword;
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpire = undefined;
+  const history = Array.isArray(user?.passwordHistory) ? user.passwordHistory : [];
+  if (currentHash) history.unshift({ hash: currentHash, changedAt: new Date() });
+  user.passwordHistory = history.slice(0, 2);
+  await user.save();
+};
+
 const getInviteSecret = () =>
   process.env.HOST_INVITE_TOKEN_SECRET ||
   process.env.REGISTER_INVITE_SECRET ||
@@ -192,6 +244,51 @@ const resolveActiveWorkspaceMembership = async (user: any) => {
     .exec();
 };
 
+const resolveCompanyForActiveWorkspace = async (user: any, activeMembership: any) => {
+  if (activeMembership?.workspace) {
+    const activeWorkspace = await Workspace.findById(activeMembership.workspace)
+      .select("company companyId businessName")
+      .lean()
+      .exec();
+
+    if (activeWorkspace) {
+      const companyFromWorkspace =
+        (activeWorkspace?.company
+          ? await Company.findById(activeWorkspace.company).lean().exec()
+          : null) ||
+        (activeWorkspace?.companyId
+          ? await Company.findOne({ companyId: activeWorkspace.companyId }).lean().exec()
+          : null);
+
+      if (companyFromWorkspace) {
+        const workspaceBusinessName = String(activeWorkspace?.businessName || "")
+          .trim()
+          .toLowerCase();
+        const resolvedCompanyName = String(companyFromWorkspace?.companyName || "")
+          .trim()
+          .toLowerCase();
+
+        // If legacy data links to a different company, suppress it so UI falls back to default WONO logo.
+        if (workspaceBusinessName && resolvedCompanyName && workspaceBusinessName !== resolvedCompanyName) {
+          return null;
+        }
+
+        return companyFromWorkspace;
+      }
+    }
+  }
+
+  const linkedCompanyId =
+    typeof user?.company === "string"
+      ? user.company
+      : user?.company?._id || user?.company?.id || null;
+
+  return (
+    (user?.companyId ? await Company.findOne({ companyId: user.companyId }).lean().exec() : null) ||
+    (linkedCompanyId ? await Company.findById(linkedCompanyId).lean().exec() : null)
+  );
+};
+
 const ensureInviteUserRecord = async (inviteEmail: string, inviteName: string) => {
   const normalizedEmail = normalizeInviteEmail(inviteEmail);
   let user = await HostUser.findOne({ email: normalizedEmail }).exec();
@@ -327,17 +424,7 @@ export const login = async (req, res, next) => {
       });
     }
 
-    const linkedCompanyId =
-      typeof user?.company === "string"
-        ? user.company
-        : user?.company?._id || user?.company?.id || null;
-    const company =
-      (linkedCompanyId
-        ? await Company.findById(linkedCompanyId).lean().exec()
-        : null) ||
-      (user?.companyId
-        ? await Company.findOne({ companyId: user.companyId }).lean().exec()
-        : null);
+    const company = await resolveCompanyForActiveWorkspace(user, activeMembership);
     const workspaceCount = await WorkspaceMember.countDocuments({
       user: user._id,
       isActive: true,
@@ -479,7 +566,143 @@ export const forgotPassword = async (req, res, next) => {
   }
 };
 
-export const resetPassword = async (req, res) => {
+export const startForgotPasswordWithOtp = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    if (!normalizedEmail) return res.status(400).json({ message: "Email is required." });
+
+    const user = await HostUser.findOne({ email: normalizedEmail }).lean().exec();
+    if (!user) return res.status(404).json({ message: "Email doesn't exist." });
+
+    const otp = `${Math.floor(100000 + Math.random() * 900000)}`;
+    await Otp.updateMany(
+      { email: normalizedEmail, purpose: "password_reset", isUsed: false },
+      { $set: { isUsed: true } },
+    );
+    await Otp.create({
+      email: normalizedEmail,
+      code: otp,
+      purpose: "password_reset",
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      payload: {},
+    });
+
+    await sendMail({
+      to: normalizedEmail,
+      subject: "WONO Password Reset OTP",
+      html: `
+        <p>Hi ${user?.name || ""},</p>
+        <p>Your OTP for password reset is:</p>
+        <h2>${otp}</h2>
+        <p>This OTP expires in 10 minutes.</p>
+        <p>If you didn't request this, please ignore this email.</p>
+      `,
+    });
+
+    return res.status(200).json({ message: "OTP sent successfully.", email: normalizedEmail });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const verifyForgotPasswordOtp = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    if (!normalizedEmail || !otp) {
+      return res.status(400).json({ message: "Email and OTP are required." });
+    }
+
+    const otpRecord = await Otp.findOne({
+      email: normalizedEmail,
+      purpose: "password_reset",
+      isUsed: false,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!otpRecord) return res.status(400).json({ message: "Please request OTP first." });
+    if (new Date(otpRecord.expiresAt).getTime() < Date.now()) {
+      await Otp.updateOne({ _id: otpRecord._id }, { $set: { isUsed: true } });
+      return res.status(400).json({ message: "OTP expired. Please request a new OTP." });
+    }
+    if (otpRecord.attempts >= 5) {
+      await Otp.updateOne({ _id: otpRecord._id }, { $set: { isUsed: true } });
+      return res.status(429).json({ message: "OTP attempts exceeded. Request a new OTP." });
+    }
+    if (String(otpRecord.code) !== String(otp)) {
+      await Otp.updateOne({ _id: otpRecord._id }, { $inc: { attempts: 1 } });
+      return res.status(400).json({ message: "Invalid OTP." });
+    }
+
+    const user = await HostUser.findOne({ email: normalizedEmail }).lean().exec();
+    if (!user) {
+      await Otp.updateOne({ _id: otpRecord._id }, { $set: { isUsed: true } });
+      return res.status(404).json({ message: "Email doesn't exist." });
+    }
+
+    await Otp.updateOne({ _id: otpRecord._id }, { $set: { isUsed: true } });
+    const resetSessionToken = signPasswordResetSession(normalizedEmail);
+    return res.status(200).json({
+      message: "OTP verified successfully.",
+      resetSessionToken,
+      email: normalizedEmail,
+    });
+  } catch (error) {
+    if (error?.name === "TokenExpiredError") {
+      return res.status(400).json({ message: "Reset session expired. Verify OTP again." });
+    }
+    if (error?.name === "JsonWebTokenError") {
+      return res.status(400).json({ message: "Invalid reset session." });
+    }
+    next(error);
+  }
+};
+
+export const resetPasswordWithOtpSession = async (req, res, next) => {
+  try {
+    const { resetSessionToken, password, confirmPassword } = req.body;
+    if (!resetSessionToken) {
+      return res.status(400).json({ message: "Reset session token is required." });
+    }
+    if (!password || !confirmPassword) {
+      return res.status(400).json({ message: "Password and confirm password are required." });
+    }
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match." });
+    }
+    const strengthMessage = validateStrongPassword(password);
+    if (strengthMessage) return res.status(400).json({ message: strengthMessage });
+
+    const decoded: any = verifyPasswordResetSession(resetSessionToken);
+    const normalizedEmail = String(decoded?.email || "").trim().toLowerCase();
+    if (!normalizedEmail) return res.status(400).json({ message: "Invalid reset session." });
+
+    const user = await HostUser.findOne({ email: normalizedEmail }).select("+password").exec();
+    if (!user) return res.status(404).json({ message: "Email doesn't exist." });
+
+    const usedRecently = await hasPasswordBeenUsedRecently(user, password);
+    if (usedRecently) {
+      return res
+        .status(400)
+        .json({ message: "New password cannot be same as current or last 2 passwords." });
+    }
+
+    await applyPasswordUpdateWithHistory(user, password);
+    return res.status(200).json({ success: true, message: "Password reset successful." });
+  } catch (error) {
+    if (error?.name === "TokenExpiredError") {
+      return res.status(400).json({ message: "Reset session expired. Verify OTP again." });
+    }
+    if (error?.name === "JsonWebTokenError") {
+      return res.status(400).json({ message: "Invalid reset session." });
+    }
+    next(error);
+  }
+};
+
+export const resetPassword = async (req, res, next) => {
   try {
     const { token } = req.params;
     const { password, confirmPassword } = req.body;
@@ -492,16 +715,8 @@ export const resetPassword = async (req, res) => {
     if (password !== confirmPassword)
       return res.status(400).json({ message: "Passwords do not match" });
 
-    if (password.length < 8) {
-      return res
-        .status(400)
-        .json({ message: "Password must be at least 8 characters long" });
-    }
-    if (password.length > 72) {
-      return res
-        .status(400)
-        .json({ message: "Password cannot exceed 72 characters" });
-    }
+    const strengthMessage = validateStrongPassword(password);
+    if (strengthMessage) return res.status(400).json({ message: strengthMessage });
 
     // Hash the reset token to find user
     const resetPasswordToken = crypto
@@ -520,17 +735,14 @@ export const resetPassword = async (req, res) => {
         .json({ message: "Invalid or expired password reset token" });
 
     // ✅ Check if new password is same as old password
-    const isSamePassword = await bcrypt.compare(password, user.password);
-    if (isSamePassword)
+    const usedRecently = await hasPasswordBeenUsedRecently(user, password);
+    if (usedRecently)
       return res.status(400).json({
-        message: "New password cannot be the same as the old password",
+        message: "New password cannot be same as current or last 2 passwords.",
       });
 
     // ✅ Update password
-    user.password = password;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
-    await user.save();
+    await applyPasswordUpdateWithHistory(user, password);
 
     // ✅ Send confirmation email
     const successMessage = `
@@ -648,16 +860,8 @@ export const startRegisterWithOtp = async (req, res, next) => {
     if (password !== confirmPassword) {
       return res.status(400).json({ message: "Passwords do not match." });
     }
-    if (password.length < 8) {
-      return res
-        .status(400)
-        .json({ message: "Password must be at least 8 characters long." });
-    }
-    if (password.length > 72) {
-      return res
-        .status(400)
-        .json({ message: "Password cannot exceed 72 characters." });
-    }
+    const strengthMessage = validateStrongPassword(password);
+    if (strengthMessage) return res.status(400).json({ message: strengthMessage });
 
     const decoded = decodeSignupInviteToken(token);
     const { inviteEmail, inviteName } = extractInviteIdentity(decoded);
@@ -826,16 +1030,8 @@ export const startRegisterDirect = async (req, res, next) => {
     if (password !== confirmPassword) {
       return res.status(400).json({ message: "Passwords do not match." });
     }
-    if (password.length < 8) {
-      return res
-        .status(400)
-        .json({ message: "Password must be at least 8 characters long." });
-    }
-    if (password.length > 72) {
-      return res
-        .status(400)
-        .json({ message: "Password cannot exceed 72 characters." });
-    }
+    const strengthMessage = validateStrongPassword(password);
+    if (strengthMessage) return res.status(400).json({ message: strengthMessage });
 
     const normalizedEmail = String(email).trim().toLowerCase();
     const existing = await HostUser.findOne({ email: normalizedEmail })

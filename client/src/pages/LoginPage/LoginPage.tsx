@@ -158,7 +158,7 @@ const LoginPage = () => {
       } else if (multiWorkspaceAccess) {
         navigate("/select-workspace", { replace: true });
       } else {
-        navigate("/company-settings", { replace: true });
+        navigate("/dashboard", { replace: true });
       }
     } catch (error) {
       toast.error(error.response?.data.message);
@@ -209,19 +209,7 @@ const LoginPage = () => {
         </div> */}
 
             {/* Mobile Menu Button */}
-            <div className="">
-              <div className="p-4 px-0 whitespace-nowrap">
-                <button type="button"
-                  onClick={() =>
-                    (window.location.href = "https://nomad.wono.co")
-                  }
-                  className="relative pb-1 transition-all cursor-pointer duration-300 group font-bold bg-transparent uppercase border-none"
-                >
-                  Become a nomad
-                  <span className="absolute left-0 w-0 bottom-0 block h-[2px] bg-blue-500 transition-all duration-300 group-hover:w-full"></span>
-                </button>
-              </div>
-            </div>
+            <div className="" />
             {/* <div className="md:hidden">
           <div onClick={() => setDrawerOpen(true)} className="text-white">
             <MenuIcon />
@@ -396,7 +384,7 @@ const LoginPage = () => {
                       <span
                         onClick={() =>
                           (window.location.href =
-                            "https://hosts.wono.co/signup")
+                            "https://nomad.wono.co/host")
                         }
                         className="underline hover:text-primary cursor-pointer"
                       >

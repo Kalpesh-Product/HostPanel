@@ -156,6 +156,7 @@ import RegisterOtpVerification from "../pages/LoginPage/RegisterOtpVerification"
 import FounderWorkspaceSelectionPage from "../pages/LoginPage/FounderWorkspaceSelectionPage";
 import CompanyReviews from "../pages/Dashboard/FrontendDashboard/CompanyReviews";
 import WonoNomad from "../pages/Dashboard/FrontendDashboard/WonoNomad";
+import ModuleCardsLanding from "../pages/Dashboard/FrontendDashboard/ModuleCardsLanding";
 import CreateWorkspacePage from "../pages/WorkspaceSetup/CreateWorkspacePage";
 import SetupModulesPage from "../pages/WorkspaceSetup/SetupModulesPage";
 import FinalizeSetupPage from "../pages/WorkspaceSetup/FinalizeSetupPage";
@@ -172,6 +173,14 @@ export const routes = createBrowserRouter([
   {
     path: "/forgot-password",
     element: <ForgotPassword />,
+  },
+  {
+    path: "/forgot-password/verify",
+    element: <RegisterOtpVerification />,
+  },
+  {
+    path: "/forgot-password/reset",
+    element: <ResetPassword />,
   },
   {
     path: "/reset-password/:token",
@@ -235,7 +244,7 @@ export const routes = createBrowserRouter([
                 children: [
                   {
                     index: true, // login lands here
-                    element: <DashboardLayout />,
+                    element: <CompanySettingsDashboard />,
                   },
                   {
                     path: "nomad-listings",
@@ -351,7 +360,7 @@ export const routes = createBrowserRouter([
                 children: [
                   {
                     index: true, // login lands here
-                    element: <CompanySettingsDashboard />,
+                    element: <ModuleCardsLanding section="company-settings" />,
                   },
 
                   {
@@ -483,6 +492,10 @@ export const routes = createBrowserRouter([
                     element: <CustomerSupportPage />,
                   },
                 ],
+              },
+              {
+                path: "key-apps",
+                element: <ModuleCardsLanding section="key-apps" />,
               },
               {
                 path: "services",

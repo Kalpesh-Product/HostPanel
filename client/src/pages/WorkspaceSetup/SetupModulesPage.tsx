@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { ArrowRight, Check, CheckCircle2, ChevronDown, ChevronRight } from "lucide-react";
+import React from "react";
+import { ArrowRight, Check, CheckCircle2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import logo from "../../assets/WONO_LOGO_Black_TP.png";
 import Footer from "../../components/Footer";
@@ -22,11 +22,6 @@ const SetupModulesPage: React.FC = () => {
   const workspaceCount = getWorkspaceCount(
     (auth.user as { workspaceCount?: number } | null)?.workspaceCount,
   );
-
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
-
-  const toggleGroup = (key: string) =>
-    setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
 
   return (
     <div className="min-h-screen bg-[#f4f4f4] text-[#0f172a] font-['Poppins'] flex flex-col">
@@ -120,110 +115,18 @@ const SetupModulesPage: React.FC = () => {
 
                   <div className="h-px bg-[#d8e0ea] mb-3" />
 
-                  <div className="space-y-2 flex-1">
-                    {plan.moduleGroups.map((group, idx) => {
-                      const groupKey = `${plan.key}-${idx}`;
-                      const isOpen = Boolean(openGroups[groupKey]);
-                      return (
-                        <div key={groupKey} className="rounded-2xl border border-[#dce4ee] bg-[#f7f9fc]">
-                          <button
-                            type="button"
-                            onClick={() => toggleGroup(groupKey)}
-                            className="w-full px-3 py-2 flex items-center justify-between text-left"
-                          >
-                            <div className="flex items-center gap-2">
-                              <CheckCircle2
-                                size={16}
-                                className={
-                                  isSelected ? "text-[#23c35c]" : "text-[#a8b4c7]"
-                                }
-                              />
-                              <span className="text-[11px] font-semibold text-[#304766]">
-                                {group.title}
-                              </span>
-                            </div>
-                            <div className="flex items-center">
-                              {isOpen ? (
-                                <ChevronDown size={14} className="text-[#607089]" />
-                              ) : (
-                                <ChevronRight size={14} className="text-[#607089]" />
-                              )}
-                            </div>
-                          </button>
-                          {isOpen && (
-                            <div className="px-3 pb-2 space-y-1">
-                              {group.items?.map((item) => (
-                                <div key={item} className="flex items-start gap-2">
-                                  <span className="mt-0.5">
-                                    <CheckCircle2
-                                      size={14}
-                                      className={
-                                        isSelected ? "text-[#23c35c]" : "text-[#a8b4c7]"
-                                      }
-                                    />
-                                  </span>
-                                  <span className="text-[11px] text-[#4f627d]">{item}</span>
-                                </div>
-                              ))}
-                              {group.subgroups?.map((subgroup, subgroupIdx) => {
-                                const subgroupKey = `${groupKey}-sub-${subgroupIdx}`;
-                                const isSubgroupOpen = Boolean(openGroups[subgroupKey]);
-                                return (
-                                  <div
-                                    key={subgroupKey}
-                                    className="rounded-xl border border-[#e1e7f0] bg-white/70"
-                                  >
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleGroup(subgroupKey)}
-                                      className="w-full px-3 py-2 flex items-center justify-between text-left"
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <CheckCircle2
-                                          size={14}
-                                          className={
-                                            isSelected ? "text-[#23c35c]" : "text-[#a8b4c7]"
-                                          }
-                                        />
-                                        <span className="text-[11px] font-semibold text-[#3b4f6d]">
-                                          {subgroup.title}
-                                        </span>
-                                      </div>
-                                      {isSubgroupOpen ? (
-                                        <ChevronDown size={14} className="text-[#607089]" />
-                                      ) : (
-                                        <ChevronRight size={14} className="text-[#607089]" />
-                                      )}
-                                    </button>
-                                    {isSubgroupOpen && (
-                                      <div className="px-3 pb-2 space-y-1">
-                                        {subgroup.items.map((item) => (
-                                          <div key={item} className="flex items-start gap-2">
-                                            <span className="mt-0.5">
-                                              <CheckCircle2
-                                                size={13}
-                                                className={
-                                                  isSelected
-                                                    ? "text-[#23c35c]"
-                                                    : "text-[#a8b4c7]"
-                                                }
-                                              />
-                                            </span>
-                                            <span className="text-[11px] text-[#4f627d]">
-                                              {item}
-                                            </span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                  <div className="space-y-2 flex-1 rounded-2xl border border-[#dce4ee] bg-[#f7f9fc] px-3 py-2">
+                    {plan.moduleGroups.flatMap((group) => group.items || []).map((item) => (
+                      <div key={`${plan.key}-${item}`} className="flex items-start gap-2">
+                        <span className="mt-0.5">
+                          <CheckCircle2
+                            size={14}
+                            className={isSelected ? "text-[#23c35c]" : "text-[#a8b4c7]"}
+                          />
+                        </span>
+                        <span className="text-[11px] text-[#4f627d]">{item}</span>
+                      </div>
+                    ))}
                   </div>
 
                   <div className="h-px bg-[#d8e0ea] mt-3 mb-2" />

@@ -30,17 +30,22 @@ const ForgotPassword = () => {
 
   useEffect(() => {
     console.log("authorized user", auth);
-    if (auth?.user) navigate("/profile/my-profile", { replace: true });
-  }, [auth, navigate]);
+  }, [auth]);
 
   const { mutate: sendEmail, isPending } = useMutation({
     mutationFn: async (data) => {
       console.log("forgot password", data);
-      const response = await axios.patch("/api/auth/forgot-password", data);
+      const response = await axios.post("/api/auth/forgot-password/start", data);
       return response.data;
     },
     onSuccess: (data) => {
-      toast.success(data?.message || "Password reset link sent to your email");
+      toast.success(data?.message || "OTP sent to your email");
+      navigate("/forgot-password/verify", {
+        state: {
+          email,
+          flow: "forgot-password",
+        },
+      });
     },
     onError: (error) => {
       toast.error(
@@ -89,20 +94,7 @@ const ForgotPassword = () => {
           </a>
         </div> */}
 
-            {/* Mobile Menu Button */}
-            <div className="">
-              <div className="p-4 px-0 whitespace-nowrap">
-                <button type="button"
-                  onClick={() =>
-                    (window.location.href = "https://nomad.wono.co")
-                  }
-                  className="relative pb-1 transition-all cursor-pointer duration-300 group font-bold bg-transparent uppercase border-none"
-                >
-                  Become a nomad
-                  <span className="absolute left-0 w-0 bottom-0 block h-[2px] bg-blue-500 transition-all duration-300 group-hover:w-full"></span>
-                </button>
-              </div>
-            </div>
+            <div className="" />
             {/* <div className="md:hidden">
           <div onClick={() => setDrawerOpen(true)} className="text-white">
             <MenuIcon />
@@ -235,6 +227,7 @@ const ForgotPassword = () => {
                     />
                   </Grid> */}
                 </div>
+                <div className="mt-2 col-span-2 text-end min-h-[1.5rem]" />
 
                 {/* <div className="mt-2 col-span-2 text-end">
                   <Link
@@ -268,18 +261,12 @@ const ForgotPassword = () => {
                         </button> */}
                       </div>
                     </Grid>
-                    {/* <p className="text-[0.9rem]">
-                      Don't have an account?{" "}
-                      <span
-                        onClick={() =>
-                          (window.location.href =
-                            "https://hosts.wono.co/signup")
-                        }
-                        className="underline hover:text-primary cursor-pointer"
-                      >
-                        Sign Up
-                      </span>
-                    </p> */}
+                    <p className="text-[0.9rem]">
+                      Already have an account?{" "}
+                      <Link to="/" className="underline hover:text-primary">
+                        Sign In
+                      </Link>
+                    </p>
                   </div>
                 </div>
               </Box>

@@ -38,10 +38,7 @@ const CompanyProfile = () => {
       user: {
         ...(prev?.user || {}),
         ...mergedUser,
-        logo:
-          mergedUser?.logo ??
-          (prev?.user as { logo?: { url?: string } | string } | null)?.logo ??
-          null,
+        logo: mergedUser?.logo ?? null,
       },
     }));
   }, [setAuth, userDetails]);

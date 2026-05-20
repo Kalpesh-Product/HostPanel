@@ -3,8 +3,6 @@ import {
   ArrowRight,
   Check,
   CheckCircle2,
-  ChevronDown,
-  ChevronRight,
   X,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -44,8 +42,6 @@ const planCardHighlightStyles = {
 
 const PlanCard = ({
   plan,
-  openGroups,
-  toggleGroup,
   actionLabel,
   onAction,
   isSelected,
@@ -54,10 +50,9 @@ const PlanCard = ({
   secondaryActionLabel,
   onSecondaryAction,
   footerNote,
+  minHeightClass = "min-h-[500px]",
 }: {
   plan: PlanCardData;
-  openGroups: Record<string, boolean>;
-  toggleGroup: (key: string) => void;
   actionLabel: string;
   onAction: () => void;
   isSelected: boolean;
@@ -66,9 +61,10 @@ const PlanCard = ({
   secondaryActionLabel?: string;
   onSecondaryAction?: () => void;
   footerNote?: string;
+  minHeightClass?: string;
 }) => (
   <div
-    className="relative overflow-hidden rounded-[38px] bg-[#eef2f7] p-4 md:p-4 flex flex-col min-h-[360px] shadow-[0_4px_18px_rgba(15,27,53,0.05)] border"
+    className={`relative overflow-visible rounded-[38px] bg-[#eef2f7] p-4 md:p-4 flex flex-col ${minHeightClass} shadow-[0_4px_18px_rgba(15,27,53,0.05)] border`}
     style={
       isSelected
         ? planCardHighlightStyles
@@ -93,99 +89,18 @@ const PlanCard = ({
 
     <div className="h-px bg-[#d8e0ea] mb-3" />
 
-    <div className="space-y-2 flex-1">
-      {plan.moduleGroups.map((group, idx) => {
-        const groupKey = `${plan.key}-${idx}`;
-        const isOpen = Boolean(openGroups[groupKey]);
-
-        return (
-          <div key={groupKey} className="rounded-2xl border border-[#dce4ee] bg-[#f7f9fc]">
-            <button
-              type="button"
-              onClick={() => toggleGroup(groupKey)}
-              className="w-full px-3 py-2 flex items-center justify-between text-left"
-            >
-              <div className="flex items-center gap-2">
-                <CheckCircle2
-                  size={16}
-                  className={isSelected ? "text-[#23c35c]" : "text-[#a8b4c7]"}
-                />
-                <span className="text-[11px] font-bold text-[#304766]">{group.title}</span>
-              </div>
-              {isOpen ? (
-                <ChevronDown size={14} className="text-[#607089]" />
-              ) : (
-                <ChevronRight size={14} className="text-[#607089]" />
-              )}
-            </button>
-
-            {isOpen ? (
-              <div className="px-3 pb-2 space-y-1">
-                {group.items?.map((item) => (
-                  <div key={item} className="flex items-start gap-2">
-                    <span className="mt-0.5">
-                      <CheckCircle2
-                        size={14}
-                        className={isSelected ? "text-[#23c35c]" : "text-[#a8b4c7]"}
-                      />
-                    </span>
-                    <span className="text-[11px] text-[#4f627d]">{item}</span>
-                  </div>
-                ))}
-
-                {group.subgroups?.map((subgroup, subgroupIdx) => {
-                  const subgroupKey = `${groupKey}-sub-${subgroupIdx}`;
-                  const isSubgroupOpen = Boolean(openGroups[subgroupKey]);
-
-                  return (
-                    <div
-                      key={subgroupKey}
-                      className="rounded-xl border border-[#e1e7f0] bg-white/70"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => toggleGroup(subgroupKey)}
-                        className="w-full px-3 py-2 flex items-center justify-between text-left"
-                      >
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2
-                            size={14}
-                            className={isSelected ? "text-[#23c35c]" : "text-[#a8b4c7]"}
-                          />
-                          <span className="text-[11px] font-bold text-[#3b4f6d]">
-                            {subgroup.title}
-                          </span>
-                        </div>
-                        {isSubgroupOpen ? (
-                          <ChevronDown size={14} className="text-[#607089]" />
-                        ) : (
-                          <ChevronRight size={14} className="text-[#607089]" />
-                        )}
-                      </button>
-
-                      {isSubgroupOpen ? (
-                        <div className="px-3 pb-2 space-y-1">
-                          {subgroup.items.map((item) => (
-                            <div key={item} className="flex items-start gap-2">
-                              <span className="mt-0.5">
-                                <CheckCircle2
-                                  size={13}
-                                  className={isSelected ? "text-[#23c35c]" : "text-[#a8b4c7]"}
-                                />
-                              </span>
-                              <span className="text-[11px] text-[#4f627d]">{item}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : null}
-          </div>
-        );
-      })}
+    <div className="space-y-2 flex-1 rounded-2xl border border-[#dce4ee] bg-[#f7f9fc] px-3 py-2">
+      {plan.moduleGroups.flatMap((group) => group.items || []).map((item) => (
+        <div key={`${plan.key}-${item}`} className="flex items-start gap-2">
+          <span className="mt-0.5">
+            <CheckCircle2
+              size={14}
+              className={isSelected ? "text-[#23c35c]" : "text-[#a8b4c7]"}
+            />
+          </span>
+          <span className="text-[11px] leading-5 text-[#4f627d]">{item}</span>
+        </div>
+      ))}
     </div>
 
     <div className="h-px bg-[#d8e0ea] mt-3 mb-2" />
@@ -195,7 +110,9 @@ const PlanCard = ({
       type="button"
       onClick={onAction}
       disabled={actionDisabled}
-      className="w-full h-11 rounded-full text-[14px] font-bold border transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+      className={`w-full h-11 rounded-full ${
+        actionLabel.toLowerCase().includes("upgrade") ? "text-[20px]" : "text-[16px]"
+      } font-bold border transition-colors disabled:opacity-60 disabled:cursor-not-allowed`}
       style={
         useNeutralButton
           ? {
@@ -221,15 +138,15 @@ const PlanCard = ({
       {actionLabel}
     </button>
 
-    {secondaryActionLabel && onSecondaryAction ? (
-      <button
-        type="button"
-        onClick={onSecondaryAction}
-        className="mt-3 h-11 rounded-full text-[14px] font-bold border transition-colors bg-[#dce3ed] text-[#0f1b35] border-[#d2dbe8]"
-      >
-        {secondaryActionLabel}
-      </button>
-    ) : null}
+      {secondaryActionLabel && onSecondaryAction ? (
+        <button
+          type="button"
+          onClick={onSecondaryAction}
+        className="mt-3 h-11 rounded-full text-[20px] font-bold border transition-colors bg-[#dce3ed] text-[#0f1b35] border-[#d2dbe8]"
+        >
+          {secondaryActionLabel}
+        </button>
+      ) : null}
 
     {footerNote ? (
       <p className="mt-2 text-[11px] text-[#7b8ba3] text-center">{footerNote}</p>
@@ -254,8 +171,8 @@ const FinalizeSetupPage: React.FC = () => {
     ).trim();
 
   const [selectedPlan, setSelectedPlan] = useState<PlanType>(initialSelectedPlan);
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isUpgradeSubmitting, setIsUpgradeSubmitting] = useState(false);
   const [upgradeRequestState, setUpgradeRequestState] = useState<UpgradeRequestState | null>(
@@ -481,9 +398,6 @@ const FinalizeSetupPage: React.FC = () => {
     };
   }, [axiosPrivate, auth.user, hostLeadCompanyIdOverride, isAdditionalWorkspaceMode, workspaceDetails.businessName]);
 
-  const toggleGroup = (key: string) =>
-    setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
-
   const handleUpgradeAction = (plan: PlanCardData) => {
     const submitUpgradeRequest = async () => {
       try {
@@ -519,6 +433,20 @@ const FinalizeSetupPage: React.FC = () => {
 
   const hasPendingUpgradeRequest = upgradeRequestState?.status === "pending";
   const pendingUpgradePlan = String(upgradeRequestState?.requestedPlan || "").toLowerCase();
+
+  // Temporary override requested: force basic plan for a specific company.
+  useEffect(() => {
+    const normalizedCompanyName = String(
+      workspaceDetails?.businessName ||
+        (auth.user as { companyName?: string } | null)?.companyName ||
+        "",
+    )
+      .trim()
+      .toLowerCase();
+    if (normalizedCompanyName === "91springboard") {
+      setSelectedPlan("basic");
+    }
+  }, [auth.user, workspaceDetails?.businessName]);
 
   const handleCompleteSetup = async () => {
     try {
@@ -597,7 +525,10 @@ const FinalizeSetupPage: React.FC = () => {
           : prevState.user,
       }));
       toast.success(response.data?.message || "Workspace created successfully.");
-      navigate("/company-settings");
+      setShowSuccessPopup(true);
+      setTimeout(() => {
+        navigate("/dashboard", { replace: true });
+      }, 5000);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to complete workspace setup.");
     } finally {
@@ -606,7 +537,7 @@ const FinalizeSetupPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f4f4] text-[#0f172a] font-['Poppins'] flex flex-col">
+    <div className="min-h-screen bg-white text-[#0f172a] font-['Poppins'] flex flex-col">
       <div className="shadow-md bg-white/80 backdrop-blur-md">
         <div className="max-w-[80rem] mx-auto px-4 sm:px-6 lg:px-0">
           <div className="flex items-center py-3">
@@ -656,22 +587,21 @@ const FinalizeSetupPage: React.FC = () => {
 
           <div className="mb-4 sm:mb-5 text-center">
             <h1 className="text-[22px] sm:text-[26px] md:text-[30px] font-bold text-[#111b33] mb-2">
-              Finalize your business location setup
+              FINALIZE YOUR BUSINESS LOCATION SETUP
             </h1>
-            <p className="text-[13px] md:text-[14px] text-[#63738d] max-w-[560px] mx-auto">
+            <p className="text-[13px] md:text-[14px] text-[#63738d] max-w-[900px] mx-auto whitespace-nowrap">
               Review your business location details, confirm the active plan, and finish the setup in one last step.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-[285px_minmax(0,1fr)] gap-4 md:gap-4 mb-4 sm:mb-5 items-start">
+          <div className="grid grid-cols-1 md:grid-cols-[320px_minmax(0,1fr)] gap-4 md:gap-4 mb-4 sm:mb-5 items-stretch">
             <div className="min-w-0">
               <PlanCard
                 plan={currentPlanCard}
-                openGroups={openGroups}
-                toggleGroup={toggleGroup}
                 actionLabel="Current Plan"
                 onAction={() => {}}
                 isSelected={true}
+                minHeightClass="min-h-[500px]"
                 useNeutralButton={true}
                 onSecondaryAction={
                   !isAdditionalWorkspaceMode && upgradePlanOptions.length
@@ -691,25 +621,25 @@ const FinalizeSetupPage: React.FC = () => {
               />
             </div>
 
-            <div className="min-w-0 md:sticky md:top-6 self-start">
-              <div className="rounded-[38px] bg-[#eef2f7] p-4 md:p-4 flex flex-col min-h-[360px] shadow-[0_4px_18px_rgba(15,27,53,0.05)] border border-[#d9e1ec]">
+            <div className="min-w-0 self-stretch">
+              <div className="rounded-[38px] bg-[#eef2f7] p-5 md:p-5 flex h-full min-h-[500px] flex-col shadow-[0_4px_18px_rgba(15,27,53,0.05)] border border-[#d9e1ec]">
               <p className="text-[16px] font-bold text-[#111b33] mb-2 text-center mt-2">
                 Business Location Details
               </p>
               <p className="text-[11px] font-bold text-[#233552] mb-4 text-center">
                 Plan Selected : {selectedPlan.toUpperCase()}
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 flex-1 content-start">
+              <div className="grid grid-cols-1 auto-rows-auto gap-y-3.5 flex-1 content-start">
                 {workspaceRows.length ? (
                   workspaceRows.map((row) => (
                     <div
                       key={row.label}
-                      className="rounded-2xl border border-[#dce4ee] bg-[#f7f9fc] px-3 py-3"
+                      className="rounded-2xl border border-[#dce4ee] bg-[#f7f9fc] px-3.5 py-3"
                     >
-                      <p className="text-[11px] font-bold text-[#233552]">
-                        {row.label}:
+                      <p className="text-[11.5px] text-[#4f627d] break-words">
+                        <span className="font-bold text-[#1f3553] text-[12px]">{row.label}:</span>{" "}
+                        {row.value}
                       </p>
-                      <p className="text-[11px] text-[#6f7f96] break-words">{row.value}</p>
                     </div>
                   ))
                 ) : (
@@ -742,7 +672,7 @@ const FinalizeSetupPage: React.FC = () => {
               disabled={isSubmitting}
               className="h-10 w-full sm:w-auto px-7 rounded-xl bg-[#2d67f0] hover:bg-[#2558d5] transition-colors text-white text-[13px] font-semibold inline-flex items-center justify-center gap-2"
             >
-              {isSubmitting ? "Saving..." : "Continue"} <ArrowRight size={16} />
+              {isSubmitting ? "Saving..." : "Finish"} <ArrowRight size={16} />
             </button>
           </div>
         </div>
@@ -753,13 +683,13 @@ const FinalizeSetupPage: React.FC = () => {
           <div className="w-full max-w-fit max-h-[90vh] overflow-y-auto rounded-[32px] bg-[linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] shadow-[0_20px_80px_rgba(15,23,42,0.28)] p-5 sm:p-6 border border-[#dbe5f2] my-auto">
             <div className="flex items-start justify-between gap-4 mb-5">
               <div>
-                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#6d9bff] mb-2">
+                <p className="text-[15px] font-bold uppercase tracking-[0.18em] text-[#6d9bff] mb-2">
                   Upgrade Plan
                 </p>
-                <h2 className="text-[28px] sm:text-[32px] font-bold tracking-[-0.02em] text-[#111b33]">
-                  Choose your plan
-                </h2>
-                <p className="text-[15px] text-[#63738d] mt-1 max-w-[420px]">
+                  <h2 className="font-['Poppins'] text-[22px] sm:text-[26px] md:text-[30px] font-bold text-[#111b33] uppercase mb-2 tracking-normal">
+                  CHOOSE THE PLAN
+                  </h2>
+                <p className="text-[15px] text-[#63738d] mt-1 max-w-[900px] whitespace-nowrap">
                   {selectedPlan === "basic"
                     ? "Pick the next plan that fits your workspace best, or continue now with your current plan."
                     : "Send an upgrade request for a higher plan, or continue now with your current plan."}
@@ -774,18 +704,16 @@ const FinalizeSetupPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="flex flex-wrap justify-center gap-4 mx-auto">
+              <div className="flex flex-wrap justify-center gap-4 mx-auto items-stretch">
               {hasPendingUpgradeRequest ? (
                 <div className="w-full rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-center text-[13px] font-semibold text-amber-800">
                   Upgrade request for {pendingUpgradePlan.toUpperCase()} is pending. It will stay saved until approved or rejected.
                 </div>
               ) : null}
               {upgradePlanOptions.map((plan) => (
-                <div key={plan.key} className="w-full max-w-[285px]">
+                <div key={plan.key} className="w-full max-w-[320px] flex">
                   <PlanCard
                     plan={plan}
-                    openGroups={openGroups}
-                    toggleGroup={toggleGroup}
                     actionLabel={
                       pendingUpgradePlan === plan.key
                         ? "Request Pending"
@@ -796,6 +724,7 @@ const FinalizeSetupPage: React.FC = () => {
                     onAction={() => handleUpgradeAction(plan)}
                     actionDisabled={isUpgradeSubmitting || hasPendingUpgradeRequest}
                     isSelected={false}
+                    minHeightClass="h-full"
                     footerNote={
                       selectedPlan === "basic"
                         ? "Upgrade now if you want more features for this workspace."
@@ -813,11 +742,30 @@ const FinalizeSetupPage: React.FC = () => {
                   setIsUpgradeModalOpen(false);
                   navigate("/dashboard");
                 }}
-                className="h-10 px-6 rounded-xl border border-[#2d67f0] text-white text-[14px] font-medium bg-[#2d67f0] hover:bg-[#2558d5] transition-colors"
+                className="h-10 px-6 rounded-xl border border-[#2d67f0] text-white text-[16px] font-semibold bg-[#2d67f0] hover:bg-[#2558d5] transition-colors"
               >
                 Continue now with current plan
               </button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showSuccessPopup ? (
+        <div className="fixed inset-0 z-[60] pointer-events-none flex items-center justify-center px-4 backdrop-blur-[6px]">
+          <div className="w-full max-w-xl rounded-[24px] border border-[#d9e6ff] bg-[linear-gradient(180deg,#ffffff_0%,#f5f9ff_100%)] shadow-[0_16px_50px_rgba(23,73,182,0.14)] px-5 md:px-8 py-7 md:py-8 text-center">
+            <div className="w-12 h-12 md:w-14 md:h-14 mx-auto rounded-full bg-[#e8f1ff] flex items-center justify-center mb-4">
+              <CheckCircle2 className="text-[#2d67f0]" size={28} strokeWidth={2.5} />
+            </div>
+            <h2 className="text-[24px] md:text-[30px] leading-tight font-bold text-[#102a56] mb-2">
+              Thank You
+            </h2>
+            <p className="text-[14px] md:text-[15px] leading-relaxed text-[#4b5e80] max-w-[520px] mx-auto">
+              Business location created successfully. Redirecting to dashboard...
+            </p>
+            <p className="mt-4 text-[12px] text-[#6b7fa7] font-medium">
+              Redirecting in a few seconds...
+            </p>
           </div>
         </div>
       ) : null}

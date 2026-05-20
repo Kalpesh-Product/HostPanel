@@ -139,7 +139,7 @@ const keyAppsData: NavNode[] = [
   { id: "assets", label: "Assets", icon: Package, disabled: true },
   { id: "inventory", label: "Inventory", icon: Warehouse, disabled: true },
   { id: "finance-management", label: "Finance Management", icon: Wallet, disabled: true },
-  { id: "chat-bot", label: "Chat Bot", icon: MessageSquareCode, disabled: true },
+  { id: "chat-bot", label: "Calendar", icon: CalendarClock, disabled: true },
   { id: "reports", label: "Reports", icon: FileChartColumn, disabled: true },
 ];
 
@@ -264,7 +264,7 @@ const NavItem = ({
         <span
           className={`${forceSmall ? "text-[10px]" : "text-[12px]"} truncate ${forceBold ? "font-pbold" : "font-pmedium"}`}
         >
-          {label}
+          {label.toUpperCase()}
         </span>
       )}
     </span>
@@ -392,9 +392,23 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
       };
     });
 
-  const companySettingsItems = applyEnabledState(companySettingsData);
-  const keyAppsItems = applyEnabledState(keyAppsData);
-  const departmentItems = applyEnabledState(departmentModules);
+  const sortEnabledFirst = (items: NavNode[]): NavNode[] => {
+    const withSortedChildren = items.map((item) => ({
+      ...item,
+      children: item.children ? sortEnabledFirst(item.children) : item.children,
+    }));
+
+    return withSortedChildren.sort((a, b) => {
+      const aEnabled = Boolean(a.route) && !a.disabled;
+      const bEnabled = Boolean(b.route) && !b.disabled;
+      if (aEnabled === bEnabled) return 0;
+      return aEnabled ? -1 : 1;
+    });
+  };
+
+  const companySettingsItems = sortEnabledFirst(applyEnabledState(companySettingsData));
+  const keyAppsItems = sortEnabledFirst(applyEnabledState(keyAppsData));
+  const departmentItems = sortEnabledFirst(applyEnabledState(departmentModules));
 
   const onNavigate = (item: NavNode) => {
     if (item.id === "logout") {
@@ -425,8 +439,8 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
             icon={LayoutDashboard}
             label="Dashboard"
             collapsed={collapsed}
-            isActive={location.pathname === "/company-settings"}
-            onClick={() => onNavigate({ id: "dashboard", label: "Dashboard", route: "/company-settings" })}
+            isActive={location.pathname === "/dashboard"}
+            onClick={() => onNavigate({ id: "dashboard", label: "Dashboard", route: "/dashboard" })}
           />
           {!collapsed && (
             <div

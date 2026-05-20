@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect } from "react";
-import { useNavigate, Link, useParams } from "react-router-dom";
+import { useNavigate, Link, useParams, useLocation, useSearchParams } from "react-router-dom";
 import { Container, Box, Grid, TextField } from "@mui/material";
 import { toast } from "sonner";
 import useRefresh from "../../hooks/useRefresh";
@@ -11,6 +11,7 @@ import "./ClientSpecialClasses.css";
 import Footer from "../../components/Footer";
 import { CircularProgress, InputAdornment, IconButton } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
+import { CheckCircle, XCircle } from "lucide-react";
 import { Drawer, List, ListItem, ListItemText } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { IoCloseSharp } from "react-icons/io5";
@@ -29,13 +30,23 @@ const ResetPassword = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordReuseError, setPasswordReuseError] = useState("");
   const [loading, setLoading] = useState(false);
   const refresh = useRefresh();
   const { token } = useParams();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const resetSessionToken =
+    location.state?.resetSessionToken || searchParams.get("session") || "";
+  const isForgotPasswordFlow =
+    location.state?.flow === "forgot-password" || Boolean(searchParams.get("session"));
 
   useEffect(() => {
-    if (auth?.user) navigate("/profile/my-profile", { replace: true });
-  }, [auth, navigate]);
+    if (isForgotPasswordFlow && !resetSessionToken) {
+      toast.error("Reset session missing. Please verify OTP again.");
+      navigate("/forgot-password", { replace: true });
+    }
+  }, [isForgotPasswordFlow, resetSessionToken, navigate]);
 
   const { mutate: submitReset, isPending: isResetPending } = useMutation({
     mutationFn: async (data) => {
@@ -45,10 +56,12 @@ const ResetPassword = () => {
       };
 
       console.log("reset password", payload);
-      const response = await axios.patch(
-        `/api/auth/reset-password/${token}`,
-        payload
-      );
+      const response = isForgotPasswordFlow
+        ? await api.post("/api/auth/forgot-password/reset", {
+            ...payload,
+            resetSessionToken,
+          })
+        : await axios.patch(`/api/auth/reset-password/${token}`, payload);
       return response.data;
     },
     onSuccess: (data) => {
@@ -64,8 +77,18 @@ const ResetPassword = () => {
         else if (status === 401 && data?.message) message = data.message;
         else if (status === 500)
           message = "Internal server error. Please try again.";
+        if (
+          String(message || "")
+            .toLowerCase()
+            .includes("same as current or last 2 passwords")
+        ) {
+          setPasswordReuseError("New password cannot be same as last used password.");
+        } else {
+          setPasswordReuseError("");
+        }
         toast.error(message);
       } else {
+        setPasswordReuseError("");
         toast.error("Network error. Please check your connection.");
       }
     },
@@ -73,12 +96,53 @@ const ResetPassword = () => {
 
   const onSubmit = (e) => {
     e.preventDefault();
+    setPasswordReuseError("");
     if (password !== confirmPassword) {
       toast.error("Passwords do not match");
       return;
     }
+    if (password.length < 8) {
+      toast.error("Must be at least 8 characters long.");
+      return;
+    }
+    if (!/[a-z]/.test(password) || !/[A-Z]/.test(password)) {
+      toast.error("Should include both uppercase and lowercase letters.");
+      return;
+    }
+    if (!/[\d\W]/.test(password)) {
+      toast.error("Must contain at least one number or special character.");
+      return;
+    }
     submitReset({ password, confirmPassword });
   };
+
+  const passwordChecks = [
+    {
+      key: "length",
+      label: "Must be at least 8 characters long.",
+      passed: password.length >= 8,
+    },
+    {
+      key: "case",
+      label: "Should include uppercase and lowercase letters.",
+      passed: /[a-z]/.test(password) && /[A-Z]/.test(password),
+    },
+    {
+      key: "digitOrSpecial",
+      label: "Must contain at least one number or special character.",
+      passed: /[\d\W]/.test(password),
+    },
+  ];
+  const hasAllPasswordChecks = passwordChecks.every((rule) => rule.passed);
+  const hasConfirmValue = confirmPassword.length > 0;
+  const isPasswordMatch = password === confirmPassword;
+  const canSubmitReset =
+    hasAllPasswordChecks &&
+    hasConfirmValue &&
+    isPasswordMatch &&
+    Boolean(password) &&
+    !passwordReuseError &&
+    !isResetPending;
 
   return (
     <>
@@ -114,20 +178,7 @@ const ResetPassword = () => {
           </a>
         </div> */}
 
-            {/* Mobile Menu Button */}
-            <div className="">
-              <div className="p-4 px-0 whitespace-nowrap">
-                <button type="button"
-                  onClick={() =>
-                    (window.location.href = "https://nomad.wono.co")
-                  }
-                  className="relative pb-1 transition-all cursor-pointer duration-300 group font-bold bg-transparent uppercase border-none"
-                >
-                  Become a nomad
-                  <span className="absolute left-0 w-0 bottom-0 block h-[2px] bg-blue-500 transition-all duration-300 group-hover:w-full"></span>
-                </button>
-              </div>
-            </div>
+            <div className="" />
             {/* <div className="md:hidden">
           <div onClick={() => setDrawerOpen(true)} className="text-white">
             <MenuIcon />
@@ -238,7 +289,10 @@ const ResetPassword = () => {
                       variant="standard"
                       type={showPassword ? "text" : "password"}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPasswordReuseError("");
+                        setPassword(e.target.value);
+                      }}
                       required
                       fullWidth
                       InputProps={{
@@ -291,6 +345,34 @@ const ResetPassword = () => {
                     />
                   </Grid>
                 </div>
+                <div className="mt-2 col-span-2 text-end min-h-[1.5rem]" />
+                {passwordReuseError ? (
+                  <div className="w-full text-left text-xs text-red-600 mt-1 ml-1">
+                    {passwordReuseError}
+                  </div>
+                ) : null}
+                {hasConfirmValue ? (
+                  <div
+                    className={`w-full text-left text-xs mt-1 ml-1 ${
+                      isPasswordMatch ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {isPasswordMatch ? "Passwords match." : "Passwords do not match."}
+                  </div>
+                ) : null}
+                <div className="w-full text-left text-xs mt-2 leading-6 ml-1">
+                  {passwordChecks.map((rule) => (
+                    <p
+                      key={rule.key}
+                      className={`flex items-center gap-1 ${
+                        rule.passed ? "text-green-600" : "text-red-600"
+                      }`}
+                    >
+                      {rule.passed ? <CheckCircle size={14} /> : <XCircle size={14} />}
+                      <span>{rule.label}</span>
+                    </p>
+                  ))}
+                </div>
 
                 {/* <div className="mt-2 col-span-2 text-end">
                   <Link
@@ -305,7 +387,7 @@ const ResetPassword = () => {
                     <Grid item xs={12}>
                       <div className="centerInPhone">
                         <button
-                          disabled={isResetPending}
+                          disabled={!canSubmitReset}
                           type="submit"
                           className="loginButtonStyling text-decoration-none text-subtitle w-40"
                         >
@@ -324,18 +406,12 @@ const ResetPassword = () => {
                         </button> */}
                       </div>
                     </Grid>
-                    {/* <p className="text-[0.9rem]">
-                      Don't have an account?{" "}
-                      <span
-                        onClick={() =>
-                          (window.location.href =
-                            "https://hosts.wono.co/signup")
-                        }
-                        className="underline hover:text-primary cursor-pointer"
-                      >
-                        Sign Up
-                      </span>
-                    </p> */}
+                    <p className="text-[0.9rem]">
+                      Already have an account?{" "}
+                      <Link to="/" className="underline hover:text-primary">
+                        Sign In
+                      </Link>
+                    </p>
                   </div>
                 </div>
               </Box>

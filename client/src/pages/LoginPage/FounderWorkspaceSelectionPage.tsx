@@ -41,7 +41,7 @@ export default function FounderWorkspaceSelectionPage() {
 
   useEffect(() => {
     if (workspaces.length <= 1) {
-      navigate("/company-settings", { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   }, [navigate, workspaces.length]);
 
@@ -67,7 +67,7 @@ export default function FounderWorkspaceSelectionPage() {
             }
           : prev.user,
       }));
-      navigate("/company-settings", { replace: true });
+      navigate("/dashboard", { replace: true });
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Unable to open the selected workspace.");
     } finally {
