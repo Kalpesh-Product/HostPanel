@@ -6,7 +6,7 @@ const getFirstDayOfNextMonthUtc = () => {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0));
 };
 
-const workspaceSubscriptionSchema = new mongoose.Schema({
+const websiteCreditsSchema = new mongoose.Schema({
   companyId: { type: String, unique: true, sparse: true },
   workspaceId: { type: String, unique: true, sparse: true },
   plan: { type: String, enum: ["static-free"], default: "static-free" },
@@ -19,11 +19,11 @@ const workspaceSubscriptionSchema = new mongoose.Schema({
   updatedAt: { type: Date, default: Date.now },
 });
 
-workspaceSubscriptionSchema.virtual("creditsRemaining").get(function () {
+websiteCreditsSchema.virtual("creditsRemaining").get(function () {
   return (this.creditsLimit || 0) - (this.creditsUsed || 0);
 });
 
-workspaceSubscriptionSchema.pre("save", function (next) {
+websiteCreditsSchema.pre("save", function (next) {
   if (!this.creditsResetDate) {
     this.creditsResetDate = getFirstDayOfNextMonthUtc();
   }
@@ -31,9 +31,8 @@ workspaceSubscriptionSchema.pre("save", function (next) {
   next();
 });
 
-const WorkspaceSubscription = mongoose.model(
-  "WorkspaceSubscription",
-  workspaceSubscriptionSchema,
-);
+const WorkspaceSubscription =
+  mongoose.models.WebsiteCredits ||
+  mongoose.model("WebsiteCredits", websiteCreditsSchema, "website_credits");
 
 export default WorkspaceSubscription;
