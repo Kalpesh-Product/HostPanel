@@ -29,6 +29,10 @@ import {
   type VerticalType,
 } from "../../../../constants/verticalConfig";
 import CreditsIndicator from "../../../../components/CreditsIndicator";
+import RoomsSection from "./RoomsSection";
+import PackagesSection from "./PackagesSection";
+import DormsSection from "./DormsSection";
+import MenuSection from "./MenuSection";
 
 const defaultProduct = {
   type: "",
@@ -56,12 +60,11 @@ const CreateWebsite = () => {
   const [creditsUsed, setCreditsUsed] = useState(0);
   const [creditsLimit, setCreditsLimit] = useState(5);
   const [creditsResetDate, setCreditsResetDate] = useState(null);
-  const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
-  const [pendingSubmitValues, setPendingSubmitValues] = useState(null);
-  const [pendingSubmitEvent, setPendingSubmitEvent] = useState(null);
+  const [showConfirmPopup, setShowConfirmPopup] = useState(false);
 
   const {
     control,
+    register,
     handleSubmit,
     reset,
     setValue,
@@ -130,6 +133,26 @@ const CreateWebsite = () => {
     : "co-working";
   const activeSections =
     VERTICAL_CONFIG[vertical]?.sections ?? VERTICAL_CONFIG["co-working"].sections;
+  const selectedVertical = localStorage.getItem("selectedVertical") || "co-working";
+  const selectedVerticalLabel =
+    localStorage.getItem("selectedVerticalLabel") || "Co-Working";
+  const ctaPlaceholders: Record<string, string> = {
+    "co-working": "Book a Desk",
+    "co-living": "View Rooms",
+    workation: "See Packages",
+    hostel: "Book a Bed",
+    "meeting-rooms": "Book a Room",
+    cafe: "View Menu",
+  };
+  const ctaPlaceholder = ctaPlaceholders[selectedVertical] || "Get Started";
+  const sectionTitles: Record<string, string> = {
+    "co-working": "Our Plans",
+    "co-living": "Our Rooms",
+    workation: "Our Packages",
+    hostel: "Our Dorms",
+    "meeting-rooms": "Our Rooms & Pricing",
+    cafe: "Our Menu",
+  };
 
   const values = watch();
   const CHAR_LIMITS = {
@@ -147,7 +170,7 @@ const CreateWebsite = () => {
     testimonialJobPosition: 100,
     testimonialTestimony: 200,
     contactTitle: 100,
-    mapUrl: 200,
+    mapUrl: 2048,
     websiteEmail: 100,
     phone: 30,
     address: 200,
@@ -301,6 +324,27 @@ const CreateWebsite = () => {
   } = useFieldArray({ control, name: "testimonials" });
 
   const submitCreateWebsite = (values, e) => {
+    const normalizeMapUrl = (rawValue) => {
+      const raw = String(rawValue || "").trim();
+      if (!raw) return "";
+      const iframeSrc = raw.match(/src=["']([^"']+)["']/i)?.[1];
+      return (iframeSrc || raw).trim().replace(/&amp;/g, "&");
+    };
+
+    const finalCompanyName = String(
+      values.companyName ||
+        prefillCompanyName ||
+        workspaceBusinessName ||
+        hostCompanyIdentity?.companyName ||
+        selectedCompany?.companyName ||
+        auth?.user?.companyName ||
+        "",
+    ).trim();
+    if (!finalCompanyName) {
+      toast.error("Please provide the company name.");
+      return;
+    }
+
     const formEl = e?.target || formRef.current;
     const fd = new FormData(formEl);
 
@@ -346,10 +390,14 @@ const CreateWebsite = () => {
     });
 
     // ✅ Add companyId here
-    fd.set("companyName", values.companyName || prefillCompanyName || "");
+    fd.set("companyName", finalCompanyName);
     fd.set("companyId", values.companyId || prefillCompanyId || "");
     fd.append("workspaceId", workspaceId || "");
     fd.set("vertical", vertical);
+    fd.set("mapUrl", normalizeMapUrl(values.mapUrl));
+    if (!String(values.registeredCompanyName || "").trim()) {
+      fd.set("registeredCompanyName", finalCompanyName);
+    }
 
     // const srcFromIframe = raw.match(/src=["']([^"']+)["']/i)?.[1];
     // const srcUrl = values.mapUrl.split(" ")[1].split(" ")[1];
@@ -357,12 +405,6 @@ const CreateWebsite = () => {
     // console.log("src", srcUrl);
 
     createWebsite(fd);
-  };
-
-  const onSubmit = (values, e) => {
-    setPendingSubmitValues(values);
-    setPendingSubmitEvent(e);
-    setConfirmSubmitOpen(true);
   };
 
   const { mutate: createWebsite, isLoading: isCreateWebsiteLoading } =
@@ -377,6 +419,8 @@ const CreateWebsite = () => {
       onSuccess: () => {
         toast.success("Website created successfully");
         setCreditsRemaining((prev) => Math.max(0, prev - 1));
+        setCreditsUsed((prev) => prev + 1);
+        window.dispatchEvent(new Event("credits:refresh"));
         resetFormToEmpty();
       },
       onError: (err) => {
@@ -490,7 +534,7 @@ const CreateWebsite = () => {
             <form
               ref={formRef}
               encType="multipart/form-data"
-              onSubmit={handleSubmit(onSubmit)}
+              onSubmit={(e) => e.preventDefault()}
             >
           <div className="md:grid grid-cols-2 sm:grid-cols-1 md:grid-cols-2 gap-4">
             {/* HERO / COMPANY */}
@@ -565,6 +609,7 @@ const CreateWebsite = () => {
                       {...field}
                       size="small"
                       label="CTA Button Text"
+                      placeholder={ctaPlaceholder}
                       fullWidth
                       inputProps={{ maxLength: CHAR_LIMITS.ctaButtonText }}
                       helperText={getHelperText(
@@ -696,7 +741,7 @@ const CreateWebsite = () => {
             )}
 
             {/* PRODUCTS */}
-            {activeSections.includes("products") && (
+            {selectedVertical === "co-working" && (
             <div className="col-span-2">
               <div className="py-4 border-b-default border-borderGray">
                 <span className="text-subtitle font-pmedium">Products</span>
@@ -709,7 +754,7 @@ const CreateWebsite = () => {
                     <TextField
                       {...field}
                       size="small"
-                      label="Products Section Title"
+                      label={sectionTitles[selectedVertical] || "Products Section Title"}
                       fullWidth
                       inputProps={{ maxLength: CHAR_LIMITS.productTitle }}
                       helperText={getHelperText(
@@ -857,6 +902,29 @@ const CreateWebsite = () => {
                 </div>
               </div>
             </div>
+            )}
+            {selectedVertical === "co-living" && (
+              <RoomsSection
+                control={control}
+                register={register}
+                priceLabel="Price per night"
+              />
+            )}
+            {selectedVertical === "workation" && (
+              <PackagesSection control={control} register={register} />
+            )}
+            {selectedVertical === "hostel" && (
+              <DormsSection control={control} register={register} />
+            )}
+            {selectedVertical === "meeting-rooms" && (
+              <RoomsSection
+                control={control}
+                register={register}
+                priceLabel="Price per hour"
+              />
+            )}
+            {selectedVertical === "cafe" && (
+              <MenuSection control={control} register={register} />
             )}
 
             {/* GALLERY */}
@@ -1261,8 +1329,9 @@ const CreateWebsite = () => {
               </div>
               <div className="flex items-center justify-center gap-4">
                 <PrimaryButton
-                  type="submit"
+                  type="button"
                   title={"Submit"}
+                  onClick={() => setShowConfirmPopup(true)}
                   isLoading={isCreateWebsiteLoading}
                   disabled={isCreateWebsiteLoading || creditsRemaining <= 0}
                 />
@@ -1277,9 +1346,9 @@ const CreateWebsite = () => {
             </form>
 
             <Dialog
-              open={confirmSubmitOpen}
+              open={showConfirmPopup}
               onClose={() => {
-                if (!isCreateWebsiteLoading) setConfirmSubmitOpen(false);
+                if (!isCreateWebsiteLoading) setShowConfirmPopup(false);
               }}
               fullWidth
               maxWidth="sm"
@@ -1290,47 +1359,21 @@ const CreateWebsite = () => {
               <DialogTitle sx={{ pb: 1 }}>
                 <div className="flex items-center justify-between">
                   <span className="text-lg font-semibold text-slate-900">
-                    Confirm Submission
-                  </span>
-                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-                    1 Credit
+                    Confirm Website Creation
                   </span>
                 </div>
               </DialogTitle>
               <DialogContent>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-sm font-medium text-slate-700">
-                    You are about to submit this website update.
+                    Your website will be created for {selectedVerticalLabel}. This
+                    vertical cannot be changed later. Do you want to continue?
                   </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Credits are deducted only after successful submission.
-                  </p>
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                    <div className="rounded-lg bg-white p-3 border border-slate-200">
-                      <div className="text-xs text-slate-500">Used</div>
-                      <div className="text-base font-semibold text-slate-900">{creditsUsed}</div>
-                    </div>
-                    <div className="rounded-lg bg-white p-3 border border-slate-200">
-                      <div className="text-xs text-slate-500">Remaining</div>
-                      <div className="text-base font-semibold text-slate-900">{creditsRemaining}</div>
-                    </div>
-                    <div className="rounded-lg bg-white p-3 border border-slate-200">
-                      <div className="text-xs text-slate-500">Monthly Limit</div>
-                      <div className="text-base font-semibold text-slate-900">{creditsLimit}</div>
-                    </div>
-                    <div className="rounded-lg bg-white p-3 border border-slate-200">
-                      <div className="text-xs text-slate-500">Days Left</div>
-                      <div className="text-base font-semibold text-slate-900">{daysLeftForRenew}</div>
-                    </div>
-                  </div>
-                  <div className="mt-3 rounded-lg bg-white p-3 border border-slate-200 text-xs text-slate-600">
-                    Resets on <span className="font-semibold text-slate-900">{creditResetText}</span>
-                  </div>
                 </div>
               </DialogContent>
               <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
                 <Button
-                  onClick={() => setConfirmSubmitOpen(false)}
+                  onClick={() => setShowConfirmPopup(false)}
                   disabled={isCreateWebsiteLoading}
                   sx={{
                     borderRadius: "6px",
@@ -1361,15 +1404,13 @@ const CreateWebsite = () => {
                     },
                   }}
                   onClick={() => {
-                    if (pendingSubmitValues) {
-                      submitCreateWebsite(pendingSubmitValues, pendingSubmitEvent);
-                    }
-                    setConfirmSubmitOpen(false);
-                    setPendingSubmitValues(null);
-                    setPendingSubmitEvent(null);
+                    setShowConfirmPopup(false);
+                    void handleSubmit((values, e) => {
+                      submitCreateWebsite(values, e);
+                    })();
                   }}
                 >
-                  {isCreateWebsiteLoading ? "Submitting..." : "Confirm & Submit"}
+                  {isCreateWebsiteLoading ? "Submitting..." : "Confirm & Create"}
                 </Button>
               </DialogActions>
             </Dialog>

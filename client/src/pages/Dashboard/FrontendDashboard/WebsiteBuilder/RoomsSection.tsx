@@ -3,7 +3,7 @@ import { Controller, useFieldArray } from "react-hook-form";
 import { TextField } from "@mui/material";
 import UploadMultipleFilesInput from "../../../../components/UploadMultipleFilesInput";
 
-const RoomsSection = ({ control, register }) => {
+const RoomsSection = ({ control, register, priceLabel = "Price" }) => {
   const { fields, append, remove } = useFieldArray({
     control,
     name: "rooms",
@@ -14,9 +14,9 @@ const RoomsSection = ({ control, register }) => {
       <div className="py-4 border-b-default border-borderGray">
         <span className="text-subtitle font-pmedium">Rooms</span>
       </div>
-      <div className="grid grid-cols-1 gap-4 p-4">
+      <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4">
         {fields.map((field, index) => (
-          <div key={field.id} className="rounded-xl border border-borderGray p-4">
+          <div key={field.id} className="rounded-xl border border-borderGray p-4 mb-3">
             <div className="flex items-center justify-between mb-3">
               <span className="font-pmedium">Room #{index + 1}</span>
               <button
@@ -36,7 +36,7 @@ const RoomsSection = ({ control, register }) => {
               />
               <TextField
                 size="small"
-                label="Price"
+                label={priceLabel}
                 fullWidth
                 {...register(`rooms.${index}.price`)}
               />
@@ -81,3 +81,4 @@ const RoomsSection = ({ control, register }) => {
 };
 
 export default RoomsSection;
+

@@ -18,7 +18,6 @@ const router = Router();
 router.post(
   "/create-website",
   uploadImages.any(),
-  checkAndDeductCredit,
   createTemplate,
 );
 router.patch(

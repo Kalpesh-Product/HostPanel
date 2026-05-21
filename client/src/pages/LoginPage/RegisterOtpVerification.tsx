@@ -133,7 +133,7 @@ export default function RegisterOtpVerification() {
               <div className="w-16 h-16 md:w-20 md:h-20 mx-auto rounded-full bg-[#e8f1ff] flex items-center justify-center mb-5">
                 <CheckCircle2 className="text-[#2d67f0]" size={36} strokeWidth={2.5} />
               </div>
-              <h1 className="text-[30px] md:text-[38px] leading-tight font-bold text-[#102a56] mb-3">
+              <h1 className="text-[24px] md:text-[30px] leading-tight font-bold text-[#102a56] mb-3 text-center">
                 Registration Successful
               </h1>
               <p className="text-[15px] md:text-[17px] leading-relaxed text-[#4b5e80] max-w-[640px] mx-auto">

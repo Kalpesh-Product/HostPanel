@@ -1,13 +1,26 @@
 import { useEffect, useState } from "react";
 import { LuHardDriveUpload } from "react-icons/lu";
 import { SiGoogleadsense } from "react-icons/si";
-import { Loader2 } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
 import Card from "../../../../components/Card";
 import PageFrame from "../../../../components/Pages/PageFrame";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 import useAuth from "../../../../hooks/useAuth";
 import { useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
+import {
+  BUSINESS_TYPE_TO_VERTICAL_KEY,
+  VERTICAL_KEY_TO_LABEL,
+} from "../../../../constants/verticalConfig";
+
+const VERTICAL_ICON_BY_KEY = {
+  "co-working": "\u{1F5A5}\uFE0F",
+  "co-living": "\u{1F3E0}",
+  hostel: "\u{1F6CF}\uFE0F",
+  workation: "\u{2708}\uFE0F",
+  "meeting-rooms": "\u{1F4C5}",
+  cafe: "\u{2615}",
+};
 
 const WebsiteBuilderTypeActions = ({ type = "static" }) => {
   const axios = useAxiosPrivate();
@@ -19,6 +32,7 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
   const [isCheckingWebsite, setIsCheckingWebsite] = useState(type !== "static");
   const [workspaceBusinessName, setWorkspaceBusinessName] = useState("");
   const [workspaceBusinessTypes, setWorkspaceBusinessTypes] = useState<string[]>([]);
+  const [workspacePlan, setWorkspacePlan] = useState("");
   const builderBasePath = location.pathname.includes("/company-settings/website-builder")
     ? "/company-settings/website-builder"
     : "/dashboard/website-builder";
@@ -34,6 +48,7 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
     auth?.user?.primaryWorkspace ||
     auth?.user?.workspaceId ||
     "";
+
   useEffect(() => {
     const fetchWorkspaceData = async () => {
       try {
@@ -75,15 +90,24 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
         }
 
         const response = await axios.get("/api/editor/get-websites", {
-          params: { companyId },
+          params: { businessName },
         });
         const websites = Array.isArray(response?.data) ? response.data : [];
+        console.log("FETCH PARAMS - companyId:", companyId);
+        console.log("FETCH PARAMS - businessName:", businessName);
+        console.log("ALL WEBSITES RETURNED:", websites?.map((w:any) => ({
+          companyName: w.companyName,
+          companyId: w.companyId,
+          vertical: w.vertical,
+          searchKey: w.searchKey,
+        })));
         const found = websites.find(
           (website) =>
             String(website?.companyId || "").trim() === String(companyId).trim() ||
             String(website?.companyName || "").trim().toLowerCase() ===
               businessName.toLowerCase(),
         ) || null;
+        console.log("MATCHED WEBSITE:", found);
         setExistingWebsite(found);
       } catch (error) {
         setExistingWebsite(null);
@@ -103,6 +127,23 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
     type,
   ]);
 
+  useEffect(() => {
+    const fetchSubscriptionPlan = async () => {
+      if (!companyId) {
+        setWorkspacePlan("");
+        return;
+      }
+      try {
+        const res = await axios.get(`/api/subscription/${companyId}`);
+        setWorkspacePlan(String(res?.data?.plan || "").trim());
+      } catch (error) {
+        setWorkspacePlan("");
+      }
+    };
+
+    fetchSubscriptionPlan();
+  }, [axios, companyId]);
+
   const createOrEditTitle = existingWebsite ? "Edit Website" : "Create Website";
   const searchKey = existingWebsite?.searchKey || "";
   const companyName = existingWebsite?.companyName || "";
@@ -114,6 +155,41 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
       ? staticVerticalPickerRoute
       : `${builderBasePath}/${type}/create-website`;
   const leadsRoute = `${builderBasePath}/${type}/leads`;
+  const normalizedPlan = workspacePlan.toLowerCase();
+  const isLockedPlan = normalizedPlan === "static-free" || normalizedPlan === "basic";
+  const isProfessionalPlan =
+    normalizedPlan === "professional" || (!isLockedPlan && normalizedPlan === "pro");
+  const existingVerticalKey = String(existingWebsite?.vertical || "").trim();
+  const existingVerticalLabel =
+    VERTICAL_KEY_TO_LABEL[existingVerticalKey] ||
+    String(existingWebsite?.verticalLabel || "").trim() ||
+    String(existingWebsite?.vertical || "").trim() ||
+    "Co-Working";
+  const existingVerticalIcon = VERTICAL_ICON_BY_KEY[existingVerticalKey] || "\u{1F310}";
+  const existingWebsiteUrl =
+    String(existingWebsite?.deployedUrl || "").trim() ||
+    `${String(existingWebsite?.searchKey || "company")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "")}.wono.co`;
+
+  const handleEditWebsiteClick = () => {
+    const editSearchKey = String(existingWebsite?.searchKey || "").trim();
+    if (!editSearchKey) return;
+    const editVertical = String(existingWebsite?.vertical || "").trim();
+    localStorage.setItem("selectedVertical", editVertical);
+    localStorage.setItem(
+      "selectedVerticalLabel",
+      VERTICAL_KEY_TO_LABEL[editVertical] || editVertical,
+    );
+    navigate(`../edit-website/${encodeURIComponent(editSearchKey)}`, {
+      state: {
+        searchKey: editSearchKey,
+        companyName: existingWebsite?.companyName,
+      },
+    });
+  };
+
   const handleCreateOrEditClick = async () => {
     if (type !== "static") {
       navigate(createOrEditRoute);
@@ -122,7 +198,7 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
 
     try {
       const response = await axios.get("/api/editor/get-websites", {
-        params: { companyId },
+        params: { businessName },
       });
       const websites = Array.isArray(response?.data) ? response.data : [];
       const businessName = String(
@@ -131,6 +207,14 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
           auth?.user?.companyName ||
           "",
       ).trim();
+      console.log("FETCH PARAMS - companyId:", companyId);
+      console.log("FETCH PARAMS - businessName:", businessName);
+      console.log("ALL WEBSITES RETURNED:", websites?.map((w:any) => ({
+        companyName: w.companyName,
+        companyId: w.companyId,
+        vertical: w.vertical,
+        searchKey: w.searchKey,
+      })));
       const found =
         websites.find(
           (website) =>
@@ -138,13 +222,18 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
             String(website?.companyName || "").trim().toLowerCase() ===
               businessName.toLowerCase(),
         ) || null;
+      console.log("MATCHED WEBSITE:", found);
       const resolvedSearchKey = String(found?.searchKey || "").trim();
 
       if (found && resolvedSearchKey) {
         const existingVertical = String(found?.vertical || "").trim();
         const existingVerticalLabel = String(found?.verticalLabel || "").trim();
-        if (existingVertical) {
-          localStorage.setItem("selectedVertical", existingVertical);
+        const mappedVerticalKey = BUSINESS_TYPE_TO_VERTICAL_KEY[existingVerticalLabel];
+        if (mappedVerticalKey || existingVertical) {
+          localStorage.setItem(
+            "selectedVertical",
+            mappedVerticalKey || existingVertical,
+          );
         }
         if (existingVerticalLabel) {
           localStorage.setItem("selectedVerticalLabel", existingVerticalLabel);
@@ -160,15 +249,8 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
 
     if (workspaceBusinessTypes.length <= 1) {
       const selectedType = workspaceBusinessTypes[0] || "Co-Working";
-      const toVerticalMap = {
-        "Co-Working": "co-working",
-        "Co-Living": "co-living",
-        Hostels: "hostel",
-        Workation: "workation",
-        "Meeting Rooms": "meeting-rooms",
-        Cafe: "cafe",
-      };
-      const selectedVertical = toVerticalMap[selectedType] || "co-working";
+      const selectedVertical =
+        BUSINESS_TYPE_TO_VERTICAL_KEY[selectedType] || "co-working";
       localStorage.setItem("selectedVertical", selectedVertical);
       localStorage.setItem("selectedVerticalLabel", selectedType);
       navigate(`${builderBasePath}/static/create-website`);
@@ -187,36 +269,96 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => {
-                if (isCheckingWebsite) return;
-                void handleCreateOrEditClick();
-              }}
-              onKeyDown={(event) => {
-                if ((event.key === "Enter" || event.key === " ") && !isCheckingWebsite) {
-                  event.preventDefault();
-                  void handleCreateOrEditClick();
-                }
-              }}
-              className="cursor-pointer"
-            >
-              {isCheckingWebsite ? (
-                <div className="flex h-full min-h-[140px] w-full items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-md">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Checking Website...
-                  </div>
+            {isCheckingWebsite ? (
+              <div className="flex h-full min-h-[140px] w-full items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-md">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-600">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Checking Website...
                 </div>
-              ) : (
-                <Card
-                  icon={<LuHardDriveUpload />}
-                  title={createOrEditTitle}
-                  route={location.pathname}
-                />
-              )}
-            </div>
+              </div>
+            ) : existingWebsite ? (
+              <>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    handleEditWebsiteClick();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      handleEditWebsiteClick();
+                    }
+                  }}
+                  className="cursor-pointer"
+                >
+                  <Card
+                    icon={<LuHardDriveUpload />}
+                    title="Edit Website"
+                    route={location.pathname}
+                  />
+                </div>
+
+                {isProfessionalPlan ? (
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => navigate(staticVerticalPickerRoute)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        navigate(staticVerticalPickerRoute);
+                      }
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Card
+                      icon={<LuHardDriveUpload />}
+                      title="Create Another Website"
+                      route={location.pathname}
+                    />
+                  </div>
+                ) : (
+                  <div className="group relative cursor-not-allowed">
+                    <div className="pointer-events-none">
+                      <Card
+                        icon={<LuHardDriveUpload />}
+                        title="Create Another Website"
+                        route={location.pathname}
+                      />
+                    </div>
+                    <div className="pointer-events-none absolute inset-0 rounded-2xl bg-white/45" />
+                    <div className="absolute inset-0 hidden items-center justify-center rounded-2xl bg-black/40 text-sm font-semibold text-white group-hover:flex">
+                      Upgrade your plan
+                    </div>
+                    <Lock size={16} className="absolute right-4 top-4 text-slate-600" />
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    void handleCreateOrEditClick();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      void handleCreateOrEditClick();
+                    }
+                  }}
+                  className="cursor-pointer"
+                >
+                  <Card
+                    icon={<LuHardDriveUpload />}
+                    title={createOrEditTitle}
+                    route={location.pathname}
+                  />
+                </div>
+              </>
+            )}
             <Card icon={<SiGoogleadsense />} title="Leads" route={leadsRoute} />
           </div>
         </div>

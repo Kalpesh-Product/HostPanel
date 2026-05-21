@@ -35,9 +35,29 @@ const businessTypeLabelByVertical = {
   cafe: "Cafe",
 };
 
+const normalizeMapUrl = (rawValue) => {
+  const raw = String(rawValue || "").trim();
+  if (!raw) return "";
+  const iframeSrc = raw.match(/src=["']([^"']+)["']/i)?.[1];
+  return (iframeSrc || raw).trim().replace(/&amp;/g, "&");
+};
+
+const resolveUsableCompanyName = (...candidates) => {
+  const invalid = new Set(["n/a", "na", "none", "undefined", "null", "-", "unknown"]);
+  for (const candidate of candidates) {
+    const value = String(candidate || "").trim();
+    if (!value) continue;
+    if (invalid.has(value.toLowerCase())) continue;
+    return value;
+  }
+  return "";
+};
+
 const deductWorkspaceCreditOnSuccess = async (workspaceId) => {
   if (!workspaceId) return;
-  const subscription = await WorkspaceSubscription.findOne({ workspaceId });
+  const subscription = await WorkspaceSubscription.findOne({
+    $or: [{ workspaceId }, { companyId: workspaceId }],
+  });
   if (!subscription) return;
   subscription.creditsUsed = Number(subscription.creditsUsed || 0) + 1;
   await subscription.save();
@@ -260,7 +280,13 @@ export const createTemplate = async (req, res, next) => {
       return trimmed.split("-")[0].replace(/\s+/g, "");
     };
 
-    const searchKey = formatCompanyName(req.body.companyName);
+    const resolvedCompanyName = resolveUsableCompanyName(
+      req.body.companyName,
+      req.body.registeredCompanyName,
+      hostCompanyExists?.companyName,
+    );
+    req.body.companyName = resolvedCompanyName;
+    const searchKey = formatCompanyName(resolvedCompanyName);
     const baseFolder = `hosts/template/${searchKey}`;
 
     if (searchKey === "") {
@@ -287,11 +313,15 @@ export const createTemplate = async (req, res, next) => {
       galleryTitle: req.body?.galleryTitle,
       testimonialTitle: req.body.testimonialTitle,
       contactTitle: req.body.contactTitle,
-      mapUrl: req.body.mapUrl,
+      mapUrl: normalizeMapUrl(req.body.mapUrl),
       email: req.body.websiteEmail,
       phone: req.body.phone,
       address: req.body.address,
-      registeredCompanyName: req.body.registeredCompanyName,
+      registeredCompanyName:
+        resolveUsableCompanyName(
+          req.body.registeredCompanyName,
+          req.body.companyName,
+        ) || req.body.registeredCompanyName,
       copyrightText: req.body.copyrightText,
       verticalType: req.body.verticalType || "co-working",
       heroVariant: req.body.heroVariant || "text-image",
@@ -610,7 +640,17 @@ export const getInActiveTemplate = async (req, res) => {
 
 export const getTemplates = async (req, res) => {
   try {
-    const templates = await WebsiteTemplate.find({ isActive: true });
+    const { companyId, companyName, businessName } = req.query;
+
+    let query = { isActive: true };
+
+    if (businessName) {
+      query.companyName = { $regex: new RegExp(`^${businessName}$`, "i") };
+    } else if (companyName) {
+      query.companyName = { $regex: new RegExp(`^${companyName}$`, "i") };
+    }
+
+    const templates = await WebsiteTemplate.find(query);
 
     if (!templates.length) {
       return res.status(200).json([]);
@@ -690,7 +730,8 @@ export const editTemplate = async (req, res, next) => {
 
     const formatCompanyName = (name) =>
       (name || "").toLowerCase().split("-")[0].replace(/\s+/g, "");
-    const searchKey = formatCompanyName(companyName);
+    const bodySearchKey = String(req.body?.searchKey || "").trim().toLowerCase();
+    const searchKey = bodySearchKey || formatCompanyName(companyName);
     const baseFolder = `hosts/template/${searchKey}`;
     const hasVerticalInBody = Object.prototype.hasOwnProperty.call(
       req.body,
@@ -873,6 +914,12 @@ export const editTemplate = async (req, res, next) => {
     for (const f of req.files || []) (filesByField[f.fieldname] ||= []).push(f);
 
     Object.assign(template, {
+      companyName:
+        resolveUsableCompanyName(
+          req.body.companyName,
+          req.body.registeredCompanyName,
+          template.companyName,
+        ) || template.companyName,
       title: req.body.title ?? template.title,
       subTitle: req.body.subTitle ?? template.subTitle,
       CTAButtonText: req.body.CTAButtonText ?? template.CTAButtonText,
@@ -881,12 +928,20 @@ export const editTemplate = async (req, res, next) => {
       galleryTitle: req.body.galleryTitle ?? template.galleryTitle,
       testimonialTitle: req.body.testimonialTitle ?? template.testimonialTitle,
       contactTitle: req.body.contactTitle ?? template.contactTitle,
-      mapUrl: req.body.mapUrl ?? template.mapUrl,
+      mapUrl:
+        req.body.mapUrl !== undefined
+          ? normalizeMapUrl(req.body.mapUrl)
+          : template.mapUrl,
       email: req.body.email ?? template.email,
       phone: req.body.phone ?? template.phone,
       address: req.body.address ?? template.address,
       registeredCompanyName:
-        req.body.registeredCompanyName ?? template.registeredCompanyName,
+        resolveUsableCompanyName(
+          req.body.registeredCompanyName,
+          req.body.companyName,
+          template.registeredCompanyName,
+          template.companyName,
+        ) || template.registeredCompanyName,
       copyrightText: req.body.copyrightText ?? template.copyrightText,
       verticalType: req.body.verticalType ?? template.verticalType ?? "co-working",
       heroVariant: req.body.heroVariant ?? template.heroVariant ?? "text-image",
@@ -1131,7 +1186,9 @@ export const editTemplate = async (req, res, next) => {
     await session.commitTransaction();
     session.endSession();
 
-    await deductWorkspaceCreditOnSuccess(req.body?.workspaceId);
+    await deductWorkspaceCreditOnSuccess(
+      req.body?.workspaceId || req.body?.companyId || template?.workspaceId || template?.companyId,
+    );
 
     res
       .status(200)

@@ -740,7 +740,6 @@ const FinalizeSetupPage: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setIsUpgradeModalOpen(false);
-                  navigate("/dashboard");
                 }}
                 className="h-10 px-6 rounded-xl border border-[#2d67f0] text-white text-[16px] font-semibold bg-[#2d67f0] hover:bg-[#2558d5] transition-colors"
               >

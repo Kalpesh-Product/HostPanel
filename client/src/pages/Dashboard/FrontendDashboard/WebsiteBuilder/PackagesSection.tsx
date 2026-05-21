@@ -14,9 +14,9 @@ const PackagesSection = ({ control, register }) => {
       <div className="py-4 border-b-default border-borderGray">
         <span className="text-subtitle font-pmedium">Packages</span>
       </div>
-      <div className="grid grid-cols-1 gap-4 p-4">
+      <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4">
         {fields.map((field, index) => (
-          <div key={field.id} className="rounded-xl border border-borderGray p-4">
+          <div key={field.id} className="rounded-xl border border-borderGray p-4 mb-3">
             <div className="flex items-center justify-between mb-3">
               <span className="font-pmedium">Package #{index + 1}</span>
               <button
@@ -93,3 +93,4 @@ const PackagesSection = ({ control, register }) => {
 };
 
 export default PackagesSection;
+

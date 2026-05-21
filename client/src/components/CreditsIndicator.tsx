@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import useAxiosPrivate from "../hooks/useAxiosPrivate";
 import useAuth from "../hooks/useAuth";
+import RequestCreditsPopup from "../../../src/components/RequestCreditsPopup";
 
 const formatResetDate = (value) => {
   if (!value) return "-";
@@ -46,6 +47,8 @@ const CreditsIndicator = ({ workspaceId, companyId }) => {
   const { auth } = useAuth();
   const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showRequestPopup, setShowRequestPopup] = useState(false);
+  const [subscriptionRefreshKey, setSubscriptionRefreshKey] = useState(0);
   const subscriptionId = companyId || workspaceId;
 
   useEffect(() => {
@@ -72,7 +75,17 @@ const CreditsIndicator = ({ workspaceId, companyId }) => {
     return () => {
       mounted = false;
     };
-  }, [axios, subscriptionId]);
+  }, [axios, subscriptionId, subscriptionRefreshKey]);
+
+  useEffect(() => {
+    const handleCreditsRefresh = () => {
+      setSubscriptionRefreshKey((prev) => prev + 1);
+    };
+    window.addEventListener("credits:refresh", handleCreditsRefresh);
+    return () => {
+      window.removeEventListener("credits:refresh", handleCreditsRefresh);
+    };
+  }, []);
 
   const creditsLimit = Number(subscription?.creditsLimit || 5);
   const creditsUsed = Number(subscription?.creditsUsed || 0);
@@ -138,6 +151,24 @@ const CreditsIndicator = ({ workspaceId, companyId }) => {
       {daysLeft !== null ? (
         <div className="mt-1 text-xs text-black/50">{daysLeft} day(s) left for renew</div>
       ) : null}
+      {creditsRemaining === 0 && (
+        <button
+          onClick={() => setShowRequestPopup(true)}
+          className="text-sm text-primary underline mt-1"
+        >
+          Request Credits
+        </button>
+      )}
+      <RequestCreditsPopup
+        isOpen={showRequestPopup}
+        onClose={() => setShowRequestPopup(false)}
+        companyId={companyId}
+        workspaceId={workspaceId}
+        onSuccess={() => {
+          setShowRequestPopup(false);
+          setSubscriptionRefreshKey((prev) => prev + 1);
+        }}
+      />
     </div>
   );
 };

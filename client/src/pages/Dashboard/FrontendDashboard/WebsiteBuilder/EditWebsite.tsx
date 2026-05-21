@@ -138,6 +138,13 @@ const EditWebsite = () => {
     },
   });
 
+  const websiteUrlText = String(tpl?.deployedUrl || "").trim()
+    ? String(tpl?.deployedUrl || "").trim()
+    : `${String(tpl?.searchKey || searchKey || "company").trim()}.wono.co`;
+  const websiteHref = /^https?:\/\//i.test(websiteUrlText)
+    ? websiteUrlText
+    : `https://${websiteUrlText}`;
+
   useEffect(() => {
     const fetchCredits = async () => {
       if (!workspaceId) return;
@@ -321,7 +328,7 @@ const EditWebsite = () => {
     testimonialJobPosition: 100,
     testimonialTestimony: 200,
     contactTitle: 100,
-    mapUrl: 200,
+    mapUrl: 2048,
     email: 100,
     phone: 30,
     address: 200,
@@ -343,6 +350,8 @@ const EditWebsite = () => {
     onSuccess: () => {
       toast.success("Website updated successfully");
       setCreditsRemaining((prev) => Math.max(0, prev - 1));
+      setCreditsUsed((prev) => prev + 1);
+      window.dispatchEvent(new Event("credits:refresh"));
     },
     onError: (err) => {
       if (err?.response?.status === 403 && err?.response?.data?.error === "no_credits_remaining") {
@@ -359,13 +368,34 @@ const EditWebsite = () => {
   });
 
   const submitWebsiteUpdate = (vals) => {
+    const normalizeMapUrl = (rawValue) => {
+      const raw = String(rawValue || "").trim();
+      if (!raw) return "";
+      const iframeSrc = raw.match(/src=["']([^"']+)["']/i)?.[1];
+      return (iframeSrc || raw).trim().replace(/&amp;/g, "&");
+    };
+
+    const finalCompanyName = String(
+      vals.companyName ||
+        tpl?.companyName ||
+        selectedCompany?.companyName ||
+        auth?.user?.companyName ||
+        "",
+    ).trim();
+    if (!finalCompanyName) {
+      toast.error("Please provide the company name.");
+      return;
+    }
+
     const fd = new FormData();
     fd.append("workspaceId", workspaceId || "");
+    fd.append("companyId", selectedCompany?.companyId || auth?.user?.companyId || "");
+    fd.append("searchKey", String(searchKey || "").trim());
 
     // text fields used by server (companyName builds searchKey)
     fd.append(
       "companyName",
-      vals.companyName || selectedCompany?.companyName || auth?.user?.companyName || "",
+      finalCompanyName,
     );
     fd.append("title", vals.title || "");
     fd.append("subTitle", vals.subTitle || "");
@@ -375,11 +405,14 @@ const EditWebsite = () => {
     fd.append("galleryTitle", vals.galleryTitle || "");
     fd.append("testimonialTitle", vals.testimonialTitle || "");
     fd.append("contactTitle", vals.contactTitle || "");
-    fd.append("mapUrl", vals.mapUrl || "");
+    fd.append("mapUrl", normalizeMapUrl(vals.mapUrl));
     fd.append("email", vals.email || "");
     fd.append("phone", vals.phone || "");
     fd.append("address", vals.address || "");
     fd.append("registeredCompanyName", vals.registeredCompanyName || "");
+    if (!String(vals.registeredCompanyName || "").trim()) {
+      fd.set("registeredCompanyName", finalCompanyName);
+    }
     fd.append("copyrightText", vals.copyrightText || "");
 
     // NEW: keep-lists for hero & gallery (computed from remaining existing arrays)
@@ -542,9 +575,21 @@ const EditWebsite = () => {
               <h2 className="text-title font-pmedium text-primary uppercase">
                 {tpl?.companyName ? `Edit Website - ${tpl.companyName}` : "Edit Website"}
               </h2>
-              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                {verticalBadgeText}
-              </span>
+              <div className="flex flex-col items-end gap-1">
+                <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                  {verticalBadgeText}
+                </span>
+                <p className="text-[11px] text-slate-500">Vertical cannot be changed</p>
+                <a
+                  href={websiteHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-200"
+                >
+                  <span>🔗</span>
+                  <span className="max-w-[220px] truncate">{websiteUrlText}</span>
+                </a>
+              </div>
             </div>
 
             <form

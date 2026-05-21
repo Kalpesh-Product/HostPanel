@@ -18,6 +18,15 @@ export const BUSINESS_TYPE_TO_VERTICAL_KEY: Record<string, VerticalType> = {
   Cafe: "cafe",
 };
 
+export const VERTICAL_KEY_TO_LABEL: Record<string, string> = {
+  "co-working": "Co-Working",
+  "co-living": "Co-Living",
+  hostel: "Hostels",
+  workation: "Workation",
+  "meeting-rooms": "Meeting Rooms",
+  cafe: "Cafe",
+};
+
 type VerticalConfigEntry = {
   label: string;
   pages: string[];

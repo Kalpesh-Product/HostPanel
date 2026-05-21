@@ -13,51 +13,61 @@ type VerticalPickerProps = {
 };
 
 type VerticalOption = {
-  businessType: string;
   verticalKey: VerticalType;
+  label: string;
   icon: string;
   description: string;
+  isRecommended: boolean;
+  isDisabled: boolean;
 };
 
-const VERTICAL_META: Record<
-  string,
+const ALL_VERTICALS: Array<{
+  key: VerticalType;
+  label: string;
+  icon: string;
+  desc: string;
+}> = [
   {
-    icon: string;
-    description: string;
-  }
-> = {
-  "Co-Working": {
+    key: "co-working",
+    label: "Co-Working",
     icon: "\u{1F5A5}\uFE0F",
-    description: "Desks, plans & workspace tours",
+    desc: "Desks, plans & workspace tours",
   },
-  "Co-Living": {
+  {
+    key: "co-living",
+    label: "Co-Living",
     icon: "\u{1F3E0}",
-    description: "Rooms, amenities & community",
+    desc: "Rooms, amenities & community",
   },
-  Hostels: {
+  {
+    key: "hostel",
+    label: "Hostels",
     icon: "\u{1F6CF}\uFE0F",
-    description: "Dorms, facilities & bookings",
+    desc: "Dorms, facilities & bookings",
   },
-  Workation: {
+  {
+    key: "workation",
+    label: "Workation",
     icon: "\u{2708}\uFE0F",
-    description: "Packages, spaces & retreats",
+    desc: "Packages, spaces & retreats",
   },
-  "Meeting Rooms": {
+  {
+    key: "meeting-rooms",
+    label: "Meeting Rooms",
     icon: "\u{1F4C5}",
-    description: "Rooms, pricing & availability",
+    desc: "Rooms, pricing & availability",
   },
-  Cafe: {
+  {
+    key: "cafe",
+    label: "Cafe",
     icon: "\u{2615}",
-    description: "Menu, ambience & location",
+    desc: "Menu, ambience & location",
   },
-};
+];
 
-const formatCompanyName = (name: string) =>
-  String(name || "")
-    .trim()
-    .toLowerCase()
-    .split("-")[0]
-    .replace(/\s+/g, "");
+const ALL_VERTICAL_KEYS = new Set<VerticalType>(
+  ALL_VERTICALS.map((item) => item.key),
+);
 
 export default function VerticalPicker({ workspaceId }: VerticalPickerProps) {
   const axios = useAxiosPrivate();
@@ -71,7 +81,6 @@ export default function VerticalPicker({ workspaceId }: VerticalPickerProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [options, setOptions] = useState<VerticalOption[]>([]);
-  const [workspaceBusinessName, setWorkspaceBusinessName] = useState("");
 
   const builderBasePath = location.pathname.includes(
     "/company-settings/website-builder",
@@ -85,10 +94,11 @@ export default function VerticalPicker({ workspaceId }: VerticalPickerProps) {
   const userData = userDataRaw ? JSON.parse(userDataRaw) : null;
   const realCompanyId = userData?.companyId || "";
   const companyId = realCompanyId || reduxCompanyId || contextCompanyId || "";
+  const currentCompanyId = companyId;
 
-  const saveAndNavigate = async (verticalKey: VerticalType, businessType: string, businessName: string) => {
+  const saveAndNavigate = async (verticalKey: VerticalType, label: string) => {
     localStorage.setItem("selectedVertical", verticalKey);
-    localStorage.setItem("selectedVerticalLabel", businessType);
+    localStorage.setItem("selectedVerticalLabel", label);
     navigate(`${builderBasePath}/static/create-website`);
   };
 
@@ -104,99 +114,92 @@ export default function VerticalPicker({ workspaceId }: VerticalPickerProps) {
         if (!mounted) return;
 
         const workspace = res?.data?.data?.workspace || {};
-        const businessName = String(workspace?.businessName || "").trim();
-        if (companyId || businessName) {
-          try {
-            const websitesResponse = await axios.get("/api/editor/get-websites", {
-              params: { companyId },
-            });
-            const websitesPayload =
-              websitesResponse?.data?.data ?? websitesResponse?.data;
-            const websites = Array.isArray(websitesPayload)
-              ? websitesPayload
-              : Array.isArray(websitesPayload?.websites)
-                ? websitesPayload.websites
-                : websitesPayload && (websitesPayload?._id || websitesPayload?.companyName)
-                  ? [websitesPayload]
-                  : [];
-            const existingWebsite = websites.find((item: any) => item);
-            const matchedWebsite = websites.find((item: any) =>
-              String(item?.companyId || "").trim() === String(companyId).trim() ||
-              String(item?.companyName || "").trim().toLowerCase() ===
-                businessName.toLowerCase(),
-            );
-            const existingVertical = String(matchedWebsite?.vertical || "").trim();
-
-            if (matchedWebsite && existingVertical) {
-              localStorage.setItem("selectedVertical", existingVertical);
-              localStorage.setItem(
-                "selectedVerticalLabel",
-                String(matchedWebsite?.verticalLabel || matchedWebsite?.companyName || ""),
-              );
-              const websiteSlug =
-                matchedWebsite?.searchKey ||
-                matchedWebsite?.companyName ||
-                formatCompanyName(businessName);
-              const editRoute = websiteSlug
-                ? `${builderBasePath}/edit-website/${encodeURIComponent(websiteSlug)}`
-                : `${builderBasePath}/edit-website`;
-              navigate(editRoute);
-              return;
-            }
-          } catch {
-            // If existing website lookup fails, continue with picker flow.
-          }
-        }
-
+        const businessName = String(
+          workspace?.businessName ||
+            selectedCompany?.companyName ||
+            auth?.user?.companyName ||
+            "",
+        ).trim();
         const rawBusinessTypes = Array.isArray(workspace?.businessTypes)
           ? workspace.businessTypes
           : workspace?.businessType
             ? [workspace.businessType]
             : [];
 
-        const mappedOptions: VerticalOption[] = rawBusinessTypes
-          .map((businessType: unknown) => String(businessType || "").trim())
-          .filter(Boolean)
-          .map((businessType: string) => {
-            const verticalKey = BUSINESS_TYPE_TO_VERTICAL_KEY[businessType];
-            if (!verticalKey) return null;
-            const meta = VERTICAL_META[businessType] || {
-              icon: "\u{1F3E2}",
-              description: "Build your website experience",
-            };
-            return {
-              businessType,
-              verticalKey,
-              icon: meta.icon,
-              description: meta.description,
-            };
-          })
-          .filter((item): item is VerticalOption => Boolean(item));
-
-        const uniqueOptions = mappedOptions.filter(
-          (item, index, list) =>
-            list.findIndex(
-              (candidate) => candidate.verticalKey === item.verticalKey,
-            ) === index,
+        const recommendedVerticalKeys = new Set<VerticalType>(
+          rawBusinessTypes
+            .map((businessType: unknown) => String(businessType || "").trim())
+            .filter(Boolean)
+            .map(
+              (businessType: string) =>
+                BUSINESS_TYPE_TO_VERTICAL_KEY[businessType],
+            )
+            .filter((key): key is VerticalType => Boolean(key)),
         );
 
-        if (uniqueOptions.length === 1) {
-          void saveAndNavigate(
-            uniqueOptions[0].verticalKey,
-            uniqueOptions[0].businessType,
-            businessName,
+        let existingVerticalKeys = new Set<VerticalType>();
+        try {
+          const websitesResponse = await axios.get("/api/editor/get-websites", {
+            params: { businessName },
+          });
+          const websitesPayload =
+            websitesResponse?.data?.data ?? websitesResponse?.data;
+          const websites = Array.isArray(websitesPayload)
+            ? websitesPayload
+            : Array.isArray(websitesPayload?.websites)
+              ? websitesPayload.websites
+              : websitesPayload &&
+                  (websitesPayload?._id || websitesPayload?.companyName)
+                ? [websitesPayload]
+                : [];
+          console.log("ALL WEBSITES FROM API:", websites?.map((w: any) => ({
+            companyName: w.companyName,
+            companyId: w.companyId,
+            vertical: w.vertical,
+          })));
+          console.log("CURRENT COMPANY IDENTIFIER:", currentCompanyId);
+
+          const existingWebsites = websites.filter(
+            (website: any) =>
+              String(website?.companyId || "").trim() === String(currentCompanyId).trim() ||
+              String(website?.companyName || "").trim().toLowerCase() ===
+                businessName.toLowerCase(),
           );
-          return;
+          console.log("EXISTING WEBSITES FETCHED:", existingWebsites);
+          console.log("COMPANY ID USED:", currentCompanyId);
+          console.log("BUSINESS NAME USED:", businessName);
+
+          existingVerticalKeys = new Set<VerticalType>(
+            existingWebsites
+              .map((item: any) => {
+                const vertical = String(item?.vertical || "").trim() as VerticalType;
+                const label = String(item?.verticalLabel || "").trim();
+                const mapped = BUSINESS_TYPE_TO_VERTICAL_KEY[label];
+                const resolved = mapped || vertical;
+                return ALL_VERTICAL_KEYS.has(resolved) ? resolved : null;
+              })
+              .filter((key): key is VerticalType => Boolean(key)),
+          );
+        } catch {
+          existingVerticalKeys = new Set<VerticalType>();
         }
 
-        if (uniqueOptions.length === 0) {
-          setErrorMessage("No supported business types found for this workspace.");
-          setOptions([]);
-          return;
-        }
+        const allOptions: VerticalOption[] = ALL_VERTICALS.map((item) => ({
+          verticalKey: item.key,
+          label: item.label,
+          icon: item.icon,
+          description: item.desc,
+          isRecommended: recommendedVerticalKeys.has(item.key),
+          isDisabled: existingVerticalKeys.has(item.key),
+        }));
 
-        setOptions(uniqueOptions);
-        setWorkspaceBusinessName(businessName);
+        const sortedOptions = [...allOptions].sort((a, b) => {
+          if (a.isRecommended && !b.isRecommended) return -1;
+          if (!a.isRecommended && b.isRecommended) return 1;
+          return 0;
+        });
+
+        setOptions(sortedOptions);
       } catch (error: any) {
         if (!mounted) return;
         setErrorMessage(
@@ -215,12 +218,9 @@ export default function VerticalPicker({ workspaceId }: VerticalPickerProps) {
     return () => {
       mounted = false;
     };
-  }, [axios, auth?.user?.primaryWorkspace, workspaceId]);
+  }, [axios, auth?.user?.primaryWorkspace, auth?.user?.companyName, selectedCompany?.companyName, workspaceId]);
 
-  const heading = useMemo(
-    () => (options.length > 1 ? "Choose a vertical" : "Preparing builder"),
-    [options.length],
-  );
+  const heading = useMemo(() => "Choose a vertical", []);
 
   if (isLoading) {
     return (
@@ -257,22 +257,35 @@ export default function VerticalPicker({ workspaceId }: VerticalPickerProps) {
             <button
               key={option.verticalKey}
               type="button"
+              disabled={option.isDisabled}
               onClick={() => {
-                void saveAndNavigate(
-                  option.verticalKey,
-                  option.businessType,
-                  workspaceBusinessName ||
-                    selectedCompany?.companyName ||
-                    auth?.user?.companyName ||
-                    "",
-                );
+                if (option.isDisabled) return;
+                void saveAndNavigate(option.verticalKey, option.label);
               }}
-              className="group relative flex w-full flex-col items-start justify-center rounded-2xl bg-white p-6 text-left shadow-md transition-all hover:border-[0.2px] hover:border-primary hover:shadow-xl"
+              className={`group relative flex w-full flex-col items-start justify-center rounded-2xl p-6 text-left shadow-md transition-all ${
+                option.isDisabled
+                  ? "cursor-not-allowed bg-gray-100 text-gray-500"
+                  : option.isRecommended
+                    ? "bg-white border border-primary hover:shadow-xl"
+                    : "bg-white hover:border-[0.2px] hover:border-primary hover:shadow-xl"
+              }`}
             >
+              {option.isRecommended && !option.isDisabled && (
+                <div className="absolute right-4 top-4">
+                  <span className="rounded-full border border-primary bg-primary/10 px-2 py-1 text-xs font-pmedium text-primary">
+                    {"\u2B50 Recommended"}
+                  </span>
+                </div>
+              )}
+              {option.isDisabled && (
+                <span className="absolute right-4 top-4 rounded-full bg-gray-200 px-2 py-1 text-xs font-pmedium text-gray-700">
+                  Website exists
+                </span>
+              )}
               <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-2xl transition-transform duration-300 group-hover:scale-110">
                 {option.icon}
               </div>
-              <p className="text-base font-bold">{option.businessType}</p>
+              <p className="text-base font-bold">{option.label}</p>
               <p className="text-small mt-1">{option.description}</p>
             </button>
           ))}
