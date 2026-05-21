@@ -11,6 +11,7 @@ import verifyJwt from "./middlewares/verifyJwt.js";
 import websiteTemplateRoutes from "./routes/websiteTemplateRoutes.js";
 import serviceRoutes from "./routes/serviceRoutes.js";
 import leadsRoutes from "./routes/leadsRoutes.js";
+import { createWebsiteLead } from "./controllers/leadsControllers.js";
 import listingRoutes from "./routes/listingRoutes.js";
 import hostUserRoutes from "./routes/hostUserRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
@@ -43,6 +44,9 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 app.use("/api/auth", authRoutes);
+app.post("/api/leads/create-lead", createWebsiteLead);
+app.post("/api/company/create-lead", createWebsiteLead);
+app.post("/api/company/createLead", createWebsiteLead);
 app.use("/api/editor", verifyJwt, websiteTemplateRoutes);
 app.use("/api/services", verifyJwt, serviceRoutes);
 app.use("/api/leads", verifyJwt, leadsRoutes);

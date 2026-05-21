@@ -152,12 +152,6 @@ export default function VerticalPicker({ workspaceId }: VerticalPickerProps) {
                   (websitesPayload?._id || websitesPayload?.companyName)
                 ? [websitesPayload]
                 : [];
-          console.log("ALL WEBSITES FROM API:", websites?.map((w: any) => ({
-            companyName: w.companyName,
-            companyId: w.companyId,
-            vertical: w.vertical,
-          })));
-          console.log("CURRENT COMPANY IDENTIFIER:", currentCompanyId);
 
           const existingWebsites = websites.filter(
             (website: any) =>
@@ -165,9 +159,6 @@ export default function VerticalPicker({ workspaceId }: VerticalPickerProps) {
               String(website?.companyName || "").trim().toLowerCase() ===
                 businessName.toLowerCase(),
           );
-          console.log("EXISTING WEBSITES FETCHED:", existingWebsites);
-          console.log("COMPANY ID USED:", currentCompanyId);
-          console.log("BUSINESS NAME USED:", businessName);
 
           existingVerticalKeys = new Set<VerticalType>(
             existingWebsites

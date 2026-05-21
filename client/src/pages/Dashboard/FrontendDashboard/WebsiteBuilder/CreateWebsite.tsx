@@ -136,6 +136,7 @@ const CreateWebsite = () => {
   const selectedVertical = localStorage.getItem("selectedVertical") || "co-working";
   const selectedVerticalLabel =
     localStorage.getItem("selectedVerticalLabel") || "Co-Working";
+  const selectedVerticalBadgeText = `Selected Vertical: ${selectedVerticalLabel}`;
   const ctaPlaceholders: Record<string, string> = {
     "co-working": "Book a Desk",
     "co-living": "View Rooms",
@@ -418,8 +419,6 @@ const CreateWebsite = () => {
       },
       onSuccess: () => {
         toast.success("Website created successfully");
-        setCreditsRemaining((prev) => Math.max(0, prev - 1));
-        setCreditsUsed((prev) => prev + 1);
         window.dispatchEvent(new Event("credits:refresh"));
         resetFormToEmpty();
       },
@@ -527,9 +526,14 @@ const CreateWebsite = () => {
       <div className="p-4 flex flex-col gap-4">
         <PageFrame>
           <div className="flex flex-col gap-5">
-            <h2 className="text-title font-pmedium text-primary uppercase">
-              Create Website
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-title font-pmedium text-primary uppercase">
+                Create Website
+              </h2>
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                {selectedVerticalBadgeText}
+              </span>
+            </div>
 
             <form
               ref={formRef}
@@ -1333,7 +1337,7 @@ const CreateWebsite = () => {
                   title={"Submit"}
                   onClick={() => setShowConfirmPopup(true)}
                   isLoading={isCreateWebsiteLoading}
-                  disabled={isCreateWebsiteLoading || creditsRemaining <= 0}
+                  disabled={isCreateWebsiteLoading}
                 />
                 <button
                   type="button"
@@ -1361,6 +1365,9 @@ const CreateWebsite = () => {
                   <span className="text-lg font-semibold text-slate-900">
                     Confirm Website Creation
                   </span>
+                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                    First Time Free
+                  </span>
                 </div>
               </DialogTitle>
               <DialogContent>
@@ -1368,6 +1375,10 @@ const CreateWebsite = () => {
                   <p className="text-sm font-medium text-slate-700">
                     Your website will be created for {selectedVerticalLabel}. This
                     vertical cannot be changed later. Do you want to continue?
+                  </p>
+                  <p className="mt-2 text-xs text-slate-600">
+                    First-time website creation is free. Credits are charged only when
+                    you submit updates from the Edit Website page.
                   </p>
                 </div>
               </DialogContent>

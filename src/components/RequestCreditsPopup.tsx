@@ -95,12 +95,19 @@ export default function RequestCreditsPopup({
       }}
     >
       <DialogTitle sx={{ pb: 1 }}>
-        <span className="text-lg font-semibold text-slate-900">Request Additional Credits</span>
+        <div className="flex items-center justify-between">
+          <span className="text-lg font-semibold text-slate-900">Request Additional Credits</span>
+          <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+            ₹{CREDIT_PRICE}/credit
+          </span>
+        </div>
       </DialogTitle>
 
       <DialogContent>
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-sm font-medium text-slate-700">?50 per credit</p>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+          <p className="text-sm font-medium text-slate-700">
+            Select how many additional credits you want to request.
+          </p>
 
           <div className="mt-4 flex flex-wrap gap-2">
             {[1, 2, 3, 4, 5].map((qty) => {
@@ -122,10 +129,15 @@ export default function RequestCreditsPopup({
             })}
           </div>
 
-          <p className="mt-4 text-sm font-semibold text-slate-900">Total: ?{total}</p>
+          <div className="rounded-lg bg-white p-3 border border-slate-200">
+            <div className="text-xs text-slate-500">Request Summary</div>
+            <div className="mt-1 text-sm font-semibold text-slate-900">
+              {selectedQty} credit{selectedQty > 1 ? "s" : ""} • Total ₹{total}
+            </div>
+          </div>
 
-          <p className="mt-2 text-xs text-slate-600">
-            Your request will be reviewed and credits will be added within 24 hours
+          <p className="text-xs text-slate-600">
+            Your request will be reviewed and, once approved, credits will be added within 24 hours.
           </p>
 
           {statusMessage ? (

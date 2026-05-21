@@ -93,21 +93,12 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
           params: { businessName },
         });
         const websites = Array.isArray(response?.data) ? response.data : [];
-        console.log("FETCH PARAMS - companyId:", companyId);
-        console.log("FETCH PARAMS - businessName:", businessName);
-        console.log("ALL WEBSITES RETURNED:", websites?.map((w:any) => ({
-          companyName: w.companyName,
-          companyId: w.companyId,
-          vertical: w.vertical,
-          searchKey: w.searchKey,
-        })));
         const found = websites.find(
           (website) =>
             String(website?.companyId || "").trim() === String(companyId).trim() ||
             String(website?.companyName || "").trim().toLowerCase() ===
               businessName.toLowerCase(),
         ) || null;
-        console.log("MATCHED WEBSITE:", found);
         setExistingWebsite(found);
       } catch (error) {
         setExistingWebsite(null);
@@ -207,14 +198,6 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
           auth?.user?.companyName ||
           "",
       ).trim();
-      console.log("FETCH PARAMS - companyId:", companyId);
-      console.log("FETCH PARAMS - businessName:", businessName);
-      console.log("ALL WEBSITES RETURNED:", websites?.map((w:any) => ({
-        companyName: w.companyName,
-        companyId: w.companyId,
-        vertical: w.vertical,
-        searchKey: w.searchKey,
-      })));
       const found =
         websites.find(
           (website) =>
@@ -222,7 +205,6 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
             String(website?.companyName || "").trim().toLowerCase() ===
               businessName.toLowerCase(),
         ) || null;
-      console.log("MATCHED WEBSITE:", found);
       const resolvedSearchKey = String(found?.searchKey || "").trim();
 
       if (found && resolvedSearchKey) {

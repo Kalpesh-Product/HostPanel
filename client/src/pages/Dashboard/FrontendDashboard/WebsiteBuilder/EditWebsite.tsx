@@ -1428,7 +1428,7 @@ const EditWebsite = () => {
                     You are about to submit this website update.
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Credits are deducted only after successful submission.
+                    1 credit will be deducted only after successful submission.
                   </p>
                   <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                     <div className="rounded-lg bg-white p-3 border border-slate-200">
@@ -1438,6 +1438,12 @@ const EditWebsite = () => {
                     <div className="rounded-lg bg-white p-3 border border-slate-200">
                       <div className="text-xs text-slate-500">Remaining</div>
                       <div className="text-base font-semibold text-slate-900">{creditsRemaining}</div>
+                    </div>
+                    <div className="rounded-lg bg-white p-3 border border-slate-200">
+                      <div className="text-xs text-slate-500">After Submit</div>
+                      <div className="text-base font-semibold text-slate-900">
+                        {Math.max(0, Number(creditsRemaining || 0) - 1)} left
+                      </div>
                     </div>
                     <div className="rounded-lg bg-white p-3 border border-slate-200">
                       <div className="text-xs text-slate-500">Monthly Limit</div>

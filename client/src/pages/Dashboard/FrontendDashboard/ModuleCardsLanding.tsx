@@ -113,14 +113,28 @@ const ModuleCardsLanding = ({ section }: { section: SectionType }) => {
 
   const cards = section === "company-settings" ? companySettingsCards : keyAppsCards;
   const pageTitle = section === "company-settings" ? "Company Settings" : "Key Apps";
+  const alwaysUnlockedCompanySettingsIds = new Set(["wono-nomad", "customer-support"]);
+  const orderedCards = cards
+    .map((card, index) => ({
+      card,
+      index,
+      isEnabled:
+        Boolean(card.route) &&
+        (enabledIds.has(card.id) ||
+          (section === "company-settings" &&
+            alwaysUnlockedCompanySettingsIds.has(card.id))),
+    }))
+    .sort((a, b) => {
+      if (a.isEnabled === b.isEnabled) return a.index - b.index;
+      return a.isEnabled ? -1 : 1;
+    });
 
   return (
     <PageFrame>
       <div className="p-4 md:p-6">
         <h2 className="mb-6 text-title font-pmedium uppercase text-primary">{pageTitle}</h2>
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {cards.map((card) => {
-            const isEnabled = enabledIds.has(card.id) && Boolean(card.route);
+          {orderedCards.map(({ card, isEnabled }) => {
             return (
               <div key={card.id}>
                 {isEnabled ? (

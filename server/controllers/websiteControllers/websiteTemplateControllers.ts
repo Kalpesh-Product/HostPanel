@@ -38,8 +38,23 @@ const businessTypeLabelByVertical = {
 const normalizeMapUrl = (rawValue) => {
   const raw = String(rawValue || "").trim();
   if (!raw) return "";
+  const lowered = raw.toLowerCase();
+  if (["n/a", "na", "none", "null", "undefined", "-"].includes(lowered)) {
+    return "";
+  }
+
   const iframeSrc = raw.match(/src=["']([^"']+)["']/i)?.[1];
-  return (iframeSrc || raw).trim().replace(/&amp;/g, "&");
+  const normalized = (iframeSrc || raw).trim().replace(/&amp;/g, "&");
+  const safeCandidate = normalized.toLowerCase();
+  const isGoogleMapsEmbed =
+    safeCandidate.includes("google.com/maps/embed") ||
+    safeCandidate.includes("google.co.in/maps/embed") ||
+    safeCandidate.includes("www.google.com/maps/embed") ||
+    safeCandidate.includes("maps.google.com/maps/embed");
+
+  if (!isGoogleMapsEmbed) return "";
+
+  return normalized;
 };
 
 const resolveUsableCompanyName = (...candidates) => {
@@ -534,8 +549,6 @@ export const createTemplate = async (req, res, next) => {
       return res.status(400).json({ message: "Failed to create template" });
     }
 
-    await deductWorkspaceCreditOnSuccess(req.body?.workspaceId);
-
     if (source !== "Nomad") {
       const derivedBusinessType = businessTypeLabelByVertical[vertical] || "Co-Working";
       const normalizedIndustry = [derivedBusinessType].filter(Boolean).join(", ");
@@ -614,7 +627,14 @@ export const getTemplate = async (req, res) => {
     if (!template) {
       return res.status(200).json([]);
     }
-    res.json(template);
+    const payload = template.toObject ? template.toObject() : template;
+    payload.mapUrl = normalizeMapUrl(payload.mapUrl);
+    payload.companyName =
+      resolveUsableCompanyName(
+        payload.companyName,
+        payload.registeredCompanyName,
+      ) || payload.searchKey || "";
+    res.json(payload);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -656,7 +676,18 @@ export const getTemplates = async (req, res) => {
       return res.status(200).json([]);
     }
 
-    res.json(templates);
+    const sanitizedTemplates = templates.map((template) => {
+      const payload = template.toObject ? template.toObject() : template;
+      payload.mapUrl = normalizeMapUrl(payload.mapUrl);
+      payload.companyName =
+        resolveUsableCompanyName(
+          payload.companyName,
+          payload.registeredCompanyName,
+        ) || payload.searchKey || "";
+      return payload;
+    });
+
+    res.json(sanitizedTemplates);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
