@@ -77,13 +77,9 @@ const verifyJwt = (req, res, next) => {
         });
       }
 
-      return res.status(403).json({
-        code: "ACCESS_DENIED",
-        founderEmail: founderEmail || "",
-        message: founderEmail
-          ? `Access denied. Contact founder at ${founderEmail} to regain access.`
-          : "Access denied. Contact founder to regain access.",
-      });
+      req.user = userId;
+      req.userNeedsWorkspaceSetup = true;
+      return next();
     }
 
     req.workspaceMembership = {

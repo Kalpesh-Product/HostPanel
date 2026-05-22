@@ -60,12 +60,30 @@ const MenuSection = ({ control, register }) => {
                 name={`menuItems.${index}.image`}
                 control={control}
                 render={({ field }) => (
-                  <UploadFileInput
-                    id={`menuItems.${index}.image`}
-                    value={field.value}
-                    label="Menu Image"
-                    onChange={field.onChange}
-                  />
+                  <div className="space-y-2">
+                    {field.value?.url ? (
+                      <div className="rounded-lg border border-borderGray p-2">
+                        <img
+                          src={field.value.url}
+                          alt={`Menu Item ${index + 1}`}
+                          className="h-24 w-24 rounded object-cover"
+                        />
+                        <button
+                          type="button"
+                          className="mt-2 text-xs text-red-600"
+                          onClick={() => field.onChange(null)}
+                        >
+                          Remove current image
+                        </button>
+                      </div>
+                    ) : null}
+                    <UploadFileInput
+                      id={`menuItems.${index}.image`}
+                      value={field.value instanceof File ? field.value : null}
+                      label="Menu Image"
+                      onChange={field.onChange}
+                    />
+                  </div>
                 )}
               />
             </div>

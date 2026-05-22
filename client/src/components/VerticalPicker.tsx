@@ -140,7 +140,11 @@ export default function VerticalPicker({ workspaceId }: VerticalPickerProps) {
         let existingVerticalKeys = new Set<VerticalType>();
         try {
           const websitesResponse = await axios.get("/api/editor/get-websites", {
-            params: { businessName },
+            params: {
+              workspaceId,
+              companyId: currentCompanyId,
+              businessName,
+            },
           });
           const websitesPayload =
             websitesResponse?.data?.data ?? websitesResponse?.data;

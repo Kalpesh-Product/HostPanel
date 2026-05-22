@@ -26,6 +26,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   VERTICAL_CONFIG,
   VERTICAL_KEYS,
+  VERTICAL_KEY_TO_LABEL,
   type VerticalType,
 } from "../../../../constants/verticalConfig";
 import CreditsIndicator from "../../../../components/CreditsIndicator";
@@ -48,6 +49,32 @@ const defaultTestimonial = {
   rating: 5,
 };
 
+const normalizeVerticalKey = (value: unknown): VerticalType => {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return "co-working";
+  const compact = raw.replace(/\s+/g, "");
+  const hyphen = raw.replace(/\s+/g, "-");
+  const aliasMap: Record<string, VerticalType> = {
+    coworking: "co-working",
+    "co-working": "co-working",
+    coliving: "co-living",
+    "co-living": "co-living",
+    meetingrooms: "meeting-rooms",
+    "meeting-rooms": "meeting-rooms",
+    hostel: "hostel",
+    workation: "workation",
+    cafe: "cafe",
+  };
+  return aliasMap[raw] || aliasMap[compact] || aliasMap[hyphen] || "co-working";
+};
+
+const toSearchKey = (value: unknown): string =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .split("-")[0]
+    .replace(/\s+/g, "");
+
 const CreateWebsite = () => {
   const axios = useAxiosPrivate();
   const navigate = useNavigate();
@@ -61,6 +88,7 @@ const CreateWebsite = () => {
   const [creditsLimit, setCreditsLimit] = useState(5);
   const [creditsResetDate, setCreditsResetDate] = useState(null);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+  const [isRedirectingAfterCreate, setIsRedirectingAfterCreate] = useState(false);
 
   const {
     control,
@@ -124,18 +152,19 @@ const CreateWebsite = () => {
     auth?.user?.companyName ||
     "";
   const [creditsRemaining, setCreditsRemaining] = useState(5);
+  const selectedVerticalRaw = localStorage.getItem("selectedVertical") || "";
   const verticalFromState =
     selectedCompany?.vertical || auth?.user?.vertical || "co-working";
+  const verticalCandidate = selectedVerticalRaw || verticalFromState;
   const vertical: VerticalType = (VERTICAL_KEYS as readonly string[]).includes(
-    verticalFromState,
+    verticalCandidate,
   )
-    ? verticalFromState
+    ? (verticalCandidate as VerticalType)
     : "co-working";
   const activeSections =
     VERTICAL_CONFIG[vertical]?.sections ?? VERTICAL_CONFIG["co-working"].sections;
-  const selectedVertical = localStorage.getItem("selectedVertical") || "co-working";
-  const selectedVerticalLabel =
-    localStorage.getItem("selectedVerticalLabel") || "Co-Working";
+  const selectedVertical = vertical;
+  const selectedVerticalLabel = VERTICAL_KEY_TO_LABEL[selectedVertical] || "Co-Working";
   const selectedVerticalBadgeText = `Selected Vertical: ${selectedVerticalLabel}`;
   const ctaPlaceholders: Record<string, string> = {
     "co-working": "Book a Desk",
@@ -238,11 +267,15 @@ const CreateWebsite = () => {
   useEffect(() => {
     const checkExistingWebsite = async () => {
       try {
-        const response = await axios.get("/api/editor/get-websites");
+        const response = await axios.get("/api/editor/get-websites", {
+          params: { vertical: selectedVertical },
+        });
         const templates = Array.isArray(response?.data) ? response.data : [];
         const found = templates.find((item) => {
           const itemCompanyId = String(item?.companyId || "").trim();
           const itemCompanyName = String(item?.companyName || "").trim().toLowerCase();
+          const itemVertical = normalizeVerticalKey(item?.vertical || item?.verticalType);
+          if (itemVertical !== selectedVertical) return false;
           if (prefillCompanyId) {
             return itemCompanyId === String(prefillCompanyId).trim();
           }
@@ -256,8 +289,8 @@ const CreateWebsite = () => {
         if (found) {
           const websiteSlug = found.searchKey || found.companyName || "";
           navigate(
-            `${builderBasePath}/edit-website/${encodeURIComponent(websiteSlug)}`,
-            { replace: true },
+            `${builderBasePath}/edit-website/${encodeURIComponent(websiteSlug)}?vertical=${encodeURIComponent(selectedVertical)}`,
+            { replace: true, state: { searchKey: websiteSlug, vertical: selectedVertical } },
           );
           return;
         }
@@ -279,6 +312,7 @@ const CreateWebsite = () => {
     builderBasePath,
     prefillCompanyId,
     prefillCompanyName,
+    selectedVertical,
     auth?.user?.primaryWorkspace,
   ]);
 
@@ -325,6 +359,9 @@ const CreateWebsite = () => {
   } = useFieldArray({ control, name: "testimonials" });
 
   const submitCreateWebsite = (values, e) => {
+    const selectedVertical = localStorage.getItem("selectedVertical") || "co-working";
+    console.log("SUBMITTING WITH VERTICAL:", selectedVertical);
+
     const normalizeMapUrl = (rawValue) => {
       const raw = String(rawValue || "").trim();
       if (!raw) return "";
@@ -364,8 +401,38 @@ const CreateWebsite = () => {
       rating: Number(t.rating) || 0,
     }));
     fd.set("about", JSON.stringify(values.about.map((p) => p.text)));
-    fd.set("products", JSON.stringify(productsMeta));
     fd.set("testimonials", JSON.stringify(testimonialsMeta));
+    if (selectedVertical === "cafe") {
+      fd.set("menuItems", JSON.stringify(values.menuItems || []));
+      fd.set("products", JSON.stringify([]));
+      fd.set("rooms", JSON.stringify([]));
+      fd.set("packages", JSON.stringify([]));
+      fd.set("dorms", JSON.stringify([]));
+    } else if (selectedVertical === "co-living" || selectedVertical === "meeting-rooms") {
+      fd.set("rooms", JSON.stringify(values.rooms || []));
+      fd.set("products", JSON.stringify([]));
+      fd.set("menuItems", JSON.stringify([]));
+      fd.set("packages", JSON.stringify([]));
+      fd.set("dorms", JSON.stringify([]));
+    } else if (selectedVertical === "workation") {
+      fd.set("packages", JSON.stringify(values.packages || []));
+      fd.set("products", JSON.stringify([]));
+      fd.set("menuItems", JSON.stringify([]));
+      fd.set("rooms", JSON.stringify([]));
+      fd.set("dorms", JSON.stringify([]));
+    } else if (selectedVertical === "hostel") {
+      fd.set("dorms", JSON.stringify(values.dorms || []));
+      fd.set("products", JSON.stringify([]));
+      fd.set("menuItems", JSON.stringify([]));
+      fd.set("rooms", JSON.stringify([]));
+      fd.set("packages", JSON.stringify([]));
+    } else {
+      fd.set("products", JSON.stringify(productsMeta));
+      fd.set("menuItems", JSON.stringify([]));
+      fd.set("rooms", JSON.stringify([]));
+      fd.set("packages", JSON.stringify([]));
+      fd.set("dorms", JSON.stringify([]));
+    }
 
     for (const key of Array.from(fd.keys())) {
       if (/^(products|testimonials)\.\d+\./.test(key)) fd.delete(key);
@@ -381,9 +448,27 @@ const CreateWebsite = () => {
     (values.gallery || []).forEach((file) => fd.append("gallery", file));
 
     fd.delete("productImages");
-    (values.products || []).forEach((p, i) => {
-      (p.files || []).forEach((f) => fd.append(`productImages_${i}`, f));
-    });
+    if (selectedVertical === "cafe") {
+      (values.menuItems || []).forEach((item, i) => {
+        if (item?.image) fd.append(`productImages_${i}`, item.image);
+      });
+    } else if (selectedVertical === "co-living" || selectedVertical === "meeting-rooms") {
+      (values.rooms || []).forEach((room, i) => {
+        (room?.images || []).forEach((f) => fd.append(`productImages_${i}`, f));
+      });
+    } else if (selectedVertical === "workation") {
+      (values.packages || []).forEach((pkg, i) => {
+        (pkg?.images || []).forEach((f) => fd.append(`productImages_${i}`, f));
+      });
+    } else if (selectedVertical === "hostel") {
+      (values.dorms || []).forEach((dorm, i) => {
+        (dorm?.images || []).forEach((f) => fd.append(`productImages_${i}`, f));
+      });
+    } else {
+      (values.products || []).forEach((p, i) => {
+        (p.files || []).forEach((f) => fd.append(`productImages_${i}`, f));
+      });
+    }
 
     fd.delete("testimonialImages");
     (values.testimonials || []).forEach((t, i) => {
@@ -394,7 +479,8 @@ const CreateWebsite = () => {
     fd.set("companyName", finalCompanyName);
     fd.set("companyId", values.companyId || prefillCompanyId || "");
     fd.append("workspaceId", workspaceId || "");
-    fd.set("vertical", vertical);
+    fd.set("vertical", selectedVertical);
+    fd.set("verticalType", selectedVertical);
     fd.set("mapUrl", normalizeMapUrl(values.mapUrl));
     if (!String(values.registeredCompanyName || "").trim()) {
       fd.set("registeredCompanyName", finalCompanyName);
@@ -412,17 +498,48 @@ const CreateWebsite = () => {
     useMutation({
       mutationKey: ["create-website"],
       mutationFn: async (fd) => {
+        console.log("FORMDATA VERTICAL:", fd.get("vertical"));
         const res = await axios.post("/api/editor/create-website", fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
         return res.data;
       },
-      onSuccess: () => {
-        toast.success("Website created successfully");
+      onSuccess: async (data) => {
+        setIsRedirectingAfterCreate(true);
+        const createdTemplateId = String(data?.template?._id || "").trim();
+        const resolvedWorkspaceId = String(
+          workspaceId || data?.template?.workspaceId || "",
+        ).trim();
+        let publishSucceeded = false;
+        if (createdTemplateId && resolvedWorkspaceId) {
+          try {
+            await axios.post("/api/editor/publish-website", {
+              workspaceId: resolvedWorkspaceId,
+              websiteId: createdTemplateId,
+            });
+            publishSucceeded = true;
+          } catch (publishError) {
+            toast.error(
+              publishError?.response?.data?.message ||
+                "Website created, but publish failed.",
+            );
+          }
+        }
+        if (publishSucceeded) {
+          toast.success("Website created and published successfully");
+        } else {
+          toast.success("Website created successfully");
+        }
         window.dispatchEvent(new Event("credits:refresh"));
-        resetFormToEmpty();
+        const createdSearchKey = String(data?.template?.searchKey || "").trim();
+        const nextSearchKey = createdSearchKey || toSearchKey(prefillCompanyName);
+        navigate(
+          `${builderBasePath}/edit-website/${encodeURIComponent(nextSearchKey)}?vertical=${encodeURIComponent(selectedVertical)}`,
+          { state: { searchKey: nextSearchKey, vertical: selectedVertical } },
+        );
       },
       onError: (err) => {
+        setIsRedirectingAfterCreate(false);
         if (err?.response?.status === 403 && err?.response?.data?.error === "no_credits_remaining") {
           const resetDate = err?.response?.data?.resetDate
             ? new Date(err.response.data.resetDate).toLocaleDateString()
@@ -1337,7 +1454,7 @@ const CreateWebsite = () => {
                   title={"Submit"}
                   onClick={() => setShowConfirmPopup(true)}
                   isLoading={isCreateWebsiteLoading}
-                  disabled={isCreateWebsiteLoading}
+                  disabled={isCreateWebsiteLoading || isRedirectingAfterCreate}
                 />
                 <button
                   type="button"
@@ -1352,7 +1469,7 @@ const CreateWebsite = () => {
             <Dialog
               open={showConfirmPopup}
               onClose={() => {
-                if (!isCreateWebsiteLoading) setShowConfirmPopup(false);
+                if (!isCreateWebsiteLoading && !isRedirectingAfterCreate) setShowConfirmPopup(false);
               }}
               fullWidth
               maxWidth="sm"
@@ -1385,7 +1502,7 @@ const CreateWebsite = () => {
               <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
                 <Button
                   onClick={() => setShowConfirmPopup(false)}
-                  disabled={isCreateWebsiteLoading}
+                  disabled={isCreateWebsiteLoading || isRedirectingAfterCreate}
                   sx={{
                     borderRadius: "6px",
                     textTransform: "none",
@@ -1402,7 +1519,7 @@ const CreateWebsite = () => {
                 </Button>
                 <Button
                   variant="contained"
-                  disabled={isCreateWebsiteLoading}
+                  disabled={isCreateWebsiteLoading || isRedirectingAfterCreate}
                   sx={{
                     borderRadius: "6px",
                     textTransform: "none",
@@ -1415,6 +1532,7 @@ const CreateWebsite = () => {
                     },
                   }}
                   onClick={() => {
+                    if (isCreateWebsiteLoading || isRedirectingAfterCreate) return;
                     setShowConfirmPopup(false);
                     void handleSubmit((values, e) => {
                       submitCreateWebsite(values, e);

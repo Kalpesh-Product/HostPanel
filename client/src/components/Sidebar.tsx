@@ -54,6 +54,7 @@ import useLogout from "../hooks/useLogout";
 import {
   getEnabledModuleIdsForPlan,
   getWorkspaceCount,
+  isModuleLockedForPlan,
 } from "../utils/workspacePlanAccess";
 
 type PlanType = "basic" | "professional" | "custom";
@@ -380,6 +381,12 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
         };
       }
       if (!item.disabled) return item;
+      if (isModuleLockedForPlan(planLabel, item.id)) {
+        return {
+          ...item,
+          disabled: true,
+        };
+      }
       if (item.id === "workspace-management" && !isFounderRole) {
         return {
           ...item,

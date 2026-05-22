@@ -23,7 +23,11 @@ import {
 import type { ReactNode } from "react";
 import Card from "../../../components/Card";
 import PageFrame from "../../../components/Pages/PageFrame";
-import { getEnabledModuleIdsForPlan, getWorkspaceCount } from "../../../utils/workspacePlanAccess";
+import {
+  getEnabledModuleIdsForPlan,
+  getWorkspaceCount,
+  isModuleLockedForPlan,
+} from "../../../utils/workspacePlanAccess";
 import useAuth from "../../../hooks/useAuth";
 
 type PlanType = "basic" | "professional" | "custom";
@@ -120,6 +124,7 @@ const ModuleCardsLanding = ({ section }: { section: SectionType }) => {
       index,
       isEnabled:
         Boolean(card.route) &&
+        !isModuleLockedForPlan(planLabel, card.id) &&
         (enabledIds.has(card.id) ||
           (section === "company-settings" &&
             alwaysUnlockedCompanySettingsIds.has(card.id))),

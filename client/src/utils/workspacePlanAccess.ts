@@ -13,6 +13,7 @@ const COMPANY_SETTINGS_IDS = [
 ] as const;
 
 const WORKSPACE_MANAGEMENT_ID = "workspace-management";
+const BASIC_LOCKED_MODULE_IDS = ["workspace-settings"] as const;
 
 const BASIC_KEY_APP_IDS = [
   "tickets",
@@ -95,4 +96,9 @@ export const getEnabledModuleIdsForPlan = (
   }
 
   return [...enabled];
+};
+
+export const isModuleLockedForPlan = (plan: PlanType, moduleId: string): boolean => {
+  if (plan !== "basic") return false;
+  return BASIC_LOCKED_MODULE_IDS.includes(moduleId as (typeof BASIC_LOCKED_MODULE_IDS)[number]);
 };

@@ -7,6 +7,7 @@ import {
   uploadFileToS3,
 } from "../../config/s3config.js";
 import HostCompany from "../../models/Company.js";
+import Workspace from "../../models/Workspace.js";
 import axios from "axios";
 import { VERTICAL_CONFIG } from "../../config/verticalConfig.js";
 import { THEME_TOKENS } from "../../config/themeTokens.js";
@@ -23,7 +24,26 @@ const VALID_VERTICALS = new Set([
 
 const normalizeVertical = (value) => {
   if (typeof value !== "string") return "co-working";
-  return VALID_VERTICALS.has(value) ? value : "co-working";
+  const raw = String(value).trim().toLowerCase();
+  if (!raw) return "co-working";
+
+  const compact = raw.replace(/\s+/g, "");
+  const withHyphen = raw.replace(/\s+/g, "-");
+  const aliasMap = {
+    coworking: "co-working",
+    "co-working": "co-working",
+    coliving: "co-living",
+    "co-living": "co-living",
+    meetingrooms: "meeting-rooms",
+    "meeting-rooms": "meeting-rooms",
+    workation: "workation",
+    hostel: "hostel",
+    cafe: "cafe",
+  };
+
+  const canonical =
+    aliasMap[raw] || aliasMap[compact] || aliasMap[withHyphen] || withHyphen;
+  return VALID_VERTICALS.has(canonical) ? canonical : "co-working";
 };
 
 const businessTypeLabelByVertical = {
@@ -33,6 +53,15 @@ const businessTypeLabelByVertical = {
   hostel: "Hostels",
   "meeting-rooms": "Meetings",
   cafe: "Cafe",
+};
+
+const sectionTitleByVertical = {
+  "co-working": "Our Products",
+  "co-living": "Our Rooms",
+  "meeting-rooms": "Our Meeting Rooms",
+  workation: "Our Packages",
+  hostel: "Our Dorms",
+  cafe: "Our Menu",
 };
 
 const normalizeMapUrl = (rawValue) => {
@@ -68,6 +97,51 @@ const resolveUsableCompanyName = (...candidates) => {
   return "";
 };
 
+const escapeRegex = (value = "") =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const normalizeSearchKeyFromName = (name = "") =>
+  String(name).toLowerCase().split("-")[0].replace(/\s+/g, "");
+
+const buildTemplateLookupByCompanyAndVertical = (searchKey, vertical) => {
+  const normalizedSearchKey = String(searchKey || "").trim().toLowerCase();
+  const hasVertical =
+    typeof vertical === "string" && String(vertical).trim().length > 0;
+  const normalizedVertical = hasVertical
+    ? normalizeVertical(vertical)
+    : null;
+
+  if (!hasVertical) {
+    return { searchKey: normalizedSearchKey };
+  }
+
+  return {
+    searchKey: normalizedSearchKey,
+    $or: [
+      { vertical: normalizedVertical },
+      // Backward compatibility for legacy records where vertical was not set.
+      { vertical: { $exists: false } },
+      { vertical: null },
+      { vertical: "" },
+    ],
+  };
+};
+
+const buildStrictTemplateLookupByCompanyAndVertical = (searchKey, vertical) => {
+  const normalizedSearchKey = String(searchKey || "").trim().toLowerCase();
+  const hasVertical =
+    typeof vertical === "string" && String(vertical).trim().length > 0;
+
+  if (!hasVertical) {
+    return { searchKey: normalizedSearchKey };
+  }
+
+  return {
+    searchKey: normalizedSearchKey,
+    vertical: normalizeVertical(vertical),
+  };
+};
+
 const deductWorkspaceCreditOnSuccess = async (workspaceId) => {
   if (!workspaceId) return;
   const subscription = await WorkspaceSubscription.findOne({
@@ -78,14 +152,125 @@ const deductWorkspaceCreditOnSuccess = async (workspaceId) => {
   await subscription.save();
 };
 
+const NOMADS_BASE_URL = "https://wononomadsbe.vercel.app";
+
+const safeNum = (value, fallback = 0) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+};
+
+const ensureNomadsCompanyRecord = async ({
+  template,
+  hostCompany,
+  companyId,
+  companyName,
+  vertical = "co-working",
+}) => {
+  const resolvedCompanyName = String(companyName || "").trim();
+  if (!resolvedCompanyName) return;
+
+  try {
+    const companyDataUrl = `${NOMADS_BASE_URL}/api/company/get-company-data/${encodeURIComponent(
+      resolvedCompanyName,
+    )}`;
+    await axios.get(companyDataUrl, { timeout: 10000 });
+    return;
+  } catch (error) {
+    const status = error?.response?.status;
+    if (status && status !== 404) {
+      console.warn("Nomads company lookup failed", {
+        companyName: resolvedCompanyName,
+        status,
+      });
+      return;
+    }
+  }
+
+  const workspace = await Workspace.findOne({
+    companyId: String(companyId || "").trim(),
+    isActive: true,
+  })
+    .sort({ createdAt: 1 })
+    .lean()
+    .exec();
+
+  const country = String(
+    workspace?.country || hostCompany?.companyCountry || "India",
+  ).trim();
+  const state = String(
+    workspace?.state || hostCompany?.companyState || "",
+  ).trim();
+  const city = String(workspace?.city || hostCompany?.companyCity || "").trim();
+  const address = String(workspace?.address || "").trim();
+  const aboutText = Array.isArray(template?.about)
+    ? template.about.filter(Boolean).join(" ")
+    : String(template?.about || "").trim();
+
+  const nomadsPayload = {
+    businessId: `WoNo_world_coworking_${city || "city"}_${Date.now()}`,
+    companyName: resolvedCompanyName,
+    companyTitle: resolvedCompanyName,
+    registeredEntityName: String(
+      template?.registeredCompanyName || resolvedCompanyName,
+    ).trim(),
+    website: `https://${template?.searchKey || normalizeSearchKeyFromName(resolvedCompanyName)}.wono.co/`,
+    address,
+    city,
+    state,
+    country,
+    continent: String(hostCompany?.companyContinent || "Asia").trim() || "Asia",
+    about: aboutText,
+    latitude: safeNum(hostCompany?.latitude, 0),
+    longitude: safeNum(hostCompany?.longitude, 0),
+    ratings: 0,
+    totalReviews: 0,
+    totalSeats: 0,
+    inclusions: "",
+    services: "",
+    companyType:
+      vertical === "co-working"
+        ? "coworking"
+        : String(vertical || "coworking").replace(/-/g, ""),
+    companyId: String(companyId || "").trim(),
+    isActive: true,
+    isRegistered: true,
+    isPublic: true,
+    websiteTemplateLink: `https://${template?.searchKey || normalizeSearchKeyFromName(resolvedCompanyName)}.wono.co/`,
+    images: [],
+  };
+
+  try {
+    await axios.post(`${NOMADS_BASE_URL}/api/company/create-company`, nomadsPayload, {
+      timeout: 15000,
+    });
+    console.log("Nomads company auto-created", {
+      companyName: resolvedCompanyName,
+      companyId: nomadsPayload.companyId,
+    });
+  } catch (error) {
+    const status = error?.response?.status;
+    console.warn("Nomads company auto-create failed", {
+      companyName: resolvedCompanyName,
+      status,
+      message: error?.response?.data?.message || error?.message || "unknown",
+    });
+  }
+};
+
 export const createTemplate = async (req, res, next) => {
   try {
+    console.log("REQ BODY VERTICAL:", req.body.vertical);
+    console.log("REQ BODY COMPANY:", req.body.companyName);
     const { company } = req.query;
 
     // `products` might arrive as a JSON string in multipart. Normalize it.
 
     let {
       products,
+      menuItems,
+      rooms,
+      packages,
+      dorms,
       testimonials,
       about,
       enabledSections,
@@ -104,12 +289,23 @@ export const createTemplate = async (req, res, next) => {
 
     about = safeParse(about, []);
     products = safeParse(products, []);
+    menuItems = safeParse(menuItems, []);
+    rooms = safeParse(rooms, []);
+    packages = safeParse(packages, []);
+    dorms = safeParse(dorms, []);
     testimonials = safeParse(testimonials, []);
     enabledSections = safeParse(enabledSections, []);
     sectionOverrides = safeParse(sectionOverrides, {});
     styleConfig = safeParse(styleConfig, {});
 
-    const vertical = normalizeVertical(req.body.vertical);
+    const vertical = normalizeVertical(
+      req.body.vertical ?? req.body.verticalType,
+    );
+    const resolvedProductTitle =
+      String(req.body?.productTitle || "").trim() ||
+      sectionTitleByVertical[vertical] ||
+      "Our Products";
+    console.log("VERTICAL BEING SAVED:", req.body.vertical);
     const themeIdFromConfig = VERTICAL_CONFIG?.[vertical]?.themeId;
     const themeId =
       themeIdFromConfig && THEME_TOKENS?.[themeIdFromConfig]
@@ -308,23 +504,34 @@ export const createTemplate = async (req, res, next) => {
       return res.status(400).json({ message: "Provide a valid company name" });
     }
 
-    let template = await WebsiteTemplate.findOne({ searchKey });
+    let template = await WebsiteTemplate.findOne(
+      buildStrictTemplateLookupByCompanyAndVertical(searchKey, vertical),
+    );
 
     if (template) {
       return res
         .status(400)
-        .json({ message: "Template for this company already exists" });
+        .json({
+          message: "Template for this company already exists",
+          duplicateKey: {
+            searchKey,
+            vertical,
+            existingTemplateId: String(template?._id || ""),
+            existingVertical: template?.vertical || "",
+          },
+        });
     }
 
     template = new WebsiteTemplate({
       searchKey,
       companyId: req.body?.companyId,
+      workspaceId: req.body?.workspaceId || null,
       companyName: req.body.companyName,
       title: req.body.title,
       subTitle: req.body.subTitle,
       CTAButtonText: req.body.CTAButtonText,
       about: about,
-      productTitle: req.body?.productTitle,
+      productTitle: resolvedProductTitle,
       galleryTitle: req.body?.galleryTitle,
       testimonialTitle: req.body.testimonialTitle,
       contactTitle: req.body.contactTitle,
@@ -338,7 +545,7 @@ export const createTemplate = async (req, res, next) => {
           req.body.companyName,
         ) || req.body.registeredCompanyName,
       copyrightText: req.body.copyrightText,
-      verticalType: req.body.verticalType || "co-working",
+      verticalType: normalizeVertical(req.body.verticalType || vertical),
       heroVariant: req.body.heroVariant || "text-image",
       themeVariant: req.body.themeVariant || "default",
       vertical,
@@ -348,8 +555,18 @@ export const createTemplate = async (req, res, next) => {
       sectionOverrides,
       styleConfig,
       isWebsiteTemplate: true,
+      isActive: true,
       products: [],
+      menuItems: [],
+      rooms: [],
+      packages: [],
+      dorms: [],
       testimonials: [],
+    });
+    console.log("CREATING WEBSITE WITH:", {
+      vertical: req.body.vertical,
+      isActive: true,
+      companyName: req.body.companyName,
     });
 
     const uploadImages = async (files = [], folder) => {
@@ -512,6 +729,78 @@ export const createTemplate = async (req, res, next) => {
       }
     }
 
+    if (Array.isArray(menuItems) && menuItems.length) {
+      for (let i = 0; i < menuItems.length; i++) {
+        const item = menuItems[i] || {};
+        const imageFile = (filesByField[`productImages_${i}`] || [])[0];
+        let uploadedImage = null;
+        if (imageFile) {
+          const uploaded = await uploadImages(
+            [imageFile],
+            `${baseFolder}/menuItems/${i}`,
+          );
+          uploadedImage = uploaded[0] || null;
+        }
+        template.menuItems.push({
+          category: item.category || "",
+          name: item.name || "",
+          description: item.description || "",
+          price: item.price || "",
+          image: uploadedImage,
+        });
+      }
+    }
+
+    if (Array.isArray(rooms) && rooms.length) {
+      for (let i = 0; i < rooms.length; i++) {
+        const item = rooms[i] || {};
+        const uploaded = await uploadImages(
+          filesByField[`productImages_${i}`] || [],
+          `${baseFolder}/rooms/${i}`,
+        );
+        template.rooms.push({
+          title: item.title || "",
+          description: item.description || "",
+          price: item.price || "",
+          images: uploaded,
+        });
+      }
+    }
+
+    if (Array.isArray(packages) && packages.length) {
+      for (let i = 0; i < packages.length; i++) {
+        const item = packages[i] || {};
+        const uploaded = await uploadImages(
+          filesByField[`productImages_${i}`] || [],
+          `${baseFolder}/packages/${i}`,
+        );
+        template.packages.push({
+          title: item.title || "",
+          description: item.description || "",
+          price: item.price || "",
+          duration: item.duration || "",
+          images: uploaded,
+        });
+      }
+    }
+
+    if (Array.isArray(dorms) && dorms.length) {
+      for (let i = 0; i < dorms.length; i++) {
+        const item = dorms[i] || {};
+        const uploaded = await uploadImages(
+          filesByField[`productImages_${i}`] || [],
+          `${baseFolder}/dorms/${i}`,
+        );
+        template.dorms.push({
+          title: item.title || "",
+          description: item.description || "",
+          capacity: Number(item.capacity) || 0,
+          price: item.price || "",
+          images: uploaded,
+        });
+      }
+    }
+
     // TESTIMONIALS: objects + flat testimonialImages array (zip by index)
     let tUploads = [];
     if (filesByField.testimonialImages?.length) {
@@ -577,6 +866,14 @@ export const createTemplate = async (req, res, next) => {
         return res.status(400).json({ message: "Company not found" });
       }
 
+      await ensureNomadsCompanyRecord({
+        template: savedTemplate,
+        hostCompany: updateHostCompany,
+        companyId: req.body.companyId,
+        companyName: req.body.companyName,
+        vertical,
+      });
+
       try {
         const updatedCompany = await axios.patch(
           "https://wononomadsbe.vercel.app/api/company/add-template-link",
@@ -597,13 +894,13 @@ export const createTemplate = async (req, res, next) => {
             message:
               "Failed to add link.Check if the company is listed in Nomads.",
             error: error.message,
+            template: savedTemplate,
           });
         }
       }
     }
 
-    console.log("template created!!");
-    return res.status(201).json({ message: "Template created", template });
+    return res.status(201).json({ message: "Template created", template: savedTemplate });
   } catch (error) {
     next(error);
   }
@@ -612,6 +909,7 @@ export const createTemplate = async (req, res, next) => {
 export const getTemplate = async (req, res) => {
   try {
     const { companyName } = req.params;
+    const vertical = req.query?.vertical || req.query?.verticalType;
 
     const formatCompanyName = (name) => {
       if (!name) return "";
@@ -620,9 +918,9 @@ export const getTemplate = async (req, res) => {
 
     const searchKey = formatCompanyName(companyName);
 
-    const template = await WebsiteTemplate.findOne({
-      searchKey,
-    });
+    const template = await WebsiteTemplate.findOne(
+      buildTemplateLookupByCompanyAndVertical(searchKey, vertical),
+    );
 
     if (!template) {
       return res.status(200).json([]);
@@ -643,9 +941,10 @@ export const getTemplate = async (req, res) => {
 export const getInActiveTemplate = async (req, res) => {
   try {
     const { company } = req.params;
+    const vertical = req.query?.vertical || req.query?.verticalType;
 
     const template = await WebsiteTemplate.findOne({
-      searchKey: company,
+      ...buildTemplateLookupByCompanyAndVertical(company, vertical),
       isActive: false,
     });
 
@@ -661,22 +960,79 @@ export const getInActiveTemplate = async (req, res) => {
 export const getTemplates = async (req, res) => {
   try {
     const { companyId, companyName, businessName } = req.query;
+    const requestedVertical = req.query?.vertical || req.query?.verticalType;
+    const hasRequestedVertical =
+      typeof requestedVertical === "string" &&
+      String(requestedVertical).trim().length > 0;
+    const normalizedRequestedVertical = hasRequestedVertical
+      ? normalizeVertical(requestedVertical)
+      : null;
+    const workspaceId = String(req.query?.workspaceId || "").trim();
+    const normalizedCompanyId = String(companyId || "").trim();
+    const normalizedBusinessName = String(businessName || "").trim();
+    const normalizedCompanyName = String(companyName || "").trim();
 
-    let query = { isActive: true };
+    const candidates = [];
+    const seenIds = new Set();
+    const appendUnique = (items = []) => {
+      for (const item of items) {
+        const id = String(item?._id || "");
+        if (!id || seenIds.has(id)) continue;
+        seenIds.add(id);
+        candidates.push(item);
+      }
+    };
 
-    if (businessName) {
-      query.companyName = { $regex: new RegExp(`^${businessName}$`, "i") };
-    } else if (companyName) {
-      query.companyName = { $regex: new RegExp(`^${companyName}$`, "i") };
+    if (workspaceId) {
+      appendUnique(
+        await WebsiteTemplate.find({ isActive: true, workspaceId }).lean().exec(),
+      );
     }
 
-    const templates = await WebsiteTemplate.find(query);
+    if (normalizedCompanyId) {
+      appendUnique(
+        await WebsiteTemplate.find({
+          isActive: true,
+          companyId: normalizedCompanyId,
+        }).lean().exec(),
+      );
+    }
 
-    if (!templates.length) {
+    if (normalizedBusinessName) {
+      const safeBusiness = escapeRegex(normalizedBusinessName);
+      appendUnique(
+        await WebsiteTemplate.find({
+          isActive: true,
+          $or: [
+            { companyName: { $regex: new RegExp(`^${safeBusiness}$`, "i") } },
+            { searchKey: normalizeSearchKeyFromName(normalizedBusinessName) },
+          ],
+        }).lean().exec(),
+      );
+    }
+
+    if (normalizedCompanyName) {
+      const safeCompany = escapeRegex(normalizedCompanyName);
+      appendUnique(
+        await WebsiteTemplate.find({
+          isActive: true,
+          $or: [
+            { companyName: { $regex: new RegExp(`^${safeCompany}$`, "i") } },
+            { searchKey: normalizeSearchKeyFromName(normalizedCompanyName) },
+          ],
+        }).lean().exec(),
+      );
+    }
+
+    if (!candidates.length) {
+      appendUnique(await WebsiteTemplate.find({ isActive: true }).lean().exec());
+    }
+
+    if (!candidates.length) {
       return res.status(200).json([]);
     }
 
-    const sanitizedTemplates = templates.map((template) => {
+    let sanitizedTemplates = candidates.map((template) => {
       const payload = template.toObject ? template.toObject() : template;
       payload.mapUrl = normalizeMapUrl(payload.mapUrl);
       payload.companyName =
@@ -686,6 +1042,14 @@ export const getTemplates = async (req, res) => {
         ) || payload.searchKey || "";
       return payload;
     });
+
+    if (normalizedRequestedVertical) {
+      sanitizedTemplates = sanitizedTemplates.filter(
+        (template) =>
+          normalizeVertical(template?.vertical || template?.verticalType) ===
+          normalizedRequestedVertical,
+      );
+    }
 
     res.json(sanitizedTemplates);
   } catch (error) {
@@ -736,6 +1100,10 @@ export const editTemplate = async (req, res, next) => {
   try {
     let {
       products,
+      menuItems,
+      rooms,
+      packages,
+      dorms,
       testimonials,
       about,
       enabledSections,
@@ -754,6 +1122,10 @@ export const editTemplate = async (req, res, next) => {
 
     about = safeParse(about, []);
     products = safeParse(products, []);
+    menuItems = safeParse(menuItems, []);
+    rooms = safeParse(rooms, []);
+    packages = safeParse(packages, []);
+    dorms = safeParse(dorms, []);
     testimonials = safeParse(testimonials, []);
     enabledSections = safeParse(enabledSections, null);
     sectionOverrides = safeParse(sectionOverrides, null);
@@ -764,12 +1136,11 @@ export const editTemplate = async (req, res, next) => {
     const bodySearchKey = String(req.body?.searchKey || "").trim().toLowerCase();
     const searchKey = bodySearchKey || formatCompanyName(companyName);
     const baseFolder = `hosts/template/${searchKey}`;
-    const hasVerticalInBody = Object.prototype.hasOwnProperty.call(
-      req.body,
-      "vertical",
-    );
+    const hasVerticalInBody =
+      Object.prototype.hasOwnProperty.call(req.body, "vertical") ||
+      Object.prototype.hasOwnProperty.call(req.body, "verticalType");
     const normalizedVertical = hasVerticalInBody
-      ? normalizeVertical(req.body.vertical)
+      ? normalizeVertical(req.body.vertical ?? req.body.verticalType)
       : null;
     const derivedThemeId = normalizedVertical
       ? VERTICAL_CONFIG?.[normalizedVertical]?.themeId
@@ -895,9 +1266,12 @@ export const editTemplate = async (req, res, next) => {
 
     validateTextFields();
 
-    const template = await WebsiteTemplate.findOne({ searchKey }).session(
-      session,
-    );
+    const template = await WebsiteTemplate.findOne(
+      buildTemplateLookupByCompanyAndVertical(
+        searchKey,
+        normalizedVertical || req.body?.vertical || req.body?.verticalType,
+      ),
+    ).session(session);
     if (!template) {
       await session.abortTransaction();
       session.endSession();
@@ -945,6 +1319,7 @@ export const editTemplate = async (req, res, next) => {
     for (const f of req.files || []) (filesByField[f.fieldname] ||= []).push(f);
 
     Object.assign(template, {
+      workspaceId: req.body?.workspaceId ?? template.workspaceId ?? null,
       companyName:
         resolveUsableCompanyName(
           req.body.companyName,
@@ -955,7 +1330,12 @@ export const editTemplate = async (req, res, next) => {
       subTitle: req.body.subTitle ?? template.subTitle,
       CTAButtonText: req.body.CTAButtonText ?? template.CTAButtonText,
       about: Array.isArray(about) ? about : template.about,
-      productTitle: req.body.productTitle ?? template.productTitle,
+      productTitle:
+        String(req.body?.productTitle || "").trim() ||
+        sectionTitleByVertical[
+          String(normalizedVertical || template?.vertical || "").trim()
+        ] ||
+        template.productTitle,
       galleryTitle: req.body.galleryTitle ?? template.galleryTitle,
       testimonialTitle: req.body.testimonialTitle ?? template.testimonialTitle,
       contactTitle: req.body.contactTitle ?? template.contactTitle,
@@ -974,7 +1354,13 @@ export const editTemplate = async (req, res, next) => {
           template.companyName,
         ) || template.registeredCompanyName,
       copyrightText: req.body.copyrightText ?? template.copyrightText,
-      verticalType: req.body.verticalType ?? template.verticalType ?? "co-working",
+      verticalType: normalizeVertical(
+        req.body.verticalType ??
+          req.body.vertical ??
+          template.verticalType ??
+          template.vertical ??
+          "co-working",
+      ),
       heroVariant: req.body.heroVariant ?? template.heroVariant ?? "text-image",
       themeVariant: req.body.themeVariant ?? template.themeVariant ?? "default",
       enabledSections:
@@ -986,6 +1372,15 @@ export const editTemplate = async (req, res, next) => {
       sectionOverrides:
         sectionOverrides === null ? template.sectionOverrides : sectionOverrides,
       styleConfig: styleConfig === null ? template.styleConfig : styleConfig,
+      menuItems:
+        String(normalizedVertical || template?.vertical || "").trim() === "cafe"
+          ? template.menuItems
+          : Array.isArray(menuItems)
+            ? menuItems
+            : template.menuItems,
+      rooms: Array.isArray(rooms) ? rooms : template.rooms,
+      packages: Array.isArray(packages) ? packages : template.packages,
+      dorms: Array.isArray(dorms) ? dorms : template.dorms,
     });
 
     if (hasVerticalInBody && normalizedVertical) {
@@ -1149,6 +1544,36 @@ export const editTemplate = async (req, res, next) => {
       await deleteImagesFromS3(removed.images || []);
     template.products = updatedProducts;
 
+    // Keep cafe menu items synced with product cards so published menu images/titles stay consistent.
+    if (String(template.vertical || "").trim() === "cafe") {
+      const existingMenuByName = new Map(
+        (template.menuItems || []).map((item) => [String(item?.name || "").trim(), item]),
+      );
+      template.menuItems = (template.products || []).map((p) => {
+        const key = String(p?.name || "").trim();
+        const existing = existingMenuByName.get(key);
+        return {
+          category: String(existing?.category || p?.type || "Menu"),
+          name: String(p?.name || ""),
+          description: String(p?.description || ""),
+          price: String(p?.cost || ""),
+          image:
+            (Array.isArray(p?.images) && p.images.length ? p.images[0] : null) ||
+            existing?.image ||
+            null,
+        };
+      });
+      template.productTitle =
+        String(req.body?.productTitle || "").trim() ||
+        sectionTitleByVertical.cafe;
+      template.activeSections = Array.isArray(VERTICAL_CONFIG?.cafe?.sections)
+        ? VERTICAL_CONFIG.cafe.sections
+        : template.activeSections;
+      template.enabledSections = Array.isArray(VERTICAL_CONFIG?.cafe?.sections)
+        ? VERTICAL_CONFIG.cafe.sections
+        : template.enabledSections;
+    }
+
     // === 💬 TESTIMONIALS (max 1 per testimonial) ===
     const testimonialMap = new Map(
       (template.testimonials || []).map((t) => [String(t._id), t]),
@@ -1251,23 +1676,12 @@ export const publishWebsite = async (req, res, next) => {
       return res.status(404).json({ error: "Workspace subscription not found" });
     }
 
-    if (
-      subscription.publishedProjectId &&
-      String(subscription.publishedProjectId) !== String(websiteId)
-    ) {
-      return res.status(403).json({
-        error: "publish_limit_reached",
-        message:
-          "You already have 1 published project. Unpublish it before publishing a new one.",
-      });
-    }
-
     const template = await WebsiteTemplate.findById(websiteId);
     if (!template) {
       return res.status(404).json({ error: "Website template not found" });
     }
 
-    const deployedUrl = `https://sites.yourplatform.com/${template.searchKey}`;
+    const deployedUrl = `https://${template.searchKey}.wono.co/`;
     const deployedAt = new Date();
 
     template.isPublished = true;

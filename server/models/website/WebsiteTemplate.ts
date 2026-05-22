@@ -22,6 +22,11 @@ const templateSchema = new mongoose.Schema(
       type: String,
       // required: true
     },
+    workspaceId: {
+      type: String,
+      default: null,
+      index: true,
+    },
     title: { type: String },
     subTitle: { type: String },
     CTAButtonText: { type: String },

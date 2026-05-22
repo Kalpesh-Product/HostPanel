@@ -173,12 +173,16 @@ const buildAuthUserPayload = (
   workspaceCount = 0,
   workspaceMembership: any = null,
   accessibleWorkspaces: any[] = [],
+  hasCompletedWorkspaceSetupOverride: boolean | null = null,
 ) => ({
   ...user,
   companyName: company?.companyName,
   logo: company?.logo,
   isWebsiteTemplate: company?.isWebsiteTemplate,
-  hasCompletedWorkspaceSetup: Boolean(user?.hasCompletedWorkspaceSetup),
+  hasCompletedWorkspaceSetup:
+    hasCompletedWorkspaceSetupOverride === null
+      ? Boolean(user?.hasCompletedWorkspaceSetup)
+      : Boolean(hasCompletedWorkspaceSetupOverride),
   primaryWorkspace: user?.primaryWorkspace || null,
   workspaceCount,
   workspaceMembership: workspaceMembership
@@ -409,19 +413,29 @@ export const login = async (req, res, next) => {
     }
 
     const activeMembership = await resolveActiveWorkspaceMembership(user);
+    let hasCompletedWorkspaceSetupForSession = Boolean(user?.hasCompletedWorkspaceSetup);
     if (!activeMembership && user?.hasCompletedWorkspaceSetup) {
       const lastMembership = await WorkspaceMember.findOne({ user: user._id })
         .sort({ updatedAt: -1, createdAt: -1 })
         .lean()
         .exec();
-      const founderEmail = await getFounderEmailForWorkspace(lastMembership?.workspace);
-      return res.status(403).json({
-        code: "ACCESS_DENIED",
-        founderEmail: founderEmail || "",
-        message: founderEmail
-          ? `Access denied. Contact founder at ${founderEmail} to regain access.`
-          : "Access denied. Contact founder to regain access.",
-      });
+      const disabledByFounder =
+        lastMembership &&
+        (lastMembership.isActive === false ||
+          String(lastMembership.status || "").toLowerCase() === "disabled");
+
+      if (disabledByFounder) {
+        const founderEmail = await getFounderEmailForWorkspace(lastMembership?.workspace);
+        return res.status(403).json({
+          code: "ACCOUNT_DISABLED",
+          founderEmail: founderEmail || "",
+          message: "Account access disabled by founder.",
+        });
+      }
+
+      // Legacy accounts can have setup flag true with no active workspace.
+      // Treat them as setup-incomplete so frontend can route to create workspace.
+      hasCompletedWorkspaceSetupForSession = false;
     }
 
     const company = await resolveCompanyForActiveWorkspace(user, activeMembership);
@@ -440,13 +454,23 @@ export const login = async (req, res, next) => {
     delete user.refreshToken;
 
     const accessToken = jwt.sign(
-      { userInfo: { ...user } },
+      {
+        userInfo: {
+          ...user,
+          hasCompletedWorkspaceSetup: hasCompletedWorkspaceSetupForSession,
+        },
+      },
       process.env.ACCESS_TOKEN_SECRET,
       { expiresIn: "15m" }
     );
 
     const refreshToken = jwt.sign(
-      { userInfo: { ...user } },
+      {
+        userInfo: {
+          ...user,
+          hasCompletedWorkspaceSetup: hasCompletedWorkspaceSetupForSession,
+        },
+      },
       process.env.REFRESH_TOKEN_SECRET,
       { expiresIn: "15d" }
     );
@@ -467,6 +491,7 @@ export const login = async (req, res, next) => {
         workspaceCount,
         workspaceMembership,
         accessibleWorkspaces,
+        hasCompletedWorkspaceSetupForSession,
       ),
       accessToken,
       refreshToken,

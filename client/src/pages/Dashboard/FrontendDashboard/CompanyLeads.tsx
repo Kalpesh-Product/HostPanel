@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import YearWiseTable from "../../../components/Tables/YearWiseTable";
 import PageFrame from "../../../components/Pages/PageFrame";
 import { useSelector } from "react-redux";
@@ -21,6 +21,44 @@ const CompanyLeads = () => {
 
   const [openModal, setOpenModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
+  const [activeVertical, setActiveVertical] = useState("co-working");
+  const workspaceId =
+    selectedCompany?.workspaceId ||
+    auth?.user?.primaryWorkspace ||
+    auth?.user?.workspaceMembership?.workspace ||
+    auth?.user?.workspaceId ||
+    "";
+
+  useEffect(() => {
+    let mounted = true;
+    const resolveVertical = async () => {
+      try {
+        const companyId = selectedCompany?.companyId || auth?.user?.companyId || "";
+        const businessName = selectedCompany?.companyName || auth?.user?.companyName || "";
+        const response = await axiosPrivate.get("/api/editor/get-websites", {
+          params: { workspaceId, companyId, businessName },
+        });
+        const websites = Array.isArray(response?.data) ? response.data : [];
+        const vertical = String(websites?.[0]?.vertical || "").trim();
+        if (mounted && vertical) setActiveVertical(vertical);
+      } catch {
+        if (mounted) setActiveVertical("co-working");
+      }
+    };
+    if (workspaceId || selectedCompany?.companyId || auth?.user?.companyId) {
+      void resolveVertical();
+    }
+    return () => {
+      mounted = false;
+    };
+  }, [
+    axiosPrivate,
+    workspaceId,
+    selectedCompany?.companyId,
+    selectedCompany?.companyName,
+    auth?.user?.companyId,
+    auth?.user?.companyName,
+  ]);
 
   // 🔹 Fetch Leads
   const {
@@ -28,12 +66,14 @@ const CompanyLeads = () => {
     isPending,
     isError,
   } = useQuery({
-    queryKey: ["leadCompany"],
-    enabled: !!(selectedCompany || auth?.user?.companyId),
+    queryKey: ["leadCompany", selectedCompany?.companyId, auth?.user?.companyId, workspaceId],
+    enabled: !!(selectedCompany || auth?.user?.companyId || workspaceId),
     queryFn: async () => {
       const companyId = selectedCompany?.companyId || auth?.user?.companyId;
       const response = await axiosPrivate.get(
-        `/api/leads/get-leads?companyId=${companyId}`,
+        `/api/leads/get-leads?companyId=${encodeURIComponent(
+          companyId || "",
+        )}&workspaceId=${encodeURIComponent(workspaceId || "")}`,
         { headers: { "Cache-Control": "no-cache" } },
       );
       return Array.isArray(response?.data) ? response.data : [];
@@ -79,16 +119,51 @@ const CompanyLeads = () => {
   };
 
   // 🔹 Table columns
+  const dynamicVerticalColumns = useMemo(() => {
+    const map = {
+      "co-working": [
+        { field: "productType", headerName: "Product" },
+        { field: "noOfPeople", headerName: "People Count" },
+        { field: "startDate", headerName: "Start Date" },
+        { field: "endDate", headerName: "End Date" },
+      ],
+      "co-living": [
+        { field: "roomType", headerName: "Room Type" },
+        { field: "startDate", headerName: "Move-in Date" },
+        { field: "stayDuration", headerName: "Stay Duration" },
+      ],
+      workation: [
+        { field: "packageName", headerName: "Package" },
+        { field: "attendees", headerName: "Team Size" },
+        { field: "startDate", headerName: "Travel Date" },
+      ],
+      hostel: [
+        { field: "dormType", headerName: "Dorm Type" },
+        { field: "startDate", headerName: "Check-in" },
+        { field: "endDate", headerName: "Check-out" },
+      ],
+      "meeting-rooms": [
+        { field: "roomType", headerName: "Room" },
+        { field: "attendees", headerName: "Attendees" },
+        { field: "startDate", headerName: "Booking Date" },
+        { field: "timeSlot", headerName: "Time Slot" },
+      ],
+      cafe: [
+        { field: "inquiryType", headerName: "Inquiry Type" },
+        { field: "attendees", headerName: "Guest Count" },
+        { field: "startDate", headerName: "Preferred Date" },
+      ],
+    };
+    return map[activeVertical] || map["co-working"];
+  }, [activeVertical]);
+
   const columns = [
     { field: "srNo", headerName: "SrNo", width: 100 },
     { field: "fullName", headerName: "Lead Name" },
     { field: "source", headerName: "Source" },
-    { field: "productType", headerName: "Product" },
-    { field: "noOfPeople", headerName: "People Count" },
+    ...dynamicVerticalColumns,
     { field: "mobileNumber", headerName: "Mobile Number" },
     { field: "email", headerName: "Email" },
-    { field: "startDate", headerName: "Start Date" },
-    { field: "endDate", headerName: "End Date" },
     { field: "recievedDate", headerName: "Received Date" },
     {
       field: "status",

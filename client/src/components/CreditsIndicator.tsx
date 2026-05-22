@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import useAxiosPrivate from "../hooks/useAxiosPrivate";
 import useAuth from "../hooks/useAuth";
-import RequestCreditsPopup from "../../../src/components/RequestCreditsPopup";
+import RequestCreditsPopup from "./RequestCreditsPopup";
 
 const formatResetDate = (value) => {
   if (!value) return "-";
@@ -153,8 +153,9 @@ const CreditsIndicator = ({ workspaceId, companyId }) => {
       ) : null}
       {creditsRemaining === 0 && (
         <button
+          type="button"
           onClick={() => setShowRequestPopup(true)}
-          className="text-sm text-primary underline mt-1"
+          className="mt-2 inline-flex items-center rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-700"
         >
           Request Credits
         </button>

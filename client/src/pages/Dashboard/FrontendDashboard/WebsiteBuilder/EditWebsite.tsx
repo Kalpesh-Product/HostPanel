@@ -21,10 +21,15 @@ import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import UploadMultipleFilesInput from "../../../../components/UploadMultipleFilesInput";
 import UploadFileInput from "../../../../components/UploadFileInput";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FiTrash2, FiX } from "react-icons/fi";
 import PageFrame from "../../../../components/Pages/PageFrame";
 import CreditsIndicator from "../../../../components/CreditsIndicator";
+import { VERTICAL_CONFIG, VERTICAL_KEY_TO_LABEL } from "../../../../constants/verticalConfig";
+import RoomsSection from "./RoomsSection";
+import PackagesSection from "./PackagesSection";
+import DormsSection from "./DormsSection";
+import MenuSection from "./MenuSection";
 
 dayjs.extend(customParseFormat);
 
@@ -48,9 +53,19 @@ const defaultTestimonial = {
   file: null, // File to add/replace
 };
 
+const defaultSectionTitleByVertical = {
+  cafe: "Our Menu",
+  "co-living": "Our Rooms",
+  "meeting-rooms": "Our Meeting Rooms",
+  workation: "Our Packages",
+  hostel: "Our Dorms",
+  "co-working": "Our Products",
+};
+
 const fileUrl = (file) => (file ? URL.createObjectURL(file) : "");
 
 const EditWebsite = () => {
+  const queryClient = useQueryClient();
   const axios = useAxiosPrivate();
   const location = useLocation();
   const { state } = location;
@@ -74,6 +89,7 @@ const EditWebsite = () => {
 
   const {
     control,
+    register,
     handleSubmit,
     reset,
     watch,
@@ -101,6 +117,10 @@ const EditWebsite = () => {
       heroImagesExisting: [],
       galleryExisting: [],
       products: [defaultProduct],
+      menuItems: [],
+      rooms: [],
+      packages: [],
+      dorms: [],
       testimonials: [defaultTestimonial],
 
       // NEW: deletion queues
@@ -112,10 +132,15 @@ const EditWebsite = () => {
   });
 
   const { companyName: paramCompanyName } = useParams();
+  const queryParams = new URLSearchParams(location.search || "");
+  const selectedVerticalKey =
+    String(location.state?.vertical || queryParams.get("vertical") || "").trim() ||
+    "co-working";
+  const [activeVertical, setActiveVertical] = useState(selectedVerticalKey);
   const searchKey =
     paramCompanyName || location.state?.searchKey || location.state?.companyName;
   const selectedVertical =
-    localStorage.getItem("selectedVerticalLabel") || "Co-Working";
+    VERTICAL_KEY_TO_LABEL[activeVertical] || "Co-Working";
   const verticalBadgeMap = {
     "Co-Working": "\u{1F5A5}\uFE0F Co-Working",
     "Co-Living": "\u{1F3E0} Co-Living",
@@ -126,24 +151,36 @@ const EditWebsite = () => {
   };
   const verticalBadgeText = verticalBadgeMap[selectedVertical] || "\u{1F5A5}\uFE0F Co-Working";
 
-  const { data: tpl, isLoading } = useQuery({
-    queryKey: ["website-data", searchKey],
+  const { data: tpl, isLoading, error: loadError } = useQuery({
+    queryKey: ["website-data", searchKey, selectedVerticalKey],
     queryFn: async () => {
       const routeCompanyName = String(searchKey || "").trim();
       const response = await axios.get(
-        `/api/editor/get-website/${encodeURIComponent(routeCompanyName)}`,
+        `/api/editor/get-website/${encodeURIComponent(routeCompanyName)}?vertical=${encodeURIComponent(selectedVerticalKey)}`,
       );
       const fetchedWebsite = response.data;
+      if (
+        !fetchedWebsite ||
+        (Array.isArray(fetchedWebsite) && fetchedWebsite.length === 0) ||
+        !fetchedWebsite?.searchKey
+      ) {
+        throw new Error("Template not found for selected vertical");
+      }
+      const fetchedVertical = fetchedWebsite?.vertical || "co-working";
+      setActiveVertical(fetchedVertical);
+      localStorage.setItem("selectedVertical", fetchedVertical);
+      localStorage.setItem(
+        "selectedVerticalLabel",
+        VERTICAL_KEY_TO_LABEL[fetchedVertical] || fetchedVertical,
+      );
       return fetchedWebsite;
     },
+    retry: false,
   });
 
-  const websiteUrlText = String(tpl?.deployedUrl || "").trim()
-    ? String(tpl?.deployedUrl || "").trim()
-    : `${String(tpl?.searchKey || searchKey || "company").trim()}.wono.co`;
-  const websiteHref = /^https?:\/\//i.test(websiteUrlText)
-    ? websiteUrlText
-    : `https://${websiteUrlText}`;
+  const normalizedSearchKey = String(tpl?.searchKey || searchKey || "company").trim();
+  const websiteHref = `https://${normalizedSearchKey}.wono.co/`;
+  const websiteUrlText = `${normalizedSearchKey}.wono.co`;
 
   useEffect(() => {
     const fetchCredits = async () => {
@@ -217,6 +254,25 @@ const EditWebsite = () => {
   // 3) Load template -> form
   useEffect(() => {
     if (isLoading || !tpl) return;
+    console.log("PREFILLING FORM WITH:", tpl);
+    const tplVertical = String(tpl?.vertical || activeVertical || "co-working").trim();
+    const isCafe = tplVertical === "cafe";
+    const isRooms = tplVertical === "co-living" || tplVertical === "meeting-rooms";
+    const isWorkation = tplVertical === "workation";
+    const isHostel = tplVertical === "hostel";
+    const incomingSectionTitle = String(tpl?.productTitle || "").trim();
+    const genericLegacyTitles = new Set([
+      "our products",
+      "products",
+      "our product",
+    ]);
+    const normalizedSectionTitle =
+      genericLegacyTitles.has(incomingSectionTitle.toLowerCase())
+        ? defaultSectionTitleByVertical[tplVertical] ||
+          defaultSectionTitleByVertical["co-working"]
+        : incomingSectionTitle ||
+          defaultSectionTitleByVertical[tplVertical] ||
+          defaultSectionTitleByVertical["co-working"];
 
     reset({
       companyName: tpl?.companyName ?? "",
@@ -229,7 +285,7 @@ const EditWebsite = () => {
           ? tpl.about.map((para) => ({ text: para }))
           : [{ text: "" }],
 
-      productTitle: tpl?.productTitle ?? "",
+      productTitle: normalizedSectionTitle,
       galleryTitle: tpl?.galleryTitle ?? "",
       testimonialTitle: tpl?.testimonialTitle ?? "",
       contactTitle: tpl?.contactTitle ?? "",
@@ -250,7 +306,9 @@ const EditWebsite = () => {
       gallery: [],
 
       products:
-        Array.isArray(tpl?.products) && tpl.products.length
+        !isCafe && !isRooms && !isWorkation && !isHostel &&
+        Array.isArray(tpl?.products) &&
+        tpl.products.length
           ? tpl.products.map((p) => ({
               _id: p?._id ?? null,
               type: p?.type ?? "",
@@ -261,6 +319,52 @@ const EditWebsite = () => {
               files: [],
             }))
           : [defaultProduct],
+
+      menuItems:
+        isCafe
+          ? (() => {
+              const productsByName = new Map(
+                (Array.isArray(tpl?.products) ? tpl.products : []).map((p) => [
+                  String(p?.name || "").trim().toLowerCase(),
+                  p,
+                ]),
+              );
+              if (Array.isArray(tpl?.menuItems) && tpl.menuItems.length) {
+                return tpl.menuItems.map((item) => {
+                  const matchedProduct = productsByName.get(
+                    String(item?.name || "").trim().toLowerCase(),
+                  );
+                  return {
+                    productId: matchedProduct?._id ?? null,
+                    category: item?.category || matchedProduct?.type || "",
+                    name: item?.name || matchedProduct?.name || "",
+                    description: item?.description || matchedProduct?.description || "",
+                    price: item?.price || matchedProduct?.cost || "",
+                    image:
+                      item?.image ||
+                      (Array.isArray(matchedProduct?.images) &&
+                      matchedProduct.images.length
+                        ? matchedProduct.images[0]
+                        : null),
+                  };
+                });
+              }
+              return Array.isArray(tpl?.products)
+                ? tpl.products.map((p) => ({
+                    productId: p?._id ?? null,
+                    category: p?.type || "",
+                    name: p?.name || "",
+                    description: p?.description || "",
+                    price: p?.cost || "",
+                    image:
+                      Array.isArray(p?.images) && p.images.length ? p.images[0] : null,
+                  }))
+                : [];
+            })()
+          : [],
+      rooms: isRooms && Array.isArray(tpl?.rooms) ? tpl.rooms : [],
+      packages: isWorkation && Array.isArray(tpl?.packages) ? tpl.packages : [],
+      dorms: isHostel && Array.isArray(tpl?.dorms) ? tpl.dorms : [],
 
       testimonials:
         Array.isArray(tpl?.testimonials) && tpl.testimonials.length
@@ -337,6 +441,40 @@ const EditWebsite = () => {
   };
   const getHelperText = (error, value, limit) =>
     error || (limit ? `${(value || "").length}/${limit}` : undefined);
+  const isCafeVertical = activeVertical === "cafe";
+  const isRoomsVertical =
+    activeVertical === "co-living" || activeVertical === "meeting-rooms";
+  const isWorkationVertical = activeVertical === "workation";
+  const isHostelVertical = activeVertical === "hostel";
+  const isCoworkingVertical =
+    !isCafeVertical && !isRoomsVertical && !isWorkationVertical && !isHostelVertical;
+  const sectionHeadingText = isCafeVertical
+    ? "Menu"
+    : isRoomsVertical
+      ? "Rooms"
+      : isWorkationVertical
+        ? "Packages"
+        : isHostelVertical
+          ? "Dorms"
+          : "Products";
+  const sectionTitleLabel = isCafeVertical
+    ? "Menu Section Title"
+    : isRoomsVertical
+      ? "Rooms Section Title"
+      : isWorkationVertical
+        ? "Packages Section Title"
+        : isHostelVertical
+          ? "Dorms Section Title"
+          : "Products Section Title";
+  const itemLabel = isCafeVertical ? "Menu Item" : "Product";
+  const itemNameLabel = isCafeVertical ? "Item Name" : "Product Name";
+  const itemTypeLabel = isCafeVertical ? "Category" : "Product Type";
+  const itemDescriptionLabel = isCafeVertical
+    ? "Item Description"
+    : "Product Description";
+  const itemCostLabel = isCafeVertical ? "Price" : "Product Cost";
+  const addItemText = isCafeVertical ? "+ Add Menu Item" : "+ Add Product";
+  const itemImagesLabel = isCafeVertical ? "Add Menu Images" : "Add Product Images";
 
   // 4) Submit -> FormData for /api/editor/edit-template
   const { mutate: updateTemplate, isPending: isUpdating } = useMutation({
@@ -347,8 +485,34 @@ const EditWebsite = () => {
       });
       return res.data;
     },
-    onSuccess: () => {
-      toast.success("Website updated successfully");
+    onSuccess: async () => {
+      const templateId = String(tpl?._id || "").trim();
+      const resolvedWorkspaceId = String(
+        workspaceId || tpl?.workspaceId || "",
+      ).trim();
+      let publishSucceeded = false;
+      if (templateId && resolvedWorkspaceId) {
+        try {
+          await axios.post("/api/editor/publish-website", {
+            workspaceId: resolvedWorkspaceId,
+            websiteId: templateId,
+          });
+          publishSucceeded = true;
+        } catch (publishError) {
+          toast.error(
+            publishError?.response?.data?.message ||
+              "Saved, but publish failed.",
+          );
+        }
+      }
+      await queryClient.invalidateQueries({
+        queryKey: ["website-data", searchKey, selectedVerticalKey],
+      });
+      toast.success(
+        publishSucceeded
+          ? "Website updated and published successfully"
+          : "Website updated successfully",
+      );
       setCreditsRemaining((prev) => Math.max(0, prev - 1));
       setCreditsUsed((prev) => prev + 1);
       window.dispatchEvent(new Event("credits:refresh"));
@@ -391,6 +555,8 @@ const EditWebsite = () => {
     fd.append("workspaceId", workspaceId || "");
     fd.append("companyId", selectedCompany?.companyId || auth?.user?.companyId || "");
     fd.append("searchKey", String(searchKey || "").trim());
+    fd.append("vertical", activeVertical);
+    fd.append("verticalType", activeVertical);
 
     // text fields used by server (companyName builds searchKey)
     fd.append(
@@ -401,7 +567,10 @@ const EditWebsite = () => {
     fd.append("subTitle", vals.subTitle || "");
     fd.append("CTAButtonText", vals.CTAButtonText || "");
 
-    fd.append("productTitle", vals.productTitle || "");
+    const normalizedProductTitle = String(vals.productTitle || "").trim() ||
+      defaultSectionTitleByVertical[activeVertical] ||
+      defaultSectionTitleByVertical["co-working"];
+    fd.append("productTitle", normalizedProductTitle);
     fd.append("galleryTitle", vals.galleryTitle || "");
     fd.append("testimonialTitle", vals.testimonialTitle || "");
     fd.append("contactTitle", vals.contactTitle || "");
@@ -447,7 +616,58 @@ const EditWebsite = () => {
       "companyLogoId",
       JSON.stringify(vals.companyLogoExisting?.id ?? null),
     );
-    fd.append("products", JSON.stringify(productsMeta));
+    if (isCafeVertical) {
+      const cafeMenuItems = (vals.menuItems || []).map((item) => ({
+        category: item?.category || "",
+        name: item?.name || "",
+        description: item?.description || "",
+        price: item?.price || "",
+      }));
+      const cafeProductsMeta = (vals.menuItems || []).map((item) => ({
+        _id: item?.productId || undefined,
+        type: item?.category || "Menu",
+        name: item?.name || "",
+        cost: item?.price || "",
+        description: item?.description || "",
+        imageIds: item?.image?.id ? [item.image.id] : [],
+      }));
+      fd.append("menuItems", JSON.stringify(cafeMenuItems));
+      fd.append("products", JSON.stringify(cafeProductsMeta));
+      (vals.menuItems || []).forEach((item, i) => {
+        if (item?.image instanceof File) fd.append(`productImages_${i}`, item.image);
+      });
+      fd.append("rooms", JSON.stringify([]));
+      fd.append("packages", JSON.stringify([]));
+      fd.append("dorms", JSON.stringify([]));
+    } else if (isRoomsVertical) {
+      fd.append("rooms", JSON.stringify(vals.rooms || []));
+      fd.append("products", JSON.stringify([]));
+      fd.append("menuItems", JSON.stringify([]));
+      fd.append("packages", JSON.stringify([]));
+      fd.append("dorms", JSON.stringify([]));
+    } else if (isWorkationVertical) {
+      fd.append("packages", JSON.stringify(vals.packages || []));
+      fd.append("products", JSON.stringify([]));
+      fd.append("menuItems", JSON.stringify([]));
+      fd.append("rooms", JSON.stringify([]));
+      fd.append("dorms", JSON.stringify([]));
+    } else if (isHostelVertical) {
+      fd.append("dorms", JSON.stringify(vals.dorms || []));
+      fd.append("products", JSON.stringify([]));
+      fd.append("menuItems", JSON.stringify([]));
+      fd.append("rooms", JSON.stringify([]));
+      fd.append("packages", JSON.stringify([]));
+    } else {
+      fd.append("products", JSON.stringify(productsMeta));
+      fd.append("menuItems", JSON.stringify([]));
+      fd.append("rooms", JSON.stringify([]));
+      fd.append("packages", JSON.stringify([]));
+      fd.append("dorms", JSON.stringify([]));
+    }
+    const verticalSections = Array.isArray(VERTICAL_CONFIG?.[activeVertical]?.sections)
+      ? VERTICAL_CONFIG[activeVertical].sections
+      : VERTICAL_CONFIG["co-working"].sections;
+    fd.append("enabledSections", JSON.stringify(verticalSections));
     fd.append("testimonials", JSON.stringify(testimonialsMeta));
 
     // files: logo (replace), hero/gallery (append)
@@ -456,27 +676,29 @@ const EditWebsite = () => {
     (vals.gallery || []).forEach((f) => fd.append("gallery", f));
 
     // --- Map product images by FINAL index ---
-    const existingProducts = tpl?.products || [];
-    const idxById = new Map(existingProducts.map((p, i) => [String(p._id), i]));
-    const baseLen = existingProducts.length;
-    let newCounter = 0;
+    if (isCoworkingVertical) {
+      const existingProducts = tpl?.products || [];
+      const idxById = new Map(existingProducts.map((p, i) => [String(p._id), i]));
+      const baseLen = existingProducts.length;
+      let newCounter = 0;
 
-    (vals.products || []).forEach((p) => {
-      const files = p.files || [];
-      if (!files.length) return;
+      (vals.products || []).forEach((p) => {
+        const files = p.files || [];
+        if (!files.length) return;
 
-      let targetIndex;
-      if (p._id && idxById.has(String(p._id))) {
-        targetIndex = idxById.get(String(p._id));
-      } else {
-        targetIndex = baseLen + newCounter;
-        newCounter++;
-      }
+        let targetIndex;
+        if (p._id && idxById.has(String(p._id))) {
+          targetIndex = idxById.get(String(p._id));
+        } else {
+          targetIndex = baseLen + newCounter;
+          newCounter++;
+        }
 
-      files.forEach((file) => {
-        fd.append(`productImages_${targetIndex}`, file);
+        files.forEach((file) => {
+          fd.append(`productImages_${targetIndex}`, file);
+        });
       });
-    });
+    }
 
     // --- Map testimonial image by FINAL index ---
     const existingTestimonials = tpl?.testimonials || [];
@@ -555,6 +777,10 @@ const EditWebsite = () => {
 
       // product & testimonials reset to one empty each
       products: [defaultProduct],
+      menuItems: [],
+      rooms: [],
+      packages: [],
+      dorms: [],
       testimonials: [defaultTestimonial],
 
       // deletion queues reset
@@ -566,6 +792,26 @@ const EditWebsite = () => {
   };
 
   // 5) Render
+  if (isLoading) {
+    return (
+      <div className="p-4 flex items-center justify-center">
+        <CircularProgress />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="p-4">
+        <PageFrame>
+          <div className="text-sm text-red-600">
+            Unable to load the selected vertical template. Please open the correct vertical website and try again.
+          </div>
+        </PageFrame>
+      </div>
+    );
+  }
+
   return (
     <div className="pb-2">
       <div className="p-4 flex flex-col gap-4">
@@ -586,7 +832,7 @@ const EditWebsite = () => {
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-200"
                 >
-                  <span>🔗</span>
+                  <span>Site :</span>
                   <span className="max-w-[220px] truncate">{websiteUrlText}</span>
                 </a>
               </div>
@@ -801,7 +1047,7 @@ const EditWebsite = () => {
             {/* PRODUCTS */}
             <div className="col-span-2">
               <div className="py-4 border-b-default border-borderGray">
-                <span className="text-subtitle font-pmedium">Products</span>
+                <span className="text-subtitle font-pmedium">{sectionHeadingText}</span>
               </div>
               <div className="grid grid-cols sm:grid-cols-1 md:grid-cols-1 gap-4 p-4 ">
                 <Controller
@@ -811,7 +1057,7 @@ const EditWebsite = () => {
                     <TextField
                       {...field}
                       size="small"
-                      label="Products Section Title"
+                      label={sectionTitleLabel}
                       fullWidth
                       inputProps={{ maxLength: CHAR_LIMITS.productTitle }}
                       helperText={getHelperText(
@@ -823,13 +1069,13 @@ const EditWebsite = () => {
                   )}
                 />
 
-                {productFields.map((field, index) => (
+                {isCoworkingVertical && productFields.map((field, index) => (
                   <div
                     key={field.id}
                     className="rounded-xl border border-borderGray p-4 mb-3"
                   >
                     <div className="flex items-center justify-between mb-3">
-                      <span className="font-pmedium">Product #{index + 1}</span>
+                      <span className="font-pmedium">{itemLabel} #{index + 1}</span>
                       <button
                         type="button"
                         onClick={() => removeProduct(index)}
@@ -848,7 +1094,7 @@ const EditWebsite = () => {
                           <TextField
                             {...field}
                             size="small"
-                            label="Product Name"
+                            label={itemNameLabel}
                             fullWidth
                             inputProps={{ maxLength: CHAR_LIMITS.productName }}
                             helperText={getHelperText(
@@ -868,7 +1114,7 @@ const EditWebsite = () => {
                           <TextField
                             {...field}
                             size="small"
-                            label="Product Type"
+                            label={itemTypeLabel}
                             fullWidth
                             inputProps={{ maxLength: CHAR_LIMITS.productType }}
                             helperText={getHelperText(
@@ -889,7 +1135,7 @@ const EditWebsite = () => {
                           <TextField
                             {...field}
                             size="small"
-                            label="Product Description"
+                            label={itemDescriptionLabel}
                             fullWidth
                             // multiline
                             // minRows={3}
@@ -914,7 +1160,7 @@ const EditWebsite = () => {
                           <TextField
                             {...field}
                             size="small"
-                            label="Product Cost"
+                            label={itemCostLabel}
                             fullWidth
                             helperText={
                               errors?.products?.[index]?.cost?.message
@@ -948,7 +1194,7 @@ const EditWebsite = () => {
                         render={({ field }) => (
                           <UploadMultipleFilesInput
                             {...field}
-                            label="Add Product Images"
+                            label={itemImagesLabel}
                             maxFiles={10}
                             allowedExtensions={[
                               "jpg",
@@ -965,15 +1211,36 @@ const EditWebsite = () => {
                   </div>
                 ))}
 
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => appendProduct({ ...defaultProduct })}
-                    className="text-sm text-primary"
-                  >
-                    + Add Product
-                  </button>
-                </div>
+                {isCoworkingVertical && (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => appendProduct({ ...defaultProduct })}
+                      className="text-sm text-primary"
+                    >
+                      {addItemText}
+                    </button>
+                  </div>
+                )}
+
+                {isCafeVertical && (
+                  <MenuSection control={control} register={register} />
+                )}
+                {isRoomsVertical && (
+                  <RoomsSection
+                    control={control}
+                    register={register}
+                    priceLabel={
+                      activeVertical === "meeting-rooms" ? "Hourly Price" : "Price"
+                    }
+                  />
+                )}
+                {isWorkationVertical && (
+                  <PackagesSection control={control} register={register} />
+                )}
+                {isHostelVertical && (
+                  <DormsSection control={control} register={register} />
+                )}
               </div>
             </div>
 
@@ -1582,5 +1849,6 @@ const ExistingImagesGrid = ({ items = [], onDelete }) => {
 };
 
 export default EditWebsite;
+
 
 

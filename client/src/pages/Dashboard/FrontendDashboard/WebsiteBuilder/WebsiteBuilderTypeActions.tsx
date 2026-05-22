@@ -22,13 +22,32 @@ const VERTICAL_ICON_BY_KEY = {
   cafe: "\u{2615}",
 };
 
+const normalizeVerticalKey = (value: unknown) => {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return "co-working";
+  const compact = raw.replace(/\s+/g, "");
+  const hyphen = raw.replace(/\s+/g, "-");
+  const aliasMap: Record<string, string> = {
+    coworking: "co-working",
+    "co-working": "co-working",
+    coliving: "co-living",
+    "co-living": "co-living",
+    meetingrooms: "meeting-rooms",
+    "meeting-rooms": "meeting-rooms",
+    hostel: "hostel",
+    workation: "workation",
+    cafe: "cafe",
+  };
+  return aliasMap[raw] || aliasMap[compact] || aliasMap[hyphen] || "co-working";
+};
+
 const WebsiteBuilderTypeActions = ({ type = "static" }) => {
   const axios = useAxiosPrivate();
   const { auth } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const selectedCompany = useSelector((state) => state.company.selectedCompany);
-  const [existingWebsite, setExistingWebsite] = useState(null);
+  const selectedCompany = useSelector((state: any) => state.company.selectedCompany);
+  const [existingWebsite, setExistingWebsite] = useState<any>(null);
   const [isCheckingWebsite, setIsCheckingWebsite] = useState(type !== "static");
   const [workspaceBusinessName, setWorkspaceBusinessName] = useState("");
   const [workspaceBusinessTypes, setWorkspaceBusinessTypes] = useState<string[]>([]);
@@ -43,6 +62,7 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
   const userData = userDataRaw ? JSON.parse(userDataRaw) : null;
   const realCompanyId = userData?.companyId || "";
   const companyId = realCompanyId || reduxCompanyId || contextCompanyId || "";
+  const selectedVertical = normalizeVerticalKey(localStorage.getItem("selectedVertical"));
   const workspaceId =
     selectedCompany?.workspaceId ||
     auth?.user?.primaryWorkspace ||
@@ -90,15 +110,25 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
         }
 
         const response = await axios.get("/api/editor/get-websites", {
-          params: { businessName },
+          params: {
+            workspaceId,
+            companyId,
+            businessName,
+          },
         });
         const websites = Array.isArray(response?.data) ? response.data : [];
-        const found = websites.find(
-          (website) =>
-            String(website?.companyId || "").trim() === String(companyId).trim() ||
-            String(website?.companyName || "").trim().toLowerCase() ===
-              businessName.toLowerCase(),
-        ) || null;
+        const byCompany = (website) =>
+          String(website?.companyId || "").trim() === String(companyId).trim() ||
+          String(website?.companyName || "").trim().toLowerCase() ===
+            businessName.toLowerCase();
+        const foundByVertical = websites.find((website) => {
+          if (!byCompany(website)) return false;
+          const websiteVertical = normalizeVerticalKey(
+            website?.vertical || website?.verticalType,
+          );
+          return websiteVertical === selectedVertical;
+        });
+        const found = foundByVertical || websites.find(byCompany) || null;
         setExistingWebsite(found);
       } catch (error) {
         setExistingWebsite(null);
@@ -115,6 +145,8 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
     auth?.user?.companyName,
     selectedCompany?.companyName,
     workspaceBusinessName,
+    workspaceId,
+    selectedVertical,
     type,
   ]);
 
@@ -173,10 +205,13 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
       "selectedVerticalLabel",
       VERTICAL_KEY_TO_LABEL[editVertical] || editVertical,
     );
-    navigate(`../edit-website/${encodeURIComponent(editSearchKey)}`, {
+    navigate(
+      `../edit-website/${encodeURIComponent(editSearchKey)}?vertical=${encodeURIComponent(editVertical || "co-working")}`,
+      {
       state: {
         searchKey: editSearchKey,
         companyName: existingWebsite?.companyName,
+        vertical: editVertical || "co-working",
       },
     });
   };
@@ -188,23 +223,32 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
     }
 
     try {
-      const response = await axios.get("/api/editor/get-websites", {
-        params: { businessName },
-      });
-      const websites = Array.isArray(response?.data) ? response.data : [];
       const businessName = String(
         workspaceBusinessName ||
           selectedCompany?.companyName ||
           auth?.user?.companyName ||
           "",
       ).trim();
-      const found =
-        websites.find(
-          (website) =>
-            String(website?.companyId || "").trim() === String(companyId).trim() ||
-            String(website?.companyName || "").trim().toLowerCase() ===
-              businessName.toLowerCase(),
-        ) || null;
+      const response = await axios.get("/api/editor/get-websites", {
+        params: {
+          workspaceId,
+          companyId,
+          businessName,
+        },
+      });
+      const websites = Array.isArray(response?.data) ? response.data : [];
+      const byCompany = (website) =>
+        String(website?.companyId || "").trim() === String(companyId).trim() ||
+        String(website?.companyName || "").trim().toLowerCase() ===
+          businessName.toLowerCase();
+      const foundByVertical = websites.find((website) => {
+        if (!byCompany(website)) return false;
+        const websiteVertical = normalizeVerticalKey(
+          website?.vertical || website?.verticalType,
+        );
+        return websiteVertical === selectedVertical;
+      });
+      const found = foundByVertical || websites.find(byCompany) || null;
       const resolvedSearchKey = String(found?.searchKey || "").trim();
 
       if (found && resolvedSearchKey) {
@@ -220,9 +264,19 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
         if (existingVerticalLabel) {
           localStorage.setItem("selectedVerticalLabel", existingVerticalLabel);
         }
-        navigate(`../edit-website/${encodeURIComponent(resolvedSearchKey)}`, {
-          state: { searchKey: resolvedSearchKey, companyName: found?.companyName },
-        });
+        const resolvedVertical = normalizeVerticalKey(
+          found?.vertical || found?.verticalType,
+        );
+        navigate(
+          `../edit-website/${encodeURIComponent(resolvedSearchKey)}?vertical=${encodeURIComponent(resolvedVertical)}`,
+          {
+            state: {
+              searchKey: resolvedSearchKey,
+              companyName: found?.companyName,
+              vertical: resolvedVertical,
+            },
+          },
+        );
         return;
       }
     } catch (error) {
