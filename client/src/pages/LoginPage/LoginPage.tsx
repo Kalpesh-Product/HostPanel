@@ -138,18 +138,42 @@ const LoginPage = () => {
           withCredentials: true,
         }
       );
+      const accessToken = response?.data?.accessToken || "";
+      const loginUser = response?.data?.user || null;
+
+      let hydratedUser = loginUser;
+      if (accessToken) {
+        try {
+          const profileResponse = await api.get("/api/profile/me", {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          });
+          const profileUser = profileResponse?.data?.data?.user || null;
+          if (profileUser) {
+            hydratedUser = {
+              ...(loginUser || {}),
+              ...profileUser,
+              logo: profileUser?.logo ?? null,
+            };
+          }
+        } catch {
+          // If profile hydration fails, continue with login payload.
+        }
+      }
+
       setAuth((prevState) => {
         return {
           ...prevState,
-          accessToken: response?.data?.accessToken,
-          user: response.data.user,
+          accessToken,
+          user: hydratedUser,
         };
       });
       setTabRefreshToken(response?.data?.refreshToken || "");
       setAuthTabSessionActive();
-      console.log(response.data.user);
+      console.log(hydratedUser);
       toast.success("Successfully logged in");
-      const nextUser = response?.data?.user || null;
+      const nextUser = hydratedUser;
       const multiWorkspaceAccess =
         Array.isArray(nextUser?.accessibleWorkspaces) &&
         nextUser.accessibleWorkspaces.length > 1;

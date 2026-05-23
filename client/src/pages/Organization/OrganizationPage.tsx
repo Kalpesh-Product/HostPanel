@@ -222,6 +222,7 @@ export function OrganizationPage() {
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [transferredTeamMembers, setTransferredTeamMembers] = useState<TeamMember[]>([]);
+  const [workspacePlan, setWorkspacePlan] = useState('basic');
 
   const permissionSchema = {
     common: [
@@ -244,6 +245,7 @@ export function OrganizationPage() {
       const nextWorkspaceDepartments = Array.isArray(payload?.workspace?.organizationDepartments)
         ? payload.workspace.organizationDepartments
         : [];
+      const nextWorkspacePlan = String(payload?.workspace?.selectedPlan || 'basic').trim().toLowerCase();
       const nextDepartments = Array.isArray(payload.departments) ? payload.departments : [];
       const roleSnapshot = String(
         currentUser?.workspaceMembership?.role || currentUser?.role || "",
@@ -284,6 +286,7 @@ export function OrganizationPage() {
         : [];
 
       setWorkspaceOrganizationDepartments(nextWorkspaceDepartments);
+      setWorkspacePlan(nextWorkspacePlan);
       setDepartments(visibleDepartments);
       setTeamMembers(nextMembers);
       setTransferredTeamMembers(nextTransferredMembers);
@@ -333,6 +336,7 @@ export function OrganizationPage() {
     setTransferredTeamMembers([]);
     setPermissions({});
     setWorkspaceOrganizationDepartments([]);
+    setWorkspacePlan('basic');
     setSelectedDepartment(null);
     setExpandedDepartmentKey('');
     setIsSavingDepartments(false);
@@ -379,6 +383,26 @@ export function OrganizationPage() {
   const canInviteSuperAdmin = isFounderRole || isFounderFromTeamRecord;
   const canManageDepartments = isFounderRole || isFounderFromTeamRecord;
   const canManageActingAssignments = canManageDepartments || currentUserRole === 'super-admin';
+  const selectedPlan = String(
+    workspacePlan ||
+      currentUser?.workspace?.selectedPlan ||
+      currentUser?.workspaceMembership?.selectedPlan ||
+      currentUser?.selectedPlan ||
+      'basic',
+  )
+    .trim()
+    .toLowerCase();
+  const isBasicPlan = selectedPlan === 'basic';
+  const activeSuperAdminCount = teamMembers.filter(
+    (member) =>
+      normalizeRoleValue(member.role) === 'super-admin' &&
+      String(member.status || '').toLowerCase() !== 'disabled',
+  ).length;
+  const isBasicUserLimitReached = isBasicPlan && activeSuperAdminCount >= 1;
+  const canAddUserOnCurrentPlan = !isBasicPlan || (canInviteSuperAdmin && !isBasicUserLimitReached);
+  const addUserHoverMessage = isBasicPlan
+    ? 'Only one user can be added'
+    : 'Invite and onboard instantly';
   const workspaceCount = getWorkspaceCount(
     (currentUser as { workspaceCount?: number } | null)?.workspaceCount,
   );
@@ -408,6 +432,13 @@ export function OrganizationPage() {
       year: 'numeric',
     });
   };
+
+  useEffect(() => {
+    if (isBasicPlan && activeTab === 'departments') {
+      setActiveTab('users');
+      setView('list');
+    }
+  }, [activeTab, isBasicPlan]);
 
   const filteredTeamMembers = useMemo(() => {
     const normalizedSearch = searchQuery.toLowerCase().trim();
@@ -738,29 +769,49 @@ export function OrganizationPage() {
         <div className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
            <div>
              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Depts</p>
-             <p className="text-[15px] font-black text-slate-800">{departments.length}</p>
+             <p className={`text-[15px] font-black ${isBasicPlan ? 'text-slate-300' : 'text-slate-800'}`}>
+               {isBasicPlan ? '--' : departments.length}
+             </p>
            </div>
            <div className="p-2 rounded-2xl bg-slate-50 text-slate-600"><Building2 size={16}/></div>
         </div>
         <div className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
            <div>
              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Global Headcount</p>
-             <p className="text-[15px] font-black text-emerald-600">{totalEmployees}</p>
+             <p className={`text-[15px] font-black ${isBasicPlan ? 'text-slate-300' : 'text-emerald-600'}`}>
+               {isBasicPlan ? '--' : totalEmployees}
+             </p>
            </div>
            <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600"><Users size={16}/></div>
         </div>
-        <div
-          className="relative overflow-hidden bg-gradient-to-br from-[#0b3aa8] via-[#1d4ed8] to-[#2563EB] p-2.5 rounded-[2rem] border border-blue-300/40 shadow-lg shadow-blue-300/40 flex justify-between items-center cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all group"
-             onClick={() => { setActiveTab('users'); setTeamMemberFormData({ name: '', email: '', role: 'manager', departments: [] }); setShowTeamMemberModal(true); }}>
+        <button
+          type="button"
+          title={addUserHoverMessage}
+          disabled={!canAddUserOnCurrentPlan}
+          className={`relative overflow-hidden bg-gradient-to-br from-[#0b3aa8] via-[#1d4ed8] to-[#2563EB] p-2.5 rounded-[2rem] border border-blue-300/40 shadow-lg shadow-blue-300/40 flex justify-between items-center transition-all group text-left w-full ${
+            canAddUserOnCurrentPlan
+              ? 'cursor-pointer hover:shadow-xl hover:-translate-y-1'
+              : 'opacity-60 cursor-not-allowed'
+          }`}
+          onClick={() => {
+            setActiveTab('users');
+            setTeamMemberFormData({
+              name: '',
+              email: '',
+              role: isBasicPlan ? 'super-admin' : 'manager',
+              departments: [],
+            });
+            setShowTeamMemberModal(true);
+          }}>
           <div className="absolute -right-5 -top-5 h-16 w-16 rounded-full bg-white/15 blur-[1px]" />
           <div className="absolute -left-4 -bottom-5 h-14 w-14 rounded-full bg-black/10" />
            <div>
               <p className="text-[10px] font-black text-blue-100/90 uppercase tracking-widest mb-1">Quick Action</p>
              <p className="text-[13px] font-black text-white group-hover:scale-105 transition-transform origin-left">Add User</p>
-             <p className="text-[10px] mt-1 text-blue-100/90 font-semibold">Invite and onboard instantly</p>
+             <p className="text-[10px] mt-1 text-blue-100/90 font-semibold">{addUserHoverMessage}</p>
            </div>
            <div className="p-2 rounded-2xl bg-white/20 text-white border border-white/30"><UserPlus size={16}/></div>
-        </div>
+        </button>
       </div>
 
       {/* CUSTOM TABS */}
@@ -768,7 +819,17 @@ export function OrganizationPage() {
         <button onClick={() => setActiveTab('users')} className={`flex-1 md:px-5 py-1.5 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${activeTab === 'users' ? 'bg-[#2563EB] shadow-sm text-white' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>
           <Shield size={16}/> PLATFORM USERS
         </button>
-        <button onClick={() => { setActiveTab('departments'); setView('list'); }} className={`flex-1 md:px-5 py-1.5 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${activeTab === 'departments' ? 'bg-[#2563EB] shadow-sm text-white' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>
+        <button
+          title={isBasicPlan ? 'Departments are locked on Basic plan.' : ''}
+          disabled={isBasicPlan}
+          onClick={() => { setActiveTab('departments'); setView('list'); }}
+          className={`flex-1 md:px-5 py-1.5 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+            isBasicPlan
+              ? 'text-slate-300 cursor-not-allowed'
+              : activeTab === 'departments'
+                ? 'bg-[#2563EB] shadow-sm text-white'
+                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+          }`}>
           <Building2 size={16}/> DEPARTMENTS
         </button>
       </div>
@@ -789,8 +850,23 @@ export function OrganizationPage() {
                   onChange={(e) => setSearchQuery(e.target.value)} 
                 />
               </div>
-              <button onClick={() => { setTeamMemberFormData({ name: '', email: '', role: 'manager', departments: [] }); setShowTeamMemberModal(true); }} 
-                      className="w-full md:w-auto px-3.5 py-2.5 bg-[#2563EB] hover:bg-blue-700 text-white rounded-2xl font-bold text-[11px] leading-none transition-all shadow-sm shadow-blue-200 inline-flex items-center justify-center gap-1.5 whitespace-nowrap">
+              <button
+                title={addUserHoverMessage}
+                onClick={() => {
+                  setTeamMemberFormData({
+                    name: '',
+                    email: '',
+                    role: isBasicPlan ? 'super-admin' : 'manager',
+                    departments: [],
+                  });
+                  setShowTeamMemberModal(true);
+                }}
+                disabled={!canAddUserOnCurrentPlan}
+                className={`w-full md:w-auto px-3.5 py-2.5 rounded-2xl font-bold text-[11px] leading-none transition-all shadow-sm inline-flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  canAddUserOnCurrentPlan
+                    ? 'bg-[#2563EB] hover:bg-blue-700 text-white shadow-blue-200'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}>
               <Plus size={13}/> Add User
               </button>
             </div>
@@ -1665,10 +1741,15 @@ export function OrganizationPage() {
                   }
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                 >
-                   <option value="manager">Department Manager</option>
-                   <option value="admin">Department Admin</option>
+                   <option value="manager" disabled={isBasicPlan}>Department Manager</option>
+                   <option value="admin" disabled={isBasicPlan}>Department Admin</option>
                    <option value="super-admin" disabled={!canInviteSuperAdmin}>Super Admin</option>
                 </select>
+                {isBasicPlan && (
+                  <p className="text-[11px] text-amber-600 font-medium">
+                    Basic plan allows only one Super Admin addition by founder.
+                  </p>
+                )}
                 {!canInviteSuperAdmin && (
                   <p className="text-[11px] text-amber-600 font-medium">
                     Only the founder can create a new Super Admin account.
@@ -1716,6 +1797,8 @@ export function OrganizationPage() {
                 disabled={
                   !teamMemberFormData.name ||
                   !teamMemberFormData.email ||
+                  (isBasicPlan && teamMemberFormData.role !== 'super-admin') ||
+                  !canAddUserOnCurrentPlan ||
                   (teamMemberFormData.role !== 'super-admin' && teamMemberFormData.departments.length === 0) ||
                   (teamMemberFormData.role === 'super-admin' && !canInviteSuperAdmin)
                 }

@@ -1,5 +1,7 @@
 // @ts-nocheck
 import { useEffect, useMemo, useState } from 'react';
+import { City, Country, State } from 'country-state-city';
+import useAuth from '../../hooks/useAuth';
 
 import {
   createVisitorLog,
@@ -20,7 +22,7 @@ import {
   LogOut, UserPlus, FileText, BadgeCheck, Phone, Mail,
   CalendarDays, ShieldCheck, ArrowRight, Wallet, Banknote, Sparkles,
   XCircle, ShieldAlert, Calendar as CalendarIcon, AlertTriangle, Globe, Smartphone, LayoutGrid,
-  Download, Printer
+  Download, Printer, Lock
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 
@@ -34,11 +36,23 @@ function formatTimeLabel(value) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
+function getFlagUrl(isoCode = '') {
+  return `https://flagcdn.com/w40/${String(isoCode || '').toLowerCase()}.png`;
+}
+
 function getDefaultVisitorForm() {
   return {
+    firstName: '',
+    lastName: '',
+    gender: '',
     name: '',
     phone: '',
     email: '',
+    country: '',
+    state: '',
+    city: '',
+    visitorCompanyType: 'individual',
+    visitorCompany: '',
     company: '',
     industry: '',
     teamSize: '',
@@ -53,7 +67,7 @@ function getDefaultVisitorForm() {
     preferredContactMethod: '',
     followUpDate: '',
     tourNotes: '',
-    standardVisitorType: 'direct',
+    standardVisitorType: 'standard',
     standardVisitorMode: 'new',
     standardVisitorSearch: '',
     purpose: 'Meeting',
@@ -61,6 +75,7 @@ function getDefaultVisitorForm() {
     hostGroupValue: '',
     hostGroup: '',
     hostUserId: '',
+    tenantCompanyName: '',
     reason: '',
     attendees: '',
     spaceType: '',
@@ -134,6 +149,32 @@ function formatDisplayDate(value) {
   const fallback = new Date(`${value}T12:00:00`);
   if (Number.isNaN(fallback.getTime())) return String(value);
   return fallback.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+}
+
+function toTitleCase(value = '') {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function getMonthYearFromValue(value) {
+  if (!value) {
+    return { month: '', year: '' };
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return { month: '', year: '' };
+  }
+
+  return {
+    month: date.toLocaleDateString('en-US', { month: 'long' }),
+    year: date.toLocaleDateString('en-US', { year: 'numeric' }),
+  };
 }
 
 function enrichHostGroupsWithRoster(hostGroups = [], employeeRoster = []) {
@@ -244,8 +285,21 @@ function normalizeVisitorTrackingEntry(visitor = {}) {
         ? 'Rejected'
         : 'Pending Approval';
 
+  const monthYearSource =
+    visitor?.checkOutAt ||
+    visitor?.checkInAt ||
+    visitor?.createdAt ||
+    (visitor?.date ? new Date(visitor.date) : null);
+  const derivedMonthYear = getMonthYearFromValue(monthYearSource);
+
   return {
     ...visitor,
+    name: visitor?.name || visitor?.fullName || [visitor?.firstName, visitor?.lastName].filter(Boolean).join(' ').trim(),
+    company: visitor?.company || visitor?.visitorCompany || '',
+    host: visitor?.host || visitor?.hostName || 'Front Desk',
+    date: formatDisplayDate(visitor?.checkInAt || visitor?.createdAt || visitor?.date) || '',
+    month: visitor?.month || derivedMonthYear.month,
+    year: visitor?.year || derivedMonthYear.year,
     status,
     statusKey,
     approvalStatus,
@@ -253,6 +307,24 @@ function normalizeVisitorTrackingEntry(visitor = {}) {
     checkIn: formatTimeLabel(visitor.checkInAt || visitor.checkIn) || visitor.checkIn || '--:--',
     checkOut: formatTimeLabel(visitor.checkOutAt || visitor.checkOut) || visitor.checkOut || '--:--',
   };
+}
+
+function isVisitorCheckedOut(visitor = {}) {
+  const status = normalizeText(visitor?.status || visitor?.statusKey || '').replace(/[_-]+/g, ' ');
+  const hasCheckOutTime = hasMeaningfulTimeValue(visitor?.checkOutAt) || hasMeaningfulTimeValue(visitor?.checkOut);
+  return hasCheckOutTime || status === 'checked out' || status === 'completed';
+}
+
+function isValidName(value = '') {
+  return /^[A-Za-z\s]+$/.test(String(value || '').trim());
+}
+
+function isValidPhone(value = '') {
+  return /^\d{10,15}$/.test(String(value || '').trim());
+}
+
+function isValidEmail(value = '') {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 }
 
 function timeToMinutes(value) {
@@ -646,6 +718,7 @@ function normalizeDailyBooking(booking) {
 }
 
 export default function VisitorsManagementPage() {
+  const { auth } = useAuth();
   const [activeTab, setActiveTab] = useState('daily');
   const [bookingStatusTab, setBookingStatusTab] = useState('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
@@ -667,6 +740,8 @@ export default function VisitorsManagementPage() {
   const [extendingBooking, setExtendingBooking] = useState(null);
 
   const [visitorMode, setVisitorMode] = useState('standard');
+  const lockedTopTabs = useMemo(() => new Set(['bookings', 'clients']), []);
+  const lockedVisitorModes = useMemo(() => new Set(['tour', 'walkin_booking', 'verify_booking']), []);
 
   const [walkInStep, setWalkInStep] = useState(1);
   const [availabilityStatus, setAvailabilityStatus] = useState('idle');
@@ -680,6 +755,14 @@ export default function VisitorsManagementPage() {
   const [meetingRoomCatalog, setMeetingRoomCatalog] = useState([]);
   const [meetingRoomBookings, setMeetingRoomBookings] = useState([]);
   const [bookingClients, setBookingClients] = useState([]);
+  const [countrySearch, setCountrySearch] = useState('');
+  const [showCountrySuggestions, setShowCountrySuggestions] = useState(false);
+  const [countryHighlightIndex, setCountryHighlightIndex] = useState(0);
+  const [lastSelectedExistingVisitor, setLastSelectedExistingVisitor] = useState(null);
+  const tenantCompanyOptions = useMemo(
+    () => [...new Set((bookingClients || []).map((client) => String(client?.company || '').trim()).filter(Boolean))],
+    [bookingClients],
+  );
   const [meetingRoomOverviewError, setMeetingRoomOverviewError] = useState('');
 
   const [form, setForm] = useState(getDefaultVisitorForm());
@@ -689,7 +772,21 @@ export default function VisitorsManagementPage() {
   const [extendForm, setExtendForm] = useState({ newEndTime: '', paymentMode: 'Cash' });
   const [verifiedBooking, setVerifiedBooking] = useState(null);
 
-  const frontdeskProfile = { name: "Frontdesk Reception", role: "Administration" };
+  const frontdeskProfile = useMemo(() => {
+    const user = auth?.user || {};
+    const fullName = `${String(user?.firstName || '').trim()} ${String(user?.lastName || '').trim()}`.trim()
+      || String(user?.name || '').trim()
+      || String(user?.email || '').trim()
+      || 'Frontdesk Reception';
+    const role = String(user?.workspaceMembership?.role || user?.role || 'Administration')
+      .replace(/[_-]+/g, ' ')
+      .trim();
+
+    return {
+      name: fullName,
+      role: role ? toTitleCase(role) : 'Administration',
+    };
+  }, [auth?.user]);
   const monthsList = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const yearsList = ['2025', '2026', '2027'];
 
@@ -1225,8 +1322,16 @@ export default function VisitorsManagementPage() {
         id: visitorId,
         visitorCode: visitor?.visitorCode || '',
         name: visitor?.name || visitor?.fullName || '',
+        firstName: visitor?.firstName || '',
+        lastName: visitor?.lastName || '',
+        gender: visitor?.gender || '',
         phone: visitor?.phone || visitor?.pocPhone || '',
         email: visitor?.email || visitor?.pocEmail || '',
+        country: visitor?.country || '',
+        state: visitor?.state || '',
+        city: visitor?.city || '',
+        visitorCompanyType: visitor?.visitorCompanyType || (visitor?.company ? 'company' : 'individual'),
+        visitorCompany: visitor?.visitorCompany || visitor?.company || '',
         company: visitor?.company || '',
         purpose: visitor?.purpose || '',
         reason: visitor?.reason || '',
@@ -1264,18 +1369,48 @@ export default function VisitorsManagementPage() {
   const hasStandardVisitorSearchQuery = normalizeText(form.standardVisitorSearch).length > 0;
 
   const applyExistingStandardVisitor = (visitor) => {
+    setLastSelectedExistingVisitor(visitor || null);
     setForm((prev) => ({
       ...prev,
-      name: visitor?.name || '',
-      phone: visitor?.phone || '',
-      email: visitor?.email || '',
-      company: visitor?.company || '',
+      firstName: visitor?.firstName || prev.firstName,
+      lastName: visitor?.lastName || prev.lastName,
+      gender: visitor?.gender || prev.gender,
+      name: visitor?.name || `${visitor?.firstName || ''} ${visitor?.lastName || ''}`.trim() || prev.name,
+      phone: visitor?.phone || prev.phone,
+      email: visitor?.email || prev.email,
+      country: visitor?.country || prev.country,
+      state: visitor?.state || prev.state,
+      city: visitor?.city || prev.city,
+      visitorCompanyType: visitor?.visitorCompanyType || (visitor?.company ? 'company' : prev.visitorCompanyType || 'individual'),
+      visitorCompany: visitor?.visitorCompanyType === 'company'
+        ? (visitor?.visitorCompany || visitor?.company || prev.visitorCompany)
+        : (visitor?.company ? visitor.company : prev.visitorCompany),
+      company: visitor?.company || prev.company,
       purpose: visitor?.purpose || prev.purpose,
       reason: visitor?.reason || '',
       hostGroupType: visitor?.hostGroupType || '',
       hostGroupValue: visitor?.hostGroupValue || '',
       hostUserId: visitor?.hostUserId || '',
     }));
+  };
+
+  const switchStandardVisitorMode = (mode) => {
+    setForm((prev) => {
+      if (mode === 'new') {
+        const reset = getDefaultVisitorForm();
+        return {
+          ...reset,
+          standardVisitorMode: 'new',
+          standardVisitorType: prev.standardVisitorType || 'standard',
+        };
+      }
+
+      return {
+        ...prev,
+        standardVisitorMode: 'existing',
+        standardVisitorSearch: lastSelectedExistingVisitor?.name || prev.standardVisitorSearch || '',
+      };
+    });
   };
 
   useEffect(() => {
@@ -1764,7 +1899,88 @@ export default function VisitorsManagementPage() {
     selectedWalkInRoom,
   ]);
 
-  const isCompactMode = visitorMode === 'walkin_booking' || visitorMode === 'verify_booking' || visitorMode === 'tour';
+  const isCompactMode = visitorMode === 'standard' || visitorMode === 'walkin_booking' || visitorMode === 'verify_booking' || visitorMode === 'tour';
+  const isStandardVisitorType = form.standardVisitorType === 'standard';
+  const isDepartmentVisitorType = form.standardVisitorType === 'department';
+  const isTenantVisitorType = form.standardVisitorType === 'tenant';
+  const countryOptions = useMemo(() => Country.getAllCountries(), []);
+  const selectedCountryOption = useMemo(
+    () => countryOptions.find((country) => country.name === form.country) || null,
+    [countryOptions, form.country],
+  );
+  const filteredCountryOptions = useMemo(() => {
+    const query = String(countrySearch || '').trim().toLowerCase();
+    if (!query) return countryOptions.slice(0, 120);
+    return countryOptions
+      .filter((country) => country.name.toLowerCase().includes(query))
+      .slice(0, 120);
+  }, [countryOptions, countrySearch]);
+  const stateOptions = useMemo(
+    () => (selectedCountryOption?.isoCode ? State.getStatesOfCountry(selectedCountryOption.isoCode) : []),
+    [selectedCountryOption?.isoCode],
+  );
+  const selectedStateOption = useMemo(
+    () => stateOptions.find((state) => state.name === form.state) || null,
+    [form.state, stateOptions],
+  );
+  const cityOptions = useMemo(
+    () => (selectedCountryOption?.isoCode && selectedStateOption?.isoCode
+      ? City.getCitiesOfState(selectedCountryOption.isoCode, selectedStateOption.isoCode)
+      : []),
+    [selectedCountryOption?.isoCode, selectedStateOption?.isoCode],
+  );
+
+  useEffect(() => {
+    if (!form.country) {
+      setCountrySearch('');
+      return;
+    }
+    const match = countryOptions.find((country) => country.name === form.country);
+    setCountrySearch(match ? match.name : form.country);
+  }, [countryOptions, form.country]);
+
+  useEffect(() => {
+    if (!showCountrySuggestions) return;
+    setCountryHighlightIndex(0);
+  }, [countrySearch, showCountrySuggestions]);
+
+  const isStandardFormComplete = useMemo(() => {
+    const firstName = String(form.firstName || '').trim();
+    const lastName = String(form.lastName || '').trim();
+    const gender = String(form.gender || '').trim();
+    const phone = String(form.phone || '').trim();
+    const email = String(form.email || '').trim();
+    const purpose = String(form.purpose || '').trim();
+    const note = String(form.reason || '').trim();
+
+    if (!firstName || !lastName || !gender || !phone || !email || !form.country || !form.state || !form.city || !purpose) return false;
+    if (!isValidName(firstName) || !isValidName(lastName)) return false;
+    if (!isValidPhone(phone)) return false;
+    if (!isValidEmail(email)) return false;
+    if (form.visitorCompanyType === 'company' && !String(form.visitorCompany || '').trim()) return false;
+
+    if (isDepartmentVisitorType) {
+      return Boolean(form.hostGroupType && form.hostGroupValue && form.hostUserId && note);
+    }
+
+    if (isTenantVisitorType) {
+      return Boolean(form.tenantCompanyName && form.hostGroupValue && form.hostUserId);
+    }
+
+    return true;
+  }, [form, isDepartmentVisitorType, isTenantVisitorType]);
+
+  useEffect(() => {
+    if (lockedTopTabs.has(activeTab)) {
+      setActiveTab('daily');
+    }
+  }, [activeTab, lockedTopTabs]);
+
+  useEffect(() => {
+    if (lockedVisitorModes.has(visitorMode)) {
+      setVisitorMode('standard');
+    }
+  }, [lockedVisitorModes, visitorMode]);
 
   useEffect(() => {
     if (!form.spaceType || !form.floor || !form.wing || !walkInRoomOptions.length) {
@@ -1978,8 +2194,11 @@ export default function VisitorsManagementPage() {
   };
 
   const handleProcessAction = async () => {
-    if (!form.name && visitorMode !== 'verify_booking' && visitorMode !== 'tour') return alert("Visitor Name is required.");
-    const normalizedCompany = form.company.trim() || 'Individual';
+    const fullName = `${String(form.firstName || '').trim()} ${String(form.lastName || '').trim()}`.trim();
+    if (!fullName && visitorMode !== 'verify_booking' && visitorMode !== 'tour') return alert("Visitor name is required.");
+    const normalizedCompany = form.visitorCompanyType === 'company'
+      ? String(form.visitorCompany || '').trim()
+      : 'Individual';
     const normalizedEmail = form.email.trim();
 
     if (visitorMode !== 'verify_booking' && !normalizedEmail) {
@@ -1991,26 +2210,40 @@ export default function VisitorsManagementPage() {
     const timeNow = formatTimeLabel(new Date());
 
     let finalRecord = {
-      id: newId, name: form.name, phone: form.phone, company: normalizedCompany,
+      id: newId, name: fullName, phone: form.phone, company: normalizedCompany,
       checkIn: timeNow, checkOut: '--:--', status: 'Checked In', badgeNo: badge
     };
 
     if (visitorMode === 'standard') {
-      if (!form.name.trim()) return alert('Visitor Name is required.');
+      if (!isStandardFormComplete) return alert('Please complete all required fields with valid details.');
       const isDepartmentVisitor = form.standardVisitorType === 'department';
+      const isTenantVisitor = form.standardVisitorType === 'tenant';
 
       if (!isDepartmentVisitor) {
         setIsSubmittingVisitor(true);
         try {
           const result = await createVisitorLog({
-            fullName: form.name,
+            firstName: form.firstName,
+            lastName: form.lastName,
+            fullName,
+            gender: form.gender,
             phone: form.phone,
             email: normalizedEmail,
+            country: form.country,
+            state: form.state,
+            city: form.city,
             company: normalizedCompany,
+            visitorCompanyType: form.visitorCompanyType,
+            visitorType: form.standardVisitorType,
+            tenantCompanyName: isTenantVisitor ? form.tenantCompanyName : '',
             purpose: form.purpose || 'Exploring Services',
             hostName: 'Front Desk',
-            reason: form.reason?.trim() || 'Visitor exploring workspace/services.',
-            notes: 'Direct standard visitor check-in. No department approval required.',
+            reason: form.reason?.trim() || form.purpose || 'General Visit',
+            notes: form.reason?.trim() || '',
+            hostRole: isTenantVisitor ? form.hostGroupValue : '',
+            hostUserId: isTenantVisitor ? form.hostUserId || undefined : undefined,
+            meetingTargetType: isTenantVisitor ? 'tenant-role' : '',
+            meetingTargetValue: isTenantVisitor ? form.hostGroupValue : '',
             status: 'checked_in',
           });
 
@@ -2020,9 +2253,9 @@ export default function VisitorsManagementPage() {
             : normalizeVisitorTrackingEntry({
               ...finalRecord,
               purpose: form.purpose || 'Exploring Services',
-              department: 'Administration',
+              department: 'Frontdesk',
               host: 'Front Desk',
-              reason: form.reason?.trim() || 'Visitor exploring workspace/services.',
+              reason: form.reason?.trim() || form.purpose || 'General Visit',
               approvalStatus: 'approved',
               approvalStatusLabel: 'Direct Check-in',
               statusKey: 'checked_in',
@@ -2041,7 +2274,7 @@ export default function VisitorsManagementPage() {
           setVisitorOverviewRefreshToken((value) => value + 1);
           setShowBadge({
             ...normalizedVisitor,
-            notes: 'Direct check-in completed. Convert this visitor to a client booking if they decide to reserve a desk or room.',
+            notes: 'Visitor checked in successfully.',
           });
 
           setIsLoggingVisitor(false);
@@ -2059,21 +2292,32 @@ export default function VisitorsManagementPage() {
 
       if (!form.hostGroupType || !form.hostGroupValue) return alert('Please choose a role or department.');
       if (!form.hostUserId) return alert('Please select a present employee.');
-      if (!form.reason.trim()) return alert('Reason is required.');
+      if (!form.reason.trim()) return alert('Note is required for department visitor.');
 
       setIsSubmittingVisitor(true);
 
       try {
         const result = await createVisitorLog({
-          fullName: form.name,
+          firstName: form.firstName,
+          lastName: form.lastName,
+          fullName,
+          gender: form.gender,
           phone: form.phone,
           email: normalizedEmail,
+          country: form.country,
+          state: form.state,
+          city: form.city,
           company: normalizedCompany,
+          visitorCompanyType: form.visitorCompanyType,
+          visitorType: form.standardVisitorType,
+          tenantCompanyName: '',
           purpose: form.purpose,
           hostGroupType: form.hostGroupType,
           hostGroupValue: form.hostGroupValue,
           hostUserId: form.hostUserId || undefined,
-          reason: form.reason,
+          reason: form.reason || form.purpose || 'Department visit',
+          meetingTargetType: form.hostGroupType,
+          meetingTargetValue: form.hostGroupValue,
           notes: '',
         });
 
@@ -2434,21 +2678,30 @@ export default function VisitorsManagementPage() {
         const normalizedCheckedOutVisitor = normalizeVisitorTrackingEntry(checkedOutVisitor);
         setLiveVisitors((prev) => prev.filter((visitor) => visitor.id !== normalizedCheckedOutVisitor.id));
         setVisitorHistory((prev) => [normalizedCheckedOutVisitor, ...prev.filter((visitor) => visitor.id !== normalizedCheckedOutVisitor.id)]);
+        setViewingVisitor((prev) => (
+          prev && String(prev.id || prev.recordId || '') === String(normalizedCheckedOutVisitor.id || normalizedCheckedOutVisitor.recordId || '')
+            ? normalizedCheckedOutVisitor
+            : prev
+        ));
         setCheckedInVisitorIds((prev) => {
           const next = new Set(prev);
           next.delete(String(normalizedCheckedOutVisitor.id || normalizedCheckedOutVisitor.recordId || ''));
           return next;
         });
       } else {
+        const fallbackCheckedOutVisitor = normalizeVisitorTrackingEntry({ ...(viewingVisitor || {}), id, checkOutAt: new Date(), checkOut: formatTimeLabel(new Date()), status: 'Checked Out', statusKey: 'checked_out' });
         setLiveVisitors((prev) => prev.map((visitor) => visitor.id === id ? normalizeVisitorTrackingEntry({ ...visitor, checkOutAt: new Date(), checkOut: formatTimeLabel(new Date()), status: 'Checked Out', statusKey: 'checked_out' }) : visitor));
+        setViewingVisitor((prev) => (
+          prev && String(prev.id || prev.recordId || '') === String(id)
+            ? fallbackCheckedOutVisitor
+            : prev
+        ));
         setCheckedInVisitorIds((prev) => {
           const next = new Set(prev);
           next.delete(String(id));
           return next;
         });
       }
-
-      setViewingVisitor(null);
     } catch (error) {
       alert(error.message || 'Unable to check the visitor out right now.');
     }
@@ -2566,6 +2819,145 @@ export default function VisitorsManagementPage() {
       });
   };
 
+  const buildBadgeDetails = (visitor = {}) => ({
+    badgeNo: String(visitor?.badgeNo || 'N/A'),
+    visitorName: String(visitor?.name || visitor?.fullName || 'Visitor'),
+    visitorCompany: String(visitor?.company || 'Individual'),
+    purpose: String(visitor?.purpose || 'General visit'),
+    host: String(visitor?.host || visitor?.hostName || 'Frontdesk'),
+    checkIn: String(visitor?.checkIn || formatTimeLabel(visitor?.checkInAt) || formatTimeLabel(new Date())),
+    visitDate: String(visitor?.date || formatDisplayDate(visitor?.createdAt || new Date()) || ''),
+    note: String(visitor?.notes || 'Host has been notified via email and SMS.'),
+  });
+
+  const openBadgePrintWindow = (visitor = {}) => {
+    const badgeDetails = buildBadgeDetails(visitor);
+    const {
+      badgeNo,
+      visitorName,
+      visitorCompany,
+      purpose,
+      host,
+      checkIn,
+      visitDate,
+      note,
+    } = badgeDetails;
+
+    const printHtml = `
+      <html>
+        <head>
+          <title>Visitor Badge - ${badgeNo}</title>
+          <style>
+            * { box-sizing: border-box; }
+            html, body { margin: 0; padding: 0; }
+            body {
+              padding: 20px;
+              font-family: "Poppins", "Segoe UI", Arial, sans-serif;
+              background: #f8fafc;
+              color: #111827;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .sheet {
+              max-width: 350px;
+              margin: 0 auto;
+              background: #ffffff;
+              border-radius: 18px;
+              border: 1px solid #dbeafe;
+              box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+              overflow: hidden;
+            }
+            .header {
+              background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+              color: #ffffff;
+              padding: 14px 16px;
+            }
+            .header h1 { margin: 0; font-size: 18px; line-height: 1.15; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; text-align: center; }
+            .content { padding: 14px 16px 16px 16px; }
+            .name { margin: 0 0 2px 0; font-size: 20px; font-weight: 800; line-height: 1.2; color: #111827; text-align: center; }
+            .company { margin: 0 0 12px 0; color: #6b7280; font-size: 11px; font-weight: 700; text-align: center; }
+            .grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 10px 12px;
+              border: 1px solid #e5e7eb;
+              border-radius: 12px;
+              padding: 10px 12px;
+              background: #f9fafb;
+            }
+            .field-label { margin: 0; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: #9ca3af; font-weight: 800; }
+            .field-value { margin: 2px 0 0 0; font-size: 12px; font-weight: 700; color: #1f2937; word-break: break-word; }
+            .span-2 { grid-column: span 2; }
+            .print-hint { max-width: 350px; margin: 10px auto 0 auto; font-size: 11px; color: #475569; text-align: center; }
+            @media print {
+              html, body { width: 100%; height: 100%; }
+              body { background: #ffffff !important; padding: 0; }
+              .sheet { box-shadow: none; border-color: #dbeafe; }
+              .print-hint { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="sheet">
+            <div class="header"><h1>Visitor Pass</h1></div>
+            <div class="content">
+              <p class="name">${visitorName}</p>
+              <p class="company">${visitorCompany}</p>
+              <div class="grid">
+                <div><p class="field-label">Badge No</p><p class="field-value">${badgeNo}</p></div>
+                <div><p class="field-label">Check-In</p><p class="field-value">${checkIn}</p></div>
+                <div><p class="field-label">Visit Date</p><p class="field-value">${visitDate}</p></div>
+                <div><p class="field-label">Purpose</p><p class="field-value">${purpose}</p></div>
+                <div class="span-2"><p class="field-label">Host / Destination</p><p class="field-value">${host}</p></div>
+              </div>
+            </div>
+          </div>
+          <p class="print-hint">For exact colors, keep "Background graphics" enabled in the print dialog.</p>
+          <script>window.onload = function () { window.focus(); window.print(); };</script>
+        </body>
+      </html>
+    `;
+
+    // Print in-place via hidden iframe so no extra browser tab opens.
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
+
+    const iframeDoc = iframe.contentWindow?.document;
+    if (!iframeDoc) {
+      document.body.removeChild(iframe);
+      alert('Unable to open print preview right now. Please try again.');
+      return;
+    }
+
+    iframeDoc.open();
+    iframeDoc.write(printHtml.replace(
+      'window.focus(); window.print();',
+      "window.focus(); setTimeout(function(){ window.print(); }, 120);",
+    ));
+    iframeDoc.close();
+
+    window.setTimeout(() => {
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+    }, 8000);
+  };
+
+  const handlePrintBadge = (visitor = showBadge) => {
+    if (!visitor) {
+      return;
+    }
+    openBadgePrintWindow(visitor);
+  };
+
+
   const getStatusBadge = (status) => {
     const normalized = normalizeText(status);
     if (normalized === 'checked in' || normalized === 'checked-in' || normalized === 'confirmed (paid)') return 'bg-green-50 text-green-600 border-green-200';
@@ -2585,7 +2977,6 @@ export default function VisitorsManagementPage() {
         {/* 1. HEADER */}
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-[#2563EB]">Core Module • {frontdeskProfile.role}</p>
             <h2 className="text-title font-pmedium text-primary uppercase mt-1.5">Visitor Management</h2>
             <p className="mt-1 max-w-2xl text-xs font-semibold text-slate-500">Daily visitors, walk-in bookings, client conversion, payment proof, and invoice handoff in one front desk workspace.</p>
           </div>
@@ -2626,14 +3017,24 @@ export default function VisitorsManagementPage() {
               <button onClick={() => setActiveTab('daily')} className={`flex-1 px-6 py-2.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-all flex items-center justify-center gap-2 ${activeTab === 'daily' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
                 DAILY VISITORS <span className="bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md flex items-center gap-1"><span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>{trackedVisitors.length}</span>
               </button>
-              <button onClick={() => setActiveTab('bookings')} className={`flex-1 px-6 py-2.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-all flex items-center justify-center gap-2 ${activeTab === 'bookings' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
-                BOOKINGS <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md">{upcomingBookings.length}</span>
-              </button>
-              <button onClick={() => setActiveTab('clients')} className={`flex-1 px-6 py-2.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-all flex items-center justify-center gap-2 ${activeTab === 'clients' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
-                CLIENTS <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-md">{bookingClients.length}</span>
-              </button>
               <button onClick={() => setActiveTab('history')} className={`flex-1 px-6 py-2.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-all ${activeTab === 'history' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
                 VISITOR HISTORY
+              </button>
+              <button
+                type="button"
+                disabled
+                title="Upgrade plan to access this feature."
+                className="flex-1 px-6 py-2.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-all flex items-center justify-center gap-2 text-gray-300 cursor-not-allowed"
+              >
+                <Lock size={12} /> BOOKINGS
+              </button>
+              <button
+                type="button"
+                disabled
+                title="Upgrade plan to access this feature."
+                className="flex-1 px-6 py-2.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-all flex items-center justify-center gap-2 text-gray-300 cursor-not-allowed"
+              >
+                <Lock size={12} /> CLIENTS
               </button>
             </div>
 
@@ -2648,7 +3049,7 @@ export default function VisitorsManagementPage() {
                   </select>
                 </>
               )}
-              {(activeTab === 'daily' || activeTab === 'history' || activeTab === 'bookings' || activeTab === 'clients') && (
+              {(activeTab === 'daily' || activeTab === 'history') && (
                 <div className="relative w-full sm:w-56">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                   <input type="text" placeholder="Search records..." className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-[#2563EB] outline-none" onChange={(e) => setSearchQuery(e.target.value)} />
@@ -2663,13 +3064,14 @@ export default function VisitorsManagementPage() {
               <table className="w-full text-left">
                 <thead className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
                   <tr>
-                    <th className="px-6 py-5">Visitor Info</th>
-                    <th className="px-6 py-5">Date</th>
-                    <th className="px-6 py-5">Purpose & Host</th>
-                    <th className="px-6 py-5">Badge / ID</th>
-                    <th className="px-6 py-5">Check-In / Out</th>
-                    <th className="px-6 py-5 text-center">Status</th>
-                    <th className="px-6 py-5 text-center">Actions</th>
+                    <th className="px-4 py-3">Badge ID</th>
+                    <th className="px-4 py-3">Visitor Info</th>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Purpose</th>
+                    <th className="px-4 py-3">Host</th>
+                    <th className="px-4 py-3">Check-In / Out</th>
+                    <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-4 py-3 text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -2682,79 +3084,78 @@ export default function VisitorsManagementPage() {
                     const isCheckedIn = checkedInVisitorIds.has(String(visitorId)) || hasCheckInTime || normalizedStatus === 'checked in' || normalizedStatusKey === 'checked in';
                     const isApproved = normalizedApprovalStatus === 'approved' && !isCheckedIn;
                     const isRejected = normalizedApprovalStatus === 'rejected' || normalizedStatus === 'rejected' || normalizedStatusKey === 'rejected';
+                    const isCheckedOut = isVisitorCheckedOut(vis);
 
                     return (
                       <tr key={visitorId} className="hover:bg-blue-50/30 transition-all group">
-                        <td className="px-6 py-5">
-                          <div className="font-bold text-gray-900 text-sm">{vis.name}</div>
-                          <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-0.5 flex items-center gap-1">
+                        <td className="px-4 py-3">
+                          <div className="font-black text-blue-600 bg-blue-50 px-3 py-2 rounded inline-flex items-center gap-1 border border-blue-100 whitespace-nowrap">
+                            <BadgeCheck size={14} /> {vis.badgeNo || 'N/A'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="font-bold text-gray-900 text-sm whitespace-nowrap truncate max-w-[180px]">{vis.name}</div>
+                          <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-0.5 flex items-center gap-1 whitespace-nowrap">
                             <Building size={10} /> {vis.company}
                           </div>
                         </td>
-                        <td className="px-6 py-5">
-                          <div className="font-bold text-gray-900 text-sm flex items-center gap-1.5">
-                            <CalendarDays size={14} className="text-gray-400" /> {vis.date || 'Today'}
+                        <td className="px-4 py-3">
+                          <div className="font-bold text-gray-900 text-sm flex items-center gap-1.5 whitespace-nowrap">
+                            <CalendarDays size={14} className="text-gray-400" /> {vis.date || formatDisplayDate(vis.createdAt)}
                           </div>
                         </td>
-                        <td className="px-6 py-5">
+                        <td className="px-4 py-3">
                           <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 font-bold text-[10px] uppercase rounded mb-1">{vis.purpose}</span>
-                          <div className="text-xs font-medium text-gray-600 flex items-center gap-1">
-                            <User size={12} /> Host: <span className="font-bold text-gray-900">{vis.host}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="text-xs font-semibold text-gray-700 flex items-center gap-1 whitespace-nowrap">
+                            <User size={12} /> <span className="font-bold text-gray-900 truncate max-w-[150px]">{vis.host}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-5">
-                          <div className="font-black text-blue-600 bg-blue-50 px-4 py-2 rounded inline-flex items gap-1 border border-blue-100">
-                            <BadgeCheck size={14} /> {vis.badgeNo}
-                          </div>
-                        </td>
-                        <td className="px-6 py-5">
-                          <div className="flex items-center gap-2 font-bold text-gray-900 text-sm">
-                            <span className="text-green-600">{vis.checkIn}</span>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2 font-bold text-gray-900 text-sm whitespace-nowrap">
+                            <span className="text-green-600">{vis.checkIn || formatTimeLabel(vis.checkInAt) || '--:--'}</span>
                             <span className="text-gray-300">-</span>
-                            <span className={vis.checkOut === '--:--' ? 'text-gray-400' : 'text-gray-900'}>{vis.checkOut}</span>
+                            <span className={(vis.checkOut || '--:--') === '--:--' ? 'text-gray-400' : 'text-gray-900'}>{vis.checkOut || formatTimeLabel(vis.checkOutAt) || '--:--'}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-5">
-                          <div className="flex flex-col items-start">
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col items-start gap-0.5">
                             <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${getStatusBadge(vis.status)}`}>
                               {vis.status}
                             </span>
-                            <div className="mt-2 text-[10px] font-black uppercase tracking-widest text-gray-400">
-                              {vis.approvalStatusLabel || 'Pending Approval'}
-                            </div>
                           </div>
                         </td>
-                        <td className="px-6 py-5">
-                          <div className="flex flex-wrap items-center justify-start gap-2">
-                            <button onClick={() => setViewingVisitor(vis)} className="px-3 py-1.5 bg-gray-50 border border-gray-200 text-gray-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-1 whitespace-nowrap">
-                              <Eye size={12} /> Details
-                            </button>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col items-start gap-2">
+                            <div className="flex items-center gap-1.5">
+                              <button title="View details" onClick={() => setViewingVisitor(vis)} className="w-8 h-8 bg-gray-50 border border-gray-200 text-gray-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg transition-all inline-flex items-center justify-center">
+                                <Eye size={13} />
+                              </button>
+                              {!isCheckedOut && (
+                                <button title="Print badge" onClick={() => handlePrintBadge(vis)} className="w-8 h-8 bg-white border border-gray-200 text-gray-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all inline-flex items-center justify-center">
+                                  <Printer size={13} />
+                                </button>
+                              )}
+                              {isCheckedIn ? (
+                                <button title="Check out visitor" onClick={() => handleCheckOut(vis.id)} className="w-8 h-8 bg-white border border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 rounded-lg transition-all inline-flex items-center justify-center">
+                                  <LogOut size={13} />
+                                </button>
+                              ) : isApproved ? (
+                                <button title="Check in visitor" onClick={() => handleAllowEntry(vis)} className="w-8 h-8 bg-emerald-600 border border-emerald-600 text-white hover:bg-emerald-700 rounded-lg transition-all inline-flex items-center justify-center">
+                                  <CheckCircle2 size={13} />
+                                </button>
+                              ) : (
+                                <button title={isRejected ? 'Rejected' : 'Awaiting approval'} type="button" disabled className={`w-8 h-8 rounded-lg transition-all inline-flex items-center justify-center border ${isRejected ? 'bg-red-50 border-red-200 text-red-500' : 'bg-amber-50 border-amber-200 text-amber-600'} cursor-not-allowed`}>
+                                  {isRejected ? <XCircle size={13} /> : <Clock size={13} />}
+                                </button>
+                              )}
+                            </div>
                             {isCheckedIn ? (
-                              <>
-                                <button onClick={() => openBookingFromVisitor(vis)} className="px-3 py-1.5 bg-[#2563EB] border border-[#2563EB] text-white hover:bg-blue-700 rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-1 shadow-sm whitespace-nowrap">
-                                  <LayoutGrid size={12} /> Convert to Client Booking
-                                </button>
-                                <button onClick={() => handleCheckOut(vis.id)} className="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-1 shadow-sm whitespace-nowrap">
-                                  <LogOut size={12} /> Check Out
-                                </button>
-                              </>
-                            ) : isApproved ? (
-                              <button onClick={() => handleAllowEntry(vis)} className="px-3 py-1.5 bg-emerald-600 border border-emerald-600 text-white hover:bg-emerald-700 rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-1 shadow-sm whitespace-nowrap">
-                                <CheckCircle2 size={12} /> Check In
+                              <button type="button" disabled title="Upgrade plan to access this feature." className="px-2.5 py-1 bg-slate-100 border border-slate-200 text-slate-400 rounded-lg text-[9px] font-black uppercase transition-all inline-flex items-center gap-1 shadow-sm whitespace-nowrap cursor-not-allowed">
+                                <Lock size={11} /> Convert to Client
                               </button>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled
-                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-1 shadow-sm border whitespace-nowrap ${isRejected
-                                    ? 'bg-red-50 border-red-200 text-red-500'
-                                    : 'bg-amber-50 border-amber-200 text-amber-600'
-                                  } cursor-not-allowed`}
-                              >
-                                {isRejected ? <XCircle size={12} /> : <Clock size={12} />}
-                                {isRejected ? 'Rejected' : 'Awaiting Approval'}
-                              </button>
-                            )}
+                            ) : null}
                           </div>
                         </td>
                       </tr>
@@ -2963,40 +3364,51 @@ export default function VisitorsManagementPage() {
               <table className="w-full text-left">
                 <thead className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
                   <tr>
-                    <th className="px-6 py-5">Date</th>
-                    <th className="px-6 py-5">Visitor Info</th>
-                    <th className="px-6 py-5">Purpose & Host</th>
-                    <th className="px-6 py-5">In - Out Time</th>
-                    <th className="px-6 py-5 text-center">Status</th>
-                    <th className="px-6 py-5 text-center">Action</th>
+                    <th className="px-4 py-3">Badge ID</th>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Visitor Info</th>
+                    <th className="px-4 py-3">Purpose</th>
+                    <th className="px-4 py-3">Host</th>
+                    <th className="px-4 py-3">In - Out Time</th>
+                    <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-4 py-3 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {displayedHistory.map((vis) => (
+                  {displayedHistory.map((vis) => {
+                    const isCheckedOut = isVisitorCheckedOut(vis);
+                    return (
                     <tr key={vis.id} className="hover:bg-gray-50 transition-all opacity-80 group">
-                      <td className="px-6 py-5">
-                        <div className="font-bold text-gray-900 text-sm flex items-center gap-1.5"><CalendarDays size={14} className="text-gray-400" /> {vis.date}</div>
+                      <td className="px-4 py-3">
+                        <div className="font-black text-blue-600 bg-blue-50 px-3 py-2 rounded inline-flex items-center gap-1 border border-blue-100 whitespace-nowrap">
+                          <BadgeCheck size={14} /> {vis.badgeNo || 'N/A'}
+                        </div>
                       </td>
-                      <td className="px-6 py-5">
-                        <div className="font-bold text-gray-900 text-sm">{vis.name}</div>
-                        <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-0.5 flex items-center gap-1">
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-gray-900 text-sm flex items-center gap-1.5 whitespace-nowrap"><CalendarDays size={14} className="text-gray-400" /> {vis.date || formatDisplayDate(vis.createdAt)}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-gray-900 text-sm whitespace-nowrap truncate max-w-[180px]">{vis.name}</div>
+                        <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-0.5 flex items-center gap-1 whitespace-nowrap">
                           <Building size={10} /> {vis.company}
                         </div>
                       </td>
-                      <td className="px-6 py-5">
+                      <td className="px-4 py-3">
                         <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 font-bold text-[10px] uppercase rounded mb-1">{vis.purpose}</span>
-                        <div className="text-xs font-medium text-gray-600 flex items-center gap-1">
-                          <User size={12} /> Host: <span className="font-bold text-gray-900">{vis.host}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-xs font-semibold text-gray-700 flex items-center gap-1 whitespace-nowrap">
+                          <User size={12} /> <span className="font-bold text-gray-900 truncate max-w-[150px]">{vis.host}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-2 font-bold text-gray-700 text-sm">
-                          <span>{vis.checkIn}</span>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 font-bold text-gray-700 text-sm whitespace-nowrap">
+                          <span>{vis.checkIn || formatTimeLabel(vis.checkInAt) || '--:--'}</span>
                           <span className="text-gray-300">-</span>
-                          <span>{vis.checkOut}</span>
+                          <span>{vis.checkOut || formatTimeLabel(vis.checkOutAt) || '--:--'}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-5 text-center">
+                      <td className="px-4 py-3 text-center">
                         <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${getStatusBadge(vis.status)}`}>
                           {vis.status}
                         </span>
@@ -3008,15 +3420,22 @@ export default function VisitorsManagementPage() {
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-5 text-center">
-                        <button onClick={() => setViewingVisitor(vis)} className="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg text-[10px] font-black uppercase transition-all flex items-center gap-1 mx-auto group-hover:opacity-100 shadow-sm">
-                          <Eye size={12} /> View
-                        </button>
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button title="View details" onClick={() => setViewingVisitor(vis)} className="w-8 h-8 bg-white border border-gray-200 text-gray-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-all inline-flex items-center justify-center shadow-sm">
+                            <Eye size={13} />
+                          </button>
+                          {!isCheckedOut && (
+                            <button title="Print badge" onClick={() => handlePrintBadge(vis)} className="w-8 h-8 bg-white border border-gray-200 text-gray-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all inline-flex items-center justify-center shadow-sm">
+                              <Printer size={13} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
-                  ))}
+                  )})}
                   {displayedHistory.length === 0 && (
-                    <tr><td colSpan={6} className="text-center py-20 text-gray-400 font-bold">No historical data found for {historyMonth} {historyYear}.</td></tr>
+                    <tr><td colSpan={8} className="text-center py-20 text-gray-400 font-bold">No historical data found for {historyMonth} {historyYear}.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -3033,13 +3452,16 @@ export default function VisitorsManagementPage() {
                 <div>
                   <h2 className="text-base font-black text-white leading-none flex items-center gap-1.5"><UserPlus size={15} /> Frontdesk Action Terminal</h2>
                   <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mt-1.5">Select the correct workflow below</p>
+                  <p className="mt-1 text-[10px] font-semibold text-slate-300">
+                    Logged in as <span className="font-black text-white">{frontdeskProfile.name}</span> ({frontdeskProfile.role})
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 xl:grid-cols-4 gap-1.5 w-full md:w-auto bg-slate-800 p-1 rounded-xl border border-slate-700">
-                  <button onClick={() => { setVisitorMode('standard'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setForm((prev) => ({ ...prev, standardVisitorType: prev.standardVisitorType || 'direct' })); }} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all ${visitorMode === 'standard' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'}`}>Standard Visitor</button>
-                  <button onClick={() => { setVisitorMode('tour'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); }} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all ${visitorMode === 'tour' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'}`}>Workspace Tour</button>
-                  <button onClick={() => { setVisitorMode('walkin_booking'); setWalkInStep(1); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setForm((prev) => ({ ...prev, spaceType: '', floor: '', wing: '', resourceName: '', seatNumber: '', startDate: '', endDate: '', startTime: '', endTime: '', discountType: 'amount', discountValue: '', paymentMode: '', transactionId: '', paymentProofFile: null })); }} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all ${visitorMode === 'walkin_booking' ? 'bg-blue-600 text-white shadow-sm shadow-blue-900/20' : 'text-slate-400 hover:text-white'}`}>Walk-in Booking</button>
-                  <button onClick={() => { setVisitorMode('verify_booking'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); }} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all ${visitorMode === 'verify_booking' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>Verify Booking ID</button>
+                  <button onClick={() => { setVisitorMode('standard'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setForm((prev) => ({ ...prev, standardVisitorType: prev.standardVisitorType || 'standard' })); }} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all ${visitorMode === 'standard' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'}`}>Standard Visitor</button>
+                  <button type="button" disabled title="Upgrade plan to access this feature." className="w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all text-slate-500 bg-slate-700/60 cursor-not-allowed inline-flex items-center justify-center gap-1"><Lock size={11} /> Workspace Tour</button>
+                  <button type="button" disabled title="Upgrade plan to access this feature." className="w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all text-slate-500 bg-slate-700/60 cursor-not-allowed inline-flex items-center justify-center gap-1"><Lock size={11} /> Walk-in Booking</button>
+                  <button type="button" disabled title="Upgrade plan to access this feature." className="w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all text-slate-500 bg-slate-700/60 cursor-not-allowed inline-flex items-center justify-center gap-1"><Lock size={11} /> Verify Booking ID</button>
                 </div>
               </div>
 
@@ -3057,11 +3479,7 @@ export default function VisitorsManagementPage() {
                             <button
                               key={mode}
                               type="button"
-                              onClick={() => setForm((prev) => ({
-                                ...prev,
-                                standardVisitorMode: mode,
-                                standardVisitorSearch: mode === 'new' ? '' : prev.standardVisitorSearch,
-                              }))}
+                              onClick={() => switchStandardVisitorMode(mode)}
                                 className={`rounded-lg px-2.5 py-2 text-[9px] font-black uppercase tracking-widest transition-all ${form.standardVisitorMode === mode
                                   ? 'bg-white text-blue-700 shadow-sm'
                                   : 'text-slate-500 hover:text-slate-900'
@@ -3188,11 +3606,7 @@ export default function VisitorsManagementPage() {
                               <button
                                 key={mode}
                                 type="button"
-                                onClick={() => setForm((prev) => ({
-                                  ...prev,
-                                  standardVisitorMode: mode,
-                                  standardVisitorSearch: mode === 'new' ? '' : prev.standardVisitorSearch,
-                                }))}
+                                onClick={() => switchStandardVisitorMode(mode)}
                                 className={`rounded-lg px-2.5 py-2 text-[9px] font-black uppercase tracking-widest transition-all ${form.standardVisitorMode === mode
                                     ? 'bg-white text-blue-700 shadow-sm'
                                     : 'text-slate-500 hover:text-slate-900'
@@ -3240,27 +3654,136 @@ export default function VisitorsManagementPage() {
                         </div>
                       )}
 
-                      <div className="grid grid-cols-2 gap-1.5 rounded-lg bg-slate-100 p-1">
+                      <div className="rounded-lg border border-slate-200 bg-white p-2.5 space-y-3">
+                        <h4 className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Personal Information</h4>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <input
+                            type="text"
+                            placeholder="First Name"
+                            value={form.firstName}
+                            onChange={(e) => setForm((prev) => ({ ...prev, firstName: e.target.value, name: `${e.target.value} ${String(prev.lastName || '')}`.trim() }))}
+                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Last Name"
+                            value={form.lastName}
+                            onChange={(e) => setForm((prev) => ({ ...prev, lastName: e.target.value, name: `${String(prev.firstName || '')} ${e.target.value}`.trim() }))}
+                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500"
+                          />
+                          <select
+                            value={form.gender}
+                            onChange={(e) => setForm((prev) => ({ ...prev, gender: e.target.value }))}
+                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500"
+                          >
+                            <option value="">Select Gender</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                          </select>
+                          <input
+                            type="tel"
+                            placeholder="Phone Number"
+                            value={form.phone}
+                            onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value.replace(/[^\d]/g, '') }))}
+                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500"
+                          />
+                          <input
+                            type="email"
+                            placeholder="Email Address"
+                            value={form.email}
+                            onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 sm:col-span-2"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                          <select
+                            value={form.country}
+                            onChange={(e) => setForm((prev) => ({ ...prev, country: e.target.value, state: '', city: '' }))}
+                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500"
+                          >
+                            <option value="">Select Country</option>
+                            {countryOptions.map((country) => (
+                              <option key={country.isoCode} value={country.name}>
+                                {country.name}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={form.state}
+                            onChange={(e) => setForm((prev) => ({ ...prev, state: e.target.value, city: '' }))}
+                            disabled={!form.country}
+                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+                          >
+                            <option value="">{form.country ? 'Select State' : 'Select country first'}</option>
+                            {stateOptions.map((state) => (
+                              <option key={state.isoCode} value={state.name}>
+                                {state.name}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={form.city}
+                            onChange={(e) => setForm((prev) => ({ ...prev, city: e.target.value }))}
+                            disabled={!form.country || !form.state}
+                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+                          >
+                            <option value="">{form.country && form.state ? 'Select City' : 'Select country and state first'}</option>
+                            {cityOptions.map((city) => (
+                              <option key={`${city.name}-${city.stateCode}-${city.latitude}`} value={city.name}>
+                                {city.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <select
+                            value={form.visitorCompanyType}
+                            onChange={(e) => setForm((prev) => ({ ...prev, visitorCompanyType: e.target.value, visitorCompany: e.target.value === 'individual' ? '' : prev.visitorCompany }))}
+                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500"
+                          >
+                            <option value="individual">Individual</option>
+                            <option value="company">Company</option>
+                          </select>
+                          <input
+                            type="text"
+                            placeholder="Visitor Company"
+                            value={form.visitorCompany}
+                            onChange={(e) => setForm((prev) => ({ ...prev, visitorCompany: e.target.value }))}
+                            disabled={form.visitorCompanyType === 'individual'}
+                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-1.5 rounded-lg bg-slate-100 p-1">
                         {[
-                          ['direct', 'Standard Visitor'],
-                          ['department', 'Department Visitor'],
-                        ].map(([type, label]) => (
+                          ['standard', 'Standard Visitor', false],
+                          ['department', 'Department Visitor', true],
+                          ['tenant', 'Tenant Company Visitor', true],
+                        ].map(([type, label, locked]) => (
                           <button
                             key={type}
                             type="button"
+                            disabled={locked}
+                            title={locked ? 'Upgrade plan to access this feature.' : undefined}
                             onClick={() => setForm((prev) => ({
                               ...prev,
                               standardVisitorType: type,
-                              hostGroupType: type === 'direct' ? '' : prev.hostGroupType,
-                              hostGroupValue: type === 'direct' ? '' : prev.hostGroupValue,
-                              hostUserId: type === 'direct' ? '' : prev.hostUserId,
-                              purpose: type === 'direct' && prev.purpose === 'Meeting' ? 'Exploring Services' : prev.purpose,
+                              hostGroupType: type === 'standard' ? '' : prev.hostGroupType,
+                              hostGroupValue: type === 'standard' ? '' : prev.hostGroupValue,
+                              hostUserId: type === 'standard' ? '' : prev.hostUserId,
                             }))}
-                            className={`rounded-lg px-2.5 py-2 text-[9px] font-black uppercase tracking-widest transition-all ${form.standardVisitorType === type
-                                ? 'bg-white text-blue-700 shadow-sm'
-                                : 'text-slate-500 hover:text-slate-900'
+                            className={`rounded-lg px-2.5 py-2 text-[9px] font-black uppercase tracking-widest transition-all inline-flex items-center justify-center gap-1 ${locked
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                : form.standardVisitorType === type
+                                  ? 'bg-white text-blue-700 shadow-sm'
+                                  : 'text-slate-500 hover:text-slate-900'
                               }`}
                           >
+                            {locked ? <Lock size={11} /> : null}
                             {label}
                           </button>
                         ))}
@@ -3373,7 +3896,7 @@ export default function VisitorsManagementPage() {
                         </>
                       ) : (
                         <div className="space-y-3.5">
-                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div className="grid grid-cols-1 gap-4">
                             <div className="space-y-1">
                               <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Purpose</label>
                               <select
@@ -3386,12 +3909,6 @@ export default function VisitorsManagementPage() {
                                 <option value="Workspace Enquiry">Workspace Enquiry</option>
                                 <option value="Delivery">Delivery</option>
                               </select>
-                            </div>
-                            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">No Approval Needed</p>
-                              <p className="mt-1 text-xs font-bold leading-relaxed text-emerald-900">
-                                This visitor will be checked in immediately under Front Desk.
-                              </p>
                             </div>
                           </div>
 
@@ -3406,15 +3923,6 @@ export default function VisitorsManagementPage() {
                             />
                           </div>
 
-                          <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-3">
-                            <LayoutGrid className="text-blue-500 shrink-0" size={24} />
-                            <div className="space-y-1">
-                              <p className="text-[10px] font-bold text-blue-800 uppercase tracking-widest leading-relaxed">Can convert to client booking later.</p>
-                              <p className="text-[10px] font-bold text-blue-700">
-                                Once checked in, use "Convert to Client Booking" from Daily Visitors if they decide to book a desk or meeting room.
-                              </p>
-                            </div>
-                          </div>
                         </div>
                       )}
                     </div>
@@ -4262,7 +4770,7 @@ export default function VisitorsManagementPage() {
                 {visitorMode === 'standard' && (
                   <button
                     onClick={handleProcessAction}
-                    disabled={isSubmittingVisitor || isVisitorOverviewLoading}
+                    disabled={isSubmittingVisitor || isVisitorOverviewLoading || !isStandardFormComplete}
                     className="flex-[2] py-3 bg-[#2563EB] text-white rounded-xl text-xs font-black shadow-md shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:shadow-none"
                   >
                     <CheckCircle2 size={18} />{isSubmittingVisitor ? 'SENDING...' : form.standardVisitorType === 'department' ? 'SEND HOST APPROVAL' : 'CHECK IN VISITOR'}
@@ -4609,32 +5117,56 @@ export default function VisitorsManagementPage() {
         {/* MODAL 5: VIEW HISTORICAL VISITOR DETAILS */}
         {viewingVisitor && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-sm">
-            <div className="bg-white rounded-[40px] w-full max-w-2xl shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-white rounded-[24px] w-full max-w-[760px] shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col max-h-[82vh]">
 
-              <div className="p-8 bg-gray-50 border-b border-gray-100 flex justify-between items-start shrink-0">
+              <div className="px-5 py-4 bg-gray-50 border-b border-gray-100 flex justify-between items-start shrink-0">
                 <div>
-                  <h2 className="text-2xl font-black text-gray-900 leading-none flex items-center gap-3">
+                  <h2 className="text-lg font-['Poppins'] font-extrabold text-gray-900 leading-tight flex items-center gap-2">
                     {viewingVisitor.name}
                     <span className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg border ${getStatusBadge(viewingVisitor.status)}`}>{viewingVisitor.status}</span>
                     {viewingVisitor.convertedToClient && (
                       <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700">Converted to Client</span>
                     )}
                   </h2>
-                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-2">{viewingVisitor.company} • Badge: {viewingVisitor.badgeNo || 'N/A'}</p>
+                  <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mt-1.5">{viewingVisitor.company} • Badge: {viewingVisitor.badgeNo || 'N/A'}</p>
                 </div>
-                <button onClick={() => setViewingVisitor(null)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all"><X size={20} /></button>
+                <button onClick={() => setViewingVisitor(null)} className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all"><X size={18} /></button>
               </div>
 
-              <div className="p-8 space-y-6 overflow-y-auto flex-1 bg-white">
+              <div className="px-5 py-4 space-y-3 overflow-y-auto flex-1 bg-white">
 
-                <div className="grid grid-cols-2 gap-6 bg-gray-50 p-6 rounded-3xl border border-gray-100">
+                <div className="grid grid-cols-2 gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider">First Name</p>
+                    <p className="font-bold text-gray-900 text-xs">{viewingVisitor.firstName || 'N/A'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider">Last Name</p>
+                    <p className="font-bold text-gray-900 text-xs">{viewingVisitor.lastName || 'N/A'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider">Gender</p>
+                    <p className="font-bold text-gray-900 text-xs">{viewingVisitor.gender || 'N/A'}</p>
+                  </div>
                   <div className="space-y-1">
                     <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider flex items-center gap-1"><Phone size={12} /> Phone Contact</p>
-                    <p className="font-bold text-gray-900 text-sm">{viewingVisitor.phone || 'Not Provided'}</p>
+                    <p className="font-bold text-gray-900 text-xs">{viewingVisitor.phone || 'Not Provided'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider">Country</p>
+                    <p className="font-bold text-gray-900 text-xs">{viewingVisitor.country || 'N/A'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider">State</p>
+                    <p className="font-bold text-gray-900 text-xs">{viewingVisitor.state || 'N/A'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider">City</p>
+                    <p className="font-bold text-gray-900 text-xs">{viewingVisitor.city || 'N/A'}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider flex items-center gap-1"><User size={12} /> Host / Point of Contact</p>
-                    <p className="font-bold text-gray-900 text-sm">{viewingVisitor.host}</p>
+                    <p className="font-bold text-gray-900 text-xs">{viewingVisitor.host}</p>
                     {viewingVisitor.department && <p className="text-[10px] text-gray-500 font-bold uppercase">{viewingVisitor.department}</p>}
                   </div>
                   <div className="space-y-1">
@@ -4644,51 +5176,67 @@ export default function VisitorsManagementPage() {
                   {viewingVisitor.bookingId && (
                     <div className="space-y-1">
                       <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider flex items-center gap-1"><FileText size={12} /> Online Booking ID</p>
-                      <p className="font-black text-blue-600 text-sm">{viewingVisitor.bookingId}</p>
+                      <p className="font-black text-blue-600 text-xs">{viewingVisitor.bookingId}</p>
                     </div>
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
                     <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Visit Date</p>
-                    <p className="mt-2 text-sm font-black text-gray-900">{viewingVisitor.date || 'Today'}</p>
+                    <p className="mt-1.5 text-xs font-black text-gray-900">{viewingVisitor.date || formatDisplayDate(viewingVisitor.createdAt)}</p>
                   </div>
-                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
                     <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Visitor Code</p>
-                    <p className="mt-2 text-sm font-black text-gray-900">{viewingVisitor.visitorCode || 'N/A'}</p>
+                    <p className="mt-1.5 text-xs font-black text-gray-900">{viewingVisitor.visitorCode || 'N/A'}</p>
                   </div>
-                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
                     <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Source</p>
-                    <p className="mt-2 text-sm font-black text-gray-900">{viewingVisitor.source || 'Frontdesk'}</p>
+                    <p className="mt-1.5 text-xs font-black text-gray-900">{viewingVisitor.source || 'Frontdesk'}</p>
                   </div>
-                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
                     <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Department</p>
-                    <p className="mt-2 text-sm font-black text-gray-900">{viewingVisitor.department || 'General'}</p>
+                    <p className="mt-1.5 text-xs font-black text-gray-900">{viewingVisitor.department || 'General'}</p>
+                  </div>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Visitor Type</p>
+                    <p className="mt-1.5 text-xs font-black text-gray-900">{toTitleCase(viewingVisitor.visitorType || 'standard')}</p>
+                  </div>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Company Type</p>
+                    <p className="mt-1.5 text-xs font-black text-gray-900">{toTitleCase(viewingVisitor.visitorCompanyType || 'individual')}</p>
+                  </div>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Visitor Company</p>
+                  <p className="mt-1.5 text-xs font-black text-gray-900">
+                    {normalizeText(viewingVisitor.visitorType) === 'tenant'
+                      ? (viewingVisitor.tenantCompanyName || 'N/A')
+                      : 'Not Applicable'}
+                  </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 text-center">
-                  <div className={`flex-1 p-4 border rounded-2xl ${viewingVisitor.status === 'Cancelled' ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}`}>
-                    <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${viewingVisitor.status === 'Cancelled' ? 'text-red-600' : 'text-green-600'}`}>Time In</p>
-                    <p className={`text-xl font-black ${viewingVisitor.status === 'Cancelled' ? 'text-red-700 line-through' : 'text-green-700'}`}>{viewingVisitor.checkIn}</p>
+                <div className="flex items-center gap-3 text-center">
+                  <div className={`flex-1 p-3 border rounded-xl ${viewingVisitor.status === 'Cancelled' ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}`}>
+                    <p className={`text-[10px] font-['Poppins'] font-extrabold uppercase tracking-widest mb-1 ${viewingVisitor.status === 'Cancelled' ? 'text-red-600' : 'text-green-600'}`}>Time In</p>
+                    <p className={`text-base font-black ${viewingVisitor.status === 'Cancelled' ? 'text-red-700 line-through' : 'text-green-700'}`}>{viewingVisitor.checkIn || formatTimeLabel(viewingVisitor.checkInAt) || '--:--'}</p>
                   </div>
                   <div className="text-gray-300"><ArrowRight size={24} strokeWidth={3} /></div>
-                  <div className={`flex-1 p-4 border rounded-2xl ${viewingVisitor.checkOut === '--:--' ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-gray-100'}`}>
+                  <div className={`flex-1 p-3 border rounded-xl ${(viewingVisitor.checkOut || '--:--') === '--:--' ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-gray-100'}`}>
                     <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Time Out</p>
-                    <p className="text-xl font-black text-gray-700">{viewingVisitor.checkOut}</p>
+                    <p className="text-base font-black text-gray-700">{viewingVisitor.checkOut || formatTimeLabel(viewingVisitor.checkOutAt) || '--:--'}</p>
                   </div>
                 </div>
 
-                <div className="rounded-3xl bg-gray-50 border border-gray-100 p-5">
+                <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4">
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Reason to Meet Host</p>
-                  <p className="mt-2 text-sm font-medium text-gray-700 leading-relaxed">{viewingVisitor.reason || viewingVisitor.notes || 'No reason added.'}</p>
+                  <p className="mt-1.5 text-xs font-medium text-gray-700 leading-relaxed">{viewingVisitor.reason || viewingVisitor.notes || 'No reason added.'}</p>
                 </div>
 
                 {String(viewingVisitor.approvalStatus || viewingVisitor.status || '').toLowerCase() === 'rejected' && (
-                  <div className="rounded-3xl border border-red-100 bg-red-50 p-5">
+                  <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
                     <p className="text-[10px] font-black uppercase tracking-widest text-red-500">Rejection Reason</p>
-                    <p className="mt-2 text-sm font-medium text-red-700 leading-relaxed">
+                    <p className="mt-1.5 text-xs font-medium text-red-700 leading-relaxed">
                       {viewingVisitor.rejectionReason || 'No rejection reason provided.'}
                     </p>
                   </div>
@@ -4696,11 +5244,16 @@ export default function VisitorsManagementPage() {
 
               </div>
 
-              <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-4 shrink-0">
-                <button onClick={() => setViewingVisitor(null)} className="flex-1 py-4 bg-white border border-gray-200 rounded-2xl font-black text-gray-600 hover:bg-gray-100 transition-all">CLOSE</button>
+              <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex gap-2.5 shrink-0">
+                <button onClick={() => setViewingVisitor(null)} className="flex-1 py-2.5 bg-white border border-gray-200 rounded-lg font-black text-xs text-gray-600 hover:bg-gray-100 transition-all">CLOSE</button>
+                {!isVisitorCheckedOut(viewingVisitor) && (
+                  <button onClick={() => handlePrintBadge(viewingVisitor)} className="flex-1 py-2.5 bg-slate-900 text-white rounded-lg font-black text-xs shadow-lg hover:bg-black transition-all flex items-center justify-center gap-1.5">
+                    <Printer size={15} /> PRINT BADGE
+                  </button>
+                )}
                 {viewingVisitor.status === 'Checked In' && (
-                  <button onClick={() => handleCheckOut(viewingVisitor.id)} className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-2">
-                    <LogOut size={18} /> CHECK OUT
+                  <button onClick={() => handleCheckOut(viewingVisitor.id)} className="flex-1 py-2.5 bg-red-600 text-white rounded-lg font-black text-xs shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-1.5">
+                    <LogOut size={15} /> CHECK OUT
                   </button>
                 )}
               </div>
@@ -4952,36 +5505,41 @@ export default function VisitorsManagementPage() {
         {/* MODAL 6: POST-CHECK-IN BADGE */}
         {showBadge && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-[#0F172A]/95 backdrop-blur-md">
-            <div className="bg-white w-full max-w-sm rounded-[3rem] shadow-2xl animate-in zoom-in duration-300 overflow-hidden flex flex-col items-center p-8 text-center relative">
+            <div className="bg-white w-full max-w-xs rounded-[2.2rem] shadow-2xl animate-in zoom-in duration-300 overflow-hidden flex flex-col items-center p-6 text-center relative">
 
-              <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-green-400 to-green-500 rounded-b-[40px] -z-0"></div>
+              <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-green-400 to-green-500 rounded-b-[30px] -z-0"></div>
 
-              <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-xl z-10 mb-6 border-4 border-green-50">
-                <CheckCircle2 size={48} className="text-green-500" />
+              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-xl z-10 mb-4 border-4 border-green-50">
+                <CheckCircle2 size={32} className="text-green-500" />
               </div>
 
-              <h2 className="text-2xl font-black text-gray-900 z-10">Check-In Successful</h2>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-2 mb-8">Virtual Visitor Badge Generated</p>
+              <h2 className="text-xl font-black text-gray-900 z-10">Check-In Successful</h2>
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2 mb-5">Virtual Visitor Badge Generated</p>
 
-              <div className="w-full bg-gray-50 border-2 border-dashed border-gray-300 rounded-3xl p-6 relative">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-16 h-6 bg-white border-2 border-gray-200 rounded-full flex items-center justify-center"><div className="w-8 h-2 bg-gray-200 rounded-full"></div></div>
+              <div className="w-full bg-gray-50 border-2 border-dashed border-gray-300 rounded-2xl p-4 relative">
+                <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-14 h-5 bg-white border-2 border-gray-200 rounded-full flex items-center justify-center"><div className="w-7 h-1.5 bg-gray-200 rounded-full"></div></div>
 
-                <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4">VISITOR PASS</p>
-                <h3 className="text-2xl font-black text-gray-900 mb-1">{showBadge.name}</h3>
-                <p className="text-xs font-bold text-gray-500 mb-6">{showBadge.company}</p>
+                <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-3">VISITOR PASS</p>
+                <h3 className="text-xl font-black text-gray-900 mb-1 leading-tight">{showBadge.name}</h3>
+                <p className="text-[11px] font-bold text-gray-500 mb-4">{showBadge.company}</p>
 
-                <div className="grid grid-cols-2 gap-4 text-left border-t border-gray-200 pt-4">
-                  <div><p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Badge No</p><p className="font-black text-lg text-gray-900">{showBadge.badgeNo}</p></div>
-                  <div><p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Purpose</p><p className="font-bold text-sm text-gray-700">{showBadge.purpose}</p></div>
-                  <div className="col-span-2"><p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Host / Destination</p><p className="font-bold text-sm text-gray-700">{showBadge.host}</p></div>
+                <div className="grid grid-cols-2 gap-3 text-left border-t border-gray-200 pt-3">
+                  <div><p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Badge No</p><p className="font-black text-base text-gray-900">{showBadge.badgeNo}</p></div>
+                  <div><p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Purpose</p><p className="font-bold text-xs text-gray-700">{showBadge.purpose}</p></div>
+                  <div className="col-span-2"><p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Host / Destination</p><p className="font-bold text-xs text-gray-700">{showBadge.host}</p></div>
                 </div>
               </div>
 
-              <p className="text-[10px] font-bold text-amber-600 mt-6 max-w-[250px] leading-relaxed">{showBadge.notes || "Host has been notified via email and SMS."}</p>
+              <p className="text-[10px] font-bold text-amber-600 mt-4 max-w-[240px] leading-relaxed">{showBadge.notes || "Host has been notified via email and SMS."}</p>
 
-              <button onClick={() => setShowBadge(null)} className="w-full py-4 mt-6 bg-gray-900 text-white rounded-2xl font-black shadow-lg hover:bg-black transition-all">
-                PRINT BADGE & CLOSE
-              </button>
+              <div className="w-full mt-5 grid grid-cols-2 gap-2">
+                <button onClick={handlePrintBadge} className="w-full py-3 bg-gray-900 text-white rounded-2xl text-xs font-black shadow-lg hover:bg-black transition-all">
+                  PRINT BADGE
+                </button>
+                <button onClick={() => setShowBadge(null)} className="w-full py-3 border border-gray-300 text-gray-700 rounded-2xl text-xs font-black hover:bg-gray-50 transition-all">
+                  CLOSE
+                </button>
+              </div>
             </div>
           </div>
         )}

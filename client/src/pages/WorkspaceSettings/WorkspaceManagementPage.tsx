@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
+import useAuth from "../../hooks/useAuth";
+import { getWorkspaceCount } from "../../utils/workspacePlanAccess";
 import {
   getWorkspaceManagementOverview,
   updateManagedWorkspace,
@@ -374,9 +376,23 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
 }
 
 export default function WorkspaceManagementPage() {
+  const { auth } = useAuth();
   const axiosPrivate = useAxiosPrivate();
   const navigate = useNavigate();
   const currentUser = getStoredUser();
+  const workspaceCount = getWorkspaceCount(
+    (auth?.user as { workspaceCount?: number } | null)?.workspaceCount ??
+      (currentUser as { workspaceCount?: number } | null)?.workspaceCount,
+  );
+  const planLabel = String(
+    (auth?.user as { workspace?: { selectedPlan?: string }; selectedPlan?: string } | null)?.workspace
+      ?.selectedPlan ||
+      (auth?.user as { selectedPlan?: string } | null)?.selectedPlan ||
+      "basic",
+  )
+    .trim()
+    .toLowerCase();
+  const isWorkspaceManagementLocked = !(planLabel === "professional" && workspaceCount > 1);
   const [departmentFilter, setDepartmentFilter] = useState("All departments");
   const [workspaceFilter, setWorkspaceFilter] = useState("all");
   const [overview, setOverview] = useState(null);
@@ -387,6 +403,14 @@ export default function WorkspaceManagementPage() {
   const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isCombinedModalOpen, setIsCombinedModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (isWorkspaceManagementLocked) {
+      toast.error("Upgrade plan to unlock this");
+      navigate("/company-settings/workspace-settings", { replace: true });
+      return;
+    }
+  }, [isWorkspaceManagementLocked, navigate]);
 
   useEffect(() => {
     let isMounted = true;
@@ -414,12 +438,16 @@ export default function WorkspaceManagementPage() {
       }
     }
 
-    loadOverview();
+    if (!isWorkspaceManagementLocked) {
+      loadOverview();
+    } else {
+      setIsLoading(false);
+    }
 
     return () => {
       isMounted = false;
     };
-  }, [axiosPrivate, departmentFilter]);
+  }, [axiosPrivate, departmentFilter, isWorkspaceManagementLocked]);
 
   const workspaceList = Array.isArray(overview?.workspaces) ? overview.workspaces : [];
   const displayedWorkspaces =

@@ -66,6 +66,7 @@ interface NavNode {
   route?: string;
   isRed?: boolean;
   disabled?: boolean;
+  disabledTitle?: string;
   defaultOpen?: boolean;
   children?: NavNode[];
 }
@@ -86,6 +87,7 @@ interface NavItemProps {
   isRed?: boolean;
   isActive?: boolean;
   disabled?: boolean;
+  disabledTitle?: string;
   forceBold?: boolean;
   forceSmall?: boolean;
 }
@@ -245,12 +247,13 @@ const NavItem = ({
   isRed,
   isActive,
   disabled,
+  disabledTitle,
   forceBold,
   forceSmall,
 }: NavItemProps) => (
   <button
     type="button"
-    title={disabled ? "Coming soon" : ""}
+    title={disabled ? (disabledTitle || "Coming soon") : ""}
     className={`w-full flex items-center justify-between py-2 px-3 select-none rounded-md transition-colors ${
       isActive ? "bg-gray-200 font-medium" : "hover:bg-gray-200"
     } ${isRed ? "text-red-500 hover:text-red-600" : "text-gray-700 hover:text-gray-900"} ${
@@ -314,6 +317,7 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate }: NavGroup
         isRed={item.isRed}
         isActive={isActive}
         disabled={item.disabled || !item.route}
+        disabledTitle={item.disabledTitle}
         forceBold={hasChildren}
         forceSmall={!hasChildren && depth > 0}
       />
@@ -366,6 +370,8 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     .trim()
     .toLowerCase();
   const isFounderRole = currentRole === "founder" || currentRole === "owner";
+  const isWorkspaceManagementUnlocked =
+    planLabel === "professional" && workspaceCount > 1;
   const enabledIds = new Set([
     ...getEnabledModuleIdsForPlan(planLabel, workspaceCount),
     ...(workspaceSetup.enabledModuleIds || []),
@@ -391,6 +397,14 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
         return {
           ...item,
           disabled: true,
+          disabledTitle: "Upgrade plan to unlock this",
+        };
+      }
+      if (item.id === "workspace-management" && !isWorkspaceManagementUnlocked) {
+        return {
+          ...item,
+          disabled: true,
+          disabledTitle: "Upgrade plan to unlock this",
         };
       }
       return {

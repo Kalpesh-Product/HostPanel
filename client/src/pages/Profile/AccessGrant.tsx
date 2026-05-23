@@ -366,6 +366,7 @@ export default function AccessGrantsPage() {
     return transferWorkspaceOptions.filter((item) => !activeWorkspaceIds.has(String(item.id)));
   }, [selectedUser, transferWorkspaceOptions]);
   const canLinkMembers = canEditAccessGrants && linkWorkspaceOptions.length > 0;
+  const isDemoteDisabled = true;
   const selectedTransferWorkspace = useMemo(
     () => transferWorkspaceOptions.find((item) => String(item.id) === String(workspaceTransferForm.targetWorkspaceId)) || null,
     [transferWorkspaceOptions, workspaceTransferForm.targetWorkspaceId],
@@ -1328,7 +1329,7 @@ export default function AccessGrantsPage() {
                       </button>
                       <button
                         onClick={roleActionWarning.type === 'promote' ? handlePromote : handleDemote}
-                        disabled={isSaving || !canEditAccessGrants}
+                        disabled={isSaving || !canEditAccessGrants || (roleActionWarning.type === 'demote' && isDemoteDisabled)}
                         className={`px-4 py-2 text-white rounded-lg font-semibold transition-colors text-sm shadow-sm disabled:opacity-60 ${roleActionWarning.type === 'promote' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600'}`}
                       >
                         {isSaving ? 'Saving...' : roleActionWarning.type === 'promote' ? 'Confirm Promote' : 'Confirm Demote'}
@@ -1347,8 +1348,9 @@ export default function AccessGrantsPage() {
 
                     {nextLowerRole && (
                       <button
+                        title={isDemoteDisabled ? 'Demote is disabled.' : ''}
                         onClick={handleDemote}
-                        disabled={isSaving || !canEditAccessGrants}
+                        disabled={isSaving || !canEditAccessGrants || isDemoteDisabled}
                         className="w-full p-3 bg-white hover:bg-amber-50 text-left rounded-[1.1rem] transition-colors group border border-slate-100 shadow-sm disabled:opacity-60"
                       >
                         <div className="flex items-center justify-between gap-4">

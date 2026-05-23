@@ -39,6 +39,9 @@ const getRoleBand = (role = "") => {
   return "employee";
 };
 
+const isBasicPlan = (workspace: any) =>
+  String(workspace?.selectedPlan || "basic").trim().toLowerCase() === "basic";
+
 const buildLinkedWorkspaceOptions = async (workspace) => {
   if (!workspace?.owner) return [];
   const workspaces = await Workspace.find({
@@ -206,6 +209,7 @@ export const getOrganizationOverview = async (req, res, next) => {
       data: {
         workspace: {
           id: toId(workspace._id),
+          selectedPlan: workspace.selectedPlan || "basic",
           organizationDepartments: workspace.organizationDepartments || [],
         },
         linkedWorkspaces,
@@ -228,6 +232,11 @@ export const saveOrganizationDepartment = async (req, res, next) => {
     const { workspace } = await getCurrentWorkspace(req.user);
     if (!workspace) {
       return res.status(404).json({ message: "Workspace not found for this user." });
+    }
+    if (isBasicPlan(workspace)) {
+      return res.status(403).json({
+        message: "Department management is not available on the Basic plan.",
+      });
     }
 
     await ensureWorkspaceDepartments(workspace);
@@ -270,6 +279,11 @@ export const assignOrganizationDepartmentManager = async (req, res, next) => {
     const { workspace } = await getCurrentWorkspace(req.user);
     if (!workspace) {
       return res.status(404).json({ message: "Workspace not found for this user." });
+    }
+    if (isBasicPlan(workspace)) {
+      return res.status(403).json({
+        message: "Department management is not available on the Basic plan.",
+      });
     }
 
     const department = workspace.organizationDepartments?.id(req.params.departmentId);
@@ -349,6 +363,49 @@ export const inviteOrganizationMember = async (req, res, next) => {
 
     if (!name || !email) {
       return res.status(400).json({ message: "Name and email are required." });
+    }
+
+    if (isBasicPlan(workspace)) {
+      const actorMembership = await WorkspaceMember.findOne({
+        workspace: workspace._id,
+        user: req.user,
+        isActive: true,
+      })
+        .select("role")
+        .lean()
+        .exec();
+      const actorRoleBand = getRoleBand(actorMembership?.role || user?.role || "");
+
+      if (actorRoleBand !== "owner") {
+        return res.status(403).json({
+          message: "Only the founder can add users on the Basic plan.",
+        });
+      }
+
+      const normalizedInviteRole = normalizeRoleForStorage(role);
+      if (normalizedInviteRole !== "super_admin") {
+        return res.status(400).json({
+          message: "Basic plan allows only one Super Admin invite.",
+        });
+      }
+
+      const activeMembers = await WorkspaceMember.find({
+        workspace: workspace._id,
+        isActive: true,
+      })
+        .select("role")
+        .lean()
+        .exec();
+
+      const activeSuperAdmins = activeMembers.filter(
+        (member) => getRoleBand(member?.role || "") === "super_admin",
+      ).length;
+
+      if (activeSuperAdmins >= 1) {
+        return res.status(400).json({
+          message: "Basic plan limit reached. Only one additional user can be added.",
+        });
+      }
     }
 
     let targetUser = await HostUser.findOne({ email });
@@ -436,6 +493,11 @@ export const assignOrganizationActingManager = async (req, res, next) => {
     if (!workspace) {
       return res.status(404).json({ message: "Workspace not found for this user." });
     }
+    if (isBasicPlan(workspace)) {
+      return res.status(403).json({
+        message: "Department management is not available on the Basic plan.",
+      });
+    }
 
     const department = workspace.organizationDepartments?.id(req.params.departmentId);
     if (!department) {
@@ -479,6 +541,11 @@ export const removeOrganizationActingManager = async (req, res, next) => {
     const { workspace } = await getCurrentWorkspace(req.user);
     if (!workspace) {
       return res.status(404).json({ message: "Workspace not found for this user." });
+    }
+    if (isBasicPlan(workspace)) {
+      return res.status(403).json({
+        message: "Department management is not available on the Basic plan.",
+      });
     }
 
     const departmentId = String(req.params.departmentId || "");

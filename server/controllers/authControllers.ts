@@ -279,6 +279,22 @@ const resolveCompanyForActiveWorkspace = async (user: any, activeMembership: any
 
         return companyFromWorkspace;
       }
+
+      const workspaceBusinessName = String(activeWorkspace?.businessName || "").trim();
+      if (workspaceBusinessName) {
+        const workspaceMatchedCompany = await Company.findOne({
+          companyName: new RegExp(
+            `^${workspaceBusinessName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+            "i",
+          ),
+        })
+          .lean()
+          .exec();
+
+        if (workspaceMatchedCompany) {
+          return workspaceMatchedCompany;
+        }
+      }
     }
   }
 

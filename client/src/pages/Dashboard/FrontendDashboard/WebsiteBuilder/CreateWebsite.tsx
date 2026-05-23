@@ -140,6 +140,11 @@ const CreateWebsite = () => {
     selectedCompany?.workspaceId ||
     auth?.user?.primaryWorkspace ||
     auth?.user?.workspaceId;
+  const companyId =
+    selectedCompany?.companyId ||
+    hostCompanyIdentity?.companyId ||
+    auth?.user?.companyId ||
+    "";
   const prefillCompanyId =
     selectedCompany?.companyId ||
     hostCompanyIdentity?.companyId ||
@@ -318,16 +323,21 @@ const CreateWebsite = () => {
 
   useEffect(() => {
     const fetchCredits = async () => {
-      if (!workspaceId) return;
+      const subscriptionId = companyId || workspaceId;
+      if (!subscriptionId) return;
       try {
-        const res = await axios.get(`/api/subscription/${workspaceId}`, {
+        const res = await axios.get(`/api/subscription/${subscriptionId}`, {
+          params: {
+            companyId: String(companyId || "").trim(),
+            workspaceId: String(workspaceId || "").trim(),
+          },
           headers: {
             Authorization: `Bearer ${auth?.accessToken || ""}`,
           },
         });
         setCreditsRemaining(Number(res?.data?.creditsRemaining ?? 5));
         setCreditsUsed(Number(res?.data?.creditsUsed ?? 0));
-        setCreditsLimit(Number(res?.data?.creditsLimit ?? 5));
+        setCreditsLimit(Number(res?.data?.monthlyCreditsLimit ?? res?.data?.creditsLimit ?? 5));
         setCreditsResetDate(res?.data?.creditsResetDate || null);
       } catch (error) {
         setCreditsRemaining(5);
@@ -338,7 +348,7 @@ const CreateWebsite = () => {
     };
 
     fetchCredits();
-  }, [axios, workspaceId]);
+  }, [axios, companyId, workspaceId, auth?.accessToken]);
 
   const {
     fields: aboutFields,
@@ -545,7 +555,7 @@ const CreateWebsite = () => {
             ? new Date(err.response.data.resetDate).toLocaleDateString()
             : "-";
           toast.error(
-            `You've used all 5 credits for this month. Your credits reset on ${resetDate}.`,
+            `You've used all available credits for this month. Your credits reset on ${resetDate}.`,
           );
           return;
         }
@@ -1446,7 +1456,9 @@ const CreateWebsite = () => {
 
               {/* Submit / Reset */}
               <div className="flex justify-center mb-3">
-                {workspaceId ? <CreditsIndicator workspaceId={workspaceId} /> : null}
+                {workspaceId || companyId ? (
+                  <CreditsIndicator workspaceId={workspaceId} companyId={companyId} />
+                ) : null}
               </div>
               <div className="flex items-center justify-center gap-4">
                 <PrimaryButton

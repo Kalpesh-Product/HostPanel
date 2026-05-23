@@ -77,9 +77,17 @@ const EditWebsite = () => {
     selectedCompany?.workspaceId ||
     auth?.user?.primaryWorkspace ||
     auth?.user?.workspaceId;
+  const companyId =
+    String(
+      selectedCompany?.companyId ||
+      auth?.user?.companyId ||
+      "",
+    ).trim();
   const [creditsRemaining, setCreditsRemaining] = useState(5);
   const [creditsUsed, setCreditsUsed] = useState(0);
   const [creditsLimit, setCreditsLimit] = useState(5);
+  const [addOnCreditsPurchased, setAddOnCreditsPurchased] = useState(0);
+  const [addOnCreditsRemaining, setAddOnCreditsRemaining] = useState(0);
   const [creditsResetDate, setCreditsResetDate] = useState(null);
   const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
   const [pendingSubmitValues, setPendingSubmitValues] = useState(null);
@@ -177,6 +185,7 @@ const EditWebsite = () => {
     },
     retry: false,
   });
+  const templateCompanyId = String(tpl?.companyId || "").trim();
 
   const normalizedSearchKey = String(tpl?.searchKey || searchKey || "company").trim();
   const websiteHref = `https://${normalizedSearchKey}.wono.co/`;
@@ -184,27 +193,36 @@ const EditWebsite = () => {
 
   useEffect(() => {
     const fetchCredits = async () => {
-      if (!workspaceId) return;
+      const subscriptionId = templateCompanyId || companyId || workspaceId;
+      if (!subscriptionId) return;
       try {
-        const res = await axios.get(`/api/subscription/${workspaceId}`, {
+        const res = await axios.get(`/api/subscription/${subscriptionId}`, {
+          params: {
+            companyId: String(templateCompanyId || companyId || "").trim(),
+            workspaceId: String(workspaceId || "").trim(),
+          },
           headers: {
             Authorization: `Bearer ${auth?.accessToken || ""}`,
           },
         });
         setCreditsRemaining(Number(res?.data?.creditsRemaining ?? 5));
         setCreditsUsed(Number(res?.data?.creditsUsed ?? 0));
-        setCreditsLimit(Number(res?.data?.creditsLimit ?? 5));
+        setCreditsLimit(Number(res?.data?.monthlyCreditsLimit ?? res?.data?.creditsLimit ?? 5));
+        setAddOnCreditsPurchased(Number(res?.data?.addOnCreditsPurchased ?? 0));
+        setAddOnCreditsRemaining(Number(res?.data?.addOnCreditsRemaining ?? 0));
         setCreditsResetDate(res?.data?.creditsResetDate || null);
       } catch (error) {
         setCreditsRemaining(5);
         setCreditsUsed(0);
         setCreditsLimit(5);
+        setAddOnCreditsPurchased(0);
+        setAddOnCreditsRemaining(0);
         setCreditsResetDate(null);
       }
     };
 
     fetchCredits();
-  }, [axios, workspaceId]);
+  }, [axios, templateCompanyId, companyId, workspaceId, auth?.accessToken]);
 
   const {
     fields: productFields,
@@ -523,7 +541,7 @@ const EditWebsite = () => {
           ? new Date(err.response.data.resetDate).toLocaleDateString()
           : "-";
         toast.error(
-          `You've used all 5 credits for this month. Your credits reset on ${resetDate}.`,
+          `You've used all available credits for this month. Your credits reset on ${resetDate}.`,
         );
         return;
       }
@@ -1649,7 +1667,12 @@ const EditWebsite = () => {
 
               {/* Submit / Reset */}
               <div className="flex justify-center mb-3">
-                {workspaceId ? <CreditsIndicator workspaceId={workspaceId} /> : null}
+                {workspaceId || companyId || tpl?.companyId ? (
+                  <CreditsIndicator
+                    workspaceId={workspaceId}
+                    companyId={String(tpl?.companyId || companyId || "").trim()}
+                  />
+                ) : null}
               </div>
               <div className="flex items-center justify-center gap-4">
                 <PrimaryButton
@@ -1715,6 +1738,14 @@ const EditWebsite = () => {
                     <div className="rounded-lg bg-white p-3 border border-slate-200">
                       <div className="text-xs text-slate-500">Monthly Limit</div>
                       <div className="text-base font-semibold text-slate-900">{creditsLimit}</div>
+                    </div>
+                    <div className="rounded-lg bg-white p-3 border border-slate-200">
+                      <div className="text-xs text-slate-500">Add-on Purchased</div>
+                      <div className="text-base font-semibold text-slate-900">{addOnCreditsPurchased}</div>
+                    </div>
+                    <div className="rounded-lg bg-white p-3 border border-slate-200">
+                      <div className="text-xs text-slate-500">Add-on Remaining</div>
+                      <div className="text-base font-semibold text-slate-900">{addOnCreditsRemaining}</div>
                     </div>
                     <div className="rounded-lg bg-white p-3 border border-slate-200">
                       <div className="text-xs text-slate-500">Days Left</div>

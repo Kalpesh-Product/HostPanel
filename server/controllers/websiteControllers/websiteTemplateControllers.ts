@@ -142,14 +142,38 @@ const buildStrictTemplateLookupByCompanyAndVertical = (searchKey, vertical) => {
   };
 };
 
-const deductWorkspaceCreditOnSuccess = async (workspaceId) => {
-  if (!workspaceId) return;
-  const subscription = await WorkspaceSubscription.findOne({
-    $or: [{ workspaceId }, { companyId: workspaceId }],
-  });
-  if (!subscription) return;
-  subscription.creditsUsed = Number(subscription.creditsUsed || 0) + 1;
-  await subscription.save();
+const getFirstDayOfNextMonthUtc = () => {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0));
+};
+
+const deductWorkspaceCreditOnSuccess = async ({ workspaceId, companyId } = {}) => {
+  const normalizedWorkspaceId = String(workspaceId || "").trim();
+  const normalizedCompanyId = String(companyId || "").trim();
+  if (!normalizedWorkspaceId && !normalizedCompanyId) return;
+
+  const lookupClauses = [];
+  if (normalizedWorkspaceId) lookupClauses.push({ workspaceId: normalizedWorkspaceId });
+  if (normalizedCompanyId) lookupClauses.push({ companyId: normalizedCompanyId });
+
+  await WorkspaceSubscription.findOneAndUpdate(
+    { $or: lookupClauses },
+    {
+      $setOnInsert: {
+        workspaceId: normalizedWorkspaceId || normalizedCompanyId || undefined,
+        companyId: normalizedCompanyId || normalizedWorkspaceId || undefined,
+        plan: "static-free",
+        creditsLimit: 5,
+        creditsResetDate: getFirstDayOfNextMonthUtc(),
+      },
+      $inc: { creditsUsed: 1 },
+    },
+    {
+      upsert: true,
+      new: true,
+      setDefaultsOnInsert: true,
+    },
+  ).exec();
 };
 
 const NOMADS_BASE_URL = "https://wononomadsbe.vercel.app";
@@ -900,6 +924,11 @@ export const createTemplate = async (req, res, next) => {
       }
     }
 
+    await deductWorkspaceCreditOnSuccess({
+      workspaceId: req.body?.workspaceId || savedTemplate?.workspaceId,
+      companyId: req.body?.companyId || savedTemplate?.companyId,
+    });
+
     return res.status(201).json({ message: "Template created", template: savedTemplate });
   } catch (error) {
     next(error);
@@ -1642,9 +1671,10 @@ export const editTemplate = async (req, res, next) => {
     await session.commitTransaction();
     session.endSession();
 
-    await deductWorkspaceCreditOnSuccess(
-      req.body?.workspaceId || req.body?.companyId || template?.workspaceId || template?.companyId,
-    );
+    await deductWorkspaceCreditOnSuccess({
+      workspaceId: req.body?.workspaceId || template?.workspaceId,
+      companyId: req.body?.companyId || template?.companyId,
+    });
 
     res
       .status(200)
