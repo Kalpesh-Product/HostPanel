@@ -5114,7 +5114,7 @@ export default function VisitorsManagementPage() {
           </div>
         )}
 
-        {/* MODAL 5: VIEW HISTORICAL VISITOR DETAILS */}
+        {/* MODAL 5: VIEW HISTORICAL VISITOR DETAILS  */}
         {viewingVisitor && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-sm">
             <div className="bg-white rounded-[24px] w-full max-w-[760px] shadow-2xl animate-in zoom-in duration-200 overflow-hidden flex flex-col max-h-[82vh]">
