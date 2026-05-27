@@ -295,3 +295,20 @@
   text-overflow: ellipsis;
   pointer-events: none;
 }
+
+/* Centered compact popup card for selected success toasts */
+.wono-center-toast {
+  width: min(440px, calc(100vw - 28px)) !important;
+  border-radius: 14px !important;
+  padding: 14px 16px !important;
+}
+
+.wono-center-toast [data-title] {
+  font-size: 16px !important;
+  line-height: 1.25 !important;
+}
+
+.wono-center-toast [data-description] {
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+}

@@ -79,6 +79,14 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
+app.use((err, req, res, next) => {
+  console.error("Unhandled API error:", err?.stack || err?.message || err);
+  if (res.headersSent) return next(err);
+  return res.status(err?.status || 500).json({
+    message: err?.message || "Internal server error",
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`server is running on PORT ${PORT}`);
 });

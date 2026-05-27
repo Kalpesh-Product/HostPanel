@@ -5,7 +5,16 @@ export const getOrganizationOverview = (axiosPrivate: AxiosInstance) =>
 
 export const saveOrganizationDepartment = (
   axiosPrivate: AxiosInstance,
-  payload: { departmentId?: string; name: string; description?: string; isActive?: boolean },
+  payload: {
+    departmentId?: string;
+    name: string;
+    description?: string;
+    isActive?: boolean;
+    moduleIds?: string[];
+    managerUserId?: string;
+    adminUserIds?: string[];
+    employeeUserIds?: string[];
+  },
 ) => {
   const hasDepartmentId = Boolean(payload.departmentId);
   const path = hasDepartmentId

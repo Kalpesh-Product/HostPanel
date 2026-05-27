@@ -100,10 +100,22 @@ const workspaceSchema = new mongoose.Schema(
           name: { type: String, required: true, trim: true },
           description: { type: String, default: "", trim: true },
           isActive: { type: Boolean, default: true },
+          moduleIds: {
+            type: [String],
+            default: [],
+          },
           managerUser: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "HostUser",
             default: null,
+          },
+          adminUsers: {
+            type: [{ type: mongoose.Schema.Types.ObjectId, ref: "HostUser" }],
+            default: [],
+          },
+          employeeUsers: {
+            type: [{ type: mongoose.Schema.Types.ObjectId, ref: "HostUser" }],
+            default: [],
           },
         },
       ],

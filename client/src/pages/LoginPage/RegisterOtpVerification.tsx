@@ -128,18 +128,18 @@ export default function RegisterOtpVerification() {
 
       <div className="login-section loginTopPadding loginBottomPadding poppinsRegular heightPadding">
         {showRegistrationSuccess ? (
-          <div className="w-full max-w-3xl mx-auto py-10 md:py-16 px-4">
-            <div className="rounded-[28px] border border-[#d9e6ff] bg-[linear-gradient(180deg,#ffffff_0%,#f5f9ff_100%)] shadow-[0_16px_50px_rgba(23,73,182,0.14)] px-6 md:px-12 py-10 md:py-12 text-center">
-              <div className="w-16 h-16 md:w-20 md:h-20 mx-auto rounded-full bg-[#e8f1ff] flex items-center justify-center mb-5">
-                <CheckCircle2 className="text-[#2d67f0]" size={36} strokeWidth={2.5} />
+          <div className="w-full max-w-2xl mx-auto min-h-[58vh] flex items-center justify-center px-4">
+            <div className="w-full rounded-[24px] border border-[#d9e6ff] bg-[linear-gradient(180deg,#ffffff_0%,#f5f9ff_100%)] shadow-[0_16px_50px_rgba(23,73,182,0.14)] px-5 md:px-8 py-8 md:py-9 text-center">
+              <div className="w-14 h-14 md:w-16 md:h-16 mx-auto rounded-full bg-[#e8f1ff] flex items-center justify-center mb-4">
+                <CheckCircle2 className="text-[#2d67f0]" size={30} strokeWidth={2.5} />
               </div>
-              <h1 className="text-[24px] md:text-[30px] leading-tight font-bold text-[#102a56] mb-3 text-center">
+              <h1 className="text-[22px] md:text-[26px] leading-tight font-bold text-[#102a56] mb-2 text-center">
                 Registration Successful
               </h1>
-              <p className="text-[15px] md:text-[17px] leading-relaxed text-[#4b5e80] max-w-[640px] mx-auto">
+              <p className="text-[14px] md:text-[15px] leading-relaxed text-[#4b5e80] max-w-[520px] mx-auto">
                 Redirecting to Sign In page. Use the same credentials to sign in.
               </p>
-              <p className="mt-5 text-[13px] text-[#6b7fa7] font-medium">
+              <p className="mt-4 text-[12px] text-[#6b7fa7] font-medium">
                 Redirecting in a few seconds...
               </p>
             </div>

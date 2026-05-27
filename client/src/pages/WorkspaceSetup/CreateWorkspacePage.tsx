@@ -699,9 +699,18 @@ const CreateWorkspacePage: React.FC = () => {
                           borderColor: "#bcd0ff",
                           boxShadow: "0 0 0 2px rgba(188, 208, 255, 0.45)",
                         },
+                        "&.Mui-disabled": {
+                          opacity: 1,
+                        },
                       },
                       "& .MuiOutlinedInput-input": {
                         padding: "4px 8px",
+                      },
+                      "& .MuiInputBase-input.Mui-disabled": {
+                        WebkitTextFillColor: "#334155 !important",
+                        color: "#334155",
+                        opacity: 1,
+                        fontWeight: 500,
                       },
                       "& .MuiAutocomplete-input": {
                         minWidth: "36px",
@@ -735,7 +744,7 @@ const CreateWorkspacePage: React.FC = () => {
                 value={stateName}
                 onChange={(e) => setStateName(e.target.value)}
                 disabled={!country || isStatesLoading || hasLockedInviteState}
-                className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff] disabled:bg-[#eef1f5] disabled:text-[#8d99ad]"
+                className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff] disabled:bg-[#eef1f5] disabled:text-[#334155] disabled:font-medium disabled:opacity-100"
               >
                 <option value="">
                   {!country
@@ -764,7 +773,7 @@ const CreateWorkspacePage: React.FC = () => {
                 disabled={
                   !country || !stateName || isCitiesLoading || hasLockedInviteCity
                 }
-                className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff] disabled:bg-[#eef1f5] disabled:text-[#8d99ad]"
+                className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff] disabled:bg-[#eef1f5] disabled:text-[#334155] disabled:font-medium disabled:opacity-100"
               >
                 <option value="">
                   {!country || !stateName

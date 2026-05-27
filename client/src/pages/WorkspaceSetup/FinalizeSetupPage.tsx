@@ -638,7 +638,9 @@ const FinalizeSetupPage: React.FC = () => {
                     >
                       <p className="text-[11.5px] text-[#4f627d] break-words">
                         <span className="font-bold text-[#1f3553] text-[12px]">{row.label}:</span>{" "}
-                        {row.value}
+                        <span className="font-semibold text-[#1f3553]">
+                          {row.value}
+                        </span>
                       </p>
                     </div>
                   ))

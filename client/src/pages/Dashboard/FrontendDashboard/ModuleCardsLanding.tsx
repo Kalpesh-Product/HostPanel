@@ -21,6 +21,7 @@ import {
   Lock,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 import Card from "../../../components/Card";
 import PageFrame from "../../../components/Pages/PageFrame";
 import {
@@ -29,6 +30,7 @@ import {
   isModuleLockedForPlan,
 } from "../../../utils/workspacePlanAccess";
 import useAuth from "../../../hooks/useAuth";
+import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 
 type PlanType = "basic" | "professional" | "custom";
 type SectionType = "company-settings" | "key-apps";
@@ -104,15 +106,40 @@ const LockedCard = ({ title, icon }: { title: string; icon?: ReactNode }) => (
 
 const ModuleCardsLanding = ({ section }: { section: SectionType }) => {
   const { auth } = useAuth();
+  const axiosPrivate = useAxiosPrivate();
+  const [workspaceAccessMap, setWorkspaceAccessMap] = useState<WorkspaceSetupState | null>(null);
   const workspaceSetup = readWorkspaceSetup();
-  const planLabel = workspaceSetup.selectedPlan || "basic";
+  const planLabel = workspaceAccessMap?.selectedPlan || workspaceSetup.selectedPlan || "basic";
   const workspaceCount = getWorkspaceCount(
     (auth.user as { workspaceCount?: number } | null)?.workspaceCount,
   );
 
+  useEffect(() => {
+    let active = true;
+    const loadWorkspaceAccessMap = async () => {
+      try {
+        const response = await axiosPrivate.get("/api/workspaces/module-access-map");
+        const payload = response?.data?.data || {};
+        if (!active) return;
+        setWorkspaceAccessMap({
+          selectedPlan: payload?.selectedPlan || "basic",
+          enabledModuleIds: Array.isArray(payload?.enabledModuleIds)
+            ? payload.enabledModuleIds
+            : [],
+        });
+      } catch {
+        // local storage fallback
+      }
+    };
+    void loadWorkspaceAccessMap();
+    return () => {
+      active = false;
+    };
+  }, [axiosPrivate]);
+
   const enabledIds = new Set([
     ...getEnabledModuleIdsForPlan(planLabel, workspaceCount),
-    ...(workspaceSetup.enabledModuleIds || []),
+    ...(workspaceAccessMap?.enabledModuleIds || workspaceSetup.enabledModuleIds || []),
   ]);
 
   const cards = section === "company-settings" ? companySettingsCards : keyAppsCards;

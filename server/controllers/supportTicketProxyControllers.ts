@@ -1,5 +1,7 @@
 // @ts-nocheck
 import axios from "axios";
+import HostUser from "../models/HostUser.js";
+import Workspace from "../models/Workspace.js";
 
 const MASTER_PANEL_BASE_URL = String(
   process.env.MASTER_PANEL_BASE_URL || "http://localhost:5007",
@@ -48,6 +50,27 @@ export const getSupportTicketsProxy = async (req, res) => {
 
 export const createSupportTicketProxy = async (req, res) => {
   try {
+    const userId = req.user || null;
+    const workspaceId = req.workspaceMembership?.workspace || null;
+
+    const [user, workspace] = await Promise.all([
+      userId
+        ? HostUser.findById(userId).select("name firstName lastName email").lean().exec()
+        : Promise.resolve(null),
+      workspaceId
+        ? Workspace.findById(workspaceId).select("workspaceName businessName brandName").lean().exec()
+        : Promise.resolve(null),
+    ]);
+
+    const requestedByName = String(
+      user?.name || `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || user?.email || "",
+    ).trim();
+    const requestedByEmail = String(user?.email || "").trim();
+    const workspaceName = String(workspace?.workspaceName || "").trim();
+    const companyName = String(
+      workspace?.brandName || workspace?.businessName || workspace?.workspaceName || "",
+    ).trim();
+
     const formData = new FormData();
     Object.entries(req.body || {}).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
@@ -59,6 +82,13 @@ export const createSupportTicketProxy = async (req, res) => {
       const imageBlob = new Blob([req.file.buffer], { type: req.file.mimetype });
       formData.append("image", imageBlob, req.file.originalname || "attachment");
     }
+
+    if (requestedByName) formData.append("requestedByName", requestedByName);
+    if (requestedByEmail) formData.append("requestedByEmail", requestedByEmail);
+    if (workspaceName) formData.append("workspaceName", workspaceName);
+    if (companyName) formData.append("companyName", companyName);
+    if (workspaceId) formData.append("workspaceId", String(workspaceId));
+    if (userId) formData.append("requestedById", String(userId));
 
     const response = await axios.post(
       `${MASTER_PANEL_BASE_URL}/api/tickets/support-tickets`,
@@ -99,4 +129,3 @@ export const followUpSupportTicketProxy = async (req, res) => {
     return forwardError(error, res);
   }
 };
-

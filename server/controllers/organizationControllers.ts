@@ -5,6 +5,7 @@ import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import jwt from "jsonwebtoken";
 import { sendMail } from "../config/mailer.js";
+import { buildWorkspaceModuleCatalog } from "../config/workspaceModuleCatalog.js";
 
 const DEFAULT_DEPARTMENTS = [
   { name: "HR", description: "People operations and hiring", isActive: true },
@@ -13,6 +14,7 @@ const DEFAULT_DEPARTMENTS = [
   { name: "Finance", description: "Finance and compliance", isActive: true },
   { name: "Maintenance", description: "Maintenance and operations", isActive: true },
   { name: "Technology", description: "Technology and product", isActive: true },
+  { name: "IT", description: "Information technology and support", isActive: true },
 ];
 
 const toId = (value) => String(value || "");
@@ -38,6 +40,7 @@ const getRoleBand = (role = "") => {
   if (normalized === "manager") return "manager";
   return "employee";
 };
+const canManageDepartmentsByRole = (role = "") => getRoleBand(role) === "owner";
 
 const isBasicPlan = (workspace: any) =>
   String(workspace?.selectedPlan || "basic").trim().toLowerCase() === "basic";
@@ -73,6 +76,21 @@ const ensureWorkspaceDepartments = async (workspace) => {
   }
 
   if (Array.isArray(workspace.organizationDepartments) && workspace.organizationDepartments.length > 0) {
+    const existingNames = new Set(
+      workspace.organizationDepartments
+        .map((department) => String(department?.name || "").trim().toLowerCase())
+        .filter(Boolean),
+    );
+    const missingDefaults = DEFAULT_DEPARTMENTS.filter(
+      (department) => !existingNames.has(String(department.name || "").trim().toLowerCase()),
+    );
+    if (missingDefaults.length > 0) {
+      workspace.organizationDepartments = [
+        ...workspace.organizationDepartments,
+        ...missingDefaults,
+      ];
+      await workspace.save();
+    }
     return workspace.organizationDepartments;
   }
 
@@ -151,8 +169,15 @@ export const getOrganizationOverview = async (req, res, next) => {
         name: department?.name || "",
         description: department?.description || "",
         color: "bg-blue-600",
+        moduleIds: Array.isArray(department?.moduleIds) ? department.moduleIds : [],
         managerUserId: toId(department?.managerUser),
         managerName: managerMember?.user?.name || "",
+        adminUserIds: Array.isArray(department?.adminUsers)
+          ? department.adminUsers.map((userId) => toId(userId))
+          : [],
+        employeeUserIds: Array.isArray(department?.employeeUsers)
+          ? department.employeeUsers.map((userId) => toId(userId))
+          : [],
         employeeCount: departmentMembers.length,
         employees: departmentMembers.map((member) => ({
           id: toId(member._id),
@@ -210,6 +235,29 @@ export const getOrganizationOverview = async (req, res, next) => {
         workspace: {
           id: toId(workspace._id),
           selectedPlan: workspace.selectedPlan || "basic",
+          enabledModuleIds: Array.isArray(workspace.enabledModuleIds)
+            ? workspace.enabledModuleIds
+            : [],
+          modules: Array.isArray(workspace.modules) ? workspace.modules : [],
+          moduleMap: buildWorkspaceModuleCatalog({
+            selectedPlan: workspace.selectedPlan || "basic",
+            enabledModuleIds: Array.isArray(workspace.enabledModuleIds)
+              ? workspace.enabledModuleIds
+              : [],
+          }),
+          availableCoreModules: Array.isArray(workspace.modules)
+            ? workspace.modules.flatMap((category) =>
+                Array.isArray(category?.items)
+                  ? category.items
+                      .filter((item) => item?.active !== false)
+                      .map((item) => ({
+                        id: String(item?.id || "").trim(),
+                        name: String(item?.name || "").trim(),
+                      }))
+                      .filter((item) => item.id)
+                  : [],
+              )
+            : [],
           organizationDepartments: workspace.organizationDepartments || [],
         },
         linkedWorkspaces,
@@ -238,6 +286,9 @@ export const saveOrganizationDepartment = async (req, res, next) => {
         message: "Department management is not available on the Basic plan.",
       });
     }
+    if (!canManageDepartmentsByRole(req.workspaceMembership?.role || "")) {
+      return res.status(403).json({ message: "Only founder can manage departments." });
+    }
 
     await ensureWorkspaceDepartments(workspace);
 
@@ -245,6 +296,16 @@ export const saveOrganizationDepartment = async (req, res, next) => {
     const name = String(req.body?.name || "").trim();
     const description = String(req.body?.description || "").trim();
     const isActive = req.body?.isActive !== false;
+    const moduleIds = Array.isArray(req.body?.moduleIds)
+      ? req.body.moduleIds.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    const managerUserId = String(req.body?.managerUserId || "").trim();
+    const adminUserIds = Array.isArray(req.body?.adminUserIds)
+      ? req.body.adminUserIds.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    const employeeUserIds = Array.isArray(req.body?.employeeUserIds)
+      ? req.body.employeeUserIds.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
 
     if (!name) {
       return res.status(400).json({ message: "Department name is required." });
@@ -262,8 +323,20 @@ export const saveOrganizationDepartment = async (req, res, next) => {
       existing.name = name;
       existing.description = description;
       existing.isActive = isActive;
+      existing.moduleIds = moduleIds;
+      existing.managerUser = managerUserId || null;
+      existing.adminUsers = adminUserIds;
+      existing.employeeUsers = employeeUserIds;
     } else {
-      departmentList.push({ name, description, isActive });
+      departmentList.push({
+        name,
+        description,
+        isActive,
+        moduleIds,
+        managerUser: managerUserId || null,
+        adminUsers: adminUserIds,
+        employeeUsers: employeeUserIds,
+      });
       workspace.organizationDepartments = departmentList;
     }
 
@@ -624,6 +697,13 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
     const { workspace } = await getCurrentWorkspace(req.user);
     if (!workspace) return res.status(404).json({ message: "Workspace not found for this user." });
 
+    const actorRoleBand = getRoleBand(req.workspaceMembership?.role || "");
+    if (!(actorRoleBand === "owner" || actorRoleBand === "super_admin")) {
+      return res.status(403).json({
+        message: "Only founder or super admin can update module access.",
+      });
+    }
+
     const member = await WorkspaceMember.findOne({
       _id: req.params.memberId,
       workspace: workspace._id,
@@ -631,8 +711,22 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
     });
     if (!member) return res.status(404).json({ message: "Member not found." });
 
+    const workspaceEnabledModuleIds = new Set(
+      Array.isArray(workspace.enabledModuleIds)
+        ? workspace.enabledModuleIds.map((item) => String(item || "").trim()).filter(Boolean)
+        : [],
+    );
     member.grantedModules = Array.isArray(req.body?.accessModules)
-      ? req.body.accessModules.map((item) => String(item || "").trim()).filter(Boolean)
+      ? req.body.accessModules
+          .map((item) => String(item || "").trim())
+          .filter(Boolean)
+          .filter((moduleId) => {
+            if (moduleId.startsWith("disabled:")) {
+              const targetModuleId = String(moduleId.slice("disabled:".length) || "").trim();
+              return targetModuleId && workspaceEnabledModuleIds.has(targetModuleId);
+            }
+            return workspaceEnabledModuleIds.has(moduleId);
+          })
       : [];
     await member.save();
 

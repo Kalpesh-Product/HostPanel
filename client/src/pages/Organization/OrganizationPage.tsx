@@ -86,6 +86,9 @@ type DepartmentOption = {
   managerName?: string;
   managerId?: string;
   managerUserId?: string;
+  moduleIds?: string[];
+  adminUserIds?: string[];
+  employeeUserIds?: string[];
   employees?: TeamMember[];
   transferredEmployees?: TeamMember[];
   actingManagers?: Array<{
@@ -94,6 +97,11 @@ type DepartmentOption = {
     assignedUserName?: string;
     assignedBaseRole?: string;
   }>;
+};
+
+type CoreModuleOption = {
+  id: string;
+  name: string;
 };
 
 const getDepartmentToneClass = (dept: DepartmentOption) => {
@@ -223,6 +231,15 @@ export function OrganizationPage() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [transferredTeamMembers, setTransferredTeamMembers] = useState<TeamMember[]>([]);
   const [workspacePlan, setWorkspacePlan] = useState('basic');
+  const [availableCoreModules, setAvailableCoreModules] = useState<CoreModuleOption[]>([]);
+  const [newDepartmentForm, setNewDepartmentForm] = useState({
+    name: '',
+    description: '',
+    moduleIds: [] as string[],
+    managerUserId: '',
+    adminUserIds: [] as string[],
+    employeeUserIds: [] as string[],
+  });
 
   const permissionSchema = {
     common: [
@@ -244,6 +261,14 @@ export function OrganizationPage() {
       const payload = response?.data?.data || response?.data || {};
       const nextWorkspaceDepartments = Array.isArray(payload?.workspace?.organizationDepartments)
         ? payload.workspace.organizationDepartments
+        : [];
+      const nextAvailableCoreModules = Array.isArray(payload?.workspace?.availableCoreModules)
+        ? payload.workspace.availableCoreModules
+            .map((item: any) => ({
+              id: String(item?.id || '').trim(),
+              name: String(item?.name || item?.label || '').trim(),
+            }))
+            .filter((item: CoreModuleOption) => item.id && item.name)
         : [];
       const nextWorkspacePlan = String(payload?.workspace?.selectedPlan || 'basic').trim().toLowerCase();
       const nextDepartments = Array.isArray(payload.departments) ? payload.departments : [];
@@ -279,7 +304,15 @@ export function OrganizationPage() {
       });
       // Always show the full platform catalog (7 departments) on this screen.
       // API workspace department payloads can temporarily be partial and hide one item.
-      const visibleDepartments = mergedDepartments;
+      const customDepartments = nextDepartments.filter((department) => {
+        const normalizedName = String(department?.name || '').trim().toLowerCase();
+        return !OWNER_DEPARTMENT_CATALOG.some(
+          (catalogDepartment) =>
+            catalogDepartment.label.toLowerCase() === normalizedName ||
+            catalogDepartment.key.toLowerCase() === normalizedName,
+        );
+      });
+      const visibleDepartments = [...mergedDepartments, ...customDepartments];
       const nextMembers = Array.isArray(payload.teamMembers) ? payload.teamMembers : [];
       const nextTransferredMembers = Array.isArray(payload.transferredTeamMembers)
         ? payload.transferredTeamMembers
@@ -287,6 +320,7 @@ export function OrganizationPage() {
 
       setWorkspaceOrganizationDepartments(nextWorkspaceDepartments);
       setWorkspacePlan(nextWorkspacePlan);
+      setAvailableCoreModules(nextAvailableCoreModules);
       setDepartments(visibleDepartments);
       setTeamMembers(nextMembers);
       setTransferredTeamMembers(nextTransferredMembers);
@@ -337,6 +371,7 @@ export function OrganizationPage() {
     setPermissions({});
     setWorkspaceOrganizationDepartments([]);
     setWorkspacePlan('basic');
+    setAvailableCoreModules([]);
     setSelectedDepartment(null);
     setExpandedDepartmentKey('');
     setIsSavingDepartments(false);
@@ -347,6 +382,14 @@ export function OrganizationPage() {
     setShowEmployeeModal(false);
     setShowAssignManagerModal(false);
     setShowTeamMemberModal(false);
+    setNewDepartmentForm({
+      name: '',
+      description: '',
+      moduleIds: [],
+      managerUserId: '',
+      adminUserIds: [],
+      employeeUserIds: [],
+    });
 
     if (currentUser?.id || currentUser?._id) {
       void loadOrganization(null, true);
@@ -728,6 +771,48 @@ export function OrganizationPage() {
         return <span className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-slate-200 text-slate-700 w-max">Disabled</span>;
       default:
         return <span className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 w-max">{status || 'Unknown'}</span>;
+    }
+  };
+
+  const handleCreateDepartmentForFounder = async () => {
+    if (!canManageDepartments) {
+      toast.error('Only founder can create departments.');
+      return;
+    }
+
+    if (!newDepartmentForm.name.trim()) {
+      toast.error('Department name is required.');
+      return;
+    }
+
+    if (newDepartmentForm.moduleIds.length === 0) {
+      toast.error('Select at least one core module.');
+      return;
+    }
+
+    try {
+      await saveOrganizationDepartment(axiosPrivate, {
+        name: newDepartmentForm.name.trim(),
+        description: newDepartmentForm.description.trim(),
+        moduleIds: newDepartmentForm.moduleIds,
+        managerUserId: newDepartmentForm.managerUserId || '',
+        adminUserIds: newDepartmentForm.adminUserIds,
+        employeeUserIds: newDepartmentForm.employeeUserIds,
+        isActive: true,
+      });
+      toast.success('Department created successfully.');
+      setNewDepartmentForm({
+        name: '',
+        description: '',
+        moduleIds: [],
+        managerUserId: '',
+        adminUserIds: [],
+        employeeUserIds: [],
+      });
+      await loadOrganization(null);
+    } catch (error) {
+      console.error('Failed to create department', error);
+      toast.error('Failed to create department.');
     }
   };
 
@@ -1563,6 +1648,126 @@ export function OrganizationPage() {
                   Tip: This screen manages the same platform departments shown during setup. Saving here updates the workspace department state and keeps module configuration in sync.
                 </p>
               </div>
+
+              {canManageDepartments ? (
+                <div className="mt-5 rounded-[20px] border border-blue-100 bg-blue-50/40 px-4 py-4 sm:rounded-[22px]">
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">Create Department (Founder)</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <input
+                      type="text"
+                      placeholder="Department name"
+                      value={newDepartmentForm.name}
+                      onChange={(e) => setNewDepartmentForm((current) => ({ ...current, name: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Description"
+                      value={newDepartmentForm.description}
+                      onChange={(e) => setNewDepartmentForm((current) => ({ ...current, description: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                    />
+                  </div>
+                  <p className="mt-3 text-[11px] font-bold uppercase tracking-widest text-slate-500">Core Modules</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {availableCoreModules.map((module) => {
+                      const selected = newDepartmentForm.moduleIds.includes(module.id);
+                      return (
+                        <button
+                          type="button"
+                          key={`create-dept-module-${module.id}`}
+                          onClick={() =>
+                            setNewDepartmentForm((current) => ({
+                              ...current,
+                              moduleIds: selected
+                                ? current.moduleIds.filter((id) => id !== module.id)
+                                : [...current.moduleIds, module.id],
+                            }))
+                          }
+                          className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold ${selected ? 'border-[#2563EB] bg-[#2563EB] text-white' : 'border-slate-200 bg-white text-slate-600'}`}
+                        >
+                          {module.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <select
+                      value={newDepartmentForm.managerUserId}
+                      onChange={(e) => setNewDepartmentForm((current) => ({ ...current, managerUserId: e.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                    >
+                      <option value="">Manager (optional)</option>
+                      {teamMembers.map((member) => (
+                        <option key={`manager-opt-${member.userId || member.id}`} value={member.userId || member.id}>
+                          {member.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (!value) return;
+                        setNewDepartmentForm((current) => ({
+                          ...current,
+                          adminUserIds: current.adminUserIds.includes(value)
+                            ? current.adminUserIds
+                            : [...current.adminUserIds, value],
+                        }));
+                      }}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                    >
+                      <option value="">Add admin</option>
+                      {teamMembers.map((member) => (
+                        <option key={`admin-opt-${member.userId || member.id}`} value={member.userId || member.id}>
+                          {member.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (!value) return;
+                        setNewDepartmentForm((current) => ({
+                          ...current,
+                          employeeUserIds: current.employeeUserIds.includes(value)
+                            ? current.employeeUserIds
+                            : [...current.employeeUserIds, value],
+                        }));
+                      }}
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                    >
+                      <option value="">Add employee</option>
+                      {teamMembers.map((member) => (
+                        <option key={`employee-opt-${member.userId || member.id}`} value={member.userId || member.id}>
+                          {member.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                    {newDepartmentForm.adminUserIds.map((id) => (
+                      <span key={`admin-badge-${id}`} className="rounded-full bg-white px-2 py-1 text-slate-600 border border-slate-200">
+                        Admin: {teamMembers.find((member) => String(member.userId || member.id) === id)?.name || id}
+                      </span>
+                    ))}
+                    {newDepartmentForm.employeeUserIds.map((id) => (
+                      <span key={`employee-badge-${id}`} className="rounded-full bg-white px-2 py-1 text-slate-600 border border-slate-200">
+                        Employee: {teamMembers.find((member) => String(member.userId || member.id) === id)?.name || id}
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCreateDepartmentForFounder}
+                    className="mt-3 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-black uppercase tracking-wider text-white hover:bg-blue-700"
+                  >
+                    Create Department
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             <div className="p-5 sm:p-6 bg-slate-50 border-t border-slate-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">

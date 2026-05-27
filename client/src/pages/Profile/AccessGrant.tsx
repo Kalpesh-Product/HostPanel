@@ -19,7 +19,6 @@ import useAuth from '../../hooks/useAuth';
 
 
 import { updateEmployeeAccess as updateEmployeeAccessRequest } from '../../services/hr';
-import { getDepartmentModules, getRoleModules, getSharedSectionModules } from '../../lib/owner-access';
 import {
   getOrganizationOverview,
   linkOrganizationMember,
@@ -35,16 +34,6 @@ const TRANSFER_ROLE_OPTIONS = [
   { value: 'admin', label: 'Admin' },
   { value: 'super_admin', label: 'Super-Admin' },
 ];
-const ALL_DEPARTMENT_KEYS = ['hr', 'administration', 'sales', 'finance', 'technology', 'it', 'maintenance'];
-const DEPARTMENT_LABELS = {
-  hr: 'HR',
-  administration: 'Administration',
-  sales: 'Sales',
-  finance: 'Finance',
-  technology: 'Technology',
-  it: 'IT',
-  maintenance: 'Maintenance',
-};
 
 function Switch({ checked, disabled, onCheckedChange }) {
   return (
@@ -147,51 +136,6 @@ function normalizeModuleKey(value = '') {
   return String(value || '').trim().toLowerCase().replace(/[\s_]+/g, '-');
 }
 
-function toEmployeeSidebarModuleKey(value = '') {
-  const normalized = normalizeModuleKey(value);
-  const aliasMap = {
-    'common-dashboard': 'dashboard',
-    'common-my-calendar': 'my-calendar',
-    'common-attendance': 'attendance',
-    'common-leave-requests': 'leave',
-    'common-tasks': 'tasks',
-    'common-tickets': 'tickets',
-    'common-meeting-room-booking': 'bookings',
-    'common-report': 'reports',
-    'extra-common-assets': 'assets',
-    'extra-assets': 'assets',
-    'extra-common-inventory': 'inventory',
-    'extra-inventory': 'inventory',
-    'extra-common-finance-management': 'finance',
-    'extra-finance-management': 'finance',
-    'finance-management': 'finance',
-  };
-  return aliasMap[normalized] || normalized;
-}
-
-function resolveEmployeeModuleKeysForSection(moduleId = '', sectionKey = '', member = null) {
-  const normalizedSection = String(sectionKey || '').trim().toLowerCase();
-  const baseKey = toEmployeeSidebarModuleKey(moduleId);
-  const keys = new Set([baseKey]);
-
-  if (baseKey === 'admin-bookings') {
-    keys.add('bookings');
-  }
-
-  if (normalizedSection === 'core' && baseKey === 'bookings') {
-    const departmentKeys = new Set(
-      (Array.isArray(member?.departments) ? member.departments : [])
-        .map((departmentName) => resolveDepartmentKey(departmentName))
-        .filter(Boolean),
-    );
-    if (departmentKeys.has('administration') || member?.roleGroup === 'Admin' || member?.roleGroup === 'Manager') {
-      keys.add('admin-bookings');
-    }
-  }
-
-  return Array.from(keys);
-}
-
 function resolveDepartmentKey(value = '') {
   const normalized = normalizeModuleKey(value);
   if (normalized.includes('administration') || normalized === 'admin') return 'administration';
@@ -290,6 +234,8 @@ export default function AccessGrantsPage() {
   const currentUser = auth?.user || null;
   const currentRole = normalizeRole(currentUser?.workspaceMembership?.role || currentUser?.role);
   const canEditAccessGrants = currentRole === 'owner' || currentRole === 'founder';
+  const canManageModuleAccess =
+    currentRole === 'owner' || currentRole === 'founder' || currentRole === 'super_admin';
 
   const [selectedRole, setSelectedRole] = useState('All Roles');
   const [searchQuery, setSearchQuery] = useState('');
@@ -454,98 +400,57 @@ export default function AccessGrantsPage() {
     }
   };
 
-  const sharedCommonModules = useMemo(() => getSharedSectionModules('common'), []);
-  const sharedExtraModules = useMemo(() => getSharedSectionModules('extra-common'), []);
+  const workspaceAccessSections = useMemo(() => {
+    const sections = Array.isArray(workspace?.moduleMap?.sections) ? workspace.moduleMap.sections : [];
+    return sections
+      .map((section) => {
+        const modules = (Array.isArray(section?.items) ? section.items : []).flatMap((item) => {
+          if (item?.implemented === false) return [];
+          if (Array.isArray(item?.tabs) && item.tabs.length > 0) {
+            return item.tabs
+              .filter((tab) => tab?.implemented !== false)
+              .filter((tab) => tab?.unlockedInWorkspace)
+              .map((tab) => ({
+                id: String(tab?.id || '').trim(),
+                label: String(tab?.label || tab?.id || '').trim(),
+                description: `${String(section?.sectionLabel || 'Section')} -> ${String(item?.label || item?.id || '')}`,
+              }))
+              .filter((module) => module.id);
+          }
 
-  const getMemberCoreSections = (member) => {
-    if (!member) return [];
-    const departments = Array.isArray(member.departments) ? member.departments : [];
-    const roleCoreModules =
-      member.roleGroup === 'Super-Admin'
-        ? getRoleModules('super-admin')
-        : member.roleGroup === 'Admin'
-          ? getRoleModules('admin')
-          : [];
-    const shouldUseAllDepartmentCoreModulesForAdminScopes =
-      member.roleGroup === 'Super-Admin' ||
-      (member.roleGroup === 'Admin' && departments.length === 0);
+          if (!item?.unlockedInWorkspace) return [];
+          return [{
+            id: String(item?.id || '').trim(),
+            label: String(item?.label || item?.id || '').trim(),
+            description: String(section?.sectionLabel || 'Section'),
+          }].filter((module) => module.id);
+        });
 
-    const departmentKeys = shouldUseAllDepartmentCoreModulesForAdminScopes
-      ? ALL_DEPARTMENT_KEYS
-      : departments.map((departmentName) => resolveDepartmentKey(departmentName)).filter(Boolean);
-
-    const sections = [];
-
-    if (roleCoreModules.length > 0) {
-      sections.push({
-        key: 'role-core',
-        title: `${member.roleGroup} Core Modules`,
-        modules: roleCoreModules.map((module) => ({
-          ...module,
-          toggleId: `role-core::${module.id}`,
-          moduleKey: module.id,
-        })),
-      });
-    }
-
-    departmentKeys.forEach((departmentKey) => {
-      const departmentModules = getDepartmentModules(departmentKey);
-      if (departmentModules.length === 0) return;
-
-      sections.push({
-        key: `dept-core::${departmentKey}`,
-        title: `${DEPARTMENT_LABELS[departmentKey] || departmentKey} Core Modules`,
-        modules: departmentModules.map((module) => ({
-          ...module,
-          toggleId: `dept-core::${departmentKey}::${module.id}`,
-          moduleKey: module.id,
-          departmentKey,
-        })),
-      });
-    });
-
-    return sections;
-  };
+        return {
+          key: String(section?.sectionId || section?.sectionLabel || 'section').trim(),
+          title: String(section?.sectionLabel || 'Section').trim(),
+          modules,
+        };
+      })
+      .filter((section) => section.modules.length > 0);
+  }, [workspace]);
 
   const openMemberAccessDialog = (member) => {
-    const memberCoreSections = getMemberCoreSections(member);
+    if (!canManageModuleAccess) {
+      toast.error('Only founder or super-admin can manage module access.');
+      return;
+    }
     const grantedModuleValues = Array.isArray(member?.grantedModules) ? member.grantedModules : [];
     const grantedModules = new Set(
       grantedModuleValues
         .map((item) => String(item || ''))
-        .filter((item) => !normalizeModuleKey(item).startsWith('disabled:'))
-        .map((item) => normalizeModuleKey(item))
-        .map((item) => toEmployeeSidebarModuleKey(item)),
+        .filter((item) => item && !normalizeModuleKey(item).startsWith('disabled:'))
+        .map((item) => String(item).trim()),
     );
-    const disabledCommonModules = new Set(
-      grantedModuleValues
-        .map((item) => normalizeModuleKey(item))
-        .filter((item) => item.startsWith('disabled:'))
-        .map((item) => toEmployeeSidebarModuleKey(item.slice('disabled:'.length))),
-    );
-    const ownerLikeMember = isOwnerLikeMember(member);
-
+    const allModuleIds = workspaceAccessSections.flatMap((section) => section.modules.map((module) => module.id));
     const nextDraft = {
-      common: sharedCommonModules.reduce((acc, module) => {
-        const sidebarModuleKeys = resolveEmployeeModuleKeysForSection(module.id, 'common', member);
-        acc[module.id] = ownerLikeMember
-          ? (
-              sidebarModuleKeys.some((moduleKey) => grantedModules.has(moduleKey))
-              && !sidebarModuleKeys.some((moduleKey) => disabledCommonModules.has(moduleKey))
-            )
-          : true;
-        return acc;
-      }, {}),
-      extra: sharedExtraModules.reduce((acc, module) => {
-        const sidebarModuleKeys = resolveEmployeeModuleKeysForSection(module.id, 'extra', member);
-        acc[module.id] = sidebarModuleKeys.some((moduleKey) => grantedModules.has(moduleKey));
-        return acc;
-      }, {}),
-      core: memberCoreSections.reduce((acc, section) => {
-        section.modules.forEach((module) => {
-          const sidebarModuleKeys = resolveEmployeeModuleKeysForSection(module.moduleKey || module.id, 'core', member);
-          acc[module.toggleId] = sidebarModuleKeys.some((moduleKey) => grantedModules.has(moduleKey));
-        });
+      db: allModuleIds.reduce((acc, moduleId) => {
+        acc[moduleId] = grantedModules.has(moduleId);
         return acc;
       }, {}),
     };
@@ -556,12 +461,6 @@ export default function AccessGrantsPage() {
   };
 
   const toggleMemberModule = (sectionKey, moduleId) => {
-    if (sectionKey === 'common') {
-      if (!isOwnerLikeMember(memberAccessTarget)) {
-        return;
-      }
-    }
-
     if (!memberAccessTarget) {
       return;
     }
@@ -577,50 +476,15 @@ export default function AccessGrantsPage() {
 
   const handleSaveMemberAccess = async () => {
     if (!memberAccessTarget) return;
+    if (!canManageModuleAccess) {
+      toast.error('Only founder or super-admin can manage module access.');
+      return;
+    }
 
-    const selectedCommonModules = Object.entries(memberAccessDraft?.common || {})
-      .filter(([, enabled]) => enabled)
-      .flatMap(([moduleId]) => resolveEmployeeModuleKeysForSection(moduleId, 'common', memberAccessTarget));
-    const selectedExtraModules = Object.entries(memberAccessDraft?.extra || {})
-      .filter(([, enabled]) => enabled)
-      .flatMap(([moduleId]) => resolveEmployeeModuleKeysForSection(moduleId, 'extra', memberAccessTarget));
-    const selectedCoreModules = Object.entries(memberAccessDraft?.core || {})
-      .filter(([, enabled]) => enabled)
-      .flatMap(([toggleId]) => {
-        const moduleId = String(toggleId || '').split('::').pop() || '';
-        return resolveEmployeeModuleKeysForSection(moduleId, 'core', memberAccessTarget);
-      });
-
-    const disabledCommonModules = Object.entries(memberAccessDraft?.common || {})
-      .filter(([, enabled]) => !enabled)
-      .map(([moduleId]) => `disabled:${toEmployeeSidebarModuleKey(moduleId)}`);
-    const disabledExtraModules = Object.entries(memberAccessDraft?.extra || {})
-      .filter(([, enabled]) => !enabled)
-      .flatMap(([moduleId]) =>
-        resolveEmployeeModuleKeysForSection(moduleId, 'extra', memberAccessTarget)
-          .map((moduleKey) => `disabled:${toEmployeeSidebarModuleKey(moduleKey)}`),
-      );
-    const disabledCoreModules = Object.entries(memberAccessDraft?.core || {})
-      .filter(([, enabled]) => !enabled)
-      .flatMap(([toggleId]) => {
-        const moduleId = String(toggleId || '').split('::').pop() || '';
-        return resolveEmployeeModuleKeysForSection(moduleId, 'core', memberAccessTarget)
-          .map((moduleKey) => `disabled:${toEmployeeSidebarModuleKey(moduleKey)}`);
-      });
-
-    const selectedModules = [
-      ...selectedCommonModules,
-      ...selectedExtraModules,
-      ...selectedCoreModules,
-    ];
-    const effectiveModules = isOwnerLikeMember(memberAccessTarget)
-      ? Array.from(new Set([...selectedModules, ...disabledCommonModules, ...disabledExtraModules, ...disabledCoreModules]))
-      : Array.from(new Set([
-          ...selectedModules,
-          ...sharedCommonModules.map((module) => toEmployeeSidebarModuleKey(module.id)),
-          ...disabledExtraModules,
-          ...disabledCoreModules,
-        ]));
+    const effectiveModules = Object.entries(memberAccessDraft?.db || {})
+      .filter(([, enabled]) => Boolean(enabled))
+      .map(([moduleId]) => String(moduleId || '').trim())
+      .filter(Boolean);
 
     setIsSaving(true);
     try {
@@ -1158,10 +1022,10 @@ export default function AccessGrantsPage() {
                               <>
                                 {!hideAccessButtonForSelfSuperAdmin ? (
                                   <button
-                                    onClick={(event) => event.preventDefault()}
+                                    onClick={() => openMemberAccessDialog(user)}
                                     type="button"
-                                    disabled
-                                    className="px-3 py-1.5 bg-[#2563EB] text-white rounded-lg font-bold text-[10px] transition-all shadow-sm shadow-blue-200 opacity-55 cursor-not-allowed"
+                                    disabled={!canManageModuleAccess}
+                                    className="px-3 py-1.5 bg-[#2563EB] text-white rounded-lg font-bold text-[10px] transition-all shadow-sm shadow-blue-200 disabled:opacity-55 disabled:cursor-not-allowed"
                                   >
                                     Access
                                   </button>
@@ -1455,26 +1319,19 @@ export default function AccessGrantsPage() {
               </div>
 
               <div className="max-h-[70vh] space-y-5 overflow-y-auto bg-slate-50 p-6">
-                {[
-                  { key: 'common', title: 'Common Modules', modules: sharedCommonModules },
-                  { key: 'extra', title: 'Extra Modules', modules: sharedExtraModules },
-                  ...getMemberCoreSections(memberAccessTarget).map((section) => ({ key: 'core', title: section.title, modules: section.modules })),
-                ].map((section, sectionIndex) => (
+                {workspaceAccessSections.map((section, sectionIndex) => (
                   <div key={`${section.key}-${section.title}-${sectionIndex}`} className="rounded-2xl border border-slate-200 bg-white p-4">
                     <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">{section.title}</h4>
                     <div className="space-y-2">
                       {section.modules.map((module) => {
-                        const locked = section.key === 'common' &&
-                          !isOwnerLikeMember(memberAccessTarget);
-                        const moduleDraftKey = section.key === 'core' ? (module.toggleId || module.id) : module.id;
-                        const checked = Boolean(memberAccessDraft?.[section.key]?.[moduleDraftKey]);
+                        const checked = Boolean(memberAccessDraft?.db?.[module.id]);
                         return (
-                          <div key={moduleDraftKey} className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2">
+                          <div key={module.id} className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2">
                             <div>
                               <p className="text-sm font-semibold text-slate-900">{module.label}</p>
                               <p className="text-[11px] text-slate-500">{module.description}</p>
                             </div>
-                            <Switch checked={checked} disabled={locked} onCheckedChange={() => toggleMemberModule(section.key, moduleDraftKey)} />
+                            <Switch checked={checked} disabled={!canManageModuleAccess} onCheckedChange={() => toggleMemberModule('db', module.id)} />
                           </div>
                         );
                       })}
@@ -1493,7 +1350,7 @@ export default function AccessGrantsPage() {
                 </button>
                 <button
                   type="button"
-                  disabled={isSaving}
+                  disabled={isSaving || !canManageModuleAccess}
                   onClick={handleSaveMemberAccess}
                   className="rounded-xl bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
                 >

@@ -1,11 +1,14 @@
 // @ts-nocheck
 import SupportTicket from "../models/SupportTicket.js";
 import { uploadFileToS3 } from "../config/s3config.js";
+import HostUser from "../models/HostUser.js";
+import Workspace from "../models/Workspace.js";
 
 const buildTicketId = () => `ST-${Date.now().toString().slice(-8)}`;
 
 const normalizeStatus = (value: any) => {
   const raw = String(value || "").trim().toLowerCase();
+  if (raw === "accepted") return "Accepted";
   if (raw === "in-progress" || raw === "in progress") return "In Progress";
   if (raw === "resolved") return "Resolved";
   if (raw === "closed") return "Closed";
@@ -17,10 +20,17 @@ const normalizeStatus = (value: any) => {
 
 const userToName = (user: any) => {
   if (!user) return "";
+  if (typeof user === "string") return user.trim();
   if (user.name) return user.name;
   const first = user.firstName || "";
   const last = user.lastName || "";
   return `${first} ${last}`.trim();
+};
+
+const userToEmail = (user: any) => {
+  if (!user) return "";
+  if (typeof user === "string") return "";
+  return String(user.email || "").trim();
 };
 
 const mapTicket = (ticket: any, sr: number) => ({
@@ -31,12 +41,12 @@ const mapTicket = (ticket: any, sr: number) => ({
   description: ticket?.description || "",
   status: normalizeStatus(ticket?.status),
   requestedAt: ticket?.requestedAt || ticket?.createdAt || null,
-  requestedByName: userToName(ticket?.requestedBy),
-  requestedByEmail: ticket?.requestedBy?.email || "",
-  acceptedByName: userToName(ticket?.acceptedBy),
-  acceptedByEmail: ticket?.acceptedBy?.email || "",
-  resolvedByName: userToName(ticket?.resolvedBy),
-  resolvedByEmail: ticket?.resolvedBy?.email || "",
+  requestedByName: userToName(ticket?.requestedBy) || ticket?.requestedByName || "",
+  requestedByEmail: userToEmail(ticket?.requestedBy) || ticket?.requestedByEmail || "",
+  acceptedByName: userToName(ticket?.acceptedBy) || ticket?.acceptedByName || "",
+  acceptedByEmail: userToEmail(ticket?.acceptedBy) || ticket?.acceptedByEmail || "",
+  resolvedByName: userToName(ticket?.resolvedBy) || ticket?.resolvedByName || "",
+  resolvedByEmail: userToEmail(ticket?.resolvedBy) || ticket?.resolvedByEmail || "",
   role: ticket?.role || "",
   department: ticket?.department || null,
   workspaceName: ticket?.workspace?.workspaceName || ticket?.workspaceName || "",
@@ -88,8 +98,43 @@ export const createSupportTicket = async (req, res, next) => {
     if (req.file) {
       const cleanName = String(req.file.originalname || "file").replace(/[/\\?%*:|"<>]/g, "_");
       const route = `support-tickets/${req.workspaceMembership?.workspace || "default"}/${Date.now()}-${cleanName}`;
-      image = await uploadFileToS3(route, req.file);
+      try {
+        image = await uploadFileToS3(route, req.file);
+      } catch (uploadError: any) {
+        return res.status(502).json({
+          message: "Attachment upload failed. Please try again.",
+          error: uploadError?.message || "S3 upload error",
+        });
+      }
     }
+
+    const [requestedByUser, workspaceDoc] = await Promise.all([
+      req.user
+        ? HostUser.findById(req.user)
+            .select("name firstName lastName email company")
+            .lean()
+            .exec()
+        : Promise.resolve(null),
+      req.workspaceMembership?.workspace
+        ? Workspace.findById(req.workspaceMembership.workspace)
+            .select("workspaceName brandName businessName company")
+            .lean()
+            .exec()
+        : Promise.resolve(null),
+    ]);
+
+    const requestedByName = String(
+      requestedByUser?.name ||
+        `${requestedByUser?.firstName || ""} ${requestedByUser?.lastName || ""}`.trim() ||
+        requestedByUser?.email ||
+        "",
+    ).trim();
+    const requestedByEmail = String(requestedByUser?.email || "").trim();
+    const workspaceName = String(workspaceDoc?.workspaceName || "").trim();
+    const companyName = String(
+      workspaceDoc?.brandName || workspaceDoc?.businessName || workspaceDoc?.workspaceName || "",
+    ).trim();
+    const company = workspaceDoc?.company || requestedByUser?.company || null;
 
     const ticket = await SupportTicket.create({
       ticketId: buildTicketId(),
@@ -97,8 +142,15 @@ export const createSupportTicket = async (req, res, next) => {
       description: String(description).trim(),
       status: "Open",
       requestedBy: req.user || null,
+      user: req.user || null,
       workspace: req.workspaceMembership?.workspace || null,
+      company,
       role: req.workspaceMembership?.role || "",
+      requestedAt: new Date(),
+      requestedByName,
+      requestedByEmail,
+      companyName,
+      workspaceName,
       image,
     });
 
@@ -137,16 +189,60 @@ export const createFollowUpTicket = async (req, res, next) => {
         .json({ message: "Follow-up can be raised only after the ticket is resolved." });
     }
 
+    const [requestedByUser, workspaceDoc] = await Promise.all([
+      req.user
+        ? HostUser.findById(req.user)
+            .select("name firstName lastName email company")
+            .lean()
+            .exec()
+        : Promise.resolve(null),
+      (parent.workspace || req.workspaceMembership?.workspace)
+        ? Workspace.findById(parent.workspace || req.workspaceMembership?.workspace)
+            .select("workspaceName brandName businessName company")
+            .lean()
+            .exec()
+        : Promise.resolve(null),
+    ]);
+
+    const requestedByName = String(
+      requestedByUser?.name ||
+        `${requestedByUser?.firstName || ""} ${requestedByUser?.lastName || ""}`.trim() ||
+        requestedByUser?.email ||
+        parent.requestedByName ||
+        "",
+    ).trim();
+    const requestedByEmail = String(
+      requestedByUser?.email || parent.requestedByEmail || "",
+    ).trim();
+    const workspaceName = String(
+      workspaceDoc?.workspaceName || parent.workspaceName || "",
+    ).trim();
+    const companyName = String(
+      workspaceDoc?.brandName ||
+        workspaceDoc?.businessName ||
+        workspaceDoc?.workspaceName ||
+        parent.companyName ||
+        "",
+    ).trim();
+    const company = workspaceDoc?.company || requestedByUser?.company || parent.company || null;
+
     const followUp = await SupportTicket.create({
       ticketId: buildTicketId(),
       title: `Follow-up: ${parent.title || "Support Issue"}`,
       description: String(req.body?.description || "").trim() || `Follow-up for ${parent.ticketId || "ticket"}`,
       status: "Open",
       requestedBy: req.user || parent.requestedBy || null,
+      user: req.user || parent.user || parent.requestedBy || null,
       workspace: parent.workspace || req.workspaceMembership?.workspace || null,
+      company,
       role: req.workspaceMembership?.role || parent.role || "",
       department: parent.department || "",
       parentTicket: parent._id,
+      requestedAt: new Date(),
+      requestedByName,
+      requestedByEmail,
+      companyName,
+      workspaceName,
       image: parent.image || { id: "", url: "" },
     });
 

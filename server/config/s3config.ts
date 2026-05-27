@@ -34,7 +34,8 @@ export async function uploadFileToS3(route, file) {
       url: fileUrl,
     };
   } catch (error) {
-    throw new Error(error);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`S3 upload failed: ${message}`);
   }
 }
 

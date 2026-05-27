@@ -3,6 +3,11 @@ import Company from "../models/Company.js";
 import HostUser from "../models/HostUser.js";
 import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
+import {
+  buildWorkspaceModuleCatalog,
+  buildWorkspaceModulesStructure,
+  getEffectiveEnabledModuleIds,
+} from "../config/workspaceModuleCatalog.js";
 
 const normalizeStringArray = (value: unknown) =>
   Array.isArray(value)
@@ -50,7 +55,7 @@ const buildAuthUserPayload = (
 
 export const completeWorkspaceSetup = async (req, res, next) => {
   try {
-    const { workspaceDetails, selectedPlan, enabledModuleIds, modules, additionalWorkspaceMode } = req.body;
+    const { workspaceDetails, selectedPlan, enabledModuleIds, additionalWorkspaceMode } = req.body;
     const isAdditionalWorkspaceMode = Boolean(additionalWorkspaceMode);
 
     if (!workspaceDetails || typeof workspaceDetails !== "object") {
@@ -132,6 +137,16 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       await company.save();
     }
 
+    const normalizedRequestedEnabledIds = normalizeStringArray(enabledModuleIds);
+    const finalEnabledModuleIds = getEffectiveEnabledModuleIds({
+      selectedPlan,
+      existingEnabledModuleIds: normalizedRequestedEnabledIds,
+    });
+    const finalWorkspaceModules = buildWorkspaceModulesStructure({
+      selectedPlan,
+      enabledModuleIds: finalEnabledModuleIds,
+    });
+
     const workspace = await Workspace.create({
       owner: user._id,
       company: company?._id || null,
@@ -145,8 +160,8 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       address: String(workspaceDetails.address || "").trim(),
       businessTypes: normalizedBusinessTypes,
       selectedPlan,
-      enabledModuleIds: normalizeStringArray(enabledModuleIds),
-      modules: Array.isArray(modules) ? modules : [],
+      enabledModuleIds: finalEnabledModuleIds,
+      modules: finalWorkspaceModules,
       isSetupComplete: true,
       isActive: true,
     });
@@ -557,6 +572,45 @@ export const getWorkspaceSettings = async (req, res, next) => {
   }
 };
 
+export const getWorkspaceModuleAccessMap = async (req, res, next) => {
+  try {
+    const { workspace } = await getCurrentWorkspaceContext(req.user);
+    if (!workspace) {
+      return res.status(404).json({ message: "Workspace not found for this user." });
+    }
+
+    const selectedPlan = String(workspace.selectedPlan || "basic").trim().toLowerCase();
+    const enabledModuleIds = Array.isArray(workspace.enabledModuleIds)
+      ? workspace.enabledModuleIds
+      : [];
+    const modules =
+      Array.isArray(workspace.modules) && workspace.modules.length > 0
+        ? workspace.modules
+        : buildWorkspaceModulesStructure({
+            selectedPlan,
+            enabledModuleIds,
+          });
+    const catalog = buildWorkspaceModuleCatalog({
+      selectedPlan,
+      enabledModuleIds,
+    });
+
+    return res.status(200).json({
+      message: "Workspace module access map loaded successfully.",
+      data: {
+        workspaceId: String(workspace._id),
+        workspaceName: workspace.workspaceName || "",
+        selectedPlan,
+        enabledModuleIds,
+        modules,
+        moduleMap: catalog,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const updateWorkspaceSettings = async (req, res, next) => {
   try {
     const { workspace } = await getCurrentWorkspaceContext(req.user);
@@ -640,6 +694,69 @@ export const getCurrentHostCompanyIdentity = async (req, res, next) => {
         companyObjectId: String(companyRecord._id),
         companyId: companyRecord.companyId || "",
         companyName: companyRecord.companyName || "",
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const backfillWorkspaceModules = async (req, res, next) => {
+  try {
+    const actorRole = String(req.workspaceMembership?.role || "")
+      .trim()
+      .toLowerCase()
+      .replace(/-/g, "_");
+    const isAllowedActor =
+      actorRole === "owner" || actorRole === "founder" || actorRole === "super_admin";
+    if (!isAllowedActor) {
+      return res.status(403).json({
+        message: "Only founder or super admin can run workspace module backfill.",
+      });
+    }
+
+    const force = String(req.query?.force || "").trim().toLowerCase() === "true";
+    const workspaces = await Workspace.find({ isActive: true }).exec();
+    let updatedCount = 0;
+
+    for (const workspace of workspaces) {
+      const selectedPlan = String(workspace.selectedPlan || "basic").trim().toLowerCase();
+      const existingEnabled = Array.isArray(workspace.enabledModuleIds)
+        ? workspace.enabledModuleIds
+        : [];
+      const nextEnabled = getEffectiveEnabledModuleIds({
+        selectedPlan,
+        existingEnabledModuleIds: existingEnabled,
+      });
+      const nextModules = buildWorkspaceModulesStructure({
+        selectedPlan,
+        enabledModuleIds: nextEnabled,
+      });
+
+      const shouldWriteModules =
+        force ||
+        !Array.isArray(workspace.modules) ||
+        workspace.modules.length === 0;
+      const shouldWriteEnabled =
+        force || JSON.stringify(existingEnabled) !== JSON.stringify(nextEnabled);
+
+      if (!shouldWriteModules && !shouldWriteEnabled) {
+        continue;
+      }
+
+      workspace.enabledModuleIds = nextEnabled;
+      if (shouldWriteModules || force) {
+        workspace.modules = nextModules;
+      }
+      await workspace.save();
+      updatedCount += 1;
+    }
+
+    return res.status(200).json({
+      message: "Workspace module backfill completed.",
+      data: {
+        totalWorkspaces: workspaces.length,
+        updatedWorkspaces: updatedCount,
       },
     });
   } catch (error) {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ElementType } from "react";
 import {
   ChevronDown,
@@ -50,6 +50,7 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSidebar } from "../context/SideBarContext";
 import useAuth from "../hooks/useAuth";
+import useAxiosPrivate from "../hooks/useAxiosPrivate";
 import useLogout from "../hooks/useLogout";
 import {
   getEnabledModuleIdsForPlan,
@@ -95,6 +96,37 @@ interface NavItemProps {
 interface WorkspaceSetupState {
   selectedPlan?: PlanType;
   enabledModuleIds?: string[];
+}
+
+interface WorkspaceAccessMapState {
+  selectedPlan?: PlanType;
+  enabledModuleIds?: string[];
+  moduleMap?: {
+    sections?: Array<{
+      sectionId?: string;
+      sectionLabel?: string;
+      items?: Array<{
+        id?: string;
+        label?: string;
+        route?: string;
+        unlockedInWorkspace?: boolean;
+        implemented?: boolean;
+        tabs?: Array<{
+          id?: string;
+          label?: string;
+          route?: string;
+          unlockedInWorkspace?: boolean;
+          implemented?: boolean;
+        }>;
+      }>;
+    }>;
+  };
+}
+
+interface RoleAccessContext {
+  role: string;
+  departments: string[];
+  grantedModules: string[];
 }
 
 const readWorkspaceSetup = (): WorkspaceSetupState => {
@@ -236,6 +268,132 @@ const generalData: NavNode[] = [
   { id: "logout", label: "Sign Out", icon: LogOut, isRed: true, route: "/sign-out" },
 ];
 
+const ROUTE_BY_ID: Record<string, string> = {
+  dashboard: "/dashboard",
+  "customer-support": "/company-settings/customer-support",
+  "website-builder": "/company-settings/website-builder",
+  "wono-nomad": "/company-settings/wono-nomad",
+  "website-leads": "/company-settings/website-builder/leads",
+  "organization-management": "/company-settings/organization-management",
+  "access-grants": "/company-settings/access-grants",
+  "workspace-settings": "/company-settings/workspace-settings",
+  "workspace-management": "/company-settings/workspace-management",
+  "visitor-management": "/visitors/visitor-management",
+  "visitors-management": "/visitors/visitor-management",
+  profile: "/profile/company-profile",
+};
+
+const ICON_BY_ID: Record<string, ElementType> = {
+  dashboard: LayoutDashboard,
+  "customer-support": MessageSquareCode,
+  attendance: Clock,
+  tasks: ListChecks,
+  tickets: Ticket,
+  "leave-requests": CalendarClock,
+  "meeting-room-system": Presentation,
+  "chat-bot": CalendarClock,
+  assets: Package,
+  inventory: Warehouse,
+  "finance-management": Wallet,
+  reports: FileChartColumn,
+  "website-builder": Globe,
+  "wono-nomad": ShieldCheck,
+  "website-leads": NotebookText,
+  "organization-management": Building,
+  "module-management": Boxes,
+  "access-grants": UserCog,
+  "workspace-settings": Settings,
+  "workspace-management": MonitorCog,
+  analytics: BarChart,
+  "visitor-management": ContactRound,
+  "visitors-management": ContactRound,
+  "hr-department": Users,
+  "administration-department": Building2,
+  "sales-department": BriefcaseBusiness,
+  "finance-department": Wallet,
+  "maintenance-department": Wrench,
+  "tech-department": Laptop,
+  "it-department": MonitorCog,
+  "employee-management": Users,
+  "hr-documents": NotebookText,
+  recruitment: UserPlus,
+  "leave-request-processing": CalendarCheck,
+  "attendance-review": ClipboardCheck,
+  "payroll-management": Wallet,
+  "exit-management": UserMinus,
+  "tenant-companies-admin": Building2,
+  bookings: Bed,
+  "resource-management": HandCoins,
+  "house-keeping": Wrench,
+  "workspace-layout": LayoutDashboard,
+  "leads-management": Magnet,
+  "tenant-companies-sales": Building2,
+  "plans-pricing": Tag,
+  "sales-architecture": ShoppingCart,
+  "finance-budget": Wallet,
+  "billing-payments": Receipt,
+  accounting: Calculator,
+  "maintenance-repair-logs": ScanSearch,
+  "amc-maintenance-scheduler": CalendarClock,
+  "tech-website-builder": Globe,
+  "it-repair-logs": FileSearch,
+  profile: User,
+  logout: LogOut,
+};
+
+const COMMON_MODULE_IDS = new Set([
+  "dashboard",
+  "customer-support",
+  "attendance",
+  "tasks",
+  "tickets",
+  "leave-requests",
+  "meeting-room-system",
+  "chat-bot",
+]);
+
+const EXTRA_COMMON_MODULE_IDS = new Set([
+  "assets",
+  "inventory",
+  "finance-management",
+  "reports",
+]);
+
+const DEPARTMENT_GROUP_BY_KEY: Record<string, string> = {
+  hr: "hr-department",
+  administration: "administration-department",
+  sales: "sales-department",
+  finance: "finance-department",
+  maintenance: "maintenance-department",
+  technology: "tech-department",
+  tech: "tech-department",
+  it: "it-department",
+};
+
+const BASIC_PLAN_HARD_LOCK_IDS = new Set([
+  "workspace-settings",
+  "workspace-management",
+]);
+
+const normalizeRole = (value = "") =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+
+const resolveDepartmentKey = (value = "") => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return "";
+  if (normalized.includes("administration") || normalized === "admin") return "administration";
+  if (normalized.includes("sales")) return "sales";
+  if (normalized.includes("finance") || normalized.includes("accounting")) return "finance";
+  if (normalized.includes("maintenance") || normalized.includes("facilities")) return "maintenance";
+  if (normalized.includes("technology") || normalized.includes("tech")) return "technology";
+  if (normalized === "it" || normalized.includes("information technology")) return "it";
+  if (normalized.includes("hr")) return "hr";
+  return normalized.replace(/\s+/g, "-");
+};
+
 const NavItem = ({
   icon: Icon,
   label,
@@ -342,39 +500,95 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate }: NavGroup
 export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const { isSidebarOpen } = useSidebar();
   const { auth } = useAuth();
+  const axiosPrivate = useAxiosPrivate();
   const collapsed = !isSidebarOpen;
   const navigate = useNavigate();
   const logout = useLogout();
   const location = useLocation();
-  const [isCompanySettingsOpen, setIsCompanySettingsOpen] = useState(false);
-  const [isKeyAppsOpen, setIsKeyAppsOpen] = useState(false);
-  const [isDepartmentOpen, setIsDepartmentOpen] = useState(false);
+  const [workspaceAccessMap, setWorkspaceAccessMap] = useState<WorkspaceAccessMapState | null>(null);
+  const [roleAccessContext, setRoleAccessContext] = useState<RoleAccessContext>({
+    role: "",
+    departments: [],
+    grantedModules: [],
+  });
   const workspaceSetup = readWorkspaceSetup();
-  const planLabel = workspaceSetup.selectedPlan || "basic";
+
+  useEffect(() => {
+    let active = true;
+
+    const loadSidebarData = async () => {
+      try {
+        const [moduleMapRes, orgRes] = await Promise.all([
+          axiosPrivate.get("/api/workspaces/module-access-map"),
+          axiosPrivate.get("/api/organization/overview"),
+        ]);
+        const payload = moduleMapRes?.data?.data || {};
+        const orgPayload = orgRes?.data?.data || {};
+        const teamMembers = Array.isArray(orgPayload?.teamMembers) ? orgPayload.teamMembers : [];
+        const currentUserId = String(
+          (auth.user as { id?: string; _id?: string } | null)?.id ||
+          (auth.user as { id?: string; _id?: string } | null)?._id ||
+          "",
+        ).trim();
+        const me = teamMembers.find((member: any) => {
+          const memberUserId = String(member?.userId || member?.id || "").trim();
+          return memberUserId && memberUserId === currentUserId;
+        });
+        if (!active) return;
+        setWorkspaceAccessMap({
+          selectedPlan: payload?.selectedPlan || "basic",
+          enabledModuleIds: Array.isArray(payload?.enabledModuleIds)
+            ? payload.enabledModuleIds
+            : [],
+          moduleMap: payload?.moduleMap || { sections: [] },
+        });
+        setRoleAccessContext({
+          role: String(
+            me?.role ||
+            (auth.user as { workspaceMembership?: { role?: string }; role?: string } | null)?.workspaceMembership?.role ||
+            (auth.user as { workspaceMembership?: { role?: string }; role?: string } | null)?.role ||
+            "",
+          ),
+          departments: Array.isArray(me?.departmentNames) ? me.departmentNames : [],
+          grantedModules: Array.isArray(me?.grantedModules) ? me.grantedModules : [],
+        });
+      } catch {
+        // Fallback remains local storage driven.
+        if (!active) return;
+        setRoleAccessContext({
+          role: String(
+            (auth.user as { workspaceMembership?: { role?: string }; role?: string } | null)?.workspaceMembership?.role ||
+            (auth.user as { workspaceMembership?: { role?: string }; role?: string } | null)?.role ||
+            "",
+          ),
+          departments: [],
+          grantedModules: [],
+        });
+      }
+    };
+
+    void loadSidebarData();
+    return () => {
+      active = false;
+    };
+  }, [axiosPrivate, auth.user]);
+
+  const planLabel =
+    workspaceAccessMap?.selectedPlan || workspaceSetup.selectedPlan || "basic";
   const workspaceCount = getWorkspaceCount(
     (auth.user as { workspaceCount?: number } | null)?.workspaceCount,
   );
-  const currentRole = String(
-    (
-      auth.user as
-        | { workspaceMembership?: { role?: string }; role?: string }
-        | null
-    )?.workspaceMembership?.role ||
-      (
-        auth.user as
-          | { workspaceMembership?: { role?: string }; role?: string }
-          | null
-      )?.role ||
-      "",
-  )
-    .trim()
-    .toLowerCase();
+  const currentRole = normalizeRole(roleAccessContext.role);
   const isFounderRole = currentRole === "founder" || currentRole === "owner";
+  const isSuperAdminRole = currentRole === "super_admin";
+  const isAdminRole = currentRole === "admin" || currentRole === "admin_manager";
+  const isManagerRole = currentRole === "manager";
+  const isEmployeeRole = !(isFounderRole || isSuperAdminRole || isAdminRole || isManagerRole);
   const isWorkspaceManagementUnlocked =
     planLabel === "professional" && workspaceCount > 1;
   const enabledIds = new Set([
     ...getEnabledModuleIdsForPlan(planLabel, workspaceCount),
-    ...(workspaceSetup.enabledModuleIds || []),
+    ...(workspaceAccessMap?.enabledModuleIds || workspaceSetup.enabledModuleIds || []),
   ]);
 
   const applyEnabledState = (items: NavNode[]): NavNode[] =>
@@ -431,6 +645,112 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const keyAppsItems = sortEnabledFirst(applyEnabledState(keyAppsData));
   const departmentItems = sortEnabledFirst(applyEnabledState(departmentModules));
 
+  const roleAllowedModuleIds = useMemo(() => {
+    const allowed = new Set<string>();
+    const workspaceEnabled = new Set(
+      (workspaceAccessMap?.enabledModuleIds || []).map((id) => String(id || "").trim()).filter(Boolean),
+    );
+    const granted = (roleAccessContext.grantedModules || [])
+      .map((item) => String(item || "").trim())
+      .filter((item) => item && !item.startsWith("disabled:"));
+
+    if (isFounderRole) {
+      workspaceEnabled.forEach((id) => allowed.add(id));
+      return allowed;
+    }
+
+    if (isSuperAdminRole) {
+      // Super Admin access is founder-controlled:
+      // only modules enabled at workspace level AND granted to this user.
+      granted
+        .filter((id) => workspaceEnabled.has(id))
+        .forEach((id) => allowed.add(id));
+
+      if (planLabel === "basic") {
+        allowed.delete("workspace-settings");
+        allowed.delete("workspace-management");
+      }
+      return allowed;
+    }
+
+    COMMON_MODULE_IDS.forEach((id) => allowed.add(id));
+    EXTRA_COMMON_MODULE_IDS.forEach((id) => allowed.add(id));
+
+    if (isAdminRole || isManagerRole) {
+      const departmentKeys = (roleAccessContext.departments || [])
+        .map((name) => resolveDepartmentKey(name))
+        .filter(Boolean);
+      departmentKeys.forEach((key) => {
+        const groupId = DEPARTMENT_GROUP_BY_KEY[key];
+        if (groupId) allowed.add(groupId);
+      });
+    }
+
+    // Founder can grant any additional enabled modules/tabs to anyone.
+    granted.forEach((id) => allowed.add(id));
+
+    if (isEmployeeRole) {
+      return allowed;
+    }
+
+    return allowed;
+  }, [
+    isFounderRole,
+    isSuperAdminRole,
+    isAdminRole,
+    isManagerRole,
+    isEmployeeRole,
+    roleAccessContext.departments,
+    roleAccessContext.grantedModules,
+    workspaceAccessMap?.enabledModuleIds,
+    planLabel,
+  ]);
+
+  const mappedSections: Array<{ key: string; title: string; items: NavNode[] }> = (
+    workspaceAccessMap?.moduleMap?.sections || []
+  ).map((section) => {
+    const mappedItems: NavNode[] = (section?.items || []).map((item) => {
+      const itemId = String(item?.id || "").trim();
+      const itemRoute = item?.route || ROUTE_BY_ID[itemId];
+      const hasTabs = Array.isArray(item?.tabs) && item.tabs.length > 0;
+      if (hasTabs) {
+        const children = (item.tabs || [])
+          .map((tab) => {
+            const tabId = String(tab?.id || "").trim();
+            const tabRoute = tab?.route || ROUTE_BY_ID[tabId];
+            const unlocked = tab?.unlockedInWorkspace && roleAllowedModuleIds.has(tabId);
+            return {
+              id: tabId,
+              label: String(tab?.label || tabId),
+              icon: ICON_BY_ID[tabId] || Boxes,
+              route: tabRoute,
+              disabled: !unlocked,
+            };
+          });
+        return {
+          id: itemId,
+          label: String(item?.label || itemId),
+          icon: ICON_BY_ID[itemId] || Boxes,
+          defaultOpen: false,
+          children,
+        };
+      }
+      const basicPlanLocked = planLabel === "basic" && BASIC_PLAN_HARD_LOCK_IDS.has(itemId);
+      return {
+        id: itemId,
+        label: String(item?.label || itemId),
+        icon: ICON_BY_ID[itemId] || Boxes,
+        route: itemRoute,
+        disabled: basicPlanLocked || !(item?.unlockedInWorkspace && roleAllowedModuleIds.has(itemId)),
+      };
+    }).filter(Boolean);
+    return {
+      key: String(section?.sectionId || section?.sectionLabel || "section"),
+      title: String(section?.sectionLabel || "Section"),
+      items: sortEnabledFirst(mappedItems),
+    };
+  }).filter((section) => section.items.length > 0);
+
   const onNavigate = (item: NavNode) => {
     if (item.id === "logout") {
       void logout();
@@ -455,28 +775,23 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 py-2 space-y-5 hideScrollBar">
-        <div className="space-y-1">
-          <NavItem
-            icon={LayoutDashboard}
-            label="Dashboard"
-            collapsed={collapsed}
-            isActive={location.pathname === "/dashboard"}
-            onClick={() => onNavigate({ id: "dashboard", label: "Dashboard", route: "/dashboard" })}
-          />
-          {!collapsed && (
-            <div
-              className="flex items-center justify-between px-3 mb-2 cursor-pointer"
-              onClick={() => setIsCompanySettingsOpen((prev) => !prev)}
-            >
-              <span className="text-[12px] font-pbold text-gray-500 tracking-wider uppercase">Company Settings</span>
-              {isCompanySettingsOpen ? <ChevronDown size={12} className="text-gray-400" /> : <ChevronRight size={12} className="text-gray-400" />}
-            </div>
-          )}
-          {(isCompanySettingsOpen || collapsed) && (
+        {(mappedSections.length > 0 ? mappedSections : [
+          { key: "company-settings", title: "Company Settings", items: companySettingsItems },
+          { key: "key-apps", title: "Key Apps", items: keyAppsItems },
+          { key: "department-accesses", title: "Department Accesses", items: departmentItems },
+        ]).map((section) => (
+          <div key={section.key}>
+            {!collapsed && (
+              <div className="flex items-center justify-between px-3 mb-2">
+                <span className="text-[12px] font-pbold text-gray-500 tracking-wider uppercase">
+                  {section.title}
+                </span>
+              </div>
+            )}
             <div className="space-y-1">
-              {companySettingsItems.map((item) => (
+              {section.items.map((item) => (
                 <NavGroup
-                  key={item.id}
+                  key={`${section.key}-${item.id}`}
                   item={item}
                   collapsed={collapsed}
                   pathname={location.pathname}
@@ -484,58 +799,8 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
                 />
               ))}
             </div>
-          )}
-        </div>
-
-        <div>
-          {!collapsed && (
-            <div
-              className="flex items-center justify-between px-3 mb-2 cursor-pointer"
-              onClick={() => setIsKeyAppsOpen((prev) => !prev)}
-            >
-              <span className="text-[12px] font-pbold text-gray-500 tracking-wider uppercase">Key Apps</span>
-              {isKeyAppsOpen ? <ChevronDown size={12} className="text-gray-400" /> : <ChevronRight size={12} className="text-gray-400" />}
-            </div>
-          )}
-          {(isKeyAppsOpen || collapsed) && (
-            <div className="space-y-1">
-              {keyAppsItems.map((item) => (
-                <NavGroup
-                  key={item.id}
-                  item={item}
-                  collapsed={collapsed}
-                  pathname={location.pathname}
-                  onNavigate={onNavigate}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div>
-          {!collapsed && (
-            <div
-              className="flex items-center justify-between px-3 mb-2 cursor-pointer"
-              onClick={() => setIsDepartmentOpen((prev) => !prev)}
-            >
-              <span className="text-[12px] font-pbold text-gray-500 tracking-wider uppercase">Department Accesses</span>
-              {isDepartmentOpen ? <ChevronDown size={12} className="text-gray-400" /> : <ChevronRight size={12} className="text-gray-400" />}
-            </div>
-          )}
-          {(isDepartmentOpen || collapsed) && (
-            <div className="space-y-1">
-              {departmentItems.map((item) => (
-                <NavGroup
-                  key={item.id}
-                  item={item}
-                  collapsed={collapsed}
-                  pathname={location.pathname}
-                  onNavigate={onNavigate}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+          </div>
+        ))}
 
         <div>
           {!collapsed && (
