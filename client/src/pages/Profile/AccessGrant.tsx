@@ -35,6 +35,29 @@ const TRANSFER_ROLE_OPTIONS = [
   { value: 'super_admin', label: 'Super-Admin' },
 ];
 
+const VISITOR_ACTION_CHILDREN = [
+  { id: 'visitors_tab_daily', label: 'Daily Visitors Tab', description: 'Access daily visitors tab on the start page.' },
+  { id: 'visitors_tab_history', label: 'Visitor History Tab', description: 'Access visitor history tab on the start page.' },
+  { id: 'visitors_tab_bookings', label: 'Bookings Tab', description: 'Access bookings tab on the start page.' },
+  { id: 'visitors_tab_clients', label: 'Clients Tab', description: 'Access clients tab on the start page.' },
+  { id: 'visitors_mode_standard', label: 'Standard Visitor Tab', description: 'Access Standard Visitor tab in New Frontdesk Action.' },
+  { id: 'visitors_mode_workspace_tour', label: 'Workspace Tour Tab', description: 'Access Workspace Tour tab in New Frontdesk Action.' },
+  { id: 'visitors_mode_walkin_booking', label: 'Walk-in Booking Tab', description: 'Access Walk-in Booking tab in New Frontdesk Action.' },
+  { id: 'visitors_mode_verify_booking', label: 'Verify Booking Tab', description: 'Access Verify Booking ID tab in New Frontdesk Action.' },
+];
+
+const VISITOR_STANDARD_CHILDREN = [
+  { id: 'visitors_standard_type_standard', label: 'Standard Subtab', description: 'Access Standard subtab inside Standard Visitor.' },
+  { id: 'visitors_standard_type_department', label: 'Department Subtab', description: 'Access Department subtab inside Standard Visitor.' },
+  { id: 'visitors_standard_type_tenant', label: 'Tenant Subtab', description: 'Access Tenant subtab inside Standard Visitor.' },
+];
+
+const VISITOR_PARENT_ALIASES = new Set([
+  'visitor-management',
+  'visitors-management',
+  'manage_visitors',
+]);
+
 function Switch({ checked, disabled, onCheckedChange }) {
   return (
     <button
@@ -136,6 +159,58 @@ function normalizeModuleKey(value = '') {
   return String(value || '').trim().toLowerCase().replace(/[\s_]+/g, '-');
 }
 
+function expandModuleAliases(values = []) {
+  const expanded = new Set(
+    values.map((value) => normalizeModuleKey(value)).filter(Boolean),
+  );
+
+  const ensure = (a, b) => {
+    if (expanded.has(a) || expanded.has(b)) {
+      expanded.add(a);
+      expanded.add(b);
+    }
+  };
+
+  ensure('visitor-management', 'visitors-management');
+  ensure('website-builder', 'tech-website-builder');
+  ensure('housekeeping', 'house-keeping');
+
+  if (expanded.has('administration-visitor-management')) {
+    expanded.add('visitor-management');
+    expanded.add('visitors-management');
+  }
+
+  return expanded;
+}
+
+function resolveCanonicalModuleId(rawValue = '', aliasToCanonical = new Map()) {
+  const normalized = normalizeModuleKey(rawValue);
+  const direct = aliasToCanonical.get(normalized);
+  if (direct) return direct;
+
+  if (normalized.startsWith('administration-')) {
+    const withoutPrefix = normalized.slice('administration-'.length);
+    const adminVisitor = aliasToCanonical.get('visitors-management');
+    if (withoutPrefix === 'visitor-management' && adminVisitor) return adminVisitor;
+    const prefixedMatch = aliasToCanonical.get(withoutPrefix);
+    if (prefixedMatch) return prefixedMatch;
+  }
+
+  if (normalized === 'housekeeping') {
+    const housekeeping = aliasToCanonical.get('house-keeping');
+    if (housekeeping) return housekeeping;
+  }
+
+  const segments = normalized.split('-').filter(Boolean);
+  if (segments.length > 1) {
+    const stripped = segments.slice(1).join('-');
+    const strippedMatch = aliasToCanonical.get(stripped);
+    if (strippedMatch) return strippedMatch;
+  }
+
+  return normalized;
+}
+
 function resolveDepartmentKey(value = '') {
   const normalized = normalizeModuleKey(value);
   if (normalized.includes('administration') || normalized === 'admin') return 'administration';
@@ -223,6 +298,7 @@ function mapOverviewMember(member = {}) {
         ? member.departments
         : [],
     grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],
+    enabledModules: Array.isArray(member.enabledModules) ? member.enabledModules : [],
     workspaceAccesses: Array.isArray(member.workspaceAccesses) ? member.workspaceAccesses : [],
   };
 }
@@ -261,10 +337,56 @@ export default function AccessGrantsPage() {
   const [showMemberAccessDialog, setShowMemberAccessDialog] = useState(false);
   const [memberAccessTarget, setMemberAccessTarget] = useState(null);
   const [memberAccessDraft, setMemberAccessDraft] = useState({});
+  const [expandedAccessModules, setExpandedAccessModules] = useState({});
   const [members, setMembers] = useState([]);
   const [workspace, setWorkspace] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const enabledWorkspaceModuleKeys = useMemo(() => {
+    const workspaceRaw = Array.isArray(workspace?.enabledModuleIds) ? workspace.enabledModuleIds : [];
+    const memberRaw = Array.isArray(memberAccessTarget?.enabledModules) ? memberAccessTarget.enabledModules : [];
+    const raw = [...workspaceRaw, ...memberRaw];
+    const expanded = raw.flatMap((value) => {
+      const normalized = normalizeModuleKey(String(value || ''));
+      if (!normalized) return [];
+      const values = [normalized];
+      if (normalized.startsWith('administration-')) {
+        values.push(normalized.slice('administration-'.length));
+      }
+      return values;
+    });
+    return new Set(expanded);
+  }, [workspace?.enabledModuleIds, memberAccessTarget?.enabledModules]);
+
+  const getModuleChildren = (moduleId = '') => {
+    const normalized = normalizeModuleKey(moduleId);
+    const isEnabled = (key = '') => enabledWorkspaceModuleKeys.has(normalizeModuleKey(key));
+    if (VISITOR_PARENT_ALIASES.has(normalized)) {
+      const hasAnyStandardSubtype =
+        isEnabled('visitors_standard_type_standard') ||
+        isEnabled('visitors_standard_type_department') ||
+        isEnabled('visitors_standard_type_tenant');
+      return VISITOR_ACTION_CHILDREN.filter((child) => {
+        const childKey = normalizeModuleKey(child.id);
+        if (childKey === 'visitors-mode-standard') {
+          return isEnabled(childKey) || hasAnyStandardSubtype;
+        }
+        return isEnabled(childKey);
+      });
+    }
+    if (normalized === 'visitors-mode-standard') {
+      return VISITOR_STANDARD_CHILDREN.filter((child) =>
+        enabledWorkspaceModuleKeys.has(normalizeModuleKey(child.id)),
+      );
+    }
+    return [];
+  };
+
+  const collectChildIds = (moduleId = '') => {
+    const direct = getModuleChildren(moduleId);
+    if (!direct.length) return [];
+    return direct.flatMap((child) => [child.id, ...collectChildIds(child.id)]);
+  };
 
   const loadAccessGrants = async (showLoading = false) => {
     if (showLoading) {
@@ -285,7 +407,7 @@ export default function AccessGrantsPage() {
       );
     } catch (error) {
       toast.error(error.message || 'Failed to load access grants.');
-    } finally {
+    } finally { 
       if (showLoading) {
         setIsLoading(false);
       }
@@ -402,14 +524,49 @@ export default function AccessGrantsPage() {
 
   const workspaceAccessSections = useMemo(() => {
     const sections = Array.isArray(workspace?.moduleMap?.sections) ? workspace.moduleMap.sections : [];
-    return sections
+    const aliasToCanonical = new Map();
+    sections.forEach((section) => {
+      (Array.isArray(section?.items) ? section.items : []).forEach((item) => {
+        const itemId = String(item?.id || '').trim();
+        const itemLabel = String(item?.label || '').trim();
+        if (itemId) aliasToCanonical.set(normalizeModuleKey(itemId), itemId);
+        if (itemLabel) aliasToCanonical.set(normalizeModuleKey(itemLabel), itemId);
+        (Array.isArray(item?.tabs) ? item.tabs : []).forEach((tab) => {
+          const tabId = String(tab?.id || '').trim();
+          const tabLabel = String(tab?.label || '').trim();
+          if (tabId) aliasToCanonical.set(normalizeModuleKey(tabId), tabId);
+          if (tabLabel) aliasToCanonical.set(normalizeModuleKey(tabLabel), tabId);
+        });
+      });
+    });
+
+    const selectedEnabledRaw = [
+      ...(Array.isArray(workspace?.enabledModuleIds) ? workspace.enabledModuleIds : []),
+      ...(Array.isArray(memberAccessTarget?.enabledModules) ? memberAccessTarget.enabledModules : []),
+    ];
+    const enabledCanonical = new Set(
+      selectedEnabledRaw
+        .map((item) => resolveCanonicalModuleId(String(item || ''), aliasToCanonical))
+        .filter(Boolean),
+    );
+    const rawEnabledNormalized = new Set(
+      selectedEnabledRaw.map((item) => normalizeModuleKey(String(item || ''))).filter(Boolean),
+    );
+    const hasWebsiteBuilderEnabled =
+      enabledCanonical.has('website-builder') ||
+      enabledCanonical.has('tech-website-builder') ||
+      rawEnabledNormalized.has('website-builder') ||
+      rawEnabledNormalized.has('tech-website-builder');
+
+    const mappedSections = sections
       .map((section) => {
         const modules = (Array.isArray(section?.items) ? section.items : []).flatMap((item) => {
-          if (item?.implemented === false) return [];
           if (Array.isArray(item?.tabs) && item.tabs.length > 0) {
             return item.tabs
-              .filter((tab) => tab?.implemented !== false)
-              .filter((tab) => tab?.unlockedInWorkspace)
+              .filter((tab) => {
+                const tabId = String(tab?.id || '').trim();
+                return tabId && enabledCanonical.has(tabId);
+              })
               .map((tab) => ({
                 id: String(tab?.id || '').trim(),
                 label: String(tab?.label || tab?.id || '').trim(),
@@ -418,9 +575,10 @@ export default function AccessGrantsPage() {
               .filter((module) => module.id);
           }
 
-          if (!item?.unlockedInWorkspace) return [];
+          const itemId = String(item?.id || '').trim();
+          if (!itemId || !enabledCanonical.has(itemId)) return [];
           return [{
-            id: String(item?.id || '').trim(),
+            id: itemId,
             label: String(item?.label || item?.id || '').trim(),
             description: String(section?.sectionLabel || 'Section'),
           }].filter((module) => module.id);
@@ -433,7 +591,32 @@ export default function AccessGrantsPage() {
         };
       })
       .filter((section) => section.modules.length > 0);
-  }, [workspace]);
+
+    // Keep Website Builder visible in Key Apps when enabled in workspace/member modules.
+    let keyAppsSection = mappedSections.find(
+      (section) => normalizeModuleKey(section.key) === 'key-apps',
+    );
+    const hasWebsiteBuilderInKeyApps = keyAppsSection?.modules?.some(
+      (module) => normalizeModuleKey(module.id) === 'website-builder',
+    );
+    if (hasWebsiteBuilderEnabled && !hasWebsiteBuilderInKeyApps) {
+      if (!keyAppsSection) {
+        keyAppsSection = {
+          key: 'key-apps',
+          title: 'Key Apps',
+          modules: [],
+        };
+        mappedSections.push(keyAppsSection);
+      }
+      keyAppsSection.modules.push({
+        id: 'website-builder',
+        label: 'Website Builder',
+        description: 'Key Apps',
+      });
+    }
+
+    return mappedSections;
+  }, [workspace, memberAccessTarget]);
 
   const openMemberAccessDialog = (member) => {
     if (!canManageModuleAccess) {
@@ -441,22 +624,29 @@ export default function AccessGrantsPage() {
       return;
     }
     const grantedModuleValues = Array.isArray(member?.grantedModules) ? member.grantedModules : [];
-    const grantedModules = new Set(
-      grantedModuleValues
+    const enabledModuleValues = Array.isArray(member?.enabledModules) ? member.enabledModules : [];
+    const effectiveAccessModules = expandModuleAliases(
+      [...grantedModuleValues, ...enabledModuleValues]
         .map((item) => String(item || ''))
         .filter((item) => item && !normalizeModuleKey(item).startsWith('disabled:'))
-        .map((item) => String(item).trim()),
+        .map((item) => normalizeModuleKey(item)),
     );
-    const allModuleIds = workspaceAccessSections.flatMap((section) => section.modules.map((module) => module.id));
+    const allModuleIds = workspaceAccessSections.flatMap((section) =>
+      section.modules.flatMap((module) => [
+        module.id,
+        ...collectChildIds(module.id),
+      ]),
+    );
     const nextDraft = {
       db: allModuleIds.reduce((acc, moduleId) => {
-        acc[moduleId] = grantedModules.has(moduleId);
+        acc[moduleId] = effectiveAccessModules.has(normalizeModuleKey(moduleId));
         return acc;
       }, {}),
     };
 
     setMemberAccessTarget(member);
     setMemberAccessDraft(nextDraft);
+    setExpandedAccessModules({});
     setShowMemberAccessDialog(true);
   };
 
@@ -465,13 +655,47 @@ export default function AccessGrantsPage() {
       return;
     }
 
+    const childModuleIds = collectChildIds(moduleId);
     setMemberAccessDraft((current) => ({
-      ...current,
-      [sectionKey]: {
-        ...(current?.[sectionKey] || {}),
-        [moduleId]: !current?.[sectionKey]?.[moduleId],
-      },
+      ...(current || {}),
+      [sectionKey]: (() => {
+        const nextValue = !current?.[sectionKey]?.[moduleId];
+        const nextSection = {
+          ...(current?.[sectionKey] || {}),
+          [moduleId]: nextValue,
+        };
+        if (!nextValue && childModuleIds.length > 0) {
+          childModuleIds.forEach((childId) => {
+            nextSection[childId] = false;
+          });
+        }
+        return nextSection;
+      })(),
     }));
+  };
+
+  const toggleMemberChildModule = (sectionKey, moduleId) => {
+    if (!memberAccessTarget) {
+      return;
+    }
+
+    const childModuleIds = collectChildIds(moduleId);
+    setMemberAccessDraft((current) => {
+      const nextValue = !current?.[sectionKey]?.[moduleId];
+      const nextSection = {
+        ...(current?.[sectionKey] || {}),
+        [moduleId]: nextValue,
+      };
+      if (!nextValue && childModuleIds.length > 0) {
+        childModuleIds.forEach((childId) => {
+          nextSection[childId] = false;
+        });
+      }
+      return {
+        ...current,
+        [sectionKey]: nextSection,
+      };
+    });
   };
 
   const handleSaveMemberAccess = async () => {
@@ -1325,13 +1549,97 @@ export default function AccessGrantsPage() {
                     <div className="space-y-2">
                       {section.modules.map((module) => {
                         const checked = Boolean(memberAccessDraft?.db?.[module.id]);
+                        const childModules = getModuleChildren(module.id);
+                        const hasChildren = childModules.length > 0;
+                        const isExpanded = Boolean(expandedAccessModules?.[module.id]);
                         return (
-                          <div key={module.id} className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2">
-                            <div>
-                              <p className="text-sm font-semibold text-slate-900">{module.label}</p>
-                              <p className="text-[11px] text-slate-500">{module.description}</p>
+                          <div key={module.id} className="rounded-xl border border-slate-100 px-3 py-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-start gap-2">
+                                {hasChildren ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setExpandedAccessModules((current) => ({
+                                        ...(current || {}),
+                                        [module.id]: !current?.[module.id],
+                                      }))
+                                    }
+                                    className="mt-0.5 rounded-md border border-slate-200 p-1 text-slate-500 hover:bg-slate-50"
+                                    title={isExpanded ? 'Collapse actions' : 'Expand actions'}
+                                  >
+                                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                  </button>
+                                ) : null}
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-900">{module.label}</p>
+                                  <p className="text-[11px] text-slate-500">{module.description}</p>
+                                </div>
+                              </div>
+                              <Switch checked={checked} disabled={!canManageModuleAccess} onCheckedChange={() => toggleMemberModule('db', module.id)} />
                             </div>
-                            <Switch checked={checked} disabled={!canManageModuleAccess} onCheckedChange={() => toggleMemberModule('db', module.id)} />
+                            {hasChildren && isExpanded ? (
+                              <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 pl-7">
+                                {childModules.map((child) => {
+                                  const childChecked = Boolean(memberAccessDraft?.db?.[child.id]);
+                                  const grandChildren = getModuleChildren(child.id);
+                                  const hasGrandChildren = grandChildren.length > 0;
+                                  const isChildExpanded = Boolean(expandedAccessModules?.[child.id]);
+                                  return (
+                                    <div key={child.id} className="rounded-lg border border-slate-100 px-3 py-2">
+                                      <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-start gap-2">
+                                          {hasGrandChildren ? (
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                setExpandedAccessModules((current) => ({
+                                                  ...(current || {}),
+                                                  [child.id]: !current?.[child.id],
+                                                }))
+                                              }
+                                              className="mt-0.5 rounded-md border border-slate-200 p-1 text-slate-500 hover:bg-slate-50"
+                                              title={isChildExpanded ? 'Collapse subtabs' : 'Expand subtabs'}
+                                            >
+                                              <ChevronDown className={`h-3 w-3 transition-transform ${isChildExpanded ? 'rotate-180' : ''}`} />
+                                            </button>
+                                          ) : null}
+                                          <div>
+                                            <p className="text-xs font-semibold text-slate-800">{child.label}</p>
+                                            <p className="text-[10px] text-slate-500">{child.description}</p>
+                                          </div>
+                                        </div>
+                                        <Switch
+                                          checked={childChecked}
+                                          disabled={!canManageModuleAccess || !checked}
+                                          onCheckedChange={() => toggleMemberChildModule('db', child.id)}
+                                        />
+                                      </div>
+                                      {hasGrandChildren && isChildExpanded ? (
+                                        <div className="mt-2 space-y-2 border-t border-slate-100 pt-2 pl-6">
+                                          {grandChildren.map((subtab) => {
+                                            const subtabChecked = Boolean(memberAccessDraft?.db?.[subtab.id]);
+                                            return (
+                                              <div key={subtab.id} className="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
+                                                <div>
+                                                  <p className="text-[11px] font-semibold text-slate-800">{subtab.label}</p>
+                                                  <p className="text-[10px] text-slate-500">{subtab.description}</p>
+                                                </div>
+                                                <Switch
+                                                  checked={subtabChecked}
+                                                  disabled={!canManageModuleAccess || !checked || !childChecked}
+                                                  onCheckedChange={() => toggleMemberChildModule('db', subtab.id)}
+                                                />
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : null}
                           </div>
                         );
                       })}

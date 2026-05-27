@@ -20,6 +20,7 @@ const ManageVisitorLayout = () => {
       basePath="/app/visitors/manage-visitors"
       defaultTabPath="internal-visitors"
       tabs={tabs}
+      lockUnauthorizedTabs
       hideTabsCondition={(pathname) => pathname.includes("internal-visitors/")}
     />
   );

@@ -3,6 +3,7 @@ import { Tabs } from "@mui/material";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import useIsMobile from "../../hooks/useIsMobile";
 import useAuth from "../../hooks/useAuth";
+import { Lock } from "lucide-react";
 
 interface TabItem {
   label: string;
@@ -17,6 +18,7 @@ interface TabLayoutProps {
   hideTabsCondition?: (pathname: string) => boolean;
   hideTabsOnPaths?: string[];
   scrollable?: boolean;
+  lockUnauthorizedTabs?: boolean;
 }
 
 const TabLayout = ({
@@ -26,6 +28,7 @@ const TabLayout = ({
   hideTabsCondition = () => false,
   hideTabsOnPaths = [],
   scrollable,
+  lockUnauthorizedTabs = false,
 }: TabLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -35,21 +38,28 @@ const TabLayout = ({
   const rawPermissions = (auth?.user as any)?.permissions?.permissions;
   const userPermissions = useMemo(() => rawPermissions || [], [rawPermissions]);
 
-  const filteredTabs = useMemo(
+  const tabsWithAccess = useMemo(
     () =>
-      tabs.filter(
-        (tab) => !tab.permission || userPermissions.includes(tab.permission),
-      ),
+      tabs.map((tab) => ({
+        ...tab,
+        locked: Boolean(tab.permission && !userPermissions.includes(tab.permission)),
+      })),
     [tabs, userPermissions],
   );
 
+  const filteredTabs = useMemo(() => {
+    if (lockUnauthorizedTabs) return tabsWithAccess;
+    return tabsWithAccess.filter((tab) => !tab.locked);
+  }, [tabsWithAccess, lockUnauthorizedTabs]);
+
   useEffect(() => {
+    const firstUnlockedTab = filteredTabs.find((tab: any) => !tab.locked);
     if (
       location.pathname === basePath &&
       defaultTabPath &&
-      filteredTabs.length > 0
+      firstUnlockedTab
     ) {
-      navigate(`${basePath}/${filteredTabs[0].path}`, { replace: true });
+      navigate(`${basePath}/${firstUnlockedTab.path}`, { replace: true });
     }
   }, [location.pathname, navigate, basePath, defaultTabPath, filteredTabs]);
 
@@ -88,24 +98,41 @@ const TabLayout = ({
             },
           }}
         >
-          {filteredTabs.map((tab, index) => (
-            <NavLink
-              key={`${tab.path}-${index}`}
-              className="border-r-[1px] border-borderGray"
-              to={`${basePath}/${tab.path}`}
-              style={({ isActive }) => ({
-                textDecoration: "none",
-                color: isActive ? "white" : "#1E3D73",
-                textAlign: "center",
-                padding: "12px 16px",
-                display: "block",
-                backgroundColor: isActive ? "#1E3D73" : "white",
-                minWidth: isMobile ? "70%" : `${tabPercent}%`,
-              })}
-            >
-              {tab.label}
-            </NavLink>
-          ))}
+          {filteredTabs.map((tab, index) =>
+            tab.locked ? (
+              <span
+                key={`${tab.path}-${index}`}
+                className="border-r-[1px] border-borderGray inline-flex items-center justify-center gap-1 text-slate-400 bg-slate-50 cursor-not-allowed"
+                title="You don’t have permission for this tab."
+                style={{
+                  textAlign: "center",
+                  padding: "12px 16px",
+                  display: "block",
+                  minWidth: isMobile ? "70%" : `${tabPercent}%`,
+                }}
+              >
+                <Lock size={12} />
+                {tab.label}
+              </span>
+            ) : (
+              <NavLink
+                key={`${tab.path}-${index}`}
+                className="border-r-[1px] border-borderGray"
+                to={`${basePath}/${tab.path}`}
+                style={({ isActive }) => ({
+                  textDecoration: "none",
+                  color: isActive ? "white" : "#1E3D73",
+                  textAlign: "center",
+                  padding: "12px 16px",
+                  display: "block",
+                  backgroundColor: isActive ? "#1E3D73" : "white",
+                  minWidth: isMobile ? "70%" : `${tabPercent}%`,
+                })}
+              >
+                {tab.label}
+              </NavLink>
+            ),
+          )}
         </Tabs>
       )}
 

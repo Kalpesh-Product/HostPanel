@@ -594,6 +594,16 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
       selectedPlan,
       enabledModuleIds,
     });
+    const currentUserId = String(req.user?.id || req.user?._id || "").trim();
+    const currentMember = currentUserId
+      ? await WorkspaceMember.findOne({
+          workspace: workspace._id,
+          user: currentUserId,
+          isActive: true,
+        })
+          .lean()
+          .exec()
+      : null;
 
     return res.status(200).json({
       message: "Workspace module access map loaded successfully.",
@@ -604,6 +614,9 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
         enabledModuleIds,
         modules,
         moduleMap: catalog,
+        currentMemberGrantedModules: Array.isArray(currentMember?.grantedModules)
+          ? currentMember.grantedModules
+          : [],
       },
     });
   } catch (error) {

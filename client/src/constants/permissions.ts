@@ -250,13 +250,67 @@ export const PERMISSIONS = {
     access: "page",
     route: "/app/visitors/manage-visitors/external-clients",
   },
+  VISITORS_TAB_DAILY: {
+    value: "visitors_tab_daily",
+    type: "read",
+    access: "page",
+  },
+  VISITORS_TAB_HISTORY: {
+    value: "visitors_tab_history",
+    type: "read",
+    access: "page",
+  },
+  VISITORS_TAB_BOOKINGS: {
+    value: "visitors_tab_bookings",
+    type: "read",
+    access: "page",
+  },
+  VISITORS_TAB_CLIENTS: {
+    value: "visitors_tab_clients",
+    type: "read",
+    access: "page",
+  },
+  VISITORS_MODE_STANDARD: {
+    value: "visitors_mode_standard",
+    type: "read",
+    access: "page",
+  },
+  VISITORS_MODE_WORKSPACE_TOUR: {
+    value: "visitors_mode_workspace_tour",
+    type: "read",
+    access: "page",
+  },
+  VISITORS_MODE_WALKIN_BOOKING: {
+    value: "visitors_mode_walkin_booking",
+    type: "read",
+    access: "page",
+  },
+  VISITORS_MODE_VERIFY_BOOKING: {
+    value: "visitors_mode_verify_booking",
+    type: "read",
+    access: "page",
+  },
+  VISITORS_STANDARD_TYPE_STANDARD: {
+    value: "visitors_standard_type_standard",
+    type: "read",
+    access: "page",
+  },
+  VISITORS_STANDARD_TYPE_DEPARTMENT: {
+    value: "visitors_standard_type_department",
+    type: "read",
+    access: "page",
+  },
+  VISITORS_STANDARD_TYPE_TENANT: {
+    value: "visitors_standard_type_tenant",
+    type: "read",
+    access: "page",
+  },
 
   //Visitors table
   VISITORS_VISITORS_TODAY: {
     value: "visitors_visitors_today",
     type: "read",
   },
-
   // Meetings Module
 
   //Meeting Graphs

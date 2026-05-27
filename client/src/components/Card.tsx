@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { FaArrowRight } from "react-icons/fa";
+import { Lock } from "lucide-react";
 
 interface CardProps {
   title: ReactNode;
@@ -13,6 +14,8 @@ interface CardProps {
   titleColor?: string;
   fullHeight?: boolean;
   route: string;
+  locked?: boolean;
+  lockReason?: string;
 }
 
 const Card = ({
@@ -24,6 +27,8 @@ const Card = ({
   titleColor,
   fullHeight,
   route,
+  locked = false,
+  lockReason = "You don't have access to this item.",
 }: CardProps) => {
   const navigate = useNavigate();
 
@@ -40,23 +45,34 @@ const Card = ({
       variants={cardVariants}
       initial="rest"
       whileHover="hover"
-      onClick={() => navigate(route)}
+      onClick={() => {
+        if (!locked) navigate(route);
+      }}
+      title={locked ? lockReason : undefined}
       className={`group relative flex w-full flex-col items-center justify-center rounded-2xl bg-white p-6 text-center shadow-md transition-all hover:border-[0.2px] hover:border-primary hover:shadow-xl ${
         fullHeight ? "h-60" : ""
-      }`}
+      } ${locked ? "cursor-not-allowed opacity-75" : "cursor-pointer"}`}
       style={{
         backgroundColor: bgcolor || "#ffffff",
         color: fontColor || "#111111",
         fontFamily: fontFamily || "'Poppins', sans-serif",
+        pointerEvents: locked ? "auto" : "auto",
       }}
     >
-      <motion.span
-        className="absolute right-4 top-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        whileHover={{ x: 4 }}
-        transition={{ type: "spring", stiffness: 300 }}
-      >
-        <FaArrowRight size={14} />
-      </motion.span>
+      {locked ? (
+        <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-700">
+          <Lock size={12} />
+          Locked
+        </span>
+      ) : (
+        <motion.span
+          className="absolute right-4 top-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+          whileHover={{ x: 4 }}
+          transition={{ type: "spring", stiffness: 300 }}
+        >
+          <FaArrowRight size={14} />
+        </motion.span>
+      )}
 
       {icon && (
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-3xl transition-transform duration-300 group-hover:scale-110">

@@ -3,8 +3,10 @@ import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import HostUser from "../models/HostUser.js";
 import VisitorLog from "../models/VisitorLog.js";
+import { VISITOR_MEMBER_GRANT_ALIASES, VISITOR_PERMISSION_KEYS } from "../config/visitorPermissionMap.js";
 
 const FRONTDESK_ROLES = new Set(["owner", "founder", "super_admin", "admin", "admin_manager", "manager"]);
+const MODULE_ADMIN_ROLES = new Set(["owner", "founder", "super_admin"]);
 
 const normalizeRole = (value = "") =>
   String(value || "")
@@ -71,6 +73,63 @@ const getWorkspaceRole = async (workspaceId: string, userId: string) => {
 const ensureFrontdeskPermission = async (workspaceId: string, userId: string) => {
   const role = await getWorkspaceRole(workspaceId, userId);
   return FRONTDESK_ROLES.has(role);
+};
+
+const isWorkspaceVisitorModuleEnabled = (workspace: any) => {
+  const enabledByIds = Array.isArray(workspace?.enabledModuleIds)
+    ? workspace.enabledModuleIds.map((item: any) => String(item || "").trim().toLowerCase())
+    : [];
+  if (enabledByIds.includes(VISITOR_PERMISSION_KEYS.module)) return true;
+
+  const moduleRows = Array.isArray(workspace?.modules) ? workspace.modules : [];
+  for (const row of moduleRows) {
+    const items = Array.isArray(row?.items) ? row.items : [];
+    for (const item of items) {
+      const itemId = String(item?.id || "").trim().toLowerCase();
+      if (itemId === VISITOR_PERMISSION_KEYS.module && item?.active !== false) return true;
+    }
+  }
+  return false;
+};
+
+const getWorkspaceMembership = async (workspaceId: string, userId: string) =>
+  WorkspaceMember.findOne({
+    workspace: workspaceId,
+    user: userId,
+    isActive: true,
+  })
+    .select("role grantedModules")
+    .lean()
+    .exec();
+
+const hasVisitorAccess = ({
+  workspace,
+  membership,
+  permissionKey,
+}: {
+  workspace: any;
+  membership: any;
+  permissionKey?: string;
+}) => {
+  if (!isWorkspaceVisitorModuleEnabled(workspace)) return false;
+
+  const role = normalizeRole(membership?.role || "");
+  if (MODULE_ADMIN_ROLES.has(role)) return true;
+
+  const grantedModules = Array.isArray(membership?.grantedModules)
+    ? membership.grantedModules.map((item: any) => String(item || "").trim().toLowerCase())
+    : [];
+  const grantedSet = new Set(grantedModules);
+
+  if (grantedSet.has(VISITOR_PERMISSION_KEYS.module) || grantedSet.has("visitors-management")) {
+    return true;
+  }
+
+  if (!permissionKey) return false;
+  const normalizedPermission = String(permissionKey || "").trim().toLowerCase();
+  if (!normalizedPermission) return false;
+
+  return VISITOR_MEMBER_GRANT_ALIASES.has(normalizedPermission) && grantedSet.has(normalizedPermission);
 };
 
 const formatVisitor = (visitor: any) => ({
@@ -223,6 +282,17 @@ export const getVisitorsOverview = async (req, res, next) => {
     if (!workspace) {
       return res.status(404).json({ message: "Workspace not found for this user." });
     }
+    const membership = await getWorkspaceMembership(toId(workspace._id), toId(req.user));
+    if (!membership) return res.status(403).json({ message: "You do not have workspace access." });
+    if (
+      !hasVisitorAccess({
+        workspace,
+        membership,
+        permissionKey: VISITOR_PERMISSION_KEYS.pages.manageVisitors,
+      })
+    ) {
+      return res.status(403).json({ message: "You do not have permission to access Visitor Management." });
+    }
 
     const visitors = await VisitorLog.find({ workspace: workspace._id })
       .sort({ createdAt: -1 })
@@ -302,6 +372,17 @@ export const listVisitors = async (req, res, next) => {
   try {
     const workspace = await getCurrentWorkspaceForRequest(req);
     if (!workspace) return res.status(404).json({ message: "Workspace not found for this user." });
+    const membership = await getWorkspaceMembership(toId(workspace._id), toId(req.user));
+    if (!membership) return res.status(403).json({ message: "You do not have workspace access." });
+    if (
+      !hasVisitorAccess({
+        workspace,
+        membership,
+        permissionKey: VISITOR_PERMISSION_KEYS.pages.manageVisitors,
+      })
+    ) {
+      return res.status(403).json({ message: "You do not have permission to access Visitor Management." });
+    }
 
     const limit = Math.min(Math.max(Number(req.query?.limit || 20), 1), 100);
     const query: any = { workspace: workspace._id };
@@ -328,6 +409,17 @@ export const createVisitor = async (req, res, next) => {
   try {
     const workspace = await getCurrentWorkspaceForRequest(req);
     if (!workspace) return res.status(404).json({ message: "Workspace not found for this user." });
+    const membership = await getWorkspaceMembership(toId(workspace._id), toId(req.user));
+    if (!membership) return res.status(403).json({ message: "You do not have workspace access." });
+    if (
+      !hasVisitorAccess({
+        workspace,
+        membership,
+        permissionKey: VISITOR_PERMISSION_KEYS.actions.createVisitor,
+      })
+    ) {
+      return res.status(403).json({ message: "You do not have permission to create visitors." });
+    }
 
     const payload = req.body || {};
     const firstName = String(payload.firstName || "").trim();
@@ -400,6 +492,17 @@ export const reviewVisitorDecision = async (req, res, next) => {
   try {
     const workspace = await getCurrentWorkspaceForRequest(req);
     if (!workspace) return res.status(404).json({ message: "Workspace not found for this user." });
+    const membership = await getWorkspaceMembership(toId(workspace._id), toId(req.user));
+    if (!membership) return res.status(403).json({ message: "You do not have workspace access." });
+    if (
+      !hasVisitorAccess({
+        workspace,
+        membership,
+        permissionKey: VISITOR_PERMISSION_KEYS.actions.reviewVisitor,
+      })
+    ) {
+      return res.status(403).json({ message: "You do not have permission to review visitors." });
+    }
     const hasFrontdeskPermission = await ensureFrontdeskPermission(toId(workspace._id), toId(req.user));
     if (!hasFrontdeskPermission) {
       return res.status(403).json({ message: "You do not have permission to review visitors." });
@@ -434,6 +537,17 @@ export const checkInVisitor = async (req, res, next) => {
   try {
     const workspace = await getCurrentWorkspaceForRequest(req);
     if (!workspace) return res.status(404).json({ message: "Workspace not found for this user." });
+    const membership = await getWorkspaceMembership(toId(workspace._id), toId(req.user));
+    if (!membership) return res.status(403).json({ message: "You do not have workspace access." });
+    if (
+      !hasVisitorAccess({
+        workspace,
+        membership,
+        permissionKey: VISITOR_PERMISSION_KEYS.actions.checkInVisitor,
+      })
+    ) {
+      return res.status(403).json({ message: "You do not have permission to check in visitors." });
+    }
 
     const hasFrontdeskPermission = await ensureFrontdeskPermission(toId(workspace._id), toId(req.user));
     if (!hasFrontdeskPermission) {
@@ -471,6 +585,17 @@ export const checkOutVisitor = async (req, res, next) => {
   try {
     const workspace = await getCurrentWorkspaceForRequest(req);
     if (!workspace) return res.status(404).json({ message: "Workspace not found for this user." });
+    const membership = await getWorkspaceMembership(toId(workspace._id), toId(req.user));
+    if (!membership) return res.status(403).json({ message: "You do not have workspace access." });
+    if (
+      !hasVisitorAccess({
+        workspace,
+        membership,
+        permissionKey: VISITOR_PERMISSION_KEYS.actions.checkOutVisitor,
+      })
+    ) {
+      return res.status(403).json({ message: "You do not have permission to check out visitors." });
+    }
     const hasFrontdeskPermission = await ensureFrontdeskPermission(toId(workspace._id), toId(req.user));
     if (!hasFrontdeskPermission) {
       return res.status(403).json({ message: "You do not have permission to check out visitors." });

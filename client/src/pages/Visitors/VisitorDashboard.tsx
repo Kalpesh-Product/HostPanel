@@ -62,9 +62,10 @@ const VisitorDashboard = () => {
     },
   ];
 
-  const allowedCards = cardsConfig.filter(
-    (card) => !card.permission || userPermissions.includes(card.permission)
-  );
+  const cardsWithAccess = cardsConfig.map((card) => ({
+    ...card,
+    locked: Boolean(card.permission && !userPermissions.includes(card.permission)),
+  }));
   //------------------------PAGE ACCESS END-------------------//
 
   const { data: visitorsData = [], isPending: isVisitorsData } = useQuery({
@@ -714,13 +715,15 @@ const allowedVisitorsTodayTables = visitorsTodayTableConfigs.filter(
       ],
     },
     {
-      layout: allowedCards.length, // ✅ dynamic layout
-      widgets: allowedCards.map((card) => (
+      layout: cardsWithAccess.length || 1, // ✅ dynamic layout
+      widgets: cardsWithAccess.map((card) => (
         <Card
           key={card.title}
           route={card.route}
           title={card.title}
           icon={card.icon}
+          locked={card.locked}
+          lockReason="You don’t have permission for this page."
         />
       )),
     },

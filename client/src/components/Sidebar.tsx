@@ -88,6 +88,8 @@ interface NavItemProps {
   isRed?: boolean;
   isActive?: boolean;
   disabled?: boolean;
+  locked?: boolean;
+  unavailable?: boolean;
   disabledTitle?: string;
   forceBold?: boolean;
   forceSmall?: boolean;
@@ -101,6 +103,7 @@ interface WorkspaceSetupState {
 interface WorkspaceAccessMapState {
   selectedPlan?: PlanType;
   enabledModuleIds?: string[];
+  currentMemberGrantedModules?: string[];
   moduleMap?: {
     sections?: Array<{
       sectionId?: string;
@@ -341,35 +344,6 @@ const ICON_BY_ID: Record<string, ElementType> = {
   logout: LogOut,
 };
 
-const COMMON_MODULE_IDS = new Set([
-  "dashboard",
-  "customer-support",
-  "attendance",
-  "tasks",
-  "tickets",
-  "leave-requests",
-  "meeting-room-system",
-  "chat-bot",
-]);
-
-const EXTRA_COMMON_MODULE_IDS = new Set([
-  "assets",
-  "inventory",
-  "finance-management",
-  "reports",
-]);
-
-const DEPARTMENT_GROUP_BY_KEY: Record<string, string> = {
-  hr: "hr-department",
-  administration: "administration-department",
-  sales: "sales-department",
-  finance: "finance-department",
-  maintenance: "maintenance-department",
-  technology: "tech-department",
-  tech: "tech-department",
-  it: "it-department",
-};
-
 const BASIC_PLAN_HARD_LOCK_IDS = new Set([
   "workspace-settings",
   "workspace-management",
@@ -381,18 +355,11 @@ const normalizeRole = (value = "") =>
     .toLowerCase()
     .replace(/[\s-]+/g, "_");
 
-const resolveDepartmentKey = (value = "") => {
-  const normalized = String(value || "").trim().toLowerCase();
-  if (!normalized) return "";
-  if (normalized.includes("administration") || normalized === "admin") return "administration";
-  if (normalized.includes("sales")) return "sales";
-  if (normalized.includes("finance") || normalized.includes("accounting")) return "finance";
-  if (normalized.includes("maintenance") || normalized.includes("facilities")) return "maintenance";
-  if (normalized.includes("technology") || normalized.includes("tech")) return "technology";
-  if (normalized === "it" || normalized.includes("information technology")) return "it";
-  if (normalized.includes("hr")) return "hr";
-  return normalized.replace(/\s+/g, "-");
-};
+const normalizeModuleToken = (value = "") =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
 
 const NavItem = ({
   icon: Icon,
@@ -405,6 +372,8 @@ const NavItem = ({
   isRed,
   isActive,
   disabled,
+  locked,
+  unavailable,
   disabledTitle,
   forceBold,
   forceSmall,
@@ -415,7 +384,7 @@ const NavItem = ({
     className={`w-full flex items-center justify-between py-2 px-3 select-none rounded-md transition-colors ${
       isActive ? "bg-gray-200 font-medium" : "hover:bg-gray-200"
     } ${isRed ? "text-red-500 hover:text-red-600" : "text-gray-700 hover:text-gray-900"} ${
-      disabled ? "opacity-75 cursor-not-allowed" : "cursor-pointer"
+      locked ? "opacity-75 cursor-not-allowed" : unavailable ? "cursor-default" : "cursor-pointer"
     }`}
     style={{ paddingLeft: `${depth * 1.25 + 0.75}rem` }}
     onClick={onClick}
@@ -431,7 +400,7 @@ const NavItem = ({
       )}
     </span>
     {!collapsed && hasChildren && (isOpen ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />)}
-    {!collapsed && disabled && !hasChildren && <Lock size={12} className="text-gray-400" />}
+    {!collapsed && locked && !hasChildren && <Lock size={12} className="text-gray-400" />}
   </button>
 );
 
@@ -475,6 +444,8 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate }: NavGroup
         isRed={item.isRed}
         isActive={isActive}
         disabled={item.disabled || !item.route}
+        locked={Boolean(item.disabled)}
+        unavailable={!item.route}
         disabledTitle={item.disabledTitle}
         forceBold={hasChildren}
         forceSmall={!hasChildren && depth > 0}
@@ -518,30 +489,51 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
 
     const loadSidebarData = async () => {
       try {
-        const [moduleMapRes, orgRes] = await Promise.all([
+        const [moduleMapResult, orgResult] = await Promise.allSettled([
           axiosPrivate.get("/api/workspaces/module-access-map"),
           axiosPrivate.get("/api/organization/overview"),
         ]);
-        const payload = moduleMapRes?.data?.data || {};
-        const orgPayload = orgRes?.data?.data || {};
+
+        const payload =
+          moduleMapResult.status === "fulfilled"
+            ? moduleMapResult.value?.data?.data || {}
+            : {};
+        const orgPayload =
+          orgResult.status === "fulfilled" ? orgResult.value?.data?.data || {} : {};
         const teamMembers = Array.isArray(orgPayload?.teamMembers) ? orgPayload.teamMembers : [];
         const currentUserId = String(
           (auth.user as { id?: string; _id?: string } | null)?.id ||
           (auth.user as { id?: string; _id?: string } | null)?._id ||
           "",
         ).trim();
+        const currentUserEmail = String(
+          (auth.user as { email?: string } | null)?.email || "",
+        )
+          .trim()
+          .toLowerCase();
         const me = teamMembers.find((member: any) => {
           const memberUserId = String(member?.userId || member?.id || "").trim();
-          return memberUserId && memberUserId === currentUserId;
-        });
+          const memberEmail = String(member?.email || "")
+            .trim()
+            .toLowerCase();
+          return (
+            (memberUserId && memberUserId === currentUserId) ||
+            (currentUserEmail && memberEmail === currentUserEmail)
+          );
+        }) || null;
         if (!active) return;
-        setWorkspaceAccessMap({
-          selectedPlan: payload?.selectedPlan || "basic",
-          enabledModuleIds: Array.isArray(payload?.enabledModuleIds)
-            ? payload.enabledModuleIds
-            : [],
-          moduleMap: payload?.moduleMap || { sections: [] },
-        });
+        if (moduleMapResult.status === "fulfilled") {
+          setWorkspaceAccessMap({
+            selectedPlan: payload?.selectedPlan || "basic",
+            enabledModuleIds: Array.isArray(payload?.enabledModuleIds)
+              ? payload.enabledModuleIds
+              : [],
+            currentMemberGrantedModules: Array.isArray(payload?.currentMemberGrantedModules)
+              ? payload.currentMemberGrantedModules
+              : [],
+            moduleMap: payload?.moduleMap || { sections: [] },
+          });
+        }
         setRoleAccessContext({
           role: String(
             me?.role ||
@@ -550,7 +542,13 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
             "",
           ),
           departments: Array.isArray(me?.departmentNames) ? me.departmentNames : [],
-          grantedModules: Array.isArray(me?.grantedModules) ? me.grantedModules : [],
+          grantedModules:
+            Array.isArray(payload?.currentMemberGrantedModules) &&
+            payload.currentMemberGrantedModules.length > 0
+              ? payload.currentMemberGrantedModules
+              : Array.isArray(me?.grantedModules) && me.grantedModules.length > 0
+                ? me.grantedModules
+                : [],
         });
       } catch {
         // Fallback remains local storage driven.
@@ -568,8 +566,17 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     };
 
     void loadSidebarData();
+    const refresh = () => {
+      void loadSidebarData();
+    };
+    const intervalId = window.setInterval(refresh, 5000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
     return () => {
       active = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
     };
   }, [axiosPrivate, auth.user]);
 
@@ -581,9 +588,6 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const currentRole = normalizeRole(roleAccessContext.role);
   const isFounderRole = currentRole === "founder" || currentRole === "owner";
   const isSuperAdminRole = currentRole === "super_admin";
-  const isAdminRole = currentRole === "admin" || currentRole === "admin_manager";
-  const isManagerRole = currentRole === "manager";
-  const isEmployeeRole = !(isFounderRole || isSuperAdminRole || isAdminRole || isManagerRole);
   const isWorkspaceManagementUnlocked =
     planLabel === "professional" && workspaceCount > 1;
   const enabledIds = new Set([
@@ -634,8 +638,8 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     }));
 
     return withSortedChildren.sort((a, b) => {
-      const aEnabled = Boolean(a.route) && !a.disabled;
-      const bEnabled = Boolean(b.route) && !b.disabled;
+      const aEnabled = !a.disabled;
+      const bEnabled = !b.disabled;
       if (aEnabled === bEnabled) return 0;
       return aEnabled ? -1 : 1;
     });
@@ -646,65 +650,156 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const departmentItems = sortEnabledFirst(applyEnabledState(departmentModules));
 
   const roleAllowedModuleIds = useMemo(() => {
-    const allowed = new Set<string>();
-    const workspaceEnabled = new Set(
-      (workspaceAccessMap?.enabledModuleIds || []).map((id) => String(id || "").trim()).filter(Boolean),
-    );
-    const granted = (roleAccessContext.grantedModules || [])
-      .map((item) => String(item || "").trim())
-      .filter((item) => item && !item.startsWith("disabled:"));
+    const sections = Array.isArray(workspaceAccessMap?.moduleMap?.sections)
+      ? workspaceAccessMap.moduleMap.sections
+      : [];
 
-    if (isFounderRole) {
-      workspaceEnabled.forEach((id) => allowed.add(id));
-      return allowed;
-    }
+    const canonicalIds = new Set<string>();
+    const aliasToCanonical = new Map<string, string>();
 
-    if (isSuperAdminRole) {
-      // Super Admin access is founder-controlled:
-      // only modules enabled at workspace level AND granted to this user.
-      granted
-        .filter((id) => workspaceEnabled.has(id))
-        .forEach((id) => allowed.add(id));
+    sections.forEach((section) => {
+      (Array.isArray(section?.items) ? section.items : []).forEach((item) => {
+        const addAlias = (id: string, label?: string, route?: string) => {
+          const canonical = String(id || "").trim();
+          if (!canonical) return;
+          canonicalIds.add(canonical);
+          aliasToCanonical.set(normalizeModuleToken(canonical), canonical);
+          if (label) aliasToCanonical.set(normalizeModuleToken(label), canonical);
+          if (route) {
+            const routeToken = String(route || "").trim().split("/").filter(Boolean).join("-");
+            if (routeToken) aliasToCanonical.set(normalizeModuleToken(routeToken), canonical);
+          }
+        };
 
-      if (planLabel === "basic") {
-        allowed.delete("workspace-settings");
-        allowed.delete("workspace-management");
-      }
-      return allowed;
-    }
-
-    COMMON_MODULE_IDS.forEach((id) => allowed.add(id));
-    EXTRA_COMMON_MODULE_IDS.forEach((id) => allowed.add(id));
-
-    if (isAdminRole || isManagerRole) {
-      const departmentKeys = (roleAccessContext.departments || [])
-        .map((name) => resolveDepartmentKey(name))
-        .filter(Boolean);
-      departmentKeys.forEach((key) => {
-        const groupId = DEPARTMENT_GROUP_BY_KEY[key];
-        if (groupId) allowed.add(groupId);
+        addAlias(String(item?.id || ""), String(item?.label || ""), String(item?.route || ""));
+        (Array.isArray(item?.tabs) ? item.tabs : []).forEach((tab) => {
+          addAlias(String(tab?.id || ""), String(tab?.label || ""), String(tab?.route || ""));
+        });
       });
+    });
+
+    const grantedEnabled = (roleAccessContext.grantedModules || [])
+      .map((item) => String(item || "").trim())
+      .filter((item) => item && !item.toLowerCase().startsWith("disabled:"))
+      .map((item) => {
+        // Always prefer exact canonical ids from DB over label aliases.
+        if (canonicalIds.has(item)) return item;
+        const normalized = normalizeModuleToken(item);
+        const direct = aliasToCanonical.get(normalized);
+        if (direct) return direct;
+
+        // Handle department-prefixed grants such as "administration-visitor-management".
+        if (normalized.startsWith("administration-")) {
+          const withoutPrefix = normalized.slice("administration-".length);
+          const adminVisitor = aliasToCanonical.get("visitors-management");
+          if (withoutPrefix === "visitor-management" && adminVisitor) {
+            return adminVisitor;
+          }
+          const prefixedMatch = aliasToCanonical.get(withoutPrefix);
+          if (prefixedMatch) return prefixedMatch;
+        }
+
+        // Handle shorthand grant ids such as "housekeeping".
+        if (normalized === "housekeeping") {
+          const housekeeping = aliasToCanonical.get("house-keeping");
+          if (housekeeping) return housekeeping;
+        }
+
+        // Generic fallback: strip first segment for custom prefixed ids.
+        const segments = normalized.split("-").filter(Boolean);
+        if (segments.length > 1) {
+          const stripped = segments.slice(1).join("-");
+          const strippedMatch = aliasToCanonical.get(stripped);
+          if (strippedMatch) return strippedMatch;
+        }
+
+        return item;
+      })
+      .filter((item) => canonicalIds.has(item));
+
+    if (isFounderRole || isSuperAdminRole) {
+      return new Set<string>(canonicalIds);
     }
 
-    // Founder can grant any additional enabled modules/tabs to anyone.
-    granted.forEach((id) => allowed.add(id));
-
-    if (isEmployeeRole) {
-      return allowed;
+    const allowed = new Set<string>(grantedEnabled);
+    if (planLabel === "basic") {
+      allowed.delete("workspace-settings");
+      allowed.delete("workspace-management");
     }
 
     return allowed;
   }, [
-    isFounderRole,
-    isSuperAdminRole,
-    isAdminRole,
-    isManagerRole,
-    isEmployeeRole,
-    roleAccessContext.departments,
     roleAccessContext.grantedModules,
     workspaceAccessMap?.enabledModuleIds,
+    workspaceAccessMap?.moduleMap?.sections,
     planLabel,
   ]);
+
+  const workspaceEnabledCanonicalIds = useMemo(() => {
+    const sections = Array.isArray(workspaceAccessMap?.moduleMap?.sections)
+      ? workspaceAccessMap.moduleMap.sections
+      : [];
+    const aliasToCanonical = new Map<string, string>();
+    const canonicalIds = new Set<string>();
+
+    const addAlias = (id: string, label?: string, route?: string) => {
+      const canonical = String(id || "").trim();
+      if (!canonical) return;
+      canonicalIds.add(canonical);
+      aliasToCanonical.set(normalizeModuleToken(canonical), canonical);
+      if (label) aliasToCanonical.set(normalizeModuleToken(label), canonical);
+      if (route) {
+        const routeToken = String(route || "").trim().split("/").filter(Boolean).join("-");
+        if (routeToken) aliasToCanonical.set(normalizeModuleToken(routeToken), canonical);
+      }
+    };
+
+    sections.forEach((section) => {
+      (Array.isArray(section?.items) ? section.items : []).forEach((item) => {
+        addAlias(String(item?.id || ""), String(item?.label || ""), String(item?.route || ""));
+        (Array.isArray(item?.tabs) ? item.tabs : []).forEach((tab) => {
+          addAlias(String(tab?.id || ""), String(tab?.label || ""), String(tab?.route || ""));
+        });
+      });
+    });
+
+    const resolveCanonical = (raw: string) => {
+      const rawTrimmed = String(raw || "").trim();
+      if (canonicalIds.has(rawTrimmed)) return rawTrimmed;
+      const normalized = normalizeModuleToken(raw);
+      const direct = aliasToCanonical.get(normalized);
+      if (direct) return direct;
+      if (normalized.startsWith("administration-")) {
+        const withoutPrefix = normalized.slice("administration-".length);
+        const adminVisitor = aliasToCanonical.get("visitors-management");
+        if (withoutPrefix === "visitor-management" && adminVisitor) return adminVisitor;
+        const prefixedMatch = aliasToCanonical.get(withoutPrefix);
+        if (prefixedMatch) return prefixedMatch;
+      }
+      if (normalized === "housekeeping") {
+        const housekeeping = aliasToCanonical.get("house-keeping");
+        if (housekeeping) return housekeeping;
+      }
+      const segments = normalized.split("-").filter(Boolean);
+      if (segments.length > 1) {
+        const stripped = segments.slice(1).join("-");
+        const strippedMatch = aliasToCanonical.get(stripped);
+        if (strippedMatch) return strippedMatch;
+      }
+      return String(raw || "").trim();
+    };
+
+    const enabledRaw = (workspaceAccessMap?.enabledModuleIds || workspaceSetup.enabledModuleIds || [])
+      .map((item) => String(item || "").trim())
+      .filter(Boolean);
+
+    return new Set(
+      enabledRaw
+        .map(resolveCanonical)
+        .map((item) => String(item || "").trim())
+        .filter(Boolean),
+    );
+  }, [workspaceAccessMap?.enabledModuleIds, workspaceAccessMap?.moduleMap?.sections, workspaceSetup.enabledModuleIds]);
 
   const mappedSections: Array<{ key: string; title: string; items: NavNode[] }> = (
     workspaceAccessMap?.moduleMap?.sections || []
@@ -718,7 +813,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
           .map((tab) => {
             const tabId = String(tab?.id || "").trim();
             const tabRoute = tab?.route || ROUTE_BY_ID[tabId];
-            const unlocked = tab?.unlockedInWorkspace && roleAllowedModuleIds.has(tabId);
+            const unlocked = workspaceEnabledCanonicalIds.has(tabId) && roleAllowedModuleIds.has(tabId);
             return {
               id: tabId,
               label: String(tab?.label || tabId),
@@ -741,13 +836,30 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
         label: String(item?.label || itemId),
         icon: ICON_BY_ID[itemId] || Boxes,
         route: itemRoute,
-        disabled: basicPlanLocked || !(item?.unlockedInWorkspace && roleAllowedModuleIds.has(itemId)),
+        disabled: basicPlanLocked || !(workspaceEnabledCanonicalIds.has(itemId) && roleAllowedModuleIds.has(itemId)),
       };
     }).filter(Boolean);
+    const sectionKey = String(section?.sectionId || section?.sectionLabel || "section");
+    let sortedItems = sortEnabledFirst(mappedItems);
+    if (sectionKey === "department-accesses") {
+      // Prioritize departments with more granted+enabled tabs.
+      sortedItems = [...sortedItems].sort((a, b) => {
+        const countUnlocked = (node: NavNode) =>
+          Array.isArray(node.children)
+            ? node.children.filter((child) => !child.disabled).length
+            : node.disabled
+              ? 0
+              : 1;
+        const delta = countUnlocked(b) - countUnlocked(a);
+        if (delta !== 0) return delta;
+        return a.label.localeCompare(b.label);
+      });
+    }
+
     return {
-      key: String(section?.sectionId || section?.sectionLabel || "section"),
+      key: sectionKey,
       title: String(section?.sectionLabel || "Section"),
-      items: sortEnabledFirst(mappedItems),
+      items: sortedItems,
     };
   }).filter((section) => section.items.length > 0);
 

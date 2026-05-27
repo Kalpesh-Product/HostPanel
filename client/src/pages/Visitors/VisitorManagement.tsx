@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { City, Country, State } from 'country-state-city';
 import useAuth from '../../hooks/useAuth';
+import useAxiosPrivate from '../../hooks/useAxiosPrivate';
 
 import {
   createVisitorLog,
@@ -9,6 +10,7 @@ import {
   checkOutVisitorLog,
   getVisitorManagementOverview,
 } from '../../services/visitors';
+import { PERMISSIONS } from '../../constants/permissions';
 import {
   createMeetingRoomBooking,
   getMeetingRoomClients,
@@ -719,6 +721,102 @@ function normalizeDailyBooking(booking) {
 
 export default function VisitorsManagementPage() {
   const { auth } = useAuth();
+  const axiosPrivate = useAxiosPrivate();
+  const userPermissions = useMemo(
+    () => auth?.user?.permissions?.permissions || [],
+    [auth?.user?.permissions?.permissions],
+  );
+  const [currentMemberGrantedModules, setCurrentMemberGrantedModules] = useState([]);
+  const memberGrantedModules = useMemo(() => {
+    const fromWorkspaceMembership = Array.isArray(auth?.user?.workspaceMembership?.grantedModules)
+      ? auth.user.workspaceMembership.grantedModules
+      : [];
+    const fromUser = Array.isArray(auth?.user?.grantedModules)
+      ? auth.user.grantedModules
+      : [];
+    return [...currentMemberGrantedModules, ...fromWorkspaceMembership, ...fromUser]
+      .map((value) => String(value || '').trim().toLowerCase())
+      .filter(Boolean);
+  }, [currentMemberGrantedModules, auth?.user?.workspaceMembership?.grantedModules, auth?.user?.grantedModules]);
+
+  useEffect(() => {
+    let active = true;
+    const loadCurrentMemberGrants = async () => {
+      try {
+        const response = await axiosPrivate.get('/api/organization/overview');
+        const payload = response?.data?.data || {};
+        const teamMembers = Array.isArray(payload?.teamMembers) ? payload.teamMembers : [];
+        const currentUserId = String(auth?.user?.id || auth?.user?._id || '').trim();
+        const currentEmail = String(auth?.user?.email || '').trim().toLowerCase();
+        const me = teamMembers.find((member) => {
+          const memberUserId = String(member?.userId || member?.id || '').trim();
+          const memberEmail = String(member?.email || '').trim().toLowerCase();
+          return (
+            (memberUserId && memberUserId === currentUserId) ||
+            (currentEmail && memberEmail === currentEmail)
+          );
+        });
+
+        if (!active) return;
+        setCurrentMemberGrantedModules(
+          Array.isArray(me?.grantedModules) ? me.grantedModules : [],
+        );
+      } catch {
+        if (!active) return;
+        setCurrentMemberGrantedModules([]);
+      }
+    };
+
+    void loadCurrentMemberGrants();
+    const refresh = () => {
+      void loadCurrentMemberGrants();
+    };
+    const intervalId = window.setInterval(refresh, 5000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [axiosPrivate, auth?.user?.id, auth?.user?._id, auth?.user?.email]);
+  const hasGrant = (key = '') =>
+    memberGrantedModules.includes(String(key || '').trim().toLowerCase()) ||
+    userPermissions.includes(String(key || '').trim());
+  const visitorAccess = useMemo(
+    () => ({
+      tabs: {
+        daily:
+          hasGrant(PERMISSIONS.VISITORS_TAB_DAILY.value),
+        history:
+          hasGrant(PERMISSIONS.VISITORS_TAB_HISTORY.value),
+        bookings:
+          hasGrant(PERMISSIONS.VISITORS_TAB_BOOKINGS.value),
+        clients:
+          hasGrant(PERMISSIONS.VISITORS_TAB_CLIENTS.value),
+      },
+      modes: {
+        standard:
+          hasGrant(PERMISSIONS.VISITORS_MODE_STANDARD.value),
+        tour:
+          hasGrant(PERMISSIONS.VISITORS_MODE_WORKSPACE_TOUR.value),
+        walkin_booking:
+          hasGrant(PERMISSIONS.VISITORS_MODE_WALKIN_BOOKING.value),
+        verify_booking:
+          hasGrant(PERMISSIONS.VISITORS_MODE_VERIFY_BOOKING.value),
+      },
+      standardTypes: {
+        standard:
+          hasGrant(PERMISSIONS.VISITORS_STANDARD_TYPE_STANDARD.value),
+        department:
+          hasGrant(PERMISSIONS.VISITORS_STANDARD_TYPE_DEPARTMENT.value),
+        tenant:
+          hasGrant(PERMISSIONS.VISITORS_STANDARD_TYPE_TENANT.value),
+      },
+    }),
+    [memberGrantedModules, userPermissions],
+  );
   const [activeTab, setActiveTab] = useState('daily');
   const [bookingStatusTab, setBookingStatusTab] = useState('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
@@ -740,8 +838,29 @@ export default function VisitorsManagementPage() {
   const [extendingBooking, setExtendingBooking] = useState(null);
 
   const [visitorMode, setVisitorMode] = useState('standard');
-  const lockedTopTabs = useMemo(() => new Set(['bookings', 'clients']), []);
-  const lockedVisitorModes = useMemo(() => new Set(['tour', 'walkin_booking', 'verify_booking']), []);
+  const lockedTopTabs = useMemo(
+    () =>
+      new Set(
+        Object.entries(visitorAccess.tabs)
+          .filter(([, allowed]) => !allowed)
+          .map(([tab]) => tab),
+      ),
+    [visitorAccess.tabs],
+  );
+  const lockedVisitorModes = useMemo(
+    () =>
+      new Set(
+        Object.entries(visitorAccess.modes)
+          .filter(([, allowed]) => !allowed)
+          .map(([mode]) => mode),
+      ),
+    [visitorAccess.modes],
+  );
+  const canOpenFrontdeskAction =
+    visitorAccess.modes.standard ||
+    visitorAccess.modes.tour ||
+    visitorAccess.modes.walkin_booking ||
+    visitorAccess.modes.verify_booking;
 
   const [walkInStep, setWalkInStep] = useState(1);
   const [availabilityStatus, setAvailabilityStatus] = useState('idle');
@@ -1978,7 +2097,12 @@ export default function VisitorsManagementPage() {
 
   useEffect(() => {
     if (lockedVisitorModes.has(visitorMode)) {
-      setVisitorMode('standard');
+      const firstAllowedMode = ['standard', 'tour', 'walkin_booking', 'verify_booking'].find(
+        (mode) => !lockedVisitorModes.has(mode),
+      );
+      if (firstAllowedMode) {
+        setVisitorMode(firstAllowedMode);
+      }
     }
   }, [lockedVisitorModes, visitorMode]);
 
@@ -2981,8 +3105,15 @@ export default function VisitorsManagementPage() {
             <p className="mt-1 max-w-2xl text-xs font-semibold text-slate-500">Daily visitors, walk-in bookings, client conversion, payment proof, and invoice handoff in one front desk workspace.</p>
           </div>
           <button
+            type="button"
+            disabled={!canOpenFrontdeskAction}
+            title={!canOpenFrontdeskAction ? 'You do not have permission for frontdesk action tabs.' : undefined}
             onClick={() => { setVisitorMode('standard'); setWalkInStep(1); setForm(getDefaultVisitorForm()); setVerifiedBooking(null); setBookingConfirmation(null); setIsLoggingVisitor(true); }}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-black text-white shadow-md shadow-blue-100 transition-all hover:bg-blue-700"
+            className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-xs font-black shadow-md transition-all ${
+              canOpenFrontdeskAction
+                ? 'bg-[#2563EB] text-white shadow-blue-100 hover:bg-blue-700'
+                : 'bg-slate-200 text-slate-500 cursor-not-allowed shadow-none'
+            }`}
           >
             <UserPlus size={14} /> New Frontdesk Action
           </button>
@@ -3014,27 +3145,49 @@ export default function VisitorsManagementPage() {
           <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col xl:flex-row justify-between items-center gap-4">
 
             <div className="flex bg-gray-100 p-1.5 rounded-2xl w-full xl:w-auto overflow-x-auto">
-              <button onClick={() => setActiveTab('daily')} className={`flex-1 px-6 py-2.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-all flex items-center justify-center gap-2 ${activeTab === 'daily' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
+              <button
+                type="button"
+                disabled={!visitorAccess.tabs.daily}
+                title={!visitorAccess.tabs.daily ? 'You do not have permission for Daily Visitors.' : undefined}
+                onClick={() => setActiveTab('daily')}
+                className={`flex-1 px-6 py-2.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-all flex items-center justify-center gap-2 ${
+                  activeTab === 'daily' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'
+                } ${!visitorAccess.tabs.daily ? 'cursor-not-allowed opacity-60' : ''}`}
+              >
                 DAILY VISITORS <span className="bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md flex items-center gap-1"><span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>{trackedVisitors.length}</span>
               </button>
-              <button onClick={() => setActiveTab('history')} className={`flex-1 px-6 py-2.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-all ${activeTab === 'history' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
+              <button
+                type="button"
+                disabled={!visitorAccess.tabs.history}
+                title={!visitorAccess.tabs.history ? 'You do not have permission for Visitor History.' : undefined}
+                onClick={() => setActiveTab('history')}
+                className={`flex-1 px-6 py-2.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-all ${
+                  activeTab === 'history' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'
+                } ${!visitorAccess.tabs.history ? 'cursor-not-allowed opacity-60' : ''}`}
+              >
                 VISITOR HISTORY
               </button>
               <button
                 type="button"
-                disabled
-                title="Upgrade plan to access this feature."
-                className="flex-1 px-6 py-2.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-all flex items-center justify-center gap-2 text-gray-300 cursor-not-allowed"
+                disabled={!visitorAccess.tabs.bookings}
+                title={!visitorAccess.tabs.bookings ? 'You do not have permission for Bookings.' : undefined}
+                onClick={() => setActiveTab('bookings')}
+                className={`flex-1 px-6 py-2.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-all flex items-center justify-center gap-2 ${
+                  activeTab === 'bookings' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'
+                } ${!visitorAccess.tabs.bookings ? 'text-gray-300 cursor-not-allowed' : ''}`}
               >
-                <Lock size={12} /> BOOKINGS
+                {!visitorAccess.tabs.bookings && <Lock size={12} />} BOOKINGS
               </button>
               <button
                 type="button"
-                disabled
-                title="Upgrade plan to access this feature."
-                className="flex-1 px-6 py-2.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-all flex items-center justify-center gap-2 text-gray-300 cursor-not-allowed"
+                disabled={!visitorAccess.tabs.clients}
+                title={!visitorAccess.tabs.clients ? 'You do not have permission for Clients.' : undefined}
+                onClick={() => setActiveTab('clients')}
+                className={`flex-1 px-6 py-2.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-all flex items-center justify-center gap-2 ${
+                  activeTab === 'clients' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'
+                } ${!visitorAccess.tabs.clients ? 'text-gray-300 cursor-not-allowed' : ''}`}
               >
-                <Lock size={12} /> CLIENTS
+                {!visitorAccess.tabs.clients && <Lock size={12} />} CLIENTS
               </button>
             </div>
 
@@ -3138,11 +3291,11 @@ export default function VisitorsManagementPage() {
                                 </button>
                               )}
                               {isCheckedIn ? (
-                                <button title="Check out visitor" onClick={() => handleCheckOut(vis.id)} className="w-8 h-8 bg-white border border-gray-200 text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 rounded-lg transition-all inline-flex items-center justify-center">
+                                <button title="Check out visitor" onClick={() => handleCheckOut(vis.id)} className="w-8 h-8 bg-white border border-gray-200 rounded-lg transition-all inline-flex items-center justify-center text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200">
                                   <LogOut size={13} />
                                 </button>
                               ) : isApproved ? (
-                                <button title="Check in visitor" onClick={() => handleAllowEntry(vis)} className="w-8 h-8 bg-emerald-600 border border-emerald-600 text-white hover:bg-emerald-700 rounded-lg transition-all inline-flex items-center justify-center">
+                                <button title="Check in visitor" onClick={() => handleAllowEntry(vis)} className="w-8 h-8 border rounded-lg transition-all inline-flex items-center justify-center bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700">
                                   <CheckCircle2 size={13} />
                                 </button>
                               ) : (
@@ -3458,10 +3611,16 @@ export default function VisitorsManagementPage() {
                 </div>
 
                 <div className="grid grid-cols-2 xl:grid-cols-4 gap-1.5 w-full md:w-auto bg-slate-800 p-1 rounded-xl border border-slate-700">
-                  <button onClick={() => { setVisitorMode('standard'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setForm((prev) => ({ ...prev, standardVisitorType: prev.standardVisitorType || 'standard' })); }} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all ${visitorMode === 'standard' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'}`}>Standard Visitor</button>
-                  <button type="button" disabled title="Upgrade plan to access this feature." className="w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all text-slate-500 bg-slate-700/60 cursor-not-allowed inline-flex items-center justify-center gap-1"><Lock size={11} /> Workspace Tour</button>
-                  <button type="button" disabled title="Upgrade plan to access this feature." className="w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all text-slate-500 bg-slate-700/60 cursor-not-allowed inline-flex items-center justify-center gap-1"><Lock size={11} /> Walk-in Booking</button>
-                  <button type="button" disabled title="Upgrade plan to access this feature." className="w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all text-slate-500 bg-slate-700/60 cursor-not-allowed inline-flex items-center justify-center gap-1"><Lock size={11} /> Verify Booking ID</button>
+                  <button
+                    type="button"
+                    disabled={!visitorAccess.modes.standard}
+                    title={!visitorAccess.modes.standard ? 'You do not have permission for Standard Visitor.' : undefined}
+                    onClick={() => { setVisitorMode('standard'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setForm((prev) => ({ ...prev, standardVisitorType: prev.standardVisitorType || 'standard' })); }}
+                    className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all ${visitorMode === 'standard' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.standard ? 'cursor-not-allowed opacity-60' : ''}`}
+                  >Standard Visitor</button>
+                  <button type="button" disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have permission for Workspace Tour.' : undefined} onClick={() => setVisitorMode('tour')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'tour' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.tour ? 'text-slate-500 bg-slate-700/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.tour && <Lock size={11} />} Workspace Tour</button>
+                  <button type="button" disabled={!visitorAccess.modes.walkin_booking} title={!visitorAccess.modes.walkin_booking ? 'You do not have permission for Walk-in Booking.' : undefined} onClick={() => setVisitorMode('walkin_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'walkin_booking' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.walkin_booking ? 'text-slate-500 bg-slate-700/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.walkin_booking && <Lock size={11} />} Walk-in Booking</button>
+                  <button type="button" disabled={!visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have permission for Verify Booking ID.' : undefined} onClick={() => setVisitorMode('verify_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'verify_booking' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.verify_booking ? 'text-slate-500 bg-slate-700/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.verify_booking && <Lock size={11} />} Verify Booking ID</button>
                 </div>
               </div>
 
@@ -3760,15 +3919,15 @@ export default function VisitorsManagementPage() {
 
                       <div className="grid grid-cols-3 gap-1.5 rounded-lg bg-slate-100 p-1">
                         {[
-                          ['standard', 'Standard Visitor', false],
-                          ['department', 'Department Visitor', true],
-                          ['tenant', 'Tenant Company Visitor', true],
+                          ['standard', 'Standard Visitor', !visitorAccess.standardTypes.standard],
+                          ['department', 'Department Visitor', !visitorAccess.standardTypes.department],
+                          ['tenant', 'Tenant Company Visitor', !visitorAccess.standardTypes.tenant],
                         ].map(([type, label, locked]) => (
                           <button
                             key={type}
                             type="button"
                             disabled={locked}
-                            title={locked ? 'Upgrade plan to access this feature.' : undefined}
+                            title={locked ? 'You do not have permission for this subtab.' : undefined}
                             onClick={() => setForm((prev) => ({
                               ...prev,
                               standardVisitorType: type,
@@ -4698,7 +4857,7 @@ export default function VisitorsManagementPage() {
 
                       <div className="flex gap-3">
                         <input type="text" placeholder="Enter booking ID..." className="flex-1 px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-bold text-gray-900 focus:border-blue-500 outline-none uppercase shadow-sm text-xs" value={form.bookingId} onChange={e => setForm({ ...form, bookingId: e.target.value })} />
-                        <button onClick={handleVerifySearch} disabled={!form.bookingId} className="px-6 bg-gray-900 text-white rounded-xl font-black text-xs hover:bg-black disabled:bg-gray-300 transition-all shadow-md">FETCH</button>
+                        <button onClick={handleVerifySearch} disabled={!form.bookingId || !visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have permission to verify booking IDs.' : undefined} className="px-6 bg-gray-900 text-white rounded-xl font-black text-xs hover:bg-black disabled:bg-gray-300 transition-all shadow-md">FETCH</button>
                       </div>
 
                       {verifiedBooking && (
@@ -4770,24 +4929,25 @@ export default function VisitorsManagementPage() {
                 {visitorMode === 'standard' && (
                   <button
                     onClick={handleProcessAction}
-                    disabled={isSubmittingVisitor || isVisitorOverviewLoading || !isStandardFormComplete}
+                    disabled={isSubmittingVisitor || isVisitorOverviewLoading || !isStandardFormComplete || !visitorAccess.modes.standard}
+                    title={!visitorAccess.modes.standard ? 'You do not have access to Standard Visitor tab.' : undefined}
                     className="flex-[2] py-3 bg-[#2563EB] text-white rounded-xl text-xs font-black shadow-md shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:shadow-none"
                   >
                     <CheckCircle2 size={18} />{isSubmittingVisitor ? 'SENDING...' : form.standardVisitorType === 'department' ? 'SEND HOST APPROVAL' : 'CHECK IN VISITOR'}
                   </button>
                 )}
                 {visitorMode === 'tour' && (
-                  <button onClick={handleProcessAction} className="flex-[2] py-3 bg-indigo-600 text-white rounded-xl text-xs font-black shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5">
+                  <button onClick={handleProcessAction} disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have access to Workspace Tour tab.' : undefined} className="flex-[2] py-3 bg-indigo-600 text-white rounded-xl text-xs font-black shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-gray-300 disabled:shadow-none">
                     <Building size={18} /> SYNC LEAD & START TOUR
                   </button>
                 )}
                 {visitorMode === 'walkin_booking' && (
-                  <button disabled={!walkInAvailability.available || isSubmittingVisitor} onClick={handleProcessAction} className="flex-[2] py-3 bg-blue-600 text-white rounded-xl text-xs font-black shadow-md shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5">
+                  <button disabled={!walkInAvailability.available || isSubmittingVisitor || !visitorAccess.modes.walkin_booking} title={!visitorAccess.modes.walkin_booking ? 'You do not have access to Walk-in Booking tab.' : undefined} onClick={handleProcessAction} className="flex-[2] py-3 bg-blue-600 text-white rounded-xl text-xs font-black shadow-md shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5">
                     <Wallet size={18} /> {isSubmittingVisitor ? 'CONFIRMING...' : 'COLLECT PAYMENT & CONFIRM'}
                   </button>
                 )}
                 {visitorMode === 'verify_booking' && (
-                  <button disabled={!verifiedBooking} onClick={handleProcessAction} className="flex-[2] py-3 bg-green-600 text-white rounded-xl text-xs font-black shadow-md shadow-green-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-green-700 transition-all flex items-center justify-center gap-1.5">
+                  <button disabled={!verifiedBooking || !visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have access to Verify Booking tab.' : undefined} onClick={handleProcessAction} className="flex-[2] py-3 bg-green-600 text-white rounded-xl text-xs font-black shadow-md shadow-green-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-green-700 transition-all flex items-center justify-center gap-1.5">
                     <CheckCircle2 size={18} /> {verifiedBooking?.status === 'Pending Payment' ? 'MARK PAID & CHECK IN' : 'CONFIRM ENTRY'}
                   </button>
                 )}
@@ -5252,7 +5412,7 @@ export default function VisitorsManagementPage() {
                   </button>
                 )}
                 {viewingVisitor.status === 'Checked In' && (
-                  <button onClick={() => handleCheckOut(viewingVisitor.id)} className="flex-1 py-2.5 bg-red-600 text-white rounded-lg font-black text-xs shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-1.5">
+                  <button onClick={() => handleCheckOut(viewingVisitor.id)} className="flex-1 py-2.5 rounded-lg font-black text-xs transition-all flex items-center justify-center gap-1.5 bg-red-600 text-white shadow-lg shadow-red-200 hover:bg-red-700">
                     <LogOut size={15} /> CHECK OUT
                   </button>
                 )}

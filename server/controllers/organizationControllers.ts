@@ -219,6 +219,7 @@ export const getOrganizationOverview = async (req, res, next) => {
       status: member.isActive === false ? "disabled" : "joined",
       departmentNames: Array.isArray(member.departments) ? member.departments : [],
       grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],
+      enabledModules: Array.isArray(member.enabledModules) ? member.enabledModules : [],
       workspaceAccesses: linkedWorkspaces.filter((item) =>
         linkedMemberships.some(
           (accessMembership) =>
