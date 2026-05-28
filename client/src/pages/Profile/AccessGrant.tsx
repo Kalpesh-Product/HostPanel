@@ -1,5 +1,5 @@
 ﻿// @ts-nocheck
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -56,6 +56,29 @@ const VISITOR_PARENT_ALIASES = new Set([
   'visitor-management',
   'visitors-management',
   'manage_visitors',
+]);
+
+const ORGANIZATION_TAB_CHILDREN = [
+  { id: 'org_tab_users', label: 'Platform Users Tab', description: 'Access users tab in Organization Management.' },
+  { id: 'org_tab_departments', label: 'Departments Tab', description: 'Access departments tab in Organization Management.' },
+];
+
+const ORGANIZATION_USERS_ACTION_CHILDREN = [
+  { id: 'org_users_invite_member', label: 'Invite Member', description: 'Invite/add users from Organization Management.' },
+  { id: 'org_users_change_role', label: 'Change Role', description: 'Promote/demote and update member roles.' },
+  { id: 'org_users_toggle_access', label: 'Toggle Access', description: 'Enable or disable member access.' },
+];
+
+const ORGANIZATION_DEPARTMENTS_ACTION_CHILDREN = [
+  { id: 'org_departments_create', label: 'Create Department', description: 'Create new departments.' },
+  { id: 'org_departments_edit', label: 'Edit Department', description: 'Update department details and configuration.' },
+  { id: 'org_departments_assign_manager', label: 'Assign Manager', description: 'Assign department manager.' },
+  { id: 'org_departments_assign_acting_manager', label: 'Assign Acting Manager', description: 'Assign acting manager for department.' },
+  { id: 'org_departments_remove_acting_manager', label: 'Remove Acting Manager', description: 'Remove acting manager assignment.' },
+];
+
+const ORGANIZATION_PARENT_ALIASES = new Set([
+  'organization-management',
 ]);
 
 function Switch({ checked, disabled, onCheckedChange }) {
@@ -160,27 +183,8 @@ function normalizeModuleKey(value = '') {
 }
 
 function expandModuleAliases(values = []) {
-  const expanded = new Set(
-    values.map((value) => normalizeModuleKey(value)).filter(Boolean),
-  );
-
-  const ensure = (a, b) => {
-    if (expanded.has(a) || expanded.has(b)) {
-      expanded.add(a);
-      expanded.add(b);
-    }
-  };
-
-  ensure('visitor-management', 'visitors-management');
-  ensure('website-builder', 'tech-website-builder');
-  ensure('housekeeping', 'house-keeping');
-
-  if (expanded.has('administration-visitor-management')) {
-    expanded.add('visitor-management');
-    expanded.add('visitors-management');
-  }
-
-  return expanded;
+  // Keep only exact normalized ids to allow independent control across sections.
+  return new Set(values.map((value) => normalizeModuleKey(value)).filter(Boolean));
 }
 
 function resolveCanonicalModuleId(rawValue = '', aliasToCanonical = new Map()) {
@@ -190,8 +194,10 @@ function resolveCanonicalModuleId(rawValue = '', aliasToCanonical = new Map()) {
 
   if (normalized.startsWith('administration-')) {
     const withoutPrefix = normalized.slice('administration-'.length);
-    const adminVisitor = aliasToCanonical.get('visitors-management');
-    if (withoutPrefix === 'visitor-management' && adminVisitor) return adminVisitor;
+    if (withoutPrefix === 'visitor-management') {
+      const adminVisitor = aliasToCanonical.get('visitors-management');
+      if (adminVisitor) return adminVisitor;
+    }
     const prefixedMatch = aliasToCanonical.get(withoutPrefix);
     if (prefixedMatch) return prefixedMatch;
   }
@@ -338,14 +344,14 @@ export default function AccessGrantsPage() {
   const [memberAccessTarget, setMemberAccessTarget] = useState(null);
   const [memberAccessDraft, setMemberAccessDraft] = useState({});
   const [expandedAccessModules, setExpandedAccessModules] = useState({});
+  const [expandedDepartmentGroups, setExpandedDepartmentGroups] = useState({});
   const [members, setMembers] = useState([]);
   const [workspace, setWorkspace] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const enabledWorkspaceModuleKeys = useMemo(() => {
     const workspaceRaw = Array.isArray(workspace?.enabledModuleIds) ? workspace.enabledModuleIds : [];
-    const memberRaw = Array.isArray(memberAccessTarget?.enabledModules) ? memberAccessTarget.enabledModules : [];
-    const raw = [...workspaceRaw, ...memberRaw];
+    const raw = [...workspaceRaw];
     const expanded = raw.flatMap((value) => {
       const normalized = normalizeModuleKey(String(value || ''));
       if (!normalized) return [];
@@ -355,8 +361,23 @@ export default function AccessGrantsPage() {
       }
       return values;
     });
-    return new Set(expanded);
-  }, [workspace?.enabledModuleIds, memberAccessTarget?.enabledModules]);
+    const normalizedExpanded = new Set(expanded.map((value) => normalizeModuleKey(value)));
+    if (normalizedExpanded.has('organization-management')) {
+      [
+        'org_tab_users',
+        'org_tab_departments',
+        'org_users_invite_member',
+        'org_users_change_role',
+        'org_users_toggle_access',
+        'org_departments_create',
+        'org_departments_edit',
+        'org_departments_assign_manager',
+        'org_departments_assign_acting_manager',
+        'org_departments_remove_acting_manager',
+      ].forEach((moduleId) => normalizedExpanded.add(normalizeModuleKey(moduleId)));
+    }
+    return normalizedExpanded;
+  }, [workspace?.enabledModuleIds]);
 
   const getModuleChildren = (moduleId = '') => {
     const normalized = normalizeModuleKey(moduleId);
@@ -379,6 +400,15 @@ export default function AccessGrantsPage() {
         enabledWorkspaceModuleKeys.has(normalizeModuleKey(child.id)),
       );
     }
+    if (ORGANIZATION_PARENT_ALIASES.has(normalized)) {
+      return ORGANIZATION_TAB_CHILDREN.filter((child) => isEnabled(child.id));
+    }
+    if (normalized === 'org-tab-users') {
+      return ORGANIZATION_USERS_ACTION_CHILDREN.filter((child) => isEnabled(child.id));
+    }
+    if (normalized === 'org-tab-departments') {
+      return ORGANIZATION_DEPARTMENTS_ACTION_CHILDREN.filter((child) => isEnabled(child.id));
+    }
     return [];
   };
 
@@ -388,7 +418,15 @@ export default function AccessGrantsPage() {
     return direct.flatMap((child) => [child.id, ...collectChildIds(child.id)]);
   };
 
-  const loadAccessGrants = async (showLoading = false) => {
+  const isModuleCheckedFromDraft = (moduleId = '', draft = {}, includeChildren = true) => {
+    const directChecked = Boolean(draft?.[moduleId]);
+    if (directChecked) return true;
+    if (!includeChildren) return false;
+    const childIds = collectChildIds(moduleId);
+    return childIds.some((childId) => Boolean(draft?.[childId]));
+  };
+
+  const loadAccessGrants = useCallback(async (showLoading = false) => {
     if (showLoading) {
       setIsLoading(true);
     }
@@ -412,11 +450,11 @@ export default function AccessGrantsPage() {
         setIsLoading(false);
       }
     }
-  };
+  }, [axiosPrivate]);
 
   useEffect(() => {
     void loadAccessGrants(true);
-  }, []);
+  }, [loadAccessGrants]);
 
   const users = useMemo(() => members, [members]);
   const transferWorkspaceOptions = useMemo(
@@ -540,10 +578,9 @@ export default function AccessGrantsPage() {
       });
     });
 
-    const selectedEnabledRaw = [
-      ...(Array.isArray(workspace?.enabledModuleIds) ? workspace.enabledModuleIds : []),
-      ...(Array.isArray(memberAccessTarget?.enabledModules) ? memberAccessTarget.enabledModules : []),
-    ];
+    const selectedEnabledRaw = Array.isArray(workspace?.enabledModuleIds)
+      ? workspace.enabledModuleIds
+      : [];
     const enabledCanonical = new Set(
       selectedEnabledRaw
         .map((item) => resolveCanonicalModuleId(String(item || ''), aliasToCanonical))
@@ -618,19 +655,50 @@ export default function AccessGrantsPage() {
     return mappedSections;
   }, [workspace, memberAccessTarget]);
 
+  const visitorParentChainByChild = useMemo(() => {
+    const chainMap = new Map();
+    workspaceAccessSections.forEach((section) => {
+      section.modules.forEach((module) => {
+        const moduleChildren = getModuleChildren(module.id);
+        moduleChildren.forEach((child) => {
+          const childKey = normalizeModuleKey(child.id);
+          const existingChildParents = Array.isArray(chainMap.get(childKey)) ? chainMap.get(childKey) : [];
+          chainMap.set(childKey, Array.from(new Set([...existingChildParents, String(module.id)])));
+          const grandChildren = getModuleChildren(child.id);
+          grandChildren.forEach((grandChild) => {
+            const grandChildKey = normalizeModuleKey(grandChild.id);
+            const existingGrandParents = Array.isArray(chainMap.get(grandChildKey)) ? chainMap.get(grandChildKey) : [];
+            chainMap.set(
+              grandChildKey,
+              Array.from(new Set([...existingGrandParents, String(module.id), String(child.id)])),
+            );
+          });
+        });
+      });
+    });
+    return chainMap;
+  }, [workspaceAccessSections, enabledWorkspaceModuleKeys, getModuleChildren]);
+
   const openMemberAccessDialog = (member) => {
     if (!canManageModuleAccess) {
       toast.error('Only founder or super-admin can manage module access.');
       return;
     }
     const grantedModuleValues = Array.isArray(member?.grantedModules) ? member.grantedModules : [];
-    const enabledModuleValues = Array.isArray(member?.enabledModules) ? member.enabledModules : [];
     const effectiveAccessModules = expandModuleAliases(
-      [...grantedModuleValues, ...enabledModuleValues]
+      [...grantedModuleValues]
         .map((item) => String(item || ''))
         .filter((item) => item && !normalizeModuleKey(item).startsWith('disabled:'))
         .map((item) => normalizeModuleKey(item)),
     );
+    // Department-key compatibility from master panel payloads:
+    // keep department rows independent from key-app rows.
+    if (effectiveAccessModules.has('administration-visitor-management')) {
+      effectiveAccessModules.add('visitors-management');
+    }
+    if (effectiveAccessModules.has('housekeeping')) {
+      effectiveAccessModules.add('house-keeping');
+    }
     const allModuleIds = workspaceAccessSections.flatMap((section) =>
       section.modules.flatMap((module) => [
         module.id,
@@ -664,6 +732,13 @@ export default function AccessGrantsPage() {
           ...(current?.[sectionKey] || {}),
           [moduleId]: nextValue,
         };
+        if (nextValue && childModuleIds.length > 0) {
+          childModuleIds.forEach((childId) => {
+            if (nextSection[childId] == null) {
+              nextSection[childId] = true;
+            }
+          });
+        }
         if (!nextValue && childModuleIds.length > 0) {
           childModuleIds.forEach((childId) => {
             nextSection[childId] = false;
@@ -681,7 +756,7 @@ export default function AccessGrantsPage() {
 
     const childModuleIds = collectChildIds(moduleId);
     setMemberAccessDraft((current) => {
-      const nextValue = !current?.[sectionKey]?.[moduleId];
+      const nextValue = !isModuleCheckedFromDraft(moduleId, current?.[sectionKey] || {}, true);
       const nextSection = {
         ...(current?.[sectionKey] || {}),
         [moduleId]: nextValue,
@@ -705,10 +780,38 @@ export default function AccessGrantsPage() {
       return;
     }
 
-    const effectiveModules = Object.entries(memberAccessDraft?.db || {})
+    const rawCheckedModules = Object.entries(memberAccessDraft?.db || {})
       .filter(([, enabled]) => Boolean(enabled))
       .map(([moduleId]) => String(moduleId || '').trim())
       .filter(Boolean);
+    const originalByNormalized = new Map(
+      rawCheckedModules.map((moduleId) => [normalizeModuleKey(moduleId), moduleId]),
+    );
+    rawCheckedModules.forEach((moduleId) => {
+      const chain = visitorParentChainByChild.get(normalizeModuleKey(moduleId)) || [];
+      chain.forEach((parentIdRaw) => {
+        const parentId = String(parentIdRaw || '').trim();
+        if (!parentId) return;
+        const parentNormalized = normalizeModuleKey(parentId);
+        if (!originalByNormalized.has(parentNormalized)) {
+          originalByNormalized.set(parentNormalized, parentId);
+        }
+      });
+    });
+    const effectiveModules = Array.from(originalByNormalized.values());
+
+    // Administration department DB key compatibility:
+    // persist both canonical department ids and admin-prefixed aliases
+    // so reopen state and backend-side consumers stay consistent.
+    const normalizedEffective = new Set(
+      effectiveModules.map((moduleId) => normalizeModuleKey(moduleId)),
+    );
+    if (normalizedEffective.has('visitors-management')) {
+      effectiveModules.push('administration-visitor-management');
+    }
+    if (normalizedEffective.has('house-keeping')) {
+      effectiveModules.push('housekeeping');
+    }
 
     setIsSaving(true);
     try {
@@ -725,6 +828,23 @@ export default function AccessGrantsPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const groupDepartmentModules = (modules = []) => {
+    const grouped = new Map();
+    modules.forEach((module) => {
+      const description = String(module?.description || '');
+      const parts = description.split('->').map((part) => part.trim()).filter(Boolean);
+      const departmentName = parts.length > 1 ? parts[parts.length - 1] : 'Department';
+      if (!grouped.has(departmentName)) {
+        grouped.set(departmentName, []);
+      }
+      grouped.get(departmentName).push(module);
+    });
+    return Array.from(grouped.entries()).map(([department, items]) => ({
+      department,
+      items,
+    }));
   };
 
   const refreshCurrentUserSession = (nextUser) => {
@@ -1527,11 +1647,11 @@ export default function AccessGrantsPage() {
 
         {showMemberAccessDialog && memberAccessTarget && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/10 bg-white shadow-2xl">
-              <div className="flex items-center justify-between bg-slate-900 px-6 py-5">
+            <div className="w-full max-w-2xl overflow-hidden rounded-[1.25rem] border border-white/10 bg-white shadow-2xl">
+              <div className="flex items-center justify-between bg-slate-900 px-4 py-3.5">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">Sidebar Access</p>
-                  <h3 className="mt-1 text-lg font-semibold text-white">{memberAccessTarget.name}</h3>
+                  <h3 className="mt-1 text-base font-semibold text-white">{memberAccessTarget.name}</h3>
                 </div>
                 <button
                   type="button"
@@ -1542,18 +1662,141 @@ export default function AccessGrantsPage() {
                 </button>
               </div>
 
-              <div className="max-h-[70vh] space-y-5 overflow-y-auto bg-slate-50 p-6">
+              <div className="max-h-[68vh] space-y-3 overflow-y-auto bg-slate-50 p-4">
                 {workspaceAccessSections.map((section, sectionIndex) => (
-                  <div key={`${section.key}-${section.title}-${sectionIndex}`} className="rounded-2xl border border-slate-200 bg-white p-4">
-                    <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">{section.title}</h4>
+                  <div key={`${section.key}-${section.title}-${sectionIndex}`} className="rounded-xl border border-slate-200 bg-white p-3">
+                    <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{section.title}</h4>
                     <div className="space-y-2">
-                      {section.modules.map((module) => {
-                        const checked = Boolean(memberAccessDraft?.db?.[module.id]);
+                      {normalizeModuleKey(section.key) === 'department-accesses' ? (
+                        groupDepartmentModules(section.modules).map((group) => {
+                          const departmentKey = normalizeModuleKey(group.department);
+                          const isDeptExpanded = Boolean(expandedDepartmentGroups?.[departmentKey]);
+                          return (
+                            <div key={departmentKey} className="rounded-lg border border-slate-100 px-2.5 py-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedDepartmentGroups((current) => ({
+                                    ...(current || {}),
+                                    [departmentKey]: !current?.[departmentKey],
+                                  }))
+                                }
+                                className="w-full flex items-center justify-between text-left"
+                              >
+                                <p className="text-[11px] font-semibold text-slate-700 uppercase tracking-wider">{group.department}</p>
+                                <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${isDeptExpanded ? 'rotate-180' : ''}`} />
+                              </button>
+                              {isDeptExpanded ? (
+                                <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+                                  {group.items.map((module) => {
+                                    const checked = isModuleCheckedFromDraft(module.id, memberAccessDraft?.db || {}, false);
+                                    const childModules = getModuleChildren(module.id);
+                                    const hasChildren = childModules.length > 0;
+                                    const isExpanded = Boolean(expandedAccessModules?.[module.id]);
+                                    return (
+                                    <div key={module.id} className="rounded-lg border border-slate-100 px-2.5 py-2">
+                                        <div className="flex items-center justify-between gap-3">
+                                          <div className="flex items-start gap-2">
+                                            {hasChildren ? (
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  setExpandedAccessModules((current) => ({
+                                                    ...(current || {}),
+                                                    [module.id]: !current?.[module.id],
+                                                  }))
+                                                }
+                                                className="mt-0.5 rounded-md border border-slate-200 p-1 text-slate-500 hover:bg-slate-50"
+                                                title={isExpanded ? 'Collapse actions' : 'Expand actions'}
+                                              >
+                                                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                              </button>
+                                            ) : null}
+                                            <div>
+                                              <p className="text-xs font-semibold text-slate-900">{module.label}</p>
+                                              <p className="text-[10px] text-slate-500">{module.description}</p>
+                                            </div>
+                                          </div>
+                                          <Switch checked={checked} disabled={!canManageModuleAccess} onCheckedChange={() => toggleMemberModule('db', module.id)} />
+                                        </div>
+                                        {hasChildren && isExpanded ? (
+                                          <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 pl-7">
+                                            {childModules.map((child) => {
+                                              const childChecked = isModuleCheckedFromDraft(child.id, memberAccessDraft?.db || {});
+                                              const grandChildren = getModuleChildren(child.id);
+                                              const hasGrandChildren = grandChildren.length > 0;
+                                              const isChildExpanded = Boolean(expandedAccessModules?.[child.id]);
+                                              return (
+                                                <div key={child.id} className="rounded-md border border-slate-100 px-2.5 py-2">
+                                                  <div className="flex items-center justify-between gap-3">
+                                                    <div className="flex items-start gap-2">
+                                                      {hasGrandChildren ? (
+                                                        <button
+                                                          type="button"
+                                                          onClick={() =>
+                                                            setExpandedAccessModules((current) => ({
+                                                              ...(current || {}),
+                                                              [child.id]: !current?.[child.id],
+                                                            }))
+                                                          }
+                                                          className="mt-0.5 rounded-md border border-slate-200 p-1 text-slate-500 hover:bg-slate-50"
+                                                          title={isChildExpanded ? 'Collapse subtabs' : 'Expand subtabs'}
+                                                        >
+                                                          <ChevronDown className={`h-3 w-3 transition-transform ${isChildExpanded ? 'rotate-180' : ''}`} />
+                                                        </button>
+                                                      ) : null}
+                                                      <div>
+                                                        <p className="text-[11px] font-semibold text-slate-800">{child.label}</p>
+                                                        <p className="text-[10px] text-slate-500">{child.description}</p>
+                                                      </div>
+                                                    </div>
+                                                    <Switch
+                                                      checked={childChecked}
+                                                      disabled={!canManageModuleAccess || !checked}
+                                                      onCheckedChange={() => toggleMemberChildModule('db', child.id)}
+                                                    />
+                                                  </div>
+                                                  {hasGrandChildren && isChildExpanded ? (
+                                                    <div className="mt-2 space-y-2 border-t border-slate-100 pt-2 pl-6">
+                                                      {grandChildren.map((subtab) => {
+                                                        const subtabChecked = isModuleCheckedFromDraft(subtab.id, memberAccessDraft?.db || {});
+                                                        return (
+                                                          <div key={subtab.id} className="flex items-center justify-between rounded-md border border-slate-100 px-2 py-1.5">
+                                                            <div>
+                                                              <p className="text-[10px] font-semibold text-slate-800">{subtab.label}</p>
+                                                              <p className="text-[10px] text-slate-500">{subtab.description}</p>
+                                                            </div>
+                                                            <Switch
+                                                              checked={subtabChecked}
+                                                              disabled={!canManageModuleAccess || !checked || !childChecked}
+                                                              onCheckedChange={() => toggleMemberChildModule('db', subtab.id)}
+                                                            />
+                                                          </div>
+                                                        );
+                                                      })}
+                                                    </div>
+                                                  ) : null}
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })
+                      ) : (
+                      section.modules.map((module) => {
+                        const checked = isModuleCheckedFromDraft(module.id, memberAccessDraft?.db || {}, false);
                         const childModules = getModuleChildren(module.id);
                         const hasChildren = childModules.length > 0;
                         const isExpanded = Boolean(expandedAccessModules?.[module.id]);
                         return (
-                          <div key={module.id} className="rounded-xl border border-slate-100 px-3 py-2">
+                          <div key={module.id} className="rounded-lg border border-slate-100 px-2.5 py-2">
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex items-start gap-2">
                                 {hasChildren ? (
@@ -1572,8 +1815,8 @@ export default function AccessGrantsPage() {
                                   </button>
                                 ) : null}
                                 <div>
-                                  <p className="text-sm font-semibold text-slate-900">{module.label}</p>
-                                  <p className="text-[11px] text-slate-500">{module.description}</p>
+                                  <p className="text-xs font-semibold text-slate-900">{module.label}</p>
+                                  <p className="text-[10px] text-slate-500">{module.description}</p>
                                 </div>
                               </div>
                               <Switch checked={checked} disabled={!canManageModuleAccess} onCheckedChange={() => toggleMemberModule('db', module.id)} />
@@ -1581,12 +1824,12 @@ export default function AccessGrantsPage() {
                             {hasChildren && isExpanded ? (
                               <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 pl-7">
                                 {childModules.map((child) => {
-                                  const childChecked = Boolean(memberAccessDraft?.db?.[child.id]);
+                                  const childChecked = isModuleCheckedFromDraft(child.id, memberAccessDraft?.db || {});
                                   const grandChildren = getModuleChildren(child.id);
                                   const hasGrandChildren = grandChildren.length > 0;
                                   const isChildExpanded = Boolean(expandedAccessModules?.[child.id]);
                                   return (
-                                    <div key={child.id} className="rounded-lg border border-slate-100 px-3 py-2">
+                                    <div key={child.id} className="rounded-md border border-slate-100 px-2.5 py-2">
                                       <div className="flex items-center justify-between gap-3">
                                         <div className="flex items-start gap-2">
                                           {hasGrandChildren ? (
@@ -1605,7 +1848,7 @@ export default function AccessGrantsPage() {
                                             </button>
                                           ) : null}
                                           <div>
-                                            <p className="text-xs font-semibold text-slate-800">{child.label}</p>
+                                            <p className="text-[11px] font-semibold text-slate-800">{child.label}</p>
                                             <p className="text-[10px] text-slate-500">{child.description}</p>
                                           </div>
                                         </div>
@@ -1618,11 +1861,11 @@ export default function AccessGrantsPage() {
                                       {hasGrandChildren && isChildExpanded ? (
                                         <div className="mt-2 space-y-2 border-t border-slate-100 pt-2 pl-6">
                                           {grandChildren.map((subtab) => {
-                                            const subtabChecked = Boolean(memberAccessDraft?.db?.[subtab.id]);
+                                            const subtabChecked = isModuleCheckedFromDraft(subtab.id, memberAccessDraft?.db || {});
                                             return (
-                                              <div key={subtab.id} className="flex items-center justify-between rounded-md border border-slate-100 px-2.5 py-2">
+                                              <div key={subtab.id} className="flex items-center justify-between rounded-md border border-slate-100 px-2 py-1.5">
                                                 <div>
-                                                  <p className="text-[11px] font-semibold text-slate-800">{subtab.label}</p>
+                                                  <p className="text-[10px] font-semibold text-slate-800">{subtab.label}</p>
                                                   <p className="text-[10px] text-slate-500">{subtab.description}</p>
                                                 </div>
                                                 <Switch
@@ -1642,17 +1885,18 @@ export default function AccessGrantsPage() {
                             ) : null}
                           </div>
                         );
-                      })}
+                      })
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="flex justify-end gap-3 border-t border-slate-100 bg-white px-6 py-4">
+              <div className="flex justify-end gap-2.5 border-t border-slate-100 bg-white px-4 py-3">
                 <button
                   type="button"
                   onClick={() => setShowMemberAccessDialog(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                  className="rounded-lg border border-slate-200 px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
                 >
                   Cancel
                 </button>
@@ -1660,7 +1904,7 @@ export default function AccessGrantsPage() {
                   type="button"
                   disabled={isSaving || !canManageModuleAccess}
                   onClick={handleSaveMemberAccess}
-                  className="rounded-xl bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                  className="rounded-lg bg-[#2563EB] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
                 >
                   {isSaving ? 'Saving...' : 'Save Access'}
                 </button>
@@ -2052,6 +2296,8 @@ export default function AccessGrantsPage() {
     </PageFrame>
   );
 }
+
+
 
 
 

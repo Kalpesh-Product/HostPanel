@@ -743,6 +743,20 @@ export default function VisitorsManagementPage() {
     let active = true;
     const loadCurrentMemberGrants = async () => {
       try {
+        // Primary source: same endpoint used by sidebar for current member module grants.
+        const moduleMapResponse = await axiosPrivate.get('/api/workspaces/module-access-map');
+        const moduleMapPayload = moduleMapResponse?.data?.data || {};
+        const moduleMapGrants = Array.isArray(moduleMapPayload?.currentMemberGrantedModules)
+          ? moduleMapPayload.currentMemberGrantedModules
+          : [];
+
+        if (moduleMapGrants.length > 0) {
+          if (!active) return;
+          setCurrentMemberGrantedModules(moduleMapGrants);
+          return;
+        }
+
+        // Fallback: resolve current member through organization overview.
         const response = await axiosPrivate.get('/api/organization/overview');
         const payload = response?.data?.data || {};
         const teamMembers = Array.isArray(payload?.teamMembers) ? payload.teamMembers : [];
@@ -785,8 +799,9 @@ export default function VisitorsManagementPage() {
     memberGrantedModules.includes(String(key || '').trim().toLowerCase()) ||
     userPermissions.includes(String(key || '').trim());
   const visitorAccess = useMemo(
-    () => ({
-      tabs: {
+    () => {
+      const base = {
+        tabs: {
         daily:
           hasGrant(PERMISSIONS.VISITORS_TAB_DAILY.value),
         history:
@@ -795,8 +810,8 @@ export default function VisitorsManagementPage() {
           hasGrant(PERMISSIONS.VISITORS_TAB_BOOKINGS.value),
         clients:
           hasGrant(PERMISSIONS.VISITORS_TAB_CLIENTS.value),
-      },
-      modes: {
+        },
+        modes: {
         standard:
           hasGrant(PERMISSIONS.VISITORS_MODE_STANDARD.value),
         tour:
@@ -805,16 +820,28 @@ export default function VisitorsManagementPage() {
           hasGrant(PERMISSIONS.VISITORS_MODE_WALKIN_BOOKING.value),
         verify_booking:
           hasGrant(PERMISSIONS.VISITORS_MODE_VERIFY_BOOKING.value),
-      },
-      standardTypes: {
+        },
+        standardTypes: {
         standard:
           hasGrant(PERMISSIONS.VISITORS_STANDARD_TYPE_STANDARD.value),
         department:
           hasGrant(PERMISSIONS.VISITORS_STANDARD_TYPE_DEPARTMENT.value),
         tenant:
           hasGrant(PERMISSIONS.VISITORS_STANDARD_TYPE_TENANT.value),
-      },
-    }),
+        },
+      };
+
+      // Backward/partial-save compatibility:
+      // if any Standard Visitor subtab is granted, treat Standard mode as granted.
+      if (
+        !base.modes.standard &&
+        (base.standardTypes.standard || base.standardTypes.department || base.standardTypes.tenant)
+      ) {
+        base.modes.standard = true;
+      }
+
+      return base;
+    },
     [memberGrantedModules, userPermissions],
   );
   const [activeTab, setActiveTab] = useState('daily');
@@ -860,7 +887,10 @@ export default function VisitorsManagementPage() {
     visitorAccess.modes.standard ||
     visitorAccess.modes.tour ||
     visitorAccess.modes.walkin_booking ||
-    visitorAccess.modes.verify_booking;
+    visitorAccess.modes.verify_booking ||
+    visitorAccess.standardTypes.standard ||
+    visitorAccess.standardTypes.department ||
+    visitorAccess.standardTypes.tenant;
 
   const [walkInStep, setWalkInStep] = useState(1);
   const [availabilityStatus, setAvailabilityStatus] = useState('idle');

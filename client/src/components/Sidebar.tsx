@@ -93,6 +93,7 @@ interface NavItemProps {
   disabledTitle?: string;
   forceBold?: boolean;
   forceSmall?: boolean;
+  tooltip?: string;
 }
 
 interface WorkspaceSetupState {
@@ -271,6 +272,14 @@ const generalData: NavNode[] = [
   { id: "logout", label: "Sign Out", icon: LogOut, isRed: true, route: "/sign-out" },
 ];
 
+const SECTION_ABBR: Record<string, string> = {
+  "common-modules": "COM",
+  "company-settings": "COM",
+  "key-apps": "KEY",
+  "founder-core-modules": "FND",
+  "department-accesses": "DEP",
+};
+
 const ROUTE_BY_ID: Record<string, string> = {
   dashboard: "/dashboard",
   "customer-support": "/company-settings/customer-support",
@@ -361,6 +370,19 @@ const normalizeModuleToken = (value = "") =>
     .toLowerCase()
     .replace(/[_\s]+/g, "-");
 
+const ORG_CHILD_KEYS = new Set([
+  "org-tab-users",
+  "org-tab-departments",
+  "org-users-invite-member",
+  "org-users-change-role",
+  "org-users-toggle-access",
+  "org-departments-create",
+  "org-departments-edit",
+  "org-departments-assign-manager",
+  "org-departments-assign-acting-manager",
+  "org-departments-remove-acting-manager",
+]);
+
 const NavItem = ({
   icon: Icon,
   label,
@@ -377,10 +399,11 @@ const NavItem = ({
   disabledTitle,
   forceBold,
   forceSmall,
+  tooltip,
 }: NavItemProps) => (
   <button
     type="button"
-    title={disabled ? (disabledTitle || "Coming soon") : ""}
+    title={tooltip || (disabled ? (disabledTitle || "Coming soon") : "")}
     className={`w-full flex items-center justify-between py-2 px-3 select-none rounded-md transition-colors ${
       isActive ? "bg-gray-200 font-medium" : "hover:bg-gray-200"
     } ${isRed ? "text-red-500 hover:text-red-600" : "text-gray-700 hover:text-gray-900"} ${
@@ -449,6 +472,7 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate }: NavGroup
         disabledTitle={item.disabledTitle}
         forceBold={hasChildren}
         forceSmall={!hasChildren && depth > 0}
+        tooltip={collapsed ? item.label : undefined}
       />
       {hasChildren && isOpen && !collapsed && (
         <div className="mt-1 flex flex-col gap-1">
@@ -477,6 +501,8 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const logout = useLogout();
   const location = useLocation();
   const [workspaceAccessMap, setWorkspaceAccessMap] = useState<WorkspaceAccessMapState | null>(null);
+  const [isSidebarHydrated, setIsSidebarHydrated] = useState(false);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [roleAccessContext, setRoleAccessContext] = useState<RoleAccessContext>({
     role: "",
     departments: [],
@@ -486,6 +512,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
 
   useEffect(() => {
     let active = true;
+    setIsSidebarHydrated(false);
 
     const loadSidebarData = async () => {
       try {
@@ -534,21 +561,18 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
             moduleMap: payload?.moduleMap || { sections: [] },
           });
         }
+        const memberGranted = Array.isArray(payload?.currentMemberGrantedModules)
+          ? payload.currentMemberGrantedModules
+          : [];
         setRoleAccessContext({
           role: String(
-            me?.role ||
             (auth.user as { workspaceMembership?: { role?: string }; role?: string } | null)?.workspaceMembership?.role ||
             (auth.user as { workspaceMembership?: { role?: string }; role?: string } | null)?.role ||
+            me?.role ||
             "",
           ),
           departments: Array.isArray(me?.departmentNames) ? me.departmentNames : [],
-          grantedModules:
-            Array.isArray(payload?.currentMemberGrantedModules) &&
-            payload.currentMemberGrantedModules.length > 0
-              ? payload.currentMemberGrantedModules
-              : Array.isArray(me?.grantedModules) && me.grantedModules.length > 0
-                ? me.grantedModules
-                : [],
+          grantedModules: memberGranted,
         });
       } catch {
         // Fallback remains local storage driven.
@@ -562,6 +586,10 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
           departments: [],
           grantedModules: [],
         });
+      } finally {
+        if (active) {
+          setIsSidebarHydrated(true);
+        }
       }
     };
 
@@ -580,6 +608,13 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     };
   }, [axiosPrivate, auth.user]);
 
+  useEffect(() => {
+    setOpenSections((current) => ({
+      ...current,
+      "common-modules": true,
+    }));
+  }, []);
+
   const planLabel =
     workspaceAccessMap?.selectedPlan || workspaceSetup.selectedPlan || "basic";
   const workspaceCount = getWorkspaceCount(
@@ -587,7 +622,6 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   );
   const currentRole = normalizeRole(roleAccessContext.role);
   const isFounderRole = currentRole === "founder" || currentRole === "owner";
-  const isSuperAdminRole = currentRole === "super_admin";
   const isWorkspaceManagementUnlocked =
     planLabel === "professional" && workspaceCount > 1;
   const enabledIds = new Set([
@@ -659,21 +693,16 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
 
     sections.forEach((section) => {
       (Array.isArray(section?.items) ? section.items : []).forEach((item) => {
-        const addAlias = (id: string, label?: string, route?: string) => {
+        const addAlias = (id: string) => {
           const canonical = String(id || "").trim();
           if (!canonical) return;
           canonicalIds.add(canonical);
           aliasToCanonical.set(normalizeModuleToken(canonical), canonical);
-          if (label) aliasToCanonical.set(normalizeModuleToken(label), canonical);
-          if (route) {
-            const routeToken = String(route || "").trim().split("/").filter(Boolean).join("-");
-            if (routeToken) aliasToCanonical.set(normalizeModuleToken(routeToken), canonical);
-          }
         };
 
-        addAlias(String(item?.id || ""), String(item?.label || ""), String(item?.route || ""));
+        addAlias(String(item?.id || ""));
         (Array.isArray(item?.tabs) ? item.tabs : []).forEach((tab) => {
-          addAlias(String(tab?.id || ""), String(tab?.label || ""), String(tab?.route || ""));
+          addAlias(String(tab?.id || ""));
         });
       });
     });
@@ -688,40 +717,37 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
         const direct = aliasToCanonical.get(normalized);
         if (direct) return direct;
 
-        // Handle department-prefixed grants such as "administration-visitor-management".
-        if (normalized.startsWith("administration-")) {
-          const withoutPrefix = normalized.slice("administration-".length);
-          const adminVisitor = aliasToCanonical.get("visitors-management");
-          if (withoutPrefix === "visitor-management" && adminVisitor) {
-            return adminVisitor;
-          }
-          const prefixedMatch = aliasToCanonical.get(withoutPrefix);
-          if (prefixedMatch) return prefixedMatch;
+        // Department-specific fallback without cross-linking key apps:
+        // administration-visitor-management -> visitors-management
+        if (normalized === "administration-visitor-management") {
+          const deptVisitor = aliasToCanonical.get("visitors-management");
+          if (deptVisitor) return deptVisitor;
         }
-
-        // Handle shorthand grant ids such as "housekeeping".
         if (normalized === "housekeeping") {
           const housekeeping = aliasToCanonical.get("house-keeping");
           if (housekeeping) return housekeeping;
         }
 
-        // Generic fallback: strip first segment for custom prefixed ids.
-        const segments = normalized.split("-").filter(Boolean);
-        if (segments.length > 1) {
-          const stripped = segments.slice(1).join("-");
-          const strippedMatch = aliasToCanonical.get(stripped);
-          if (strippedMatch) return strippedMatch;
-        }
-
         return item;
       })
       .filter((item) => canonicalIds.has(item));
+    const grantedNormalized = new Set(
+      (roleAccessContext.grantedModules || [])
+        .map((item) => normalizeModuleToken(String(item || "")))
+        .filter(Boolean),
+    );
+    const hasAnyOrgChild = Array.from(ORG_CHILD_KEYS).some((key) => grantedNormalized.has(key));
 
-    if (isFounderRole || isSuperAdminRole) {
+    if (isFounderRole) {
       return new Set<string>(canonicalIds);
     }
 
     const allowed = new Set<string>(grantedEnabled);
+    if (hasAnyOrgChild) {
+      allowed.add("organization-management");
+      allowed.add("org_tab_users");
+      allowed.add("org_tab_departments");
+    }
     if (planLabel === "basic") {
       allowed.delete("workspace-settings");
       allowed.delete("workspace-management");
@@ -742,23 +768,18 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     const aliasToCanonical = new Map<string, string>();
     const canonicalIds = new Set<string>();
 
-    const addAlias = (id: string, label?: string, route?: string) => {
+    const addAlias = (id: string) => {
       const canonical = String(id || "").trim();
       if (!canonical) return;
       canonicalIds.add(canonical);
       aliasToCanonical.set(normalizeModuleToken(canonical), canonical);
-      if (label) aliasToCanonical.set(normalizeModuleToken(label), canonical);
-      if (route) {
-        const routeToken = String(route || "").trim().split("/").filter(Boolean).join("-");
-        if (routeToken) aliasToCanonical.set(normalizeModuleToken(routeToken), canonical);
-      }
     };
 
     sections.forEach((section) => {
       (Array.isArray(section?.items) ? section.items : []).forEach((item) => {
-        addAlias(String(item?.id || ""), String(item?.label || ""), String(item?.route || ""));
+        addAlias(String(item?.id || ""));
         (Array.isArray(item?.tabs) ? item.tabs : []).forEach((tab) => {
-          addAlias(String(tab?.id || ""), String(tab?.label || ""), String(tab?.route || ""));
+          addAlias(String(tab?.id || ""));
         });
       });
     });
@@ -769,22 +790,15 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
       const normalized = normalizeModuleToken(raw);
       const direct = aliasToCanonical.get(normalized);
       if (direct) return direct;
-      if (normalized.startsWith("administration-")) {
-        const withoutPrefix = normalized.slice("administration-".length);
-        const adminVisitor = aliasToCanonical.get("visitors-management");
-        if (withoutPrefix === "visitor-management" && adminVisitor) return adminVisitor;
-        const prefixedMatch = aliasToCanonical.get(withoutPrefix);
-        if (prefixedMatch) return prefixedMatch;
+
+      // Department-specific fallback without cross-linking key apps.
+      if (normalized === "administration-visitor-management") {
+        const deptVisitor = aliasToCanonical.get("visitors-management");
+        if (deptVisitor) return deptVisitor;
       }
       if (normalized === "housekeeping") {
         const housekeeping = aliasToCanonical.get("house-keeping");
         if (housekeeping) return housekeeping;
-      }
-      const segments = normalized.split("-").filter(Boolean);
-      if (segments.length > 1) {
-        const stripped = segments.slice(1).join("-");
-        const strippedMatch = aliasToCanonical.get(stripped);
-        if (strippedMatch) return strippedMatch;
       }
       return String(raw || "").trim();
     };
@@ -792,6 +806,11 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     const enabledRaw = (workspaceAccessMap?.enabledModuleIds || workspaceSetup.enabledModuleIds || [])
       .map((item) => String(item || "").trim())
       .filter(Boolean);
+    const enabledNormalized = new Set(enabledRaw.map((item) => normalizeModuleToken(item)));
+    const hasAnyOrgChildEnabled = Array.from(ORG_CHILD_KEYS).some((key) => enabledNormalized.has(key));
+    if (hasAnyOrgChildEnabled) {
+      enabledRaw.push("organization-management", "org_tab_users", "org_tab_departments");
+    }
 
     return new Set(
       enabledRaw
@@ -799,7 +818,11 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
         .map((item) => String(item || "").trim())
         .filter(Boolean),
     );
-  }, [workspaceAccessMap?.enabledModuleIds, workspaceAccessMap?.moduleMap?.sections, workspaceSetup.enabledModuleIds]);
+  }, [
+    workspaceAccessMap?.enabledModuleIds,
+    workspaceAccessMap?.moduleMap?.sections,
+    workspaceSetup.enabledModuleIds,
+  ]);
 
   const mappedSections: Array<{ key: string; title: string; items: NavNode[] }> = (
     workspaceAccessMap?.moduleMap?.sections || []
@@ -887,39 +910,109 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 py-2 space-y-5 hideScrollBar">
-        {(mappedSections.length > 0 ? mappedSections : [
-          { key: "company-settings", title: "Company Settings", items: companySettingsItems },
-          { key: "key-apps", title: "Key Apps", items: keyAppsItems },
-          { key: "department-accesses", title: "Department Accesses", items: departmentItems },
-        ]).map((section) => (
-          <div key={section.key}>
-            {!collapsed && (
-              <div className="flex items-center justify-between px-3 mb-2">
-                <span className="text-[12px] font-pbold text-gray-500 tracking-wider uppercase">
-                  {section.title}
-                </span>
-              </div>
-            )}
-            <div className="space-y-1">
-              {section.items.map((item) => (
-                <NavGroup
-                  key={`${section.key}-${item.id}`}
-                  item={item}
-                  collapsed={collapsed}
-                  pathname={location.pathname}
-                  onNavigate={onNavigate}
-                />
+        {!isSidebarHydrated ? (
+          <div className="space-y-4 px-2 py-1 animate-pulse">
+            <div className="space-y-2">
+              <div className="h-3 w-24 rounded bg-gray-300/70 mx-2" />
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <div key={`sidebar-skeleton-top-${idx}`} className="h-9 rounded-md bg-gray-200" />
+              ))}
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 w-16 rounded bg-gray-300/70 mx-2" />
+              {Array.from({ length: 3 }).map((_, idx) => (
+                <div key={`sidebar-skeleton-mid-${idx}`} className="h-9 rounded-md bg-gray-200" />
+              ))}
+            </div>
+            <div className="space-y-2">
+              <div className="h-3 w-20 rounded bg-gray-300/70 mx-2" />
+              {Array.from({ length: 2 }).map((_, idx) => (
+                <div key={`sidebar-skeleton-low-${idx}`} className="h-9 rounded-md bg-gray-200" />
+              ))}
+            </div>
+            <div className="mt-3 border-t border-gray-300/70 pt-3 space-y-2">
+              <div className="h-3 w-14 rounded bg-gray-300/70 mx-2" />
+              {Array.from({ length: 2 }).map((_, idx) => (
+                <div key={`sidebar-skeleton-general-${idx}`} className="h-9 rounded-md bg-gray-200" />
               ))}
             </div>
           </div>
-        ))}
+        ) : (
+          (mappedSections.length > 0 ? mappedSections : [
+          { key: "company-settings", title: "Company Settings", items: companySettingsItems },
+          { key: "key-apps", title: "Key Apps", items: keyAppsItems },
+          { key: "department-accesses", title: "Department Accesses", items: departmentItems },
+          ]).map((section) => (
+          <div key={section.key}>
+            {!collapsed ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenSections((current) => ({
+                      ...current,
+                      [section.key]: !(current?.[section.key] ?? section.key === "common-modules"),
+                    }))
+                  }
+                  className="w-full mb-2 px-3 flex items-center justify-between text-left"
+                >
+                  <span className="text-[12px] font-pbold text-gray-500 tracking-wider uppercase">
+                    {section.title}
+                  </span>
+                  {openSections?.[section.key] ?? section.key === "common-modules" ? (
+                    <ChevronDown size={14} className="text-gray-400" />
+                  ) : (
+                    <ChevronRight size={14} className="text-gray-400" />
+                  )}
+                </button>
+                {(openSections?.[section.key] ?? section.key === "common-modules") ? (
+                  <div className="space-y-1">
+                    {section.items.map((item) => (
+                      <NavGroup
+                        key={`${section.key}-${item.id}`}
+                        item={item}
+                        collapsed={collapsed}
+                        pathname={location.pathname}
+                        onNavigate={onNavigate}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <div className="space-y-1">
+                <div className="px-2 pt-1 pb-2">
+                  <div className="text-[10px] font-pbold tracking-wider text-gray-500 uppercase text-center">
+                    {SECTION_ABBR[section.key] || section.title.slice(0, 3).toUpperCase()}
+                  </div>
+                  <div className="mt-2 h-px bg-gray-300" />
+                </div>
+                {section.items.map((item) => (
+                  <NavGroup
+                    key={`${section.key}-${item.id}`}
+                    item={item}
+                    collapsed={collapsed}
+                    pathname={location.pathname}
+                    onNavigate={onNavigate}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+          ))
+        )}
 
         <div>
-          {!collapsed && (
+          {!collapsed ? (
             <div className="flex items-center justify-center px-3 mb-2">
               <div className="h-px bg-gray-300 flex-1" />
               <span className="text-[10px] font-pbold text-gray-500 tracking-wider px-2">General</span>
               <div className="h-px bg-gray-300 flex-1" />
+            </div>
+          ) : (
+            <div className="px-2 pt-1 pb-2">
+              <div className="text-[10px] font-pbold tracking-wider text-gray-500 uppercase text-center">GEN</div>
+              <div className="mt-2 h-px bg-gray-300" />
             </div>
           )}
           <div className="space-y-1">

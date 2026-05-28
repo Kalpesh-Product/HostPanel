@@ -6,6 +6,10 @@ import WorkspaceMember from "../models/WorkspaceMember.js";
 import jwt from "jsonwebtoken";
 import { sendMail } from "../config/mailer.js";
 import { buildWorkspaceModuleCatalog } from "../config/workspaceModuleCatalog.js";
+import {
+  ORGANIZATION_MEMBER_GRANT_ALIASES,
+  ORGANIZATION_PERMISSION_KEYS,
+} from "../config/organizationPermissionMap.js";
 
 const DEFAULT_DEPARTMENTS = [
   { name: "HR", description: "People operations and hiring", isActive: true },
@@ -41,6 +45,57 @@ const getRoleBand = (role = "") => {
   return "employee";
 };
 const canManageDepartmentsByRole = (role = "") => getRoleBand(role) === "owner";
+const ORG_MODULE_ADMIN_ROLES = new Set(["owner", "super_admin"]);
+
+const normalizeGrantKey = (value = "") =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-");
+
+const isWorkspaceOrganizationModuleEnabled = (workspace: any) => {
+  const enabledByIds = Array.isArray(workspace?.enabledModuleIds)
+    ? workspace.enabledModuleIds.map((item: any) => String(item || "").trim().toLowerCase())
+    : [];
+  if (enabledByIds.includes(ORGANIZATION_PERMISSION_KEYS.module)) return true;
+
+  const moduleRows = Array.isArray(workspace?.modules) ? workspace.modules : [];
+  for (const row of moduleRows) {
+    const items = Array.isArray(row?.items) ? row.items : [];
+    for (const item of items) {
+      const itemId = String(item?.id || "").trim().toLowerCase();
+      if (itemId === ORGANIZATION_PERMISSION_KEYS.module && item?.active !== false) return true;
+    }
+  }
+  return false;
+};
+
+const hasOrganizationAccess = ({
+  workspace,
+  membership,
+  permissionKey,
+}: {
+  workspace: any;
+  membership: any;
+  permissionKey?: string;
+}) => {
+  if (!isWorkspaceOrganizationModuleEnabled(workspace)) return false;
+
+  const roleBand = getRoleBand(membership?.role || "");
+  if (ORG_MODULE_ADMIN_ROLES.has(roleBand)) return true;
+
+  const grantedModules = Array.isArray(membership?.grantedModules)
+    ? membership.grantedModules.map((item: any) => String(item || "").trim().toLowerCase())
+    : [];
+  const grantedSet = new Set(grantedModules);
+
+  if (grantedSet.has(ORGANIZATION_PERMISSION_KEYS.module)) return true;
+  if (!permissionKey) return false;
+
+  const normalizedPermission = normalizeGrantKey(permissionKey);
+  if (!normalizedPermission) return false;
+  return ORGANIZATION_MEMBER_GRANT_ALIASES.has(normalizedPermission) && grantedSet.has(normalizedPermission);
+};
 
 const isBasicPlan = (workspace: any) =>
   String(workspace?.selectedPlan || "basic").trim().toLowerCase() === "basic";
@@ -139,6 +194,28 @@ export const getOrganizationOverview = async (req, res, next) => {
     const { user, workspace } = await getCurrentWorkspace(req.user);
     if (!user || !workspace) {
       return res.status(404).json({ message: "Workspace not found for this user." });
+    }
+    const actorMembership = await WorkspaceMember.findOne({
+      workspace: workspace._id,
+      user: req.user,
+      isActive: true,
+    })
+      .select("role grantedModules")
+      .lean()
+      .exec();
+    if (!actorMembership) {
+      return res.status(403).json({ message: "You do not have workspace access." });
+    }
+    if (
+      !hasOrganizationAccess({
+        workspace,
+        membership: actorMembership,
+        permissionKey: ORGANIZATION_PERMISSION_KEYS.tabs.users,
+      })
+    ) {
+      return res.status(403).json({
+        message: "You do not have permission to access Organization Management.",
+      });
     }
 
     await ensureWorkspaceDepartments(workspace);
@@ -287,6 +364,29 @@ export const saveOrganizationDepartment = async (req, res, next) => {
         message: "Department management is not available on the Basic plan.",
       });
     }
+    const actorMembership = await WorkspaceMember.findOne({
+      workspace: workspace._id,
+      user: req.user,
+      isActive: true,
+    })
+      .select("role grantedModules")
+      .lean()
+      .exec();
+    if (!actorMembership) {
+      return res.status(403).json({ message: "You do not have workspace access." });
+    }
+    const isEditAction = Boolean(String(req.params.departmentId || req.body?.departmentId || "").trim());
+    if (
+      !hasOrganizationAccess({
+        workspace,
+        membership: actorMembership,
+        permissionKey: isEditAction
+          ? ORGANIZATION_PERMISSION_KEYS.actions.editDepartment
+          : ORGANIZATION_PERMISSION_KEYS.actions.createDepartment,
+      })
+    ) {
+      return res.status(403).json({ message: "You do not have permission for this department action." });
+    }
     if (!canManageDepartmentsByRole(req.workspaceMembership?.role || "")) {
       return res.status(403).json({ message: "Only founder can manage departments." });
     }
@@ -359,6 +459,26 @@ export const assignOrganizationDepartmentManager = async (req, res, next) => {
         message: "Department management is not available on the Basic plan.",
       });
     }
+    const actorMembership = await WorkspaceMember.findOne({
+      workspace: workspace._id,
+      user: req.user,
+      isActive: true,
+    })
+      .select("role grantedModules")
+      .lean()
+      .exec();
+    if (!actorMembership) {
+      return res.status(403).json({ message: "You do not have workspace access." });
+    }
+    if (
+      !hasOrganizationAccess({
+        workspace,
+        membership: actorMembership,
+        permissionKey: ORGANIZATION_PERMISSION_KEYS.actions.assignDepartmentManager,
+      })
+    ) {
+      return res.status(403).json({ message: "You do not have permission to assign department manager." });
+    }
 
     const department = workspace.organizationDepartments?.id(req.params.departmentId);
     if (!department) {
@@ -394,6 +514,26 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
     if (!workspace) {
       return res.status(404).json({ message: "Workspace not found for this user." });
     }
+    const actorMembership = await WorkspaceMember.findOne({
+      workspace: workspace._id,
+      user: req.user,
+      isActive: true,
+    })
+      .select("role grantedModules")
+      .lean()
+      .exec();
+    if (!actorMembership) {
+      return res.status(403).json({ message: "You do not have workspace access." });
+    }
+    if (
+      !hasOrganizationAccess({
+        workspace,
+        membership: actorMembership,
+        permissionKey: ORGANIZATION_PERMISSION_KEYS.actions.toggleAccess,
+      })
+    ) {
+      return res.status(403).json({ message: "You do not have permission to toggle member access." });
+    }
 
     const member = await WorkspaceMember.findOne({
       _id: req.params.memberId,
@@ -421,6 +561,26 @@ export const inviteOrganizationMember = async (req, res, next) => {
     const { user, workspace } = await getCurrentWorkspace(req.user);
     if (!user || !workspace) {
       return res.status(404).json({ message: "Workspace not found for this user." });
+    }
+    const actorMembership = await WorkspaceMember.findOne({
+      workspace: workspace._id,
+      user: req.user,
+      isActive: true,
+    })
+      .select("role grantedModules")
+      .lean()
+      .exec();
+    if (!actorMembership) {
+      return res.status(403).json({ message: "You do not have workspace access." });
+    }
+    if (
+      !hasOrganizationAccess({
+        workspace,
+        membership: actorMembership,
+        permissionKey: ORGANIZATION_PERMISSION_KEYS.actions.inviteMember,
+      })
+    ) {
+      return res.status(403).json({ message: "You do not have permission to invite members." });
     }
 
     const name = String(req.body?.fullName || req.body?.name || "").trim();
@@ -572,6 +732,26 @@ export const assignOrganizationActingManager = async (req, res, next) => {
         message: "Department management is not available on the Basic plan.",
       });
     }
+    const actorMembership = await WorkspaceMember.findOne({
+      workspace: workspace._id,
+      user: req.user,
+      isActive: true,
+    })
+      .select("role grantedModules")
+      .lean()
+      .exec();
+    if (!actorMembership) {
+      return res.status(403).json({ message: "You do not have workspace access." });
+    }
+    if (
+      !hasOrganizationAccess({
+        workspace,
+        membership: actorMembership,
+        permissionKey: ORGANIZATION_PERMISSION_KEYS.actions.assignActingManager,
+      })
+    ) {
+      return res.status(403).json({ message: "You do not have permission to assign acting manager." });
+    }
 
     const department = workspace.organizationDepartments?.id(req.params.departmentId);
     if (!department) {
@@ -621,6 +801,26 @@ export const removeOrganizationActingManager = async (req, res, next) => {
         message: "Department management is not available on the Basic plan.",
       });
     }
+    const actorMembership = await WorkspaceMember.findOne({
+      workspace: workspace._id,
+      user: req.user,
+      isActive: true,
+    })
+      .select("role grantedModules")
+      .lean()
+      .exec();
+    if (!actorMembership) {
+      return res.status(403).json({ message: "You do not have workspace access." });
+    }
+    if (
+      !hasOrganizationAccess({
+        workspace,
+        membership: actorMembership,
+        permissionKey: ORGANIZATION_PERMISSION_KEYS.actions.removeActingManager,
+      })
+    ) {
+      return res.status(403).json({ message: "You do not have permission to remove acting manager." });
+    }
 
     const departmentId = String(req.params.departmentId || "");
     const assignedUserId = String(req.params.assignedUserId || "");
@@ -649,6 +849,26 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
   try {
     const { workspace } = await getCurrentWorkspace(req.user);
     if (!workspace) return res.status(404).json({ message: "Workspace not found for this user." });
+    const actorMembership = await WorkspaceMember.findOne({
+      workspace: workspace._id,
+      user: req.user,
+      isActive: true,
+    })
+      .select("role grantedModules")
+      .lean()
+      .exec();
+    if (!actorMembership) {
+      return res.status(403).json({ message: "You do not have workspace access." });
+    }
+    if (
+      !hasOrganizationAccess({
+        workspace,
+        membership: actorMembership,
+        permissionKey: ORGANIZATION_PERMISSION_KEYS.actions.changeRole,
+      })
+    ) {
+      return res.status(403).json({ message: "You do not have permission to change member roles." });
+    }
 
     const member = await WorkspaceMember.findOne({
       _id: req.params.memberId,
@@ -712,23 +932,66 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
     });
     if (!member) return res.status(404).json({ message: "Member not found." });
 
-    const workspaceEnabledModuleIds = new Set(
-      Array.isArray(workspace.enabledModuleIds)
-        ? workspace.enabledModuleIds.map((item) => String(item || "").trim()).filter(Boolean)
-        : [],
-    );
-    member.grantedModules = Array.isArray(req.body?.accessModules)
-      ? req.body.accessModules
-          .map((item) => String(item || "").trim())
-          .filter(Boolean)
-          .filter((moduleId) => {
-            if (moduleId.startsWith("disabled:")) {
-              const targetModuleId = String(moduleId.slice("disabled:".length) || "").trim();
-              return targetModuleId && workspaceEnabledModuleIds.has(targetModuleId);
-            }
-            return workspaceEnabledModuleIds.has(moduleId);
-          })
+    const normalizeKey = (value = "") =>
+      String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[\s_]+/g, "-");
+    const expandAliases = (values: string[]) => {
+      // Keep exact normalized ids only so section-level controls remain independent.
+      return new Set(values.map((item) => normalizeKey(item)).filter(Boolean));
+    };
+
+    const workspaceEnabledModuleIds = Array.isArray(workspace.enabledModuleIds)
+      ? workspace.enabledModuleIds.map((item) => String(item || "").trim()).filter(Boolean)
       : [];
+    const memberEnabledModuleIds = Array.isArray(member.enabledModules)
+      ? member.enabledModules.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    const workspaceModuleMapIds = Array.isArray(workspace?.moduleMap?.sections)
+      ? workspace.moduleMap.sections.flatMap((section: any) =>
+          (Array.isArray(section?.items) ? section.items : []).flatMap((item: any) => [
+            String(item?.id || "").trim(),
+            ...(Array.isArray(item?.tabs)
+              ? item.tabs.map((tab: any) => String(tab?.id || "").trim())
+              : []),
+          ]),
+        ).filter(Boolean)
+      : [];
+    const allowedModuleKeys = expandAliases([
+      ...workspaceEnabledModuleIds,
+      ...memberEnabledModuleIds,
+      ...workspaceModuleMapIds,
+    ]);
+    if (allowedModuleKeys.has(normalizeKey(ORGANIZATION_PERMISSION_KEYS.module))) {
+      [
+        ORGANIZATION_PERMISSION_KEYS.tabs.users,
+        ORGANIZATION_PERMISSION_KEYS.tabs.departments,
+        ORGANIZATION_PERMISSION_KEYS.actions.inviteMember,
+        ORGANIZATION_PERMISSION_KEYS.actions.changeRole,
+        ORGANIZATION_PERMISSION_KEYS.actions.toggleAccess,
+        ORGANIZATION_PERMISSION_KEYS.actions.createDepartment,
+        ORGANIZATION_PERMISSION_KEYS.actions.editDepartment,
+        ORGANIZATION_PERMISSION_KEYS.actions.assignDepartmentManager,
+        ORGANIZATION_PERMISSION_KEYS.actions.assignActingManager,
+        ORGANIZATION_PERMISSION_KEYS.actions.removeActingManager,
+      ]
+        .map((item) => normalizeKey(item))
+        .forEach((item) => allowedModuleKeys.add(item));
+    }
+
+    const nextGrantedModules = Array.isArray(req.body?.accessModules)
+      ? req.body.accessModules.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+
+    member.grantedModules = nextGrantedModules.filter((moduleId) => {
+      if (moduleId.startsWith("disabled:")) {
+        const targetModuleId = String(moduleId.slice("disabled:".length) || "").trim();
+        return Boolean(targetModuleId) && allowedModuleKeys.has(normalizeKey(targetModuleId));
+      }
+      return allowedModuleKeys.has(normalizeKey(moduleId));
+    });
+
     await member.save();
 
     return res.status(200).json({

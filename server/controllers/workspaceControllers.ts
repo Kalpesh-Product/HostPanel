@@ -594,7 +594,9 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
       selectedPlan,
       enabledModuleIds,
     });
-    const currentUserId = String(req.user?.id || req.user?._id || "").trim();
+    const currentUserId = String(
+      req.user?.id || req.user?._id || req.user || "",
+    ).trim();
     const currentMember = currentUserId
       ? await WorkspaceMember.findOne({
           workspace: workspace._id,
@@ -616,6 +618,9 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
         moduleMap: catalog,
         currentMemberGrantedModules: Array.isArray(currentMember?.grantedModules)
           ? currentMember.grantedModules
+          : [],
+        currentMemberEnabledModules: Array.isArray(currentMember?.enabledModules)
+          ? currentMember.enabledModules
           : [],
       },
     });

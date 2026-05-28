@@ -4,7 +4,7 @@ import {
   Building2, Plus, Trash2, X, Users, UserPlus, ArrowLeft,
   Mail, Calendar, Briefcase, Shield, Send, DollarSign, Wrench,
   CheckCircle2, Search, Crown, CheckSquare, 
-  Power, AlertCircle
+  Power, AlertCircle, Lock
 } from 'lucide-react';
 import { Switch } from '@mui/material';
 import useAuth from '../../hooks/useAuth';
@@ -18,6 +18,7 @@ import {
   removeOrganizationActingManager,
   saveOrganizationDepartment,
   toggleOrganizationMemberStatus,
+  updateOrganizationMemberRole,
 } from '../../services/organization';
 import {
   OWNER_DEPARTMENT_CATALOG,
@@ -118,6 +119,11 @@ const normalizeDepartmentLabel = (value = '') => {
   const definition = getDepartmentDefinition(normalized);
   return definition?.label || normalized;
 };
+
+const formatModuleLabel = (value = '') =>
+  String(value || '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 
 type TeamMember = {
   id?: string;
@@ -221,6 +227,8 @@ export function OrganizationPage() {
   const [teamMemberFormData, setTeamMemberFormData] = useState<TeamMemberFormData>({ name: '', email: '', role: 'manager', departments: [] });
   const [permissions, setPermissions] = useState({});
   const [workspaceOrganizationDepartments, setWorkspaceOrganizationDepartments] = useState([]);
+  const [workspaceEnabledModuleIds, setWorkspaceEnabledModuleIds] = useState<string[]>([]);
+  const [currentMemberGrantedModuleIds, setCurrentMemberGrantedModuleIds] = useState<string[]>([]);
   const [departmentAccessState, setDepartmentAccessState] = useState(() =>
     resolveDepartmentManagementState(currentUser, []),
   );
@@ -230,7 +238,7 @@ export function OrganizationPage() {
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [transferredTeamMembers, setTransferredTeamMembers] = useState<TeamMember[]>([]);
-  const [workspacePlan, setWorkspacePlan] = useState('basic');
+  const [, setWorkspacePlan] = useState('basic');
   const [availableCoreModules, setAvailableCoreModules] = useState<CoreModuleOption[]>([]);
   const [newDepartmentForm, setNewDepartmentForm] = useState({
     name: '',
@@ -257,8 +265,18 @@ export function OrganizationPage() {
     }
 
     try {
-      const response = await getOrganizationOverview(axiosPrivate);
-      const payload = response?.data?.data || response?.data || {};
+      const [overviewResult, moduleMapResult] = await Promise.allSettled([
+        getOrganizationOverview(axiosPrivate),
+        axiosPrivate.get('/api/workspaces/module-access-map'),
+      ]);
+      const payload =
+        overviewResult.status === 'fulfilled'
+          ? overviewResult.value?.data?.data || overviewResult.value?.data || {}
+          : {};
+      const moduleMapPayload =
+        moduleMapResult.status === 'fulfilled'
+          ? moduleMapResult.value?.data?.data || {}
+          : {};
       const nextWorkspaceDepartments = Array.isArray(payload?.workspace?.organizationDepartments)
         ? payload.workspace.organizationDepartments
         : [];
@@ -314,11 +332,36 @@ export function OrganizationPage() {
       });
       const visibleDepartments = [...mergedDepartments, ...customDepartments];
       const nextMembers = Array.isArray(payload.teamMembers) ? payload.teamMembers : [];
+      const currentUserIdSnapshot = String(currentUser?.id || currentUser?._id || '').trim();
+      const currentUserEmailSnapshot = String(currentUser?.email || '').trim().toLowerCase();
+      const currentMemberFromOverview = nextMembers.find((member) => {
+        const memberUserId = String(member?.userId || member?.id || member?._id || '').trim();
+        const memberEmail = String(member?.email || '').trim().toLowerCase();
+        return (
+          (memberUserId && currentUserIdSnapshot && memberUserId === currentUserIdSnapshot) ||
+          (memberEmail && currentUserEmailSnapshot && memberEmail === currentUserEmailSnapshot)
+        );
+      });
       const nextTransferredMembers = Array.isArray(payload.transferredTeamMembers)
         ? payload.transferredTeamMembers
         : [];
 
       setWorkspaceOrganizationDepartments(nextWorkspaceDepartments);
+      setWorkspaceEnabledModuleIds(
+        Array.isArray(moduleMapPayload?.enabledModuleIds)
+          ? moduleMapPayload.enabledModuleIds
+          : Array.isArray(payload?.workspace?.enabledModuleIds)
+            ? payload.workspace.enabledModuleIds
+            : [],
+      );
+      setCurrentMemberGrantedModuleIds(
+        Array.isArray(moduleMapPayload?.currentMemberGrantedModules) &&
+        moduleMapPayload.currentMemberGrantedModules.length > 0
+          ? moduleMapPayload.currentMemberGrantedModules
+          : Array.isArray(currentMemberFromOverview?.grantedModules)
+            ? currentMemberFromOverview.grantedModules
+            : [],
+      );
       setWorkspacePlan(nextWorkspacePlan);
       setAvailableCoreModules(nextAvailableCoreModules);
       setDepartments(visibleDepartments);
@@ -370,6 +413,8 @@ export function OrganizationPage() {
     setTransferredTeamMembers([]);
     setPermissions({});
     setWorkspaceOrganizationDepartments([]);
+    setWorkspaceEnabledModuleIds([]);
+    setCurrentMemberGrantedModuleIds([]);
     setWorkspacePlan('basic');
     setAvailableCoreModules([]);
     setSelectedDepartment(null);
@@ -405,9 +450,25 @@ export function OrganizationPage() {
     workspaceOrganizationDepartments,
   ]);
 
+  useEffect(() => {
+    if (!(currentUser?.id || currentUser?._id)) return;
+    const refresh = () => {
+      void loadOrganization(selectedDepartment?.id || null, false);
+    };
+    const intervalId = window.setInterval(refresh, 5000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [currentUser?.id, currentUser?._id, selectedDepartment?.id, loadOrganization]);
+
   // --- LOGIC ---
   const totalEmployees = departments.reduce((sum, dept) => sum + (dept.employeeCount || 0), 0);
   const normalizeRoleValue = (role) => (role || '').toString().trim().toLowerCase().replace(/_/g, '-');
+  const normalizeAccessKey = (value = '') => String(value || '').trim().toLowerCase().replace(/[\s_]+/g, '-');
   const currentUserRole = (currentUser?.workspaceMembership?.role || currentUser?.role || '')
     .toString()
     .trim()
@@ -426,26 +487,56 @@ export function OrganizationPage() {
   const canInviteSuperAdmin = isFounderRole || isFounderFromTeamRecord;
   const canManageDepartments = isFounderRole || isFounderFromTeamRecord;
   const canManageActingAssignments = canManageDepartments || currentUserRole === 'super-admin';
-  const selectedPlan = String(
-    workspacePlan ||
-      currentUser?.workspace?.selectedPlan ||
-      currentUser?.workspaceMembership?.selectedPlan ||
-      currentUser?.selectedPlan ||
-      'basic',
-  )
-    .trim()
-    .toLowerCase();
-  const isBasicPlan = selectedPlan === 'basic';
-  const activeSuperAdminCount = teamMembers.filter(
-    (member) =>
-      normalizeRoleValue(member.role) === 'super-admin' &&
-      String(member.status || '').toLowerCase() !== 'disabled',
-  ).length;
-  const isBasicUserLimitReached = isBasicPlan && activeSuperAdminCount >= 1;
-  const canAddUserOnCurrentPlan = !isBasicPlan || (canInviteSuperAdmin && !isBasicUserLimitReached);
-  const addUserHoverMessage = isBasicPlan
-    ? 'Only one user can be added'
-    : 'Invite and onboard instantly';
+  const currentMemberGrantedKeys = new Set(
+    (Array.isArray(currentMemberGrantedModuleIds) ? currentMemberGrantedModuleIds : [])
+      .map((item) => normalizeAccessKey(String(item || '')))
+      .filter(Boolean),
+  );
+  const workspaceEnabledKeys = new Set(
+    (Array.isArray(workspaceEnabledModuleIds) ? workspaceEnabledModuleIds : [])
+      .map((item) => normalizeAccessKey(String(item || '')))
+      .filter(Boolean),
+  );
+  const hasAnyOrgWorkspaceKey = Array.from(workspaceEnabledKeys).some((key) => key.startsWith('org-'));
+  const hasAnyOrgGrantedKey = Array.from(currentMemberGrantedKeys).some((key) => key.startsWith('org-'));
+  const hasOrgModuleAccess =
+    workspaceEnabledKeys.has('organization-management') || hasAnyOrgWorkspaceKey || hasAnyOrgGrantedKey;
+  const hasUsersTabGrant =
+    currentMemberGrantedKeys.has('org-tab-users') ||
+    currentMemberGrantedKeys.has('org-users-invite-member');
+  const hasDepartmentsTabGrant =
+    currentMemberGrantedKeys.has('org-tab-departments') ||
+    currentMemberGrantedKeys.has('org-departments-create') ||
+    currentMemberGrantedKeys.has('org-departments-edit') ||
+    currentMemberGrantedKeys.has('org-departments-assign-manager') ||
+    currentMemberGrantedKeys.has('org-departments-assign-acting-manager') ||
+    currentMemberGrantedKeys.has('org-departments-remove-acting-manager');
+  const hasAnyExplicitOrgTabGrant = hasUsersTabGrant || hasDepartmentsTabGrant;
+  const canAccessUsersTab =
+    hasOrgModuleAccess &&
+    (hasUsersTabGrant || !hasAnyExplicitOrgTabGrant);
+  const canAccessDepartmentsTab =
+    hasOrgModuleAccess && hasDepartmentsTabGrant;
+  const canInviteUsersByAccess =
+    hasOrgModuleAccess && currentMemberGrantedKeys.has('org-users-invite-member');
+  const canChangeRoleByAccess =
+    hasOrgModuleAccess && currentMemberGrantedKeys.has('org-users-change-role');
+  const canToggleAccessByAccess =
+    hasOrgModuleAccess && currentMemberGrantedKeys.has('org-users-toggle-access');
+  const canCreateDepartmentByAccess =
+    hasOrgModuleAccess && currentMemberGrantedKeys.has('org-departments-create');
+  const canEditDepartmentByAccess =
+    hasOrgModuleAccess && currentMemberGrantedKeys.has('org-departments-edit');
+  const canAssignManagerByAccess =
+    hasOrgModuleAccess && currentMemberGrantedKeys.has('org-departments-assign-manager');
+  const canAssignActingManagerByAccess =
+    hasOrgModuleAccess && currentMemberGrantedKeys.has('org-departments-assign-acting-manager');
+  const canRemoveActingManagerByAccess =
+    hasOrgModuleAccess && currentMemberGrantedKeys.has('org-departments-remove-acting-manager');
+  const canAddUserOnCurrentPlan = canAccessUsersTab && canInviteUsersByAccess;
+  const addUserHoverMessage = canAddUserOnCurrentPlan
+    ? 'Invite and onboard instantly'
+    : 'You do not have access to invite users';
   const workspaceCount = getWorkspaceCount(
     (currentUser as { workspaceCount?: number } | null)?.workspaceCount,
   );
@@ -458,6 +549,21 @@ export function OrganizationPage() {
     );
   const shouldShowTransferredReferences =
     canManageDepartments && workspaceCount > 1 && hasTransferredRecords;
+  const workspaceModuleOptions = useMemo(() => {
+    const uniqueIds = Array.from(
+      new Set(
+        (Array.isArray(workspaceEnabledModuleIds) ? workspaceEnabledModuleIds : [])
+          .map((item) => String(item || '').trim())
+          .filter(Boolean),
+      ),
+    );
+    return uniqueIds.map((id) => ({
+      id,
+      name:
+        availableCoreModules.find((module) => module.id === id)?.name ||
+        formatModuleLabel(id),
+    }));
+  }, [workspaceEnabledModuleIds, availableCoreModules]);
   const formatJoinedDate = (value) => {
     if (!value) {
       return '—';
@@ -477,11 +583,11 @@ export function OrganizationPage() {
   };
 
   useEffect(() => {
-    if (isBasicPlan && activeTab === 'departments') {
+    if (!canAccessDepartmentsTab && activeTab === 'departments') {
       setActiveTab('users');
       setView('list');
     }
-  }, [activeTab, isBasicPlan]);
+  }, [activeTab, canAccessDepartmentsTab]);
 
   const filteredTeamMembers = useMemo(() => {
     const normalizedSearch = searchQuery.toLowerCase().trim();
@@ -655,10 +761,46 @@ export function OrganizationPage() {
   };
 
   const toggleMemberStatus = (id) => {
+    if (!canToggleAccessByAccess) {
+      toast.error('You do not have access to toggle user status.');
+      return;
+    }
     toggleOrganizationMemberStatus(axiosPrivate, id)
       .then(() => loadOrganization(selectedDepartment?.id || null))
       .catch((error) => {
         console.error("Failed to update member status", error);
+      });
+  };
+
+  const handleRoleChange = (member: TeamMember, nextRole: string) => {
+    if (!canChangeRoleByAccess) {
+      toast.error('You do not have access to change roles.');
+      return;
+    }
+    const memberId = String(member.id || '').trim();
+    if (!memberId) return;
+
+    const departmentIds = (Array.isArray(member.departmentNames) ? member.departmentNames : [])
+      .map((departmentName) =>
+        departments.find(
+          (department) =>
+            String(department?.name || '').trim().toLowerCase() ===
+            String(departmentName || '').trim().toLowerCase(),
+        )?.id,
+      )
+      .filter((id): id is string => Boolean(id));
+
+    updateOrganizationMemberRole(axiosPrivate, memberId, {
+      role: nextRole,
+      departments: departmentIds,
+    })
+      .then(() => {
+        toast.success('Member role updated.');
+        return loadOrganization(selectedDepartment?.id || null);
+      })
+      .catch((error) => {
+        console.error('Failed to update role', error);
+        toast.error(error?.response?.data?.message || 'Failed to update role.');
       });
   };
 
@@ -671,6 +813,10 @@ export function OrganizationPage() {
   };
 
   const handleAssignManagerToDepartment = (managerId, managerName) => {
+    if (!canAssignManagerByAccess) {
+      toast.error('You do not have access to assign department manager.');
+      return;
+    }
     if (selectedDepartment) {
       assignOrganizationDepartmentManager(axiosPrivate, selectedDepartment.id || '', managerId)
         .then(() => loadOrganization(selectedDepartment.id || ''))
@@ -684,6 +830,10 @@ export function OrganizationPage() {
   };
 
   const handleAssignActingManager = (member) => {
+    if (!canAssignActingManagerByAccess) {
+      toast.error('You do not have access to assign acting manager.');
+      return;
+    }
     if (!selectedDepartment) {
       return;
     }
@@ -703,6 +853,10 @@ export function OrganizationPage() {
   };
 
   const handleRemoveActingManager = (assignedUserId) => {
+    if (!canRemoveActingManagerByAccess) {
+      toast.error('You do not have access to remove acting manager.');
+      return;
+    }
     if (!selectedDepartment) {
       return;
     }
@@ -791,12 +945,22 @@ export function OrganizationPage() {
     }
 
     try {
+      const founderAndSuperAdminIds = teamMembers
+        .filter((member) => {
+          const role = normalizeRoleValue(member.role);
+          return role === 'owner' || role === 'founder' || role === 'super-admin' || role === 'super_admin';
+        })
+        .map((member) => String(member.userId || member.id || '').trim())
+        .filter(Boolean);
+      const mergedAdminUserIds = Array.from(
+        new Set([...(newDepartmentForm.adminUserIds || []), ...founderAndSuperAdminIds]),
+      );
       await saveOrganizationDepartment(axiosPrivate, {
         name: newDepartmentForm.name.trim(),
         description: newDepartmentForm.description.trim(),
         moduleIds: newDepartmentForm.moduleIds,
         managerUserId: newDepartmentForm.managerUserId || '',
-        adminUserIds: newDepartmentForm.adminUserIds,
+        adminUserIds: mergedAdminUserIds,
         employeeUserIds: newDepartmentForm.employeeUserIds,
         isActive: true,
       });
@@ -854,8 +1018,8 @@ export function OrganizationPage() {
         <div className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
            <div>
              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Depts</p>
-             <p className={`text-[15px] font-black ${isBasicPlan ? 'text-slate-300' : 'text-slate-800'}`}>
-               {isBasicPlan ? '--' : departments.length}
+             <p className={`text-[15px] font-black ${canAccessDepartmentsTab ? 'text-slate-800' : 'text-slate-300'}`}>
+               {canAccessDepartmentsTab ? departments.length : '--'}
              </p>
            </div>
            <div className="p-2 rounded-2xl bg-slate-50 text-slate-600"><Building2 size={16}/></div>
@@ -863,8 +1027,8 @@ export function OrganizationPage() {
         <div className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
            <div>
              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Global Headcount</p>
-             <p className={`text-[15px] font-black ${isBasicPlan ? 'text-slate-300' : 'text-emerald-600'}`}>
-               {isBasicPlan ? '--' : totalEmployees}
+             <p className={`text-[15px] font-black ${canAccessDepartmentsTab ? 'text-emerald-600' : 'text-slate-300'}`}>
+               {canAccessDepartmentsTab ? totalEmployees : '--'}
              </p>
            </div>
            <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600"><Users size={16}/></div>
@@ -883,7 +1047,7 @@ export function OrganizationPage() {
             setTeamMemberFormData({
               name: '',
               email: '',
-              role: isBasicPlan ? 'super-admin' : 'manager',
+              role: 'manager',
               departments: [],
             });
             setShowTeamMemberModal(true);
@@ -892,7 +1056,10 @@ export function OrganizationPage() {
           <div className="absolute -left-4 -bottom-5 h-14 w-14 rounded-full bg-black/10" />
            <div>
               <p className="text-[10px] font-black text-blue-100/90 uppercase tracking-widest mb-1">Quick Action</p>
-             <p className="text-[13px] font-black text-white group-hover:scale-105 transition-transform origin-left">Add User</p>
+             <p className="text-[13px] font-black text-white group-hover:scale-105 transition-transform origin-left flex items-center gap-1.5">
+               {!canAddUserOnCurrentPlan ? <Lock size={12} /> : null}
+               Add User
+             </p>
              <p className="text-[10px] mt-1 text-blue-100/90 font-semibold">{addUserHoverMessage}</p>
            </div>
            <div className="p-2 rounded-2xl bg-white/20 text-white border border-white/30"><UserPlus size={16}/></div>
@@ -905,17 +1072,17 @@ export function OrganizationPage() {
           <Shield size={16}/> PLATFORM USERS
         </button>
         <button
-          title={isBasicPlan ? 'Departments are locked on Basic plan.' : ''}
-          disabled={isBasicPlan}
+          title={!canAccessDepartmentsTab ? 'You do not have access to departments.' : ''}
+          disabled={!canAccessDepartmentsTab}
           onClick={() => { setActiveTab('departments'); setView('list'); }}
           className={`flex-1 md:px-5 py-1.5 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
-            isBasicPlan
+            !canAccessDepartmentsTab
               ? 'text-slate-300 cursor-not-allowed'
               : activeTab === 'departments'
                 ? 'bg-[#2563EB] shadow-sm text-white'
                 : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
           }`}>
-          <Building2 size={16}/> DEPARTMENTS
+          <Building2 size={16}/> DEPARTMENTS {!canAccessDepartmentsTab ? <Lock size={12} /> : null}
         </button>
       </div>
 
@@ -941,7 +1108,7 @@ export function OrganizationPage() {
                   setTeamMemberFormData({
                     name: '',
                     email: '',
-                    role: isBasicPlan ? 'super-admin' : 'manager',
+                    role: 'manager',
                     departments: [],
                   });
                   setShowTeamMemberModal(true);
@@ -1051,6 +1218,7 @@ export function OrganizationPage() {
                           const isSelf = member.userId && String(member.userId) === currentUserId;
                           const isProtectedSelf = isSelf && normalizeRoleValue(member.role) === 'super-admin';
                           const canToggleAccess =
+                            canToggleAccessByAccess &&
                             !isProtectedSelf &&
                             member.role !== 'owner' &&
                             ['joined', 'disabled'].includes(member.status ?? '');
@@ -1078,6 +1246,18 @@ export function OrganizationPage() {
                                   ? 'Access Off'
                                   : 'Invite Sent'}
                         </span>
+                        {canChangeRoleByAccess && member.role !== 'owner' ? (
+                          <select
+                            value={normalizeRoleValue(member.role)}
+                            onChange={(e) => handleRoleChange(member, e.target.value)}
+                            className="mt-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700"
+                          >
+                            <option value="employee">Employee</option>
+                            <option value="manager">Manager</option>
+                            <option value="admin">Admin</option>
+                            <option value="super_admin">Super Admin</option>
+                          </select>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -1183,6 +1363,15 @@ export function OrganizationPage() {
                 Review existing departments and enable the ones that were missed during setup.
               </p>
             </div>
+            {canCreateDepartmentByAccess ? (
+              <button
+                type="button"
+                onClick={() => openDepartmentModal(null)}
+                className="px-4 py-2 rounded-xl bg-[#2563EB] text-white text-[11px] font-black uppercase tracking-widest hover:bg-blue-700"
+              >
+                Create Department
+              </button>
+            ) : null}
 
           </div>
 
@@ -1253,8 +1442,19 @@ export function OrganizationPage() {
                 <p className="text-[12px] text-slate-500 max-w-2xl leading-relaxed">{selectedDepartment.description}</p>
               </div>
               <div className="flex gap-2.5 w-full md:w-auto">
-
-                <button onClick={() => setShowEmployeeModal(true)} className="flex-1 md:flex-none px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-bold text-[12px] transition-all shadow-sm shadow-blue-200 flex items-center justify-center gap-1.5">
+                {canAssignManagerByAccess ? (
+                  <button
+                    onClick={() => setShowAssignManagerModal(true)}
+                    className="flex-1 md:flex-none px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[12px] transition-all shadow-sm hover:bg-slate-50"
+                  >
+                    Assign Manager
+                  </button>
+                ) : null}
+                <button
+                  onClick={() => setShowEmployeeModal(true)}
+                  disabled={!canInviteUsersByAccess}
+                  className="flex-1 md:flex-none px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-bold text-[12px] transition-all shadow-sm shadow-blue-200 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   <UserPlus size={16}/> Add Employee
                 </button>
               </div>
@@ -1288,7 +1488,7 @@ export function OrganizationPage() {
                           {(assignment.assignedBaseRole || 'acting-manager').replace(/_/g, ' ')}
                         </p>
                       </div>
-                      {canManageActingAssignments ? (
+                      {canManageActingAssignments && canRemoveActingManagerByAccess ? (
                         <button
                           type="button"
                           onClick={() => handleRemoveActingManager(assignment.assignedUserId)}
@@ -1471,185 +1671,7 @@ export function OrganizationPage() {
             </div>
 
             <div className="p-5 sm:p-6 lg:p-8 overflow-y-auto">
-              <div className="grid gap-3 sm:gap-4">
-                {OWNER_DEPARTMENT_CATALOG.map((department) => {
-                  const Icon = departmentIcons[department.key] || Users;
-                  const enabled = isDepartmentEnabledInState(departmentAccessState, department.key);
-                  const expanded = expandedDepartmentKey === department.key;
-                  const commonModules = getSharedSectionModules('common', department.key);
-                  const extraCommonModules = getSharedSectionModules('extra-common', department.key);
-                  const coreModules = getDepartmentModules(department.key);
-
-                  return (
-                    <div
-                      key={department.key}
-                      className={`rounded-[22px] border-2 p-4 sm:p-5 transition-all ${
-                        enabled
-                          ? 'border-[#2563EB] bg-[#E0E7FF]'
-                          : 'border-slate-200 bg-[#F8FAFC]'
-                      }`}
-                    >
-                      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                        <div className="flex items-start gap-4">
-                          <div
-                            className={`flex h-12 w-12 items-center justify-center rounded-2xl text-white transition-colors ${
-                              enabled ? DEPARTMENT_TONE_CLASSES[department.tone] || 'bg-[#2563EB]' : 'bg-gray-200 text-[#64748B]'
-                            }`}
-                          >
-                            <Icon className="h-5 w-5" />
-                          </div>
-
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="text-[1rem] font-black text-slate-900 sm:text-[1.1rem]">
-                                {getDepartmentLabel(department.key)}
-                              </h3>
-                              <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${enabled ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
-                                {enabled ? 'Enabled' : 'Disabled'}
-                              </span>
-                            </div>
-                            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-                              {department.summary}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 md:pl-4">
-                          <Switch
-                            checked={enabled}
-                            onChange={(_, checked) =>
-                              setDepartmentAccessState((current) =>
-                                toggleDepartmentInState(current, department.key, checked),
-                              )
-                            }
-                          />
-                          {enabled ? (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setExpandedDepartmentKey((current) =>
-                                  current === department.key ? '' : department.key,
-                                )
-                              }
-                              className="rounded-xl border border-blue-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-[#2563EB]"
-                            >
-                              {expanded ? 'Hide Configure' : 'Configure Modules'}
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      {enabled && expanded ? (
-                        <div className="mt-4 space-y-4 rounded-2xl border border-blue-100 bg-white p-4">
-                          <div>
-                            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">
-                              Common Modules
-                            </p>
-                            <div className="mt-2 space-y-2">
-                              {commonModules.map((module) => (
-                                <div
-                                  key={`${department.key}-common-${module.id}`}
-                                  className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2"
-                                >
-                                  <div className="min-w-0">
-                                    <p className="text-sm font-medium text-slate-700">{module.label}</p>
-                                    <p className="text-[11px] text-slate-500">{module.description}</p>
-                                  </div>
-                                  <Switch
-                                    checked={isSharedModuleEnabledInState(
-                                      departmentAccessState,
-                                      'common',
-                                      module.id,
-                                      department.key,
-                                    )}
-                                    onChange={(_, checked) =>
-                                      setDepartmentAccessState((current) =>
-                                        toggleSharedModuleInState(current, 'common', module.id, department.key, checked),
-                                      )
-                                    }
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">
-                              Extra Common Modules
-                            </p>
-                            <div className="mt-2 space-y-2">
-                              {extraCommonModules.map((module) => (
-                                <div
-                                  key={`${department.key}-extra-${module.id}`}
-                                  className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2"
-                                >
-                                  <div className="min-w-0">
-                                    <p className="text-sm font-medium text-slate-700">{module.label}</p>
-                                    <p className="text-[11px] text-slate-500">{module.description}</p>
-                                  </div>
-                                  <Switch
-                                    checked={isSharedModuleEnabledInState(
-                                      departmentAccessState,
-                                      'extra-common',
-                                      module.id,
-                                      department.key,
-                                    )}
-                                    onChange={(_, checked) =>
-                                      setDepartmentAccessState((current) =>
-                                        toggleSharedModuleInState(current, 'extra-common', module.id, department.key, checked),
-                                      )
-                                    }
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">
-                              Core Modules
-                            </p>
-                            <div className="mt-2 space-y-2">
-                              {coreModules.map((module) => (
-                                <div
-                                  key={`${department.key}-core-${module.id}`}
-                                  className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2"
-                                >
-                                  <div className="min-w-0">
-                                    <p className="text-sm font-medium text-slate-700">{module.label}</p>
-                                    <p className="text-[11px] text-slate-500">{module.description}</p>
-                                  </div>
-                                  <Switch
-                                    checked={isModuleEnabledInState(
-                                      departmentAccessState,
-                                      department.key,
-                                      module.id,
-                                      department.key,
-                                    )}
-                                    onChange={(_, checked) =>
-                                      setDepartmentAccessState((current) =>
-                                        toggleModuleInState(current, department.key, module.id, department.key, checked),
-                                      )
-                                    }
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="mt-5 rounded-[20px] border border-slate-200 bg-slate-50/80 px-4 py-4 sm:rounded-[22px]">
-                <p className="text-[12px] leading-5 text-[#64748B] sm:text-sm sm:leading-6">
-                  Tip: This screen manages the same platform departments shown during setup. Saving here updates the workspace department state and keeps module configuration in sync.
-                </p>
-              </div>
-
-              {canManageDepartments ? (
+              {canManageDepartments && canCreateDepartmentByAccess ? (
                 <div className="mt-5 rounded-[20px] border border-blue-100 bg-blue-50/40 px-4 py-4 sm:rounded-[22px]">
                   <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2563EB]">Create Department (Founder)</p>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -1670,7 +1692,7 @@ export function OrganizationPage() {
                   </div>
                   <p className="mt-3 text-[11px] font-bold uppercase tracking-widest text-slate-500">Core Modules</p>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {availableCoreModules.map((module) => {
+                    {workspaceModuleOptions.map((module) => {
                       const selected = newDepartmentForm.moduleIds.includes(module.id);
                       return (
                         <button
@@ -1767,7 +1789,11 @@ export function OrganizationPage() {
                     Create Department
                   </button>
                 </div>
-              ) : null}
+              ) : (
+                <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+                  You do not have access to create departments.
+                </div>
+              )}
             </div>
 
             <div className="p-5 sm:p-6 bg-slate-50 border-t border-slate-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
@@ -1781,11 +1807,11 @@ export function OrganizationPage() {
                 Cancel
               </button>
               <button
-                onClick={handleSaveDepartment}
-                disabled={isSavingDepartments}
+                onClick={handleCreateDepartmentForFounder}
+                disabled={!canManageDepartments || !canCreateDepartmentByAccess}
                 className="w-full sm:w-auto px-5 py-3 bg-[#2563EB] text-white rounded-xl font-bold text-sm shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >
-                {isSavingDepartments ? 'Saving...' : 'Save Departments'}
+                Create Department
               </button>
             </div>
           </div>
@@ -1883,7 +1909,8 @@ export function OrganizationPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleAssignActingManager(member)}
-                                  className="ml-auto px-3 py-2 rounded-xl bg-[#2563EB] text-white text-[11px] font-black uppercase tracking-widest hover:bg-blue-700 transition-colors"
+                                  disabled={!canAssignActingManagerByAccess}
+                                  className="ml-auto px-3 py-2 rounded-xl bg-[#2563EB] text-white text-[11px] font-black uppercase tracking-widest hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   Assign
                                 </button>
@@ -1946,15 +1973,10 @@ export function OrganizationPage() {
                   }
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                 >
-                   <option value="manager" disabled={isBasicPlan}>Department Manager</option>
-                   <option value="admin" disabled={isBasicPlan}>Department Admin</option>
+                   <option value="manager">Department Manager</option>
+                   <option value="admin">Department Admin</option>
                    <option value="super-admin" disabled={!canInviteSuperAdmin}>Super Admin</option>
                 </select>
-                {isBasicPlan && (
-                  <p className="text-[11px] text-amber-600 font-medium">
-                    Basic plan allows only one Super Admin addition by founder.
-                  </p>
-                )}
                 {!canInviteSuperAdmin && (
                   <p className="text-[11px] text-amber-600 font-medium">
                     Only the founder can create a new Super Admin account.
@@ -2002,7 +2024,6 @@ export function OrganizationPage() {
                 disabled={
                   !teamMemberFormData.name ||
                   !teamMemberFormData.email ||
-                  (isBasicPlan && teamMemberFormData.role !== 'super-admin') ||
                   !canAddUserOnCurrentPlan ||
                   (teamMemberFormData.role !== 'super-admin' && teamMemberFormData.departments.length === 0) ||
                   (teamMemberFormData.role === 'super-admin' && !canInviteSuperAdmin)
