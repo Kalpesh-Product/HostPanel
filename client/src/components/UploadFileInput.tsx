@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { TextField, IconButton, Avatar, Box } from "@mui/material";
 import { LuImageUp } from "react-icons/lu";
@@ -8,7 +8,7 @@ import MuiModal from "./MuiModal";
 type PreviewType = "image" | "pdf" | "none" | "auto";
 
 interface UploadFileInputProps {
-  value: File | null;
+  value: File | null | unknown;
   onChange: (file: File | null) => void;
   disabled?: boolean;
   label?: string;
@@ -27,10 +27,23 @@ const UploadFileInput = ({
   id,
 }: UploadFileInputProps) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(
-    value ? URL.createObjectURL(value) : null
-  );
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [openModal, setOpenModal] = useState(false);
+
+  useEffect(() => {
+    if (value instanceof File) {
+      const objectUrl = URL.createObjectURL(value);
+      setPreviewUrl(objectUrl);
+      return () => {
+        URL.revokeObjectURL(objectUrl);
+      };
+    }
+    if (value && typeof value === "object" && typeof value.url === "string") {
+      setPreviewUrl(value.url);
+      return;
+    }
+    setPreviewUrl(null);
+  }, [value]);
 
   const getExtension = (fileName: string) => fileName.split(".").pop()?.toLowerCase() ?? "";
 
@@ -64,11 +77,15 @@ const UploadFileInput = ({
   const acceptAttr = allowedExtensions.map((ext) => `.${ext}`).join(",");
 
   const renderPreview = () => {
-    if (!value) {
+    if (!previewUrl) {
       return <div className="text-sm text-muted">Preview not available</div>;
     }
 
-    const ext = getExtension(value.name);
+    const resolvedName =
+      value instanceof File
+        ? value.name
+        : String((value && typeof value === "object" && value.name) || "");
+    const ext = getExtension(resolvedName);
     const type =
       previewType === "auto"
         ? isImage(ext)
@@ -120,7 +137,11 @@ const UploadFileInput = ({
         fullWidth
         label={label}
         disabled={disabled}
-        value={value?.name || ""}
+        value={
+          value instanceof File
+            ? value.name
+            : String((value && typeof value === "object" && value.name) || "")
+        }
         placeholder="Choose a file..."
         InputProps={{
           readOnly: true,
@@ -132,7 +153,7 @@ const UploadFileInput = ({
         }}
       />
 
-      {value && previewUrl && (
+      {previewUrl && (
         <>
           <span
             className="w-fit cursor-pointer text-sm text-primary underline"

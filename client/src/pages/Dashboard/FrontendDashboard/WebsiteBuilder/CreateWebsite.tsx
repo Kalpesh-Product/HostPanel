@@ -10,6 +10,8 @@ import {
   DialogContent,
   DialogActions,
   Button,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import PageFrame from "../../../../components/Pages/PageFrame";
 import PrimaryButton from "../../../../components/PrimaryButton";
@@ -49,6 +51,24 @@ const defaultTestimonial = {
   rating: 5,
 };
 
+const DEFAULT_PAGE_NAV_ITEMS = [
+  "Home",
+  "About Us",
+  "Products",
+  "Gallery",
+  "Testimonials",
+  "Contact Us",
+];
+
+const DEFAULT_PRODUCT_DROPDOWN_PAGES = [
+  "Co-Working",
+  "Cafe",
+  "Meeting Rooms",
+  "Hostels",
+  "Co-Living",
+  "Workations",
+];
+
 const normalizeVerticalKey = (value: unknown): VerticalType => {
   const raw = String(value || "").trim().toLowerCase();
   if (!raw) return "co-working";
@@ -75,10 +95,410 @@ const toSearchKey = (value: unknown): string =>
     .split("-")[0]
     .replace(/\s+/g, "");
 
+const toSlug = (value: unknown): string =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+
+const isMenuPageSlug = (slug = "") => {
+  const normalized = String(slug || "").trim().toLowerCase();
+  return normalized.includes("cafe") || normalized.includes("menu");
+};
+
+const LIVE_PREVIEW_DRAFT_STORAGE_KEY = "website_builder_live_preview_draft";
+
+const getMediaUrlForPreview = (value: unknown): string => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (value instanceof File) return URL.createObjectURL(value);
+  if (Array.isArray(value) && value.length > 0) {
+    return getMediaUrlForPreview(value[0]);
+  }
+  if (typeof value === "object") {
+    const candidate = value as Record<string, unknown>;
+    if (typeof candidate.url === "string") return candidate.url;
+    if (typeof candidate.preview === "string") return candidate.preview;
+    if (typeof candidate.location === "string") return candidate.location;
+  }
+  return "";
+};
+
+const hasMeaningfulDraftContent = (draftData: any) => {
+  if (!draftData || typeof draftData !== "object") return false;
+
+  const textValues = [
+    draftData?.title,
+    draftData?.subTitle,
+    draftData?.CTAButtonText,
+    draftData?.productTitle,
+    draftData?.galleryTitle,
+    draftData?.testimonialTitle,
+    draftData?.contactTitle,
+    draftData?.mapUrl,
+    draftData?.websiteEmail,
+    draftData?.phone,
+    draftData?.address,
+    draftData?.registeredCompanyName,
+    draftData?.copyrightText,
+    draftData?.aboutPageIntro,
+    draftData?.aboutPageOverview,
+    draftData?.aboutPageStory,
+    draftData?.aboutPageMission,
+    draftData?.aboutPageVision,
+    draftData?.aboutPageValues,
+    draftData?.aboutPageTeamHeading,
+    draftData?.galleryPageHeading,
+    draftData?.testimonialsPageHeading,
+    draftData?.testimonialsPageIntro,
+    draftData?.contactPageHeading,
+    draftData?.contactPageIntro,
+    draftData?.contactBusinessHours,
+    draftData?.contactPersonName,
+    draftData?.contactPersonRole,
+    draftData?.contactPersonEmail,
+    draftData?.contactPersonPhone,
+  ];
+
+  if (textValues.some((value) => String(value || "").trim().length > 0)) {
+    return true;
+  }
+
+  const arrayFields = [
+    draftData?.about,
+    draftData?.products,
+    draftData?.menuItems,
+    draftData?.rooms,
+    draftData?.meetingRooms,
+    draftData?.coLivingRooms,
+    draftData?.packages,
+    draftData?.dorms,
+    draftData?.testimonials,
+    draftData?.pageNavItems,
+    draftData?.productDropdownPages,
+    draftData?.aboutPageImageCards,
+    draftData?.mediaSignature?.heroImages,
+    draftData?.mediaSignature?.gallery,
+    draftData?.mediaSignature?.aboutPageImages,
+    draftData?.mediaSignature?.aboutPageImageCards,
+    draftData?.mediaSignature?.productDropdownPages,
+    draftData?.mediaSignature?.products,
+    draftData?.mediaSignature?.menuItems,
+    draftData?.mediaSignature?.rooms,
+    draftData?.mediaSignature?.coLivingRooms,
+    draftData?.mediaSignature?.packages,
+    draftData?.mediaSignature?.dorms,
+  ];
+
+  const hasMediaSignature =
+    Boolean(draftData?.mediaSignature?.companyLogo) ||
+    arrayFields.some(
+      (items) =>
+        Array.isArray(items) &&
+        items.some((item) => JSON.stringify(item || {}) !== "{}" && String(item || "").trim() !== ""),
+    );
+  if (hasMediaSignature) return true;
+
+  return arrayFields.some(
+    (items) => Array.isArray(items) && items.some((item) => JSON.stringify(item || {}) !== "{}"),
+  );
+};
+
+const toMediaToken = (media: any) => {
+  if (!media) return "";
+  if (media instanceof File) {
+    return `file:${media.name}:${media.size}:${media.lastModified}`;
+  }
+  if (typeof media === "string") {
+    return `url:${media}`;
+  }
+  const id = String(media?.id || "").trim();
+  const url = String(media?.url || "").trim();
+  if (id || url) return `asset:${id || url}`;
+  return "";
+};
+
+const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
+  companyId: String(formValues?.companyId || meta?.companyId || "").trim(),
+  companyName: String(formValues?.companyName || meta?.companyName || "").trim(),
+  title: String(formValues?.title || "").trim(),
+  subTitle: String(formValues?.subTitle || "").trim(),
+  CTAButtonText: String(formValues?.CTAButtonText || "").trim(),
+  about: Array.isArray(formValues?.about)
+    ? formValues.about.map((item: any) => ({ text: String(item?.text || "").trim() }))
+    : [{ text: "" }],
+  productTitle: String(formValues?.productTitle || "").trim(),
+  products: Array.isArray(formValues?.products)
+    ? formValues.products.map((item: any) => ({
+        type: String(item?.type || "").trim(),
+        name: String(item?.name || "").trim(),
+        subtitle: String(item?.subtitle || "").trim(),
+        cost: String(item?.cost || "").trim(),
+        description: String(item?.description || "").trim(),
+      }))
+    : [],
+  menuItems: Array.isArray(formValues?.menuItems)
+    ? formValues.menuItems.map((item: any) => ({
+        category: String(item?.category || "").trim(),
+        name: String(item?.name || "").trim(),
+        price: String(item?.price || "").trim(),
+        description: String(item?.description || "").trim(),
+      }))
+    : [],
+  meetingRooms: Array.isArray(formValues?.meetingRooms)
+    ? formValues.meetingRooms.map((item: any) => ({
+        title: String(item?.title || "").trim(),
+        description: String(item?.description || "").trim(),
+        price: String(item?.price || "").trim(),
+      }))
+    : Array.isArray(formValues?.rooms)
+      ? formValues.rooms.map((item: any) => ({
+          title: String(item?.title || "").trim(),
+          description: String(item?.description || "").trim(),
+          price: String(item?.price || "").trim(),
+        }))
+      : [],
+  rooms: Array.isArray(formValues?.rooms)
+    ? formValues.rooms.map((item: any) => ({
+        title: String(item?.title || "").trim(),
+        description: String(item?.description || "").trim(),
+        price: String(item?.price || "").trim(),
+      }))
+    : [],
+  coLivingRooms: Array.isArray(formValues?.coLivingRooms)
+    ? formValues.coLivingRooms.map((item: any) => ({
+        title: String(item?.title || "").trim(),
+        description: String(item?.description || "").trim(),
+        price: String(item?.price || "").trim(),
+      }))
+    : [],
+  packages: Array.isArray(formValues?.packages)
+    ? formValues.packages.map((item: any) => ({
+        title: String(item?.title || "").trim(),
+        description: String(item?.description || "").trim(),
+        price: String(item?.price || "").trim(),
+        duration: String(item?.duration || "").trim(),
+      }))
+    : [],
+  dorms: Array.isArray(formValues?.dorms)
+    ? formValues.dorms.map((item: any) => ({
+        title: String(item?.title || "").trim(),
+        description: String(item?.description || "").trim(),
+        price: String(item?.price || "").trim(),
+        capacity: item?.capacity ?? "",
+      }))
+    : [],
+  galleryTitle: String(formValues?.galleryTitle || "").trim(),
+  testimonialTitle: String(formValues?.testimonialTitle || "").trim(),
+  testimonials: Array.isArray(formValues?.testimonials)
+    ? formValues.testimonials.map((item: any) => ({
+        name: String(item?.name || "").trim(),
+        jobPosition: String(item?.jobPosition || "").trim(),
+        testimony: String(item?.testimony || "").trim(),
+        rating: Number(item?.rating || 5),
+      }))
+    : [],
+  contactTitle: String(formValues?.contactTitle || "").trim(),
+  mapUrl: String(formValues?.mapUrl || "").trim(),
+  websiteEmail: String(formValues?.websiteEmail || "").trim(),
+  phone: String(formValues?.phone || "").trim(),
+  address: String(formValues?.address || "").trim(),
+  registeredCompanyName: String(formValues?.registeredCompanyName || "").trim(),
+  copyrightText: String(formValues?.copyrightText || "").trim(),
+  pageNavItems: Array.isArray(formValues?.pageNavItems)
+    ? formValues.pageNavItems.map((item: any) => ({
+        name: String(item?.name || "").trim(),
+        slug: String(item?.slug || "").trim().toLowerCase(),
+        enabled: item?.enabled !== false,
+        pageHeading: String(item?.pageHeading || "").trim(),
+        pageIntro: String(item?.pageIntro || "").trim(),
+        metaTitle: String(item?.metaTitle || "").trim(),
+        metaDescription: String(item?.metaDescription || "").trim(),
+      }))
+    : [],
+  navItems: Array.isArray(formValues?.pageNavItems)
+    ? formValues.pageNavItems.map((item: any) => ({
+        name: String(item?.name || "").trim(),
+        slug: String(item?.slug || "").trim().toLowerCase(),
+        enabled: item?.enabled !== false,
+        pageHeading: String(item?.pageHeading || "").trim(),
+        pageIntro: String(item?.pageIntro || "").trim(),
+        metaTitle: String(item?.metaTitle || "").trim(),
+        metaDescription: String(item?.metaDescription || "").trim(),
+      }))
+    : [],
+  productDropdownPages: Array.isArray(formValues?.productDropdownPages)
+    ? formValues.productDropdownPages.map((item: any) => ({
+        name: String(item?.name || "").trim(),
+        slug: String(item?.slug || "").trim().toLowerCase(),
+        enabled: item?.enabled !== false,
+        heroHeading: String(item?.heroHeading || "").trim(),
+        heroSubHeading: String(item?.heroSubHeading || "").trim(),
+        heroMode: String(item?.heroMode || "single").trim().toLowerCase(),
+        heroButtonText: String(item?.heroButtonText || "").trim(),
+        homeCardHeading: String(item?.homeCardHeading || "").trim(),
+        homeCardSubText: String(item?.homeCardSubText || "").trim(),
+        leadEnabled: item?.leadEnabled !== false,
+        leadFormLabel: String(item?.leadFormLabel || "").trim(),
+      }))
+    : [],
+  productPages: Array.isArray(formValues?.productDropdownPages)
+    ? formValues.productDropdownPages.map((item: any, index: number) => ({
+        name: String(item?.name || "").trim(),
+        slug: String(item?.slug || "").trim().toLowerCase(),
+        heading: String(item?.homeCardHeading || item?.name || "").trim(),
+        subText: String(item?.homeCardSubText || "").trim(),
+        cardImage:
+          getMediaUrlForPreview(item?.homeCardImage) ||
+          getMediaUrlForPreview(formValues?.products?.[index]?.files?.[0]),
+        heroHeading: String(item?.heroHeading || "").trim(),
+        heroSubHeading: String(item?.heroSubHeading || "").trim(),
+        heroButtonText: String(item?.heroButtonText || "View More").trim(),
+        heroMode: String(item?.heroMode || "single").trim().toLowerCase(),
+        heroImage: getMediaUrlForPreview(item?.heroImage),
+        heroImages: (item?.heroImages || [])
+          .map((heroItem: unknown) => getMediaUrlForPreview(heroItem))
+          .filter(Boolean),
+        leadEnabled: item?.leadEnabled !== false,
+        leadFormLabel: String(item?.leadFormLabel || "").trim(),
+      }))
+    : [],
+  aboutPageIntro: String(formValues?.aboutPageIntro || "").trim(),
+  aboutPageOverview: String(formValues?.aboutPageOverview || "").trim(),
+  aboutPageStory: String(formValues?.aboutPageStory || "").trim(),
+  aboutPageMission: String(formValues?.aboutPageMission || "").trim(),
+  aboutPageVision: String(formValues?.aboutPageVision || "").trim(),
+  aboutPageValues: String(formValues?.aboutPageValues || "").trim(),
+  aboutPageTeamHeading: String(formValues?.aboutPageTeamHeading || "").trim(),
+  aboutPageImageCards: Array.isArray(formValues?.aboutPageImageCards)
+    ? formValues.aboutPageImageCards.map((item: any) => ({
+        title: String(item?.title || "").trim(),
+        description: String(item?.description || "").trim(),
+      }))
+    : [],
+  galleryPageHeading: String(formValues?.galleryPageHeading || "").trim(),
+  testimonialsPageHeading: String(formValues?.testimonialsPageHeading || "").trim(),
+  testimonialsPageIntro: String(formValues?.testimonialsPageIntro || "").trim(),
+  testimonialsHomePreviewCount: Number(formValues?.testimonialsHomePreviewCount || 3),
+  testimonialsEnableWriteReview: formValues?.testimonialsEnableWriteReview !== false,
+  testimonialsSuccessMessage: String(formValues?.testimonialsSuccessMessage || "").trim(),
+  contactPageHeading: String(formValues?.contactPageHeading || "").trim(),
+  contactPageIntro: String(formValues?.contactPageIntro || "").trim(),
+  contactEnableInquiryForm: formValues?.contactEnableInquiryForm !== false,
+  contactInquirySuccessMessage: String(formValues?.contactInquirySuccessMessage || "").trim(),
+  contactBusinessHours: String(formValues?.contactBusinessHours || "").trim(),
+  contactPersonName: String(formValues?.contactPersonName || "").trim(),
+  contactPersonRole: String(formValues?.contactPersonRole || "").trim(),
+  contactPersonEmail: String(formValues?.contactPersonEmail || "").trim(),
+  contactPersonPhone: String(formValues?.contactPersonPhone || "").trim(),
+  heroVariant: String(formValues?.heroVariant || "text-image").trim(),
+  themeVariant: String(formValues?.themeVariant || "default").trim(),
+  activeSections: Array.isArray(formValues?.activeSections)
+    ? formValues.activeSections.map((item: any) => String(item || "").trim()).filter(Boolean)
+    : [],
+  enabledSections: Array.isArray(formValues?.enabledSections)
+    ? formValues.enabledSections.map((item: any) => String(item || "").trim()).filter(Boolean)
+    : [],
+  sectionOverrides: formValues?.sectionOverrides || {},
+  styleConfig: formValues?.styleConfig || {},
+  mediaSignature: {
+    companyLogo: toMediaToken(formValues?.companyLogo),
+    heroImages: Array.isArray(formValues?.heroImages)
+      ? formValues.heroImages.map((item: any) => toMediaToken(item)).filter(Boolean)
+      : [],
+    gallery: Array.isArray(formValues?.gallery)
+      ? formValues.gallery.map((item: any) => toMediaToken(item)).filter(Boolean)
+      : [],
+    aboutPageImages: Array.isArray(formValues?.aboutPageImages)
+      ? formValues.aboutPageImages.map((item: any) => toMediaToken(item)).filter(Boolean)
+      : [],
+    aboutPageImageCards: Array.isArray(formValues?.aboutPageImageCards)
+      ? formValues.aboutPageImageCards
+          .map((item: any) => toMediaToken(item?.image))
+          .filter(Boolean)
+      : [],
+    productDropdownPages: Array.isArray(formValues?.productDropdownPages)
+      ? formValues.productDropdownPages.map((item: any) => ({
+          heroImage: toMediaToken(item?.heroImage),
+          homeCardImage: toMediaToken(item?.homeCardImage),
+          heroImages: Array.isArray(item?.heroImages)
+            ? item.heroImages.map((img: any) => toMediaToken(img)).filter(Boolean)
+            : [],
+        }))
+      : [],
+    products: Array.isArray(formValues?.products)
+      ? formValues.products.map((item: any) => ({
+          images: Array.isArray(item?.files)
+            ? item.files.map((img: any) => toMediaToken(img)).filter(Boolean)
+            : [],
+        }))
+      : [],
+    menuItems: Array.isArray(formValues?.menuItems)
+      ? formValues.menuItems.map((item: any) => ({
+          image: toMediaToken(item?.image),
+        }))
+      : [],
+    rooms: Array.isArray(formValues?.rooms)
+      ? formValues.rooms.map((item: any) => ({
+          images: Array.isArray(item?.images)
+            ? item.images.map((img: any) => toMediaToken(img)).filter(Boolean)
+            : [],
+        }))
+      : [],
+    coLivingRooms: Array.isArray(formValues?.coLivingRooms)
+      ? formValues.coLivingRooms.map((item: any) => ({
+          images: Array.isArray(item?.images)
+            ? item.images.map((img: any) => toMediaToken(img)).filter(Boolean)
+            : [],
+        }))
+      : [],
+    packages: Array.isArray(formValues?.packages)
+      ? formValues.packages.map((item: any) => ({
+          images: Array.isArray(item?.images)
+            ? item.images.map((img: any) => toMediaToken(img)).filter(Boolean)
+            : [],
+        }))
+      : [],
+    dorms: Array.isArray(formValues?.dorms)
+      ? formValues.dorms.map((item: any) => ({
+          images: Array.isArray(item?.images)
+            ? item.images.map((img: any) => toMediaToken(img)).filter(Boolean)
+            : [],
+        }))
+      : [],
+  },
+});
+
+const isSameCompanyTemplate = ({
+  item,
+  companyId,
+  workspaceId,
+  companyName,
+}: {
+  item: any;
+  companyId: string;
+  workspaceId: string;
+  companyName: string;
+}) => {
+  const itemCompanyId = String(item?.companyId || "").trim();
+  const itemWorkspaceId = String(item?.workspaceId || "").trim();
+  const itemCompanyName = String(item?.companyName || "").trim().toLowerCase();
+  const normalizedCompanyName = String(companyName || "").trim().toLowerCase();
+
+  if (companyId) return itemCompanyId === String(companyId).trim();
+  if (workspaceId) return itemWorkspaceId === String(workspaceId).trim();
+  if (normalizedCompanyName) return itemCompanyName === normalizedCompanyName;
+  return false;
+};
+
+
 const CreateWebsite = () => {
   const axios = useAxiosPrivate();
   const navigate = useNavigate();
   const location = useLocation();
+  const isEditMode = location.pathname.includes("/edit-website");
   const formRef = useRef(null);
   const { auth } = useAuth();
   const [hostCompanyIdentity, setHostCompanyIdentity] = useState(null);
@@ -89,6 +509,16 @@ const CreateWebsite = () => {
   const [creditsResetDate, setCreditsResetDate] = useState(null);
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
   const [isRedirectingAfterCreate, setIsRedirectingAfterCreate] = useState(false);
+  const [publishedWebsiteUrl, setPublishedWebsiteUrl] = useState("");
+  const [draftTemplateId, setDraftTemplateId] = useState("");
+  const [draftUpdatedAt, setDraftUpdatedAt] = useState<string | null>(null);
+  const [draftStatus, setDraftStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
+  const draftHydrationReadyRef = useRef(false);
+  const lastDraftSnapshotRef = useRef("");
+  const pendingDraftSnapshotRef = useRef("");
+  const uploadedDraftFileKeysRef = useRef<Set<string>>(new Set());
+  const pendingDraftFileKeysRef = useRef<string[]>([]);
 
   const {
     control,
@@ -115,6 +545,12 @@ const CreateWebsite = () => {
       // products
       productTitle: "",
       products: [defaultProduct],
+      meetingRooms: [],
+      rooms: [],
+      coLivingRooms: [],
+      packages: [],
+      dorms: [],
+      menuItems: [],
       // gallery
       galleryTitle: "",
       // testimonials
@@ -129,6 +565,39 @@ const CreateWebsite = () => {
       // footer
       registeredCompanyName: "",
       copyrightText: "",
+      pageNavItems: DEFAULT_PAGE_NAV_ITEMS.map((name) => ({
+        name,
+        slug: String(name).toLowerCase().replace(/\s+/g, "-"),
+        enabled: true,
+      })),
+      productDropdownPages: [],
+      aboutPageIntro: "",
+      aboutPageOverview: "",
+      aboutPageStory: "",
+      aboutPageMission: "",
+      aboutPageVision: "",
+      aboutPageValues: "",
+      aboutPageTeamHeading: "",
+      // aboutPageExtraParagraphs: [{ text: "" }],
+      aboutPageImages: [],
+      aboutPageImageCards: [{ title: "", description: "", image: null }],
+      galleryPageHeading: "",
+      testimonialsPageHeading: "",
+      testimonialsPageIntro: "",
+      testimonialsHomePreviewCount: 3,
+      testimonialsEnableWriteReview: true,
+      testimonialsSuccessMessage:
+        "Thank you. Your review has been submitted for approval.",
+      contactPageHeading: "",
+      contactPageIntro: "",
+      contactEnableInquiryForm: true,
+      contactInquirySuccessMessage:
+        "Thank you. Your inquiry has been submitted successfully.",
+      contactBusinessHours: "",
+      contactPersonName: "",
+      contactPersonRole: "",
+      contactPersonEmail: "",
+      contactPersonPhone: "",
     },
   });
 
@@ -136,41 +605,55 @@ const CreateWebsite = () => {
   const builderBasePath = location.pathname.includes("/company-settings/website-builder")
     ? "/company-settings/website-builder"
     : "/dashboard/website-builder";
+  const createOrEditRoute = `${builderBasePath}/dynamic/create-website`;
   const workspaceId =
     selectedCompany?.workspaceId ||
     auth?.user?.primaryWorkspace ||
     auth?.user?.workspaceId;
   const companyId =
     selectedCompany?.companyId ||
-    hostCompanyIdentity?.companyId ||
     auth?.user?.companyId ||
+    hostCompanyIdentity?.companyId ||
     "";
   const prefillCompanyId =
     selectedCompany?.companyId ||
-    hostCompanyIdentity?.companyId ||
     auth?.user?.companyId ||
+    hostCompanyIdentity?.companyId ||
     "";
   const prefillCompanyName =
     selectedCompany?.companyName ||
+    auth?.user?.companyName ||
     workspaceBusinessName ||
     hostCompanyIdentity?.companyName ||
-    auth?.user?.companyName ||
     "";
   const [creditsRemaining, setCreditsRemaining] = useState(5);
-  const selectedVerticalRaw = localStorage.getItem("selectedVertical") || "";
-  const verticalFromState =
-    selectedCompany?.vertical || auth?.user?.vertical || "co-working";
-  const verticalCandidate = selectedVerticalRaw || verticalFromState;
-  const vertical: VerticalType = (VERTICAL_KEYS as readonly string[]).includes(
-    verticalCandidate,
-  )
-    ? (verticalCandidate as VerticalType)
-    : "co-working";
-  const activeSections =
-    VERTICAL_CONFIG[vertical]?.sections ?? VERTICAL_CONFIG["co-working"].sections;
-  const selectedVertical = vertical;
-  const selectedVerticalLabel = VERTICAL_KEY_TO_LABEL[selectedVertical] || "Co-Working";
-  const selectedVerticalBadgeText = `Selected Vertical: ${selectedVerticalLabel}`;
+  /*
+   * Demo mode: dynamic page navigation first.
+   * Keep vertical-driven behavior disabled for now without deleting old logic.
+   */
+  // const selectedVerticalRaw = localStorage.getItem("selectedVertical") || "";
+  // const verticalFromState =
+  //   selectedCompany?.vertical || auth?.user?.vertical || "co-working";
+  // const verticalCandidate = selectedVerticalRaw || verticalFromState;
+  // const vertical: VerticalType = (VERTICAL_KEYS as readonly string[]).includes(
+  //   verticalCandidate,
+  // )
+  //   ? (verticalCandidate as VerticalType)
+  //   : "co-working";
+  // const activeSections =
+  //   VERTICAL_CONFIG[vertical]?.sections ?? VERTICAL_CONFIG["co-working"].sections;
+  const selectedVertical: VerticalType = "co-working";
+  const activeSections = [
+    "hero",
+    "about",
+    "products",
+    "gallery",
+    "testimonials",
+    "contact",
+    "footer",
+  ];
+  const selectedVerticalLabel = "Dynamic Website";
+  const selectedVerticalBadgeText = `Mode: ${selectedVerticalLabel}`;
   const ctaPlaceholders: Record<string, string> = {
     "co-working": "Book a Desk",
     "co-living": "View Rooms",
@@ -272,36 +755,244 @@ const CreateWebsite = () => {
   useEffect(() => {
     const checkExistingWebsite = async () => {
       try {
+        const resolvedCompanyName = String(
+          prefillCompanyName ||
+            selectedCompany?.companyName ||
+            workspaceBusinessName ||
+            auth?.user?.companyName ||
+            "",
+        ).trim();
         const response = await axios.get("/api/editor/get-websites", {
-          params: { vertical: selectedVertical },
+          params: {
+            companyId: String(prefillCompanyId || "").trim(),
+            workspaceId: String(workspaceId || "").trim(),
+            businessName: resolvedCompanyName,
+          },
         });
         const templates = Array.isArray(response?.data) ? response.data : [];
-        const found = templates.find((item) => {
-          const itemCompanyId = String(item?.companyId || "").trim();
-          const itemCompanyName = String(item?.companyName || "").trim().toLowerCase();
-          const itemVertical = normalizeVerticalKey(item?.vertical || item?.verticalType);
-          if (itemVertical !== selectedVertical) return false;
-          if (prefillCompanyId) {
-            return itemCompanyId === String(prefillCompanyId).trim();
-          }
-          return (
-            !itemCompanyId &&
-            prefillCompanyName &&
-            itemCompanyName === String(prefillCompanyName).trim().toLowerCase()
-          );
-        });
+        const found =
+          templates.find((item) =>
+            isSameCompanyTemplate({
+              item,
+              companyId: String(prefillCompanyId || "").trim(),
+              workspaceId: String(workspaceId || "").trim(),
+              companyName: resolvedCompanyName,
+            }),
+          ) || null;
 
         if (found) {
           const websiteSlug = found.searchKey || found.companyName || "";
-          navigate(
-            `${builderBasePath}/edit-website/${encodeURIComponent(websiteSlug)}?vertical=${encodeURIComponent(selectedVertical)}`,
-            { replace: true, state: { searchKey: websiteSlug, vertical: selectedVertical } },
-          );
+          const canResumeDraft =
+            (found?.isDraft === true && found?.isPublished !== true) ||
+            Boolean(found?.draftData);
+
+          if (canResumeDraft || isEditMode && canResumeDraft) {
+            const draftData =
+              found?.draftData && typeof found.draftData === "object"
+                ? found.draftData
+                : found;
+            reset({
+              ...getValues(),
+              companyId: String(draftData?.companyId || prefillCompanyId || "").trim(),
+              companyName: String(draftData?.companyName || prefillCompanyName || "").trim(),
+              companyLogo: found?.companyLogo || null,
+              heroImages: Array.isArray(found?.heroImages) ? found.heroImages : [],
+              title: String(draftData?.title || "").trim(),
+              subTitle: String(draftData?.subTitle || "").trim(),
+              CTAButtonText: String(draftData?.CTAButtonText || "").trim(),
+              about:
+                Array.isArray(draftData?.about) && draftData.about.length
+                  ? draftData.about.map((item: any) => ({
+                      text: String(item?.text || "").trim(),
+                    }))
+                  : [{ text: "" }],
+              productTitle: String(draftData?.productTitle || "").trim(),
+              products:
+                Array.isArray(draftData?.products) && draftData.products.length
+                  ? draftData.products.map((item: any, index: number) => {
+                      const persisted =
+                        Array.isArray(found?.products) && found.products[index]
+                          ? found.products[index]
+                          : null;
+                      return ({
+                      ...defaultProduct,
+                      type: String(item?.type || "").trim(),
+                      name: String(item?.name || "").trim(),
+                      subtitle: String(item?.subtitle || "").trim(),
+                      cost: String(item?.cost || "").trim(),
+                      description: String(item?.description || "").trim(),
+                      images: Array.isArray(persisted?.images) ? persisted.images : [],
+                      files: Array.isArray(persisted?.images) ? persisted.images : [],
+                    });
+                    })
+                  : [defaultProduct],
+              menuItems: Array.isArray(found?.menuItems)
+                ? found.menuItems
+                : Array.isArray(draftData?.menuItems)
+                  ? draftData.menuItems
+                  : [],
+              rooms: Array.isArray(found?.rooms)
+                ? found.rooms
+                : Array.isArray(draftData?.rooms)
+                  ? draftData.rooms
+                  : [],
+              meetingRooms: Array.isArray(found?.meetingRooms)
+                ? found.meetingRooms
+                : Array.isArray(draftData?.meetingRooms)
+                  ? draftData.meetingRooms
+                  : Array.isArray(found?.rooms)
+                    ? found.rooms
+                    : Array.isArray(draftData?.rooms)
+                      ? draftData.rooms
+                      : [],
+              coLivingRooms: Array.isArray(draftData?.coLivingRooms)
+                ? draftData.coLivingRooms
+                : [],
+              packages: Array.isArray(found?.packages)
+                ? found.packages
+                : Array.isArray(draftData?.packages)
+                  ? draftData.packages
+                  : [],
+              dorms: Array.isArray(found?.dorms)
+                ? found.dorms
+                : Array.isArray(draftData?.dorms)
+                  ? draftData.dorms
+                  : [],
+              galleryTitle: String(draftData?.galleryTitle || "").trim(),
+              gallery: Array.isArray(found?.gallery) ? found.gallery : [],
+              testimonialTitle: String(draftData?.testimonialTitle || "").trim(),
+              testimonials:
+                Array.isArray(draftData?.testimonials) && draftData.testimonials.length
+                  ? draftData.testimonials.map((item: any) => ({
+                      ...defaultTestimonial,
+                      name: String(item?.name || "").trim(),
+                      jobPosition: String(item?.jobPosition || "").trim(),
+                      testimony: String(item?.testimony || "").trim(),
+                      rating: Number(item?.rating || 5),
+                    }))
+                  : [defaultTestimonial],
+              contactTitle: String(draftData?.contactTitle || "").trim(),
+              mapUrl: String(draftData?.mapUrl || "").trim(),
+              websiteEmail: String(draftData?.websiteEmail || "").trim(),
+              phone: String(draftData?.phone || "").trim(),
+              address: String(draftData?.address || "").trim(),
+              registeredCompanyName: String(
+                draftData?.registeredCompanyName || "",
+              ).trim(),
+              copyrightText: String(draftData?.copyrightText || "").trim(),
+              pageNavItems:
+                Array.isArray(draftData?.pageNavItems) && draftData.pageNavItems.length
+                  ? draftData.pageNavItems
+                  : DEFAULT_PAGE_NAV_ITEMS.map((name) => ({
+                      name,
+                      slug: String(name).toLowerCase().replace(/\s+/g, "-"),
+                      enabled: true,
+                    })),
+              productDropdownPages: Array.isArray(draftData?.productDropdownPages)
+                ? draftData.productDropdownPages.map((item: any, index: number) => {
+                    const persistedPage =
+                      Array.isArray(found?.productDropdownPages) &&
+                      found.productDropdownPages[index]
+                        ? found.productDropdownPages[index]
+                        : null;
+                    return {
+                      ...item,
+                      heroImage: persistedPage?.heroImage || null,
+                      heroImages: Array.isArray(persistedPage?.heroImages)
+                        ? persistedPage.heroImages
+                        : [],
+                      homeCardImage: persistedPage?.homeCardImage || null,
+                    };
+                  })
+                : [],
+              aboutPageIntro: String(draftData?.aboutPageIntro || "").trim(),
+              aboutPageOverview: String(draftData?.aboutPageOverview || "").trim(),
+              aboutPageStory: String(draftData?.aboutPageStory || "").trim(),
+              aboutPageMission: String(draftData?.aboutPageMission || "").trim(),
+              aboutPageVision: String(draftData?.aboutPageVision || "").trim(),
+              aboutPageValues: String(draftData?.aboutPageValues || "").trim(),
+              aboutPageTeamHeading: String(
+                draftData?.aboutPageTeamHeading || "",
+              ).trim(),
+              aboutPageImageCards:
+                Array.isArray(draftData?.aboutPageImageCards) &&
+                draftData.aboutPageImageCards.length
+                  ? draftData.aboutPageImageCards.map((item: any, index: number) => ({
+                      title: String(item?.title || "").trim(),
+                      description: String(item?.description || "").trim(),
+                      image:
+                        Array.isArray(found?.aboutPageImageCards) &&
+                        found.aboutPageImageCards[index]
+                          ? found.aboutPageImageCards[index]?.image || null
+                          : null,
+                    }))
+                  : [{ title: "", description: "", image: null }],
+              aboutPageImages: Array.isArray(found?.aboutPageImages)
+                ? found.aboutPageImages
+                : [],
+              galleryPageHeading: String(
+                draftData?.galleryPageHeading || "",
+              ).trim(),
+              testimonialsPageHeading: String(
+                draftData?.testimonialsPageHeading || "",
+              ).trim(),
+              testimonialsPageIntro: String(
+                draftData?.testimonialsPageIntro || "",
+              ).trim(),
+              testimonialsHomePreviewCount: Number(
+                draftData?.testimonialsHomePreviewCount || 3,
+              ),
+              testimonialsEnableWriteReview:
+                draftData?.testimonialsEnableWriteReview !== false,
+              testimonialsSuccessMessage: String(
+                draftData?.testimonialsSuccessMessage ||
+                  "Thank you. Your review has been submitted for approval.",
+              ).trim(),
+              contactPageHeading: String(draftData?.contactPageHeading || "").trim(),
+              contactPageIntro: String(draftData?.contactPageIntro || "").trim(),
+              contactEnableInquiryForm: draftData?.contactEnableInquiryForm !== false,
+              contactInquirySuccessMessage: String(
+                draftData?.contactInquirySuccessMessage ||
+                  "Thank you. Your inquiry has been submitted successfully.",
+              ).trim(),
+              contactBusinessHours: String(
+                draftData?.contactBusinessHours || "",
+              ).trim(),
+              contactPersonName: String(draftData?.contactPersonName || "").trim(),
+              contactPersonRole: String(draftData?.contactPersonRole || "").trim(),
+              contactPersonEmail: String(
+                draftData?.contactPersonEmail || "",
+              ).trim(),
+              contactPersonPhone: String(
+                draftData?.contactPersonPhone || "",
+              ).trim(),
+            });
+            setDraftTemplateId(String(found?._id || ""));
+            setDraftUpdatedAt(found?.draftUpdatedAt || null);
+            setDraftStatus("saved");
+            setHasRestoredDraft(true);
+            lastDraftSnapshotRef.current = JSON.stringify(
+              buildDraftFormDataFromValues(draftData, {
+                companyId: draftData?.companyId || prefillCompanyId,
+                companyName: draftData?.companyName || prefillCompanyName,
+              }),
+            );
+            draftHydrationReadyRef.current = true;
+          } else {
+            navigate(createOrEditRoute, {
+              replace: true,
+              state: { searchKey: websiteSlug },
+            });
+            return;
+          }
+        } else if (isEditMode) {
+          navigate(createOrEditRoute, { replace: true });
           return;
         }
       } catch (error) {
         // no-op: show create flow when lookup fails
       } finally {
+        draftHydrationReadyRef.current = true;
         setIsCheckingExistingWebsite(false);
       }
     };
@@ -315,40 +1006,48 @@ const CreateWebsite = () => {
     axios,
     navigate,
     builderBasePath,
+    createOrEditRoute,
+    getValues,
+    isEditMode,
+    reset,
     prefillCompanyId,
     prefillCompanyName,
-    selectedVertical,
+    workspaceId,
+    selectedCompany?.companyName,
+    workspaceBusinessName,
+    auth?.user?.companyName,
     auth?.user?.primaryWorkspace,
   ]);
 
-  useEffect(() => {
-    const fetchCredits = async () => {
-      const subscriptionId = companyId || workspaceId;
-      if (!subscriptionId) return;
-      try {
-        const res = await axios.get(`/api/subscription/${subscriptionId}`, {
-          params: {
-            companyId: String(companyId || "").trim(),
-            workspaceId: String(workspaceId || "").trim(),
-          },
-          headers: {
-            Authorization: `Bearer ${auth?.accessToken || ""}`,
-          },
-        });
-        setCreditsRemaining(Number(res?.data?.creditsRemaining ?? 5));
-        setCreditsUsed(Number(res?.data?.creditsUsed ?? 0));
-        setCreditsLimit(Number(res?.data?.monthlyCreditsLimit ?? res?.data?.creditsLimit ?? 5));
-        setCreditsResetDate(res?.data?.creditsResetDate || null);
-      } catch (error) {
-        setCreditsRemaining(5);
-        setCreditsUsed(0);
-        setCreditsLimit(5);
-        setCreditsResetDate(null);
-      }
-    };
-
-    fetchCredits();
-  }, [axios, companyId, workspaceId, auth?.accessToken]);
+  // Credits flow is temporarily disabled for the dynamic-pages demo pass.
+  // useEffect(() => {
+  //   const fetchCredits = async () => {
+  //     const subscriptionId = companyId || workspaceId;
+  //     if (!subscriptionId) return;
+  //     try {
+  //       const res = await axios.get(`/api/subscription/${subscriptionId}`, {
+  //         params: {
+  //           companyId: String(companyId || "").trim(),
+  //           workspaceId: String(workspaceId || "").trim(),
+  //         },
+  //         headers: {
+  //           Authorization: `Bearer ${auth?.accessToken || ""}`,
+  //         },
+  //       });
+  //       setCreditsRemaining(Number(res?.data?.creditsRemaining ?? 5));
+  //       setCreditsUsed(Number(res?.data?.creditsUsed ?? 0));
+  //       setCreditsLimit(Number(res?.data?.monthlyCreditsLimit ?? res?.data?.creditsLimit ?? 5));
+  //       setCreditsResetDate(res?.data?.creditsResetDate || null);
+  //     } catch (error) {
+  //       setCreditsRemaining(5);
+  //       setCreditsUsed(0);
+  //       setCreditsLimit(5);
+  //       setCreditsResetDate(null);
+  //     }
+  //   };
+  //
+  //   fetchCredits();
+  // }, [axios, companyId, workspaceId, auth?.accessToken]);
 
   const {
     fields: aboutFields,
@@ -367,9 +1066,33 @@ const CreateWebsite = () => {
     append: appendTestimonial,
     remove: removeTestimonial,
   } = useFieldArray({ control, name: "testimonials" });
+  // const {
+  //   fields: aboutPageExtraFields,
+  //   append: appendAboutPageExtra,
+  //   remove: removeAboutPageExtra,
+  // } = useFieldArray({ control, name: "aboutPageExtraParagraphs" });
+  const { fields: pageNavFields } = useFieldArray({
+    control,
+    name: "pageNavItems",
+  });
+  const {
+    fields: productPageFields,
+    append: appendProductPageItem,
+    remove: removeProductPageItem,
+  } = useFieldArray({ control, name: "productDropdownPages" });
+  const {
+    fields: aboutImageCardFields,
+    append: appendAboutImageCard,
+    remove: removeAboutImageCard,
+  } = useFieldArray({ control, name: "aboutPageImageCards" });
+  const [activeMainPageTab, setActiveMainPageTab] = useState(0);
+  const [activeProductPageTab, setActiveProductPageTab] = useState(0);
+  const [selectedProductPageOption, setSelectedProductPageOption] = useState(
+    DEFAULT_PRODUCT_DROPDOWN_PAGES[0],
+  );
 
   const submitCreateWebsite = (values, e) => {
-    const selectedVertical = localStorage.getItem("selectedVertical") || "co-working";
+    // const selectedVertical = localStorage.getItem("selectedVertical") || "co-working";
     console.log("SUBMITTING WITH VERTICAL:", selectedVertical);
 
     const normalizeMapUrl = (rawValue) => {
@@ -397,13 +1120,21 @@ const CreateWebsite = () => {
     const fd = new FormData(formEl);
 
     // Replace structured arrays with JSON
-    const productsMeta = (values.products || []).map((p) => ({
-      type: p.type,
-      name: p.name,
-      subtitle: p.subtitle,
-      cost: p.cost,
-      description: p.description,
-    }));
+    const productsMeta = (values.products || [])
+      .map((p) => ({
+        type: p.type,
+        name: p.name,
+        subtitle: p.subtitle,
+        cost: p.cost,
+        description: p.description,
+        __hasFiles: Array.isArray(p?.files) && p.files.length > 0,
+      }))
+      .filter((p) =>
+        p.__hasFiles ||
+        [p.type, p.name, p.subtitle, p.cost, p.description]
+          .some((value) => String(value || "").trim()),
+      )
+      .map(({ __hasFiles, ...rest }) => rest);
     const testimonialsMeta = (values.testimonials || []).map((t) => ({
       name: t.name,
       jobPosition: t.jobPosition,
@@ -412,37 +1143,13 @@ const CreateWebsite = () => {
     }));
     fd.set("about", JSON.stringify(values.about.map((p) => p.text)));
     fd.set("testimonials", JSON.stringify(testimonialsMeta));
-    if (selectedVertical === "cafe") {
-      fd.set("menuItems", JSON.stringify(values.menuItems || []));
-      fd.set("products", JSON.stringify([]));
-      fd.set("rooms", JSON.stringify([]));
-      fd.set("packages", JSON.stringify([]));
-      fd.set("dorms", JSON.stringify([]));
-    } else if (selectedVertical === "co-living" || selectedVertical === "meeting-rooms") {
-      fd.set("rooms", JSON.stringify(values.rooms || []));
-      fd.set("products", JSON.stringify([]));
-      fd.set("menuItems", JSON.stringify([]));
-      fd.set("packages", JSON.stringify([]));
-      fd.set("dorms", JSON.stringify([]));
-    } else if (selectedVertical === "workation") {
-      fd.set("packages", JSON.stringify(values.packages || []));
-      fd.set("products", JSON.stringify([]));
-      fd.set("menuItems", JSON.stringify([]));
-      fd.set("rooms", JSON.stringify([]));
-      fd.set("dorms", JSON.stringify([]));
-    } else if (selectedVertical === "hostel") {
-      fd.set("dorms", JSON.stringify(values.dorms || []));
-      fd.set("products", JSON.stringify([]));
-      fd.set("menuItems", JSON.stringify([]));
-      fd.set("rooms", JSON.stringify([]));
-      fd.set("packages", JSON.stringify([]));
-    } else {
-      fd.set("products", JSON.stringify(productsMeta));
-      fd.set("menuItems", JSON.stringify([]));
-      fd.set("rooms", JSON.stringify([]));
-      fd.set("packages", JSON.stringify([]));
-      fd.set("dorms", JSON.stringify([]));
-    }
+    fd.set("products", JSON.stringify(productsMeta));
+    fd.set("menuItems", JSON.stringify(values.menuItems || []));
+    fd.set("meetingRooms", JSON.stringify(values.meetingRooms || values.rooms || []));
+    fd.set("rooms", JSON.stringify(values.rooms || []));
+    fd.set("coLivingRooms", JSON.stringify(values.coLivingRooms || []));
+    fd.set("packages", JSON.stringify(values.packages || []));
+    fd.set("dorms", JSON.stringify(values.dorms || []));
 
     for (const key of Array.from(fd.keys())) {
       if (/^(products|testimonials)\.\d+\./.test(key)) fd.delete(key);
@@ -458,27 +1165,41 @@ const CreateWebsite = () => {
     (values.gallery || []).forEach((file) => fd.append("gallery", file));
 
     fd.delete("productImages");
-    if (selectedVertical === "cafe") {
-      (values.menuItems || []).forEach((item, i) => {
-        if (item?.image) fd.append(`productImages_${i}`, item.image);
+    (values.menuItems || []).forEach((item, i) => {
+      if (item?.image instanceof File) {
+        fd.append(`menuItemImages_${i}`, item.image);
+      }
+    });
+    (values.rooms || []).forEach((room, i) => {
+      (room?.images || []).forEach((file) => {
+        if (file instanceof File) fd.append(`roomImages_${i}`, file);
       });
-    } else if (selectedVertical === "co-living" || selectedVertical === "meeting-rooms") {
-      (values.rooms || []).forEach((room, i) => {
-        (room?.images || []).forEach((f) => fd.append(`productImages_${i}`, f));
+    });
+    (values.meetingRooms || []).forEach((room, i) => {
+      (room?.images || []).forEach((file) => {
+        if (file instanceof File) fd.append(`meetingRoomImages_${i}`, file);
       });
-    } else if (selectedVertical === "workation") {
-      (values.packages || []).forEach((pkg, i) => {
-        (pkg?.images || []).forEach((f) => fd.append(`productImages_${i}`, f));
+    });
+    (values.coLivingRooms || []).forEach((room, i) => {
+      (room?.images || []).forEach((file) => {
+        if (file instanceof File) fd.append(`coLivingRoomImages_${i}`, file);
       });
-    } else if (selectedVertical === "hostel") {
-      (values.dorms || []).forEach((dorm, i) => {
-        (dorm?.images || []).forEach((f) => fd.append(`productImages_${i}`, f));
+    });
+    (values.packages || []).forEach((pkg, i) => {
+      (pkg?.images || []).forEach((file) => {
+        if (file instanceof File) fd.append(`packageImages_${i}`, file);
       });
-    } else {
-      (values.products || []).forEach((p, i) => {
-        (p.files || []).forEach((f) => fd.append(`productImages_${i}`, f));
+    });
+    (values.dorms || []).forEach((dorm, i) => {
+      (dorm?.images || []).forEach((file) => {
+        if (file instanceof File) fd.append(`dormImages_${i}`, file);
       });
-    }
+    });
+    (values.products || []).forEach((p, i) => {
+      (p.files || []).forEach((file) => {
+        if (file instanceof File) fd.append(`productImages_${i}`, file);
+      });
+    });
 
     fd.delete("testimonialImages");
     (values.testimonials || []).forEach((t, i) => {
@@ -489,8 +1210,78 @@ const CreateWebsite = () => {
     fd.set("companyName", finalCompanyName);
     fd.set("companyId", values.companyId || prefillCompanyId || "");
     fd.append("workspaceId", workspaceId || "");
-    fd.set("vertical", selectedVertical);
-    fd.set("verticalType", selectedVertical);
+    fd.set("pageNavItems", JSON.stringify(values.pageNavItems || []));
+    fd.set(
+      "productDropdownPages",
+      JSON.stringify(values.productDropdownPages || []),
+    );
+    (values.productDropdownPages || []).forEach((item, index) => {
+      if (item?.heroImage) {
+        fd.append(`productPageHeroImage_${index}`, item.heroImage);
+      }
+      (item?.heroImages || []).forEach((file) => {
+        fd.append(`productPageHeroImages_${index}`, file);
+      });
+      if (item?.homeCardImage) {
+        fd.append(`productPageHomeCardImage_${index}`, item.homeCardImage);
+      }
+    });
+    fd.set("aboutPageIntro", values.aboutPageIntro || "");
+    fd.set("aboutPageOverview", values.aboutPageOverview || "");
+    fd.set("aboutPageStory", values.aboutPageStory || "");
+    fd.set("aboutPageMission", values.aboutPageMission || "");
+    fd.set("aboutPageVision", values.aboutPageVision || "");
+    fd.set("aboutPageValues", values.aboutPageValues || "");
+    fd.set("aboutPageTeamHeading", values.aboutPageTeamHeading || "");
+    fd.set("galleryPageHeading", values.galleryPageHeading || "");
+    fd.set("testimonialsPageHeading", values.testimonialsPageHeading || "");
+    fd.set("testimonialsPageIntro", values.testimonialsPageIntro || "");
+    fd.set(
+      "testimonialsHomePreviewCount",
+      String(values.testimonialsHomePreviewCount || 3),
+    );
+    fd.set(
+      "testimonialsEnableWriteReview",
+      String(!!values.testimonialsEnableWriteReview),
+    );
+    fd.set(
+      "testimonialsSuccessMessage",
+      values.testimonialsSuccessMessage ||
+        "Thank you. Your review has been submitted for approval.",
+    );
+    fd.set("contactPageHeading", values.contactPageHeading || "");
+    fd.set("contactPageIntro", values.contactPageIntro || "");
+    fd.set("contactEnableInquiryForm", String(!!values.contactEnableInquiryForm));
+    fd.set(
+      "contactInquirySuccessMessage",
+      values.contactInquirySuccessMessage ||
+        "Thank you. Your inquiry has been submitted successfully.",
+    );
+    fd.set("contactBusinessHours", values.contactBusinessHours || "");
+    fd.set("contactPersonName", values.contactPersonName || "");
+    fd.set("contactPersonRole", values.contactPersonRole || "");
+    fd.set("contactPersonEmail", values.contactPersonEmail || "");
+    fd.set("contactPersonPhone", values.contactPersonPhone || "");
+    // fd.set(
+    //   "aboutPageExtraParagraphs",
+    //   JSON.stringify((values.aboutPageExtraParagraphs || []).map((item) => item?.text || "")),
+    // );
+    fd.delete("aboutPageImages");
+    (values.aboutPageImages || []).forEach((file) => fd.append("aboutPageImages", file));
+    fd.set(
+      "aboutPageImageCards",
+      JSON.stringify(
+        (values.aboutPageImageCards || []).map((card) => ({
+          title: card?.title || "",
+          description: card?.description || "",
+        })),
+      ),
+    );
+    (values.aboutPageImageCards || []).forEach((card, index) => {
+      if (card?.image) {
+        fd.append(`aboutPageImageCardImage_${index}`, card.image);
+      }
+    });
     fd.set("mapUrl", normalizeMapUrl(values.mapUrl));
     if (!String(values.registeredCompanyName || "").trim()) {
       fd.set("registeredCompanyName", finalCompanyName);
@@ -501,14 +1292,354 @@ const CreateWebsite = () => {
     // values.mapUrl = srcUrl;
     // console.log("src", srcUrl);
 
+    if (isEditMode) {
+      updateWebsite(fd);
+      return;
+    }
     createWebsite(fd);
   };
+
+  const getPreviewPayloadFromValues = (formValues: any) => {
+    const companyName = String(formValues?.companyName || prefillCompanyName || "").trim();
+    const searchKey = toSearchKey(companyName) || "company";
+  return {
+    companyName,
+    searchKey,
+    title: String(formValues?.title || "").trim(),
+    subTitle: String(formValues?.subTitle || "").trim(),
+    ctaText: String(formValues?.CTAButtonText || "Explore").trim(),
+    heroVariant: String(formValues?.heroVariant || "text-image").trim(),
+    themeVariant: String(formValues?.themeVariant || "default").trim(),
+    activeSections: Array.isArray(formValues?.activeSections)
+      ? formValues.activeSections.map((item: any) => String(item || "").trim()).filter(Boolean)
+      : [],
+    enabledSections: Array.isArray(formValues?.enabledSections)
+      ? formValues.enabledSections
+          .map((item: any) => String(item || "").trim())
+          .filter(Boolean)
+      : [],
+    sectionOverrides: formValues?.sectionOverrides || {},
+    styleConfig: formValues?.styleConfig || {},
+    companyLogo: getMediaUrlForPreview(formValues?.companyLogo),
+      heroImages: (formValues?.heroImages || [])
+        .map((item: unknown) => getMediaUrlForPreview(item))
+        .filter(Boolean),
+      about: (formValues?.about || [])
+        .map((item: any) => String(item?.text || "").trim())
+        .filter(Boolean),
+      aboutPageIntro: String(formValues?.aboutPageIntro || "").trim(),
+      aboutPageOverview: String(formValues?.aboutPageOverview || "").trim(),
+      aboutPageStory: String(formValues?.aboutPageStory || "").trim(),
+      aboutPageMission: String(formValues?.aboutPageMission || "").trim(),
+      aboutPageVision: String(formValues?.aboutPageVision || "").trim(),
+      aboutPageValues: String(formValues?.aboutPageValues || "").trim(),
+      aboutPageTeamHeading: String(formValues?.aboutPageTeamHeading || "").trim(),
+      aboutPageImageCards: (formValues?.aboutPageImageCards || []).map((card: any) => ({
+        title: String(card?.title || "").trim(),
+        description: String(card?.description || "").trim(),
+        image: getMediaUrlForPreview(card?.image),
+      })),
+      productSectionTitle:
+        String(formValues?.productTitle || "").trim() || "Our Products",
+      products: (formValues?.products || []).map((item: any) => ({
+        name: String(item?.name || "").trim(),
+        type: String(item?.type || "").trim(),
+        cost: String(item?.cost || "").trim(),
+        description: String(item?.description || "").trim(),
+        images: (item?.files || [])
+          .map((fileItem: unknown) => getMediaUrlForPreview(fileItem))
+          .filter(Boolean),
+      })),
+      meetingRooms: (formValues?.meetingRooms || formValues?.rooms || []).map((item: any) => ({
+        title: String(item?.title || "").trim(),
+        price: String(item?.price || "").trim(),
+        description: String(item?.description || "").trim(),
+        images: (item?.images || [])
+          .map((imageItem: unknown) => getMediaUrlForPreview(imageItem))
+          .filter(Boolean),
+      })),
+      rooms: (formValues?.rooms || []).map((item: any) => ({
+        title: String(item?.title || "").trim(),
+        price: String(item?.price || "").trim(),
+        description: String(item?.description || "").trim(),
+        images: (item?.images || [])
+          .map((imageItem: unknown) => getMediaUrlForPreview(imageItem))
+          .filter(Boolean),
+      })),
+      coLivingRooms: (formValues?.coLivingRooms || []).map((item: any) => ({
+        title: String(item?.title || "").trim(),
+        price: String(item?.price || "").trim(),
+        description: String(item?.description || "").trim(),
+        images: (item?.images || [])
+          .map((imageItem: unknown) => getMediaUrlForPreview(imageItem))
+          .filter(Boolean),
+      })),
+      packages: (formValues?.packages || []).map((item: any) => ({
+        title: String(item?.title || "").trim(),
+        price: String(item?.price || "").trim(),
+        duration: String(item?.duration || "").trim(),
+        description: String(item?.description || "").trim(),
+        images: (item?.images || [])
+          .map((imageItem: unknown) => getMediaUrlForPreview(imageItem))
+          .filter(Boolean),
+      })),
+      dorms: (formValues?.dorms || []).map((item: any) => ({
+        title: String(item?.title || "").trim(),
+        capacity: item?.capacity,
+        price: String(item?.price || "").trim(),
+        description: String(item?.description || "").trim(),
+        images: (item?.images || [])
+          .map((imageItem: unknown) => getMediaUrlForPreview(imageItem))
+          .filter(Boolean),
+      })),
+      productPages: (formValues?.productDropdownPages || []).map((item: any, index: number) => ({
+        name: String(item?.name || "").trim(),
+        slug: String(item?.slug || "").trim().toLowerCase(),
+        heading: String(item?.homeCardHeading || item?.name || "").trim(),
+        subText: String(item?.homeCardSubText || "").trim(),
+        cardImage:
+          getMediaUrlForPreview(item?.homeCardImage) ||
+          getMediaUrlForPreview(formValues?.products?.[index]?.files?.[0]),
+        heroHeading: String(item?.heroHeading || "").trim(),
+        heroSubHeading: String(item?.heroSubHeading || "").trim(),
+        heroButtonText: String(item?.heroButtonText || "View More").trim(),
+        heroMode: String(item?.heroMode || "single").trim().toLowerCase(),
+        heroImage: getMediaUrlForPreview(item?.heroImage),
+        heroImages: (item?.heroImages || [])
+          .map((heroItem: unknown) => getMediaUrlForPreview(heroItem))
+          .filter(Boolean),
+        leadEnabled: item?.leadEnabled !== false,
+        leadFormLabel: String(item?.leadFormLabel || "").trim(),
+      })),
+      productDropdownPages: (formValues?.productDropdownPages || []).map((item: any, index: number) => ({
+        name: String(item?.name || "").trim(),
+        slug: String(item?.slug || "").trim().toLowerCase(),
+        heroHeading: String(item?.heroHeading || "").trim(),
+        heroSubHeading: String(item?.heroSubHeading || "").trim(),
+        heroMode: String(item?.heroMode || "single").trim().toLowerCase(),
+        heroButtonText: String(item?.heroButtonText || "").trim(),
+        homeCardHeading: String(item?.homeCardHeading || item?.name || "").trim(),
+        homeCardSubText: String(item?.homeCardSubText || "").trim(),
+        cardImage:
+          getMediaUrlForPreview(item?.homeCardImage) ||
+          getMediaUrlForPreview(formValues?.products?.[index]?.files?.[0]),
+        homeCardImage: getMediaUrlForPreview(item?.homeCardImage),
+        heroImage: getMediaUrlForPreview(item?.heroImage),
+        heroImages: (item?.heroImages || [])
+          .map((heroItem: unknown) => getMediaUrlForPreview(heroItem))
+          .filter(Boolean),
+        leadEnabled: item?.leadEnabled !== false,
+        leadFormLabel: String(item?.leadFormLabel || "").trim(),
+      })),
+      menuItems: (formValues?.menuItems || []).map((item: any) => ({
+        category: String(item?.category || "").trim(),
+        name: String(item?.name || "").trim(),
+        price: String(item?.price || "").trim(),
+        description: String(item?.description || "").trim(),
+        image: getMediaUrlForPreview(item?.image),
+      })),
+      galleryTitle: String(formValues?.galleryTitle || "Gallery").trim(),
+      gallery: (formValues?.gallery || [])
+        .map((item: unknown) => getMediaUrlForPreview(item))
+        .filter(Boolean),
+      testimonialTitle: String(formValues?.testimonialTitle || "Testimonials").trim(),
+      testimonials: (formValues?.testimonials || []).map((item: any) => ({
+        name: String(item?.name || "").trim(),
+        role: String(item?.jobPosition || "").trim(),
+        text: String(item?.testimony || "").trim(),
+        rating: Number(item?.rating || 5),
+      })),
+      testimonialsSuccessMessage: String(
+        formValues?.testimonialsSuccessMessage || "Thank you. Your review has been submitted for approval.",
+      ).trim(),
+      testimonialsEnableWriteReview: formValues?.testimonialsEnableWriteReview !== false,
+      contactTitle: String(formValues?.contactTitle || "Contact Us").trim(),
+      email: String(formValues?.websiteEmail || "").trim(),
+      phone: String(formValues?.phone || "").trim(),
+      address: String(formValues?.address || "").trim(),
+      mapUrl: String(formValues?.mapUrl || "").trim(),
+      contactEnableInquiryForm: formValues?.contactEnableInquiryForm !== false,
+      pageNavItems: (formValues?.pageNavItems || []).map((item: any) => ({
+        name: String(item?.name || "").trim(),
+        slug: String(item?.slug || "").trim().toLowerCase(),
+        enabled: item?.enabled !== false,
+      })),
+      navItems: (formValues?.pageNavItems || []).map((item: any) => ({
+        name: String(item?.name || "").trim(),
+        slug: String(item?.slug || "").trim().toLowerCase(),
+        enabled: item?.enabled !== false,
+      })),
+      generatedAt: Date.now(),
+    };
+  };
+
+  const getPreviewPath = () => "/website-preview";
+
+  const openPreview = () => {
+    const currentValues = getValues();
+    const payload = getPreviewPayloadFromValues(currentValues);
+    localStorage.setItem(LIVE_PREVIEW_DRAFT_STORAGE_KEY, JSON.stringify(payload));
+    window.dispatchEvent(new Event("website-preview-draft-updated"));
+    const livePreviewUrl = `${window.location.origin}${getPreviewPath()}`;
+    const previewWindow = window.open("", "_blank");
+    if (!previewWindow) {
+      toast.error("Preview popup was blocked. Please allow popups for this site.");
+      return;
+    }
+    previewWindow.opener = null;
+    previewWindow.location.href = livePreviewUrl;
+  };
+
+  useEffect(() => {
+    const payload = getPreviewPayloadFromValues(values);
+    localStorage.setItem(LIVE_PREVIEW_DRAFT_STORAGE_KEY, JSON.stringify(payload));
+    window.dispatchEvent(new Event("website-preview-draft-updated"));
+  }, [getPreviewPayloadFromValues, values, prefillCompanyName]);
+
+  const { mutate: saveWebsiteDraft } = useMutation({
+    mutationKey: ["save-website-draft", prefillCompanyId || prefillCompanyName || selectedVertical],
+    mutationFn: async (draftPayload: FormData) => {
+      const res = await axios.post("/api/editor/save-website-draft", draftPayload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      lastDraftSnapshotRef.current = pendingDraftSnapshotRef.current;
+      pendingDraftSnapshotRef.current = "";
+      pendingDraftFileKeysRef.current.forEach((key) =>
+        uploadedDraftFileKeysRef.current.add(key),
+      );
+      pendingDraftFileKeysRef.current = [];
+      setDraftTemplateId(String(data?.template?._id || ""));
+      setDraftUpdatedAt(data?.template?.draftUpdatedAt || null);
+      setDraftStatus("saved");
+    },
+    onError: () => {
+      pendingDraftSnapshotRef.current = "";
+      pendingDraftFileKeysRef.current = [];
+      setDraftStatus("error");
+    },
+  });
+
+  useEffect(() => {
+    if (isCheckingExistingWebsite || !draftHydrationReadyRef.current) return;
+
+    const companyName = String(values?.companyName || prefillCompanyName || "").trim();
+    if (!companyName) return;
+
+    const draftData = buildDraftFormDataFromValues(values, {
+      companyId: prefillCompanyId,
+      companyName: prefillCompanyName,
+    });
+
+    if (!hasMeaningfulDraftContent(draftData)) return;
+
+    const snapshot = JSON.stringify(draftData);
+    if (snapshot === lastDraftSnapshotRef.current) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setDraftStatus("saving");
+      pendingDraftSnapshotRef.current = snapshot;
+      const fd = new FormData();
+      fd.set("companyId", String(prefillCompanyId || draftData?.companyId || "").trim());
+      fd.set("workspaceId", String(workspaceId || "").trim());
+      fd.set("companyName", companyName);
+      fd.set(
+        "registeredCompanyName",
+        String(draftData?.registeredCompanyName || companyName).trim(),
+      );
+      fd.set("searchKey", toSearchKey(companyName));
+      fd.set("draftData", JSON.stringify(draftData));
+
+      const pendingFileKeys: string[] = [];
+      const getFileKey = (file: File) =>
+        `${file.name}__${file.size}__${file.lastModified}`;
+      const appendDraftFileOnce = (fieldName: string, file?: File | null) => {
+        if (!file) return;
+        const key = `${fieldName}::${getFileKey(file)}`;
+        if (uploadedDraftFileKeysRef.current.has(key)) return;
+        fd.append(fieldName, file);
+        pendingFileKeys.push(key);
+      };
+
+      appendDraftFileOnce("companyLogo", values?.companyLogo as File | null);
+      (values?.heroImages || []).forEach((file: File) =>
+        appendDraftFileOnce("heroImages", file),
+      );
+      (values?.gallery || []).forEach((file: File) =>
+        appendDraftFileOnce("gallery", file),
+      );
+      (values?.aboutPageImages || []).forEach((file: File) =>
+        appendDraftFileOnce("aboutPageImages", file),
+      );
+      (values?.aboutPageImageCards || []).forEach((card: any, index: number) =>
+        appendDraftFileOnce(`aboutPageImageCardImage_${index}`, card?.image as File | null),
+      );
+      (values?.productDropdownPages || []).forEach((page: any, index: number) => {
+        appendDraftFileOnce(`productPageHeroImage_${index}`, page?.heroImage as File | null);
+        appendDraftFileOnce(
+          `productPageHomeCardImage_${index}`,
+          page?.homeCardImage as File | null,
+        );
+        (page?.heroImages || []).forEach((file: File) =>
+          appendDraftFileOnce(`productPageHeroImages_${index}`, file),
+        );
+      });
+      (values?.menuItems || []).forEach((item: any, i: number) => {
+        appendDraftFileOnce(`draftMenuItemImage_${i}`, item?.image as File | null);
+      });
+      (values?.rooms || []).forEach((item: any, i: number) => {
+        (item?.images || []).forEach((file: File, j: number) =>
+          appendDraftFileOnce(`draftRoomImages_${i}_${j}`, file),
+        );
+      });
+      (values?.meetingRooms || []).forEach((item: any, i: number) => {
+        (item?.images || []).forEach((file: File, j: number) =>
+          appendDraftFileOnce(`draftMeetingRoomImages_${i}_${j}`, file),
+        );
+      });
+      (values?.coLivingRooms || []).forEach((item: any, i: number) => {
+        (item?.images || []).forEach((file: File, j: number) =>
+          appendDraftFileOnce(`draftCoLivingRoomImages_${i}_${j}`, file),
+        );
+      });
+      (values?.packages || []).forEach((item: any, i: number) => {
+        (item?.images || []).forEach((file: File, j: number) =>
+          appendDraftFileOnce(`draftPackageImages_${i}_${j}`, file),
+        );
+      });
+      (values?.dorms || []).forEach((item: any, i: number) => {
+        (item?.images || []).forEach((file: File, j: number) =>
+          appendDraftFileOnce(`draftDormImages_${i}_${j}`, file),
+        );
+      });
+      (values?.products || []).forEach((item: any, i: number) => {
+        (item?.files || []).forEach((file: File, j: number) =>
+          appendDraftFileOnce(`draftProductImages_${i}_${j}`, file),
+        );
+      });
+
+      pendingDraftFileKeysRef.current = pendingFileKeys;
+      saveWebsiteDraft(fd);
+    }, 1200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    values,
+    saveWebsiteDraft,
+    isCheckingExistingWebsite,
+    prefillCompanyId,
+    prefillCompanyName,
+    workspaceId,
+    selectedVertical,
+    getPreviewPayloadFromValues,
+  ]);
 
   const { mutate: createWebsite, isLoading: isCreateWebsiteLoading } =
     useMutation({
       mutationKey: ["create-website"],
       mutationFn: async (fd) => {
-        console.log("FORMDATA VERTICAL:", fd.get("vertical"));
         const res = await axios.post("/api/editor/create-website", fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
@@ -516,6 +1647,12 @@ const CreateWebsite = () => {
       },
       onSuccess: async (data) => {
         setIsRedirectingAfterCreate(true);
+        setDraftStatus("idle");
+        setDraftTemplateId("");
+        setDraftUpdatedAt(null);
+        lastDraftSnapshotRef.current = "";
+        uploadedDraftFileKeysRef.current.clear();
+        pendingDraftFileKeysRef.current = [];
         const createdTemplateId = String(data?.template?._id || "").trim();
         const resolvedWorkspaceId = String(
           workspaceId || data?.template?.workspaceId || "",
@@ -536,6 +1673,12 @@ const CreateWebsite = () => {
           }
         }
         if (publishSucceeded) {
+          const publishedSearchKey =
+            String(data?.template?.searchKey || "").trim() || toSearchKey(prefillCompanyName);
+          if (publishedSearchKey) {
+            const url = `https://${publishedSearchKey}.wono.co`;
+            setPublishedWebsiteUrl(url);
+          }
           toast.success("Website created and published successfully");
         } else {
           toast.success("Website created successfully");
@@ -544,8 +1687,8 @@ const CreateWebsite = () => {
         const createdSearchKey = String(data?.template?.searchKey || "").trim();
         const nextSearchKey = createdSearchKey || toSearchKey(prefillCompanyName);
         navigate(
-          `${builderBasePath}/edit-website/${encodeURIComponent(nextSearchKey)}?vertical=${encodeURIComponent(selectedVertical)}`,
-          { state: { searchKey: nextSearchKey, vertical: selectedVertical } },
+          `${builderBasePath}/edit-website/${encodeURIComponent(nextSearchKey)}`,
+          { state: { searchKey: nextSearchKey } },
         );
       },
       onError: (err) => {
@@ -563,6 +1706,74 @@ const CreateWebsite = () => {
         console.log(err?.response?.data?.message || err.message);
       },
     });
+
+  const { mutate: updateWebsite, isLoading: isUpdateWebsiteLoading } =
+    useMutation({
+      mutationKey: ["update-website"],
+      mutationFn: async (fd) => {
+        const res = await axios.patch("/api/editor/edit-website", fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        return res.data;
+      },
+      onSuccess: async (data) => {
+        setIsRedirectingAfterCreate(true);
+        setDraftStatus("idle");
+        setDraftTemplateId("");
+        setDraftUpdatedAt(null);
+        lastDraftSnapshotRef.current = "";
+        uploadedDraftFileKeysRef.current.clear();
+        pendingDraftFileKeysRef.current = [];
+        const updatedTemplateId = String(data?.template?._id || "").trim();
+        const resolvedWorkspaceId = String(
+          workspaceId || data?.template?.workspaceId || "",
+        ).trim();
+        let publishSucceeded = false;
+        if (updatedTemplateId && resolvedWorkspaceId) {
+          try {
+            await axios.post("/api/editor/publish-website", {
+              workspaceId: resolvedWorkspaceId,
+              websiteId: updatedTemplateId,
+            });
+            publishSucceeded = true;
+          } catch (publishError) {
+            toast.error(
+              publishError?.response?.data?.message ||
+                "Website updated, but publish failed.",
+            );
+          }
+        }
+        if (publishSucceeded) {
+          const publishedSearchKey =
+            String(data?.template?.searchKey || "").trim() || toSearchKey(prefillCompanyName);
+          if (publishedSearchKey) {
+            const url = `https://${publishedSearchKey}.wono.co`;
+            setPublishedWebsiteUrl(url);
+          }
+          toast.success("Website updated and published successfully");
+        } else {
+          toast.success("Website updated successfully");
+        }
+        window.dispatchEvent(new Event("credits:refresh"));
+      },
+      onError: (err) => {
+        setIsRedirectingAfterCreate(false);
+        if (err?.response?.status === 403 && err?.response?.data?.error === "no_credits_remaining") {
+          const resetDate = err?.response?.data?.resetDate
+            ? new Date(err.response.data.resetDate).toLocaleDateString()
+            : "-";
+          toast.error(
+            `You've used all available credits for this month. Your credits reset on ${resetDate}.`,
+          );
+          return;
+        }
+        toast.error(err?.response?.data?.message || "Failed to update website");
+      },
+    });
+
+  const isWebsiteSubmitting = isEditMode
+    ? isUpdateWebsiteLoading
+    : isCreateWebsiteLoading;
 
   const handleReset = () => {
     const node = formRef.current;
@@ -639,6 +1850,28 @@ const CreateWebsite = () => {
         return `${day}/${month}/${year}, 12:00 AM`;
       })()
     : "-";
+  const activeMainPageSlug = String(
+    watch(`pageNavItems.${activeMainPageTab}.slug`) || "home",
+  )
+    .trim()
+    .toLowerCase();
+
+  const availableProductPageOptions = Array.from(
+    new Set([
+      ...DEFAULT_PRODUCT_DROPDOWN_PAGES,
+      ...(values?.products || [])
+        .map((item) => String(item?.type || item?.name || "").trim())
+        .filter(Boolean),
+    ]),
+  );
+  const selectedProductPageSlug = toSlug(selectedProductPageOption);
+  const selectedProductPageIndex = (values?.productDropdownPages || []).findIndex(
+    (item) => String(item?.slug || "").trim().toLowerCase() === selectedProductPageSlug,
+  );
+  const isSelectedProductPageAdded = selectedProductPageIndex >= 0;
+  const legacyHomeProductsEditorEnabled = Boolean(
+    values?.__legacyHomeProductsEditorEnabled,
+  );
 
   if (isCheckingExistingWebsite) {
     return (
@@ -657,9 +1890,22 @@ const CreateWebsite = () => {
               <h2 className="text-title font-pmedium text-primary uppercase">
                 Create Website
               </h2>
-              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                {selectedVerticalBadgeText}
-              </span>
+              <div className="flex flex-col items-end gap-1">
+                <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                  {selectedVerticalBadgeText}
+                </span>
+                <p className="text-[11px] text-slate-500">
+                  {draftStatus === "saving"
+                    ? "Saving draft..."
+                    : draftStatus === "saved"
+                      ? `Draft saved${draftUpdatedAt ? ` at ${new Date(draftUpdatedAt).toLocaleTimeString()}` : ""}`
+                      : draftStatus === "error"
+                        ? "Draft save failed. Changes are still in the form."
+                        : hasRestoredDraft
+                          ? "Draft restored from your last session."
+                          : "Draft autosave starts as you build."}
+                </p>
+              </div>
             </div>
 
             <form
@@ -667,6 +1913,1122 @@ const CreateWebsite = () => {
               encType="multipart/form-data"
               onSubmit={(e) => e.preventDefault()}
             >
+          <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-semibold text-slate-800">Website Pages</p>
+            <Tabs
+              className="mt-2"
+              value={Math.min(activeMainPageTab, Math.max(pageNavFields.length - 1, 0))}
+              onChange={(_, next) => setActiveMainPageTab(next)}
+              variant="scrollable"
+              scrollButtons="auto"
+            >
+              {pageNavFields.map((item, index) => (
+                <Tab
+                  key={item.id}
+                  label={watch(`pageNavItems.${index}.name`) || `Page ${index + 1}`}
+                />
+              ))}
+            </Tabs>
+
+            {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
+              .trim()
+              .toLowerCase() === "products" ? (
+              <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-slate-800">Products Page Tabs</p>
+                  <div className="flex items-center gap-2">
+                    <TextField
+                      select
+                      size="small"
+                      label="Select / Add Page"
+                      value={selectedProductPageOption}
+                      onChange={(event) =>
+                        setSelectedProductPageOption(event.target.value)
+                      }
+                      sx={{ minWidth: 180 }}
+                    >
+                      {availableProductPageOptions.map((option) => (
+                        <MenuItem
+                          key={option}
+                          value={option}
+                        >
+                          {(values?.productDropdownPages || []).some(
+                            (item) =>
+                              String(item?.slug || "").trim().toLowerCase() ===
+                              toSlug(option),
+                          )
+                            ? `${option} (Page added)`
+                            : option}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                    <button
+                      type="button"
+                      className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700"
+                      onClick={() => {
+                        const optionName = String(selectedProductPageOption || "").trim();
+                        if (!optionName) return;
+                        const optionSlug = toSlug(optionName);
+                        const existingIndex = (values?.productDropdownPages || []).findIndex(
+                          (item) =>
+                            String(item?.slug || "").trim().toLowerCase() === optionSlug,
+                        );
+                        if (existingIndex >= 0) {
+                          removeProductPageItem(existingIndex);
+                          setActiveProductPageTab((prev) => Math.max(0, prev - 1));
+                          return;
+                        }
+                        appendProductPageItem({
+                          name: optionName,
+                          slug: optionSlug,
+                          enabled: true,
+                          heroHeading: optionName,
+                          heroSubHeading: "",
+                          heroMode: "single",
+                          heroImage: null,
+                          heroButtonText: "View More",
+                          heroImages: [],
+                          homeCardHeading: optionName,
+                          homeCardSubText: "",
+                          homeCardImage: null,
+                          leadEnabled: !isMenuPageSlug(optionSlug),
+                          leadFormLabel: isMenuPageSlug(optionSlug)
+                            ? "Menu Inquiry Disabled"
+                            : "View More / Get Details",
+                        });
+                        setActiveProductPageTab(productPageFields.length);
+                      }}
+                    >
+                      {isSelectedProductPageAdded
+                        ? "- Remove Product Page"
+                        : "+ Add Product Page"}
+                    </button>
+                  </div>
+                </div>
+                <p className="mb-3 border-b border-slate-200 pb-2 text-xs text-slate-500">
+                  Use the selector above to add/remove product pages. Page templates below are
+                  kept separate for cleaner editing.
+                </p>
+                {productPageFields.length > 0 ? (
+                  <>
+                    <Tabs
+                      value={Math.min(activeProductPageTab, Math.max(productPageFields.length - 1, 0))}
+                      onChange={(_, next) => setActiveProductPageTab(next)}
+                      variant="scrollable"
+                      scrollButtons="auto"
+                    >
+                      {productPageFields.map((item, index) => (
+                        <Tab
+                          key={item.id}
+                          label={watch(`productDropdownPages.${index}.name`) || `Product Page ${index + 1}`}
+                        />
+                      ))}
+                    </Tabs>
+                    {productPageFields[activeProductPageTab] ? (
+                      <div className="mt-3 grid grid-cols-1 gap-3">
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          <Controller
+                            name={`productDropdownPages.${activeProductPageTab}.name`}
+                            control={control}
+                            render={({ field }) => (
+                              <TextField {...field} size="small" label="Product Page Name" fullWidth />
+                            )}
+                          />
+                          <Controller
+                            name={`productDropdownPages.${activeProductPageTab}.slug`}
+                            control={control}
+                            render={({ field }) => (
+                              <TextField {...field} size="small" label="Product Page Route Slug" fullWidth />
+                            )}
+                          />
+                        </div>
+
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          <div className="py-2 border-b-default border-borderGray">
+                            <span className="text-subtitle font-pmedium">Product Page Hero</span>
+                          </div>
+                          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <Controller
+                              name={`productDropdownPages.${activeProductPageTab}.heroHeading`}
+                              control={control}
+                              render={({ field }) => (
+                                <TextField
+                                  {...field}
+                                  size="small"
+                                  label="Hero Heading"
+                                  fullWidth
+                                />
+                              )}
+                            />
+                            <Controller
+                              name={`productDropdownPages.${activeProductPageTab}.heroSubHeading`}
+                              control={control}
+                              render={({ field }) => (
+                                <TextField
+                                  {...field}
+                                  size="small"
+                                  label="Hero Small Text / Sub Heading"
+                                  fullWidth
+                                />
+                              )}
+                            />
+                            <Controller
+                              name={`productDropdownPages.${activeProductPageTab}.heroMode`}
+                              control={control}
+                              render={({ field }) => (
+                                <TextField
+                                  {...field}
+                                  value={field.value || "single"}
+                                  onChange={(event) => field.onChange(event.target.value)}
+                                  select
+                                  size="small"
+                                  label="Hero Mode"
+                                  fullWidth
+                                >
+                                  <MenuItem value="single">Single Image</MenuItem>
+                                  <MenuItem value="carousel">Carousel</MenuItem>
+                                </TextField>
+                              )}
+                            />
+                            <Controller
+                              name={`productDropdownPages.${activeProductPageTab}.heroButtonText`}
+                              control={control}
+                              render={({ field }) => (
+                                <TextField
+                                  {...field}
+                                  size="small"
+                                  label="Hero Button Text"
+                                  fullWidth
+                                />
+                              )}
+                            />
+                            {String(
+                              watch(`productDropdownPages.${activeProductPageTab}.heroMode`) ||
+                                "single",
+                            ) === "single" ? (
+                              <Controller
+                                name={`productDropdownPages.${activeProductPageTab}.heroImage`}
+                                control={control}
+                                render={({ field }) => (
+                                  <UploadFileInput
+                                    value={field.value}
+                                    label="Hero Image"
+                                    onChange={field.onChange}
+                                    id={`product-page-hero-image-${activeProductPageTab}`}
+                                  />
+                                )}
+                              />
+                            ) : (
+                              <Controller
+                                name={`productDropdownPages.${activeProductPageTab}.heroImages`}
+                                control={control}
+                                render={({ field }) => (
+                                  <UploadMultipleFilesInput
+                                    {...field}
+                                    name={`productDropdownPages.${activeProductPageTab}.heroImages`}
+                                    label="Hero Carousel Images "
+                                    maxFiles={5}
+                                    allowedExtensions={["jpg", "jpeg", "png", "webp"]}
+                                    id={`product-page-hero-images-${activeProductPageTab}`}
+                                  />
+                                )}
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          <div className="py-2 border-b-default border-borderGray">
+                            <span className="text-subtitle font-pmedium">Lead Form Behavior</span>
+                          </div>
+                          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <Controller
+                              name={`productDropdownPages.${activeProductPageTab}.leadEnabled`}
+                              control={control}
+                              render={({ field }) => {
+                                const currentSlug = String(
+                                  watch(`productDropdownPages.${activeProductPageTab}.slug`) || "",
+                                )
+                                  .trim()
+                                  .toLowerCase();
+                                const isMenuPage = isMenuPageSlug(currentSlug);
+                                return (
+                                  <TextField
+                                    select
+                                    value={String(isMenuPage ? false : field.value !== false)}
+                                    size="small"
+                                    label="Enable Lead Form"
+                                    fullWidth
+                                    onChange={(event) =>
+                                      field.onChange(event.target.value === "true")
+                                    }
+                                    disabled={isMenuPage}
+                                    helperText={
+                                      isMenuPage
+                                        ? "Menu/Cafe pages keep lead form disabled."
+                                        : "Enabled for all non-menu product pages."
+                                    }
+                                  >
+                                    <MenuItem value={"true"}>Enabled</MenuItem>
+                                    <MenuItem value={"false"}>Disabled</MenuItem>
+                                  </TextField>
+                                );
+                              }}
+                            />
+                            <Controller
+                              name={`productDropdownPages.${activeProductPageTab}.leadFormLabel`}
+                              control={control}
+                              render={({ field }) => (
+                                <TextField
+                                  {...field}
+                                  size="small"
+                                  label="CTA Button Label"
+                                  fullWidth
+                                />
+                              )}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          <div className="py-2 border-b-default border-borderGray">
+                            <span className="text-subtitle font-pmedium">
+                              Page Content Template (Synced with Home)
+                            </span>
+                          </div>
+                          {(() => {
+                            const currentProductPageSlug = String(
+                              watch(
+                                `productDropdownPages.${activeProductPageTab}.slug`,
+                              ) || "",
+                            )
+                              .trim()
+                              .toLowerCase();
+
+                            const isCafePage = isMenuPageSlug(currentProductPageSlug);
+                            const isMeetingRoomsPage = currentProductPageSlug.includes(
+                              "meeting",
+                            );
+                            const isCoLivingPage =
+                              currentProductPageSlug.includes("co-living") ||
+                              currentProductPageSlug.includes("coliving");
+                            const isWorkationPage =
+                              currentProductPageSlug.includes("workation");
+                            const isHostelPage =
+                              currentProductPageSlug.includes("hostel");
+
+                            if (isCafePage) {
+                              return <MenuSection control={control} register={register} />;
+                            }
+                            if (isMeetingRoomsPage) {
+                              return (
+                                <RoomsSection
+                                  control={control}
+                                  register={register}
+                                  fieldName="meetingRooms"
+                                  sectionTitle="Meeting Rooms"
+                                  itemLabel="Room"
+                                  imageLabel="Room Images"
+                                  priceLabel="Price per hour"
+                                />
+                              );
+                            }
+                            if (isCoLivingPage) {
+                              return (
+                                <RoomsSection
+                                  control={control}
+                                  register={register}
+                                  fieldName="coLivingRooms"
+                                  sectionTitle="Co-Living Spaces"
+                                  itemLabel="Space"
+                                  imageLabel="Space Images"
+                                  priceLabel="Price per night"
+                                />
+                              );
+                            }
+                            if (isWorkationPage) {
+                              return (
+                                <PackagesSection control={control} register={register} />
+                              );
+                            }
+                            if (isHostelPage) {
+                              return <DormsSection control={control} register={register} />;
+                            }
+
+                            return (
+                              <div className="mt-3 grid grid-cols-1 gap-4">
+                                <Controller
+                                  name="productTitle"
+                                  control={control}
+                                  render={({ field }) => (
+                                    <TextField
+                                      {...field}
+                                      size="small"
+                                      label="Products Section Title"
+                                      fullWidth
+                                      inputProps={{ maxLength: CHAR_LIMITS.productTitle }}
+                                    />
+                                  )}
+                                />
+                                {productFields.map((field, index) => (
+                                  <div
+                                    key={`products-synced-${field.id}`}
+                                    className="rounded-xl border border-borderGray bg-white p-4"
+                                  >
+                                    <div className="mb-3 flex items-center justify-between">
+                                      <span className="font-pmedium">Product {index + 1}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeProduct(index)}
+                                        className="text-sm text-red-600"
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                      <Controller
+                                        name={`products.${index}.name`}
+                                        control={control}
+                                        render={({ field }) => (
+                                          <TextField
+                                            {...field}
+                                            size="small"
+                                            label="Product Name"
+                                            fullWidth
+                                          />
+                                        )}
+                                      />
+                                      <Controller
+                                        name={`products.${index}.type`}
+                                        control={control}
+                                        render={({ field }) => (
+                                          <TextField
+                                            {...field}
+                                            size="small"
+                                            label="Product Type"
+                                            fullWidth
+                                          />
+                                        )}
+                                      />
+                                      <Controller
+                                        name={`products.${index}.description`}
+                                        control={control}
+                                        render={({ field }) => (
+                                          <TextField
+                                            {...field}
+                                            size="small"
+                                            label="Product Description"
+                                            fullWidth
+                                          />
+                                        )}
+                                      />
+                                      <Controller
+                                        name={`products.${index}.cost`}
+                                        control={control}
+                                        render={({ field }) => (
+                                          <TextField
+                                            {...field}
+                                            size="small"
+                                            label="Product Cost"
+                                            fullWidth
+                                          />
+                                        )}
+                                      />
+                                    </div>
+                                    <div className="pt-3">
+                                      <Controller
+                                        name={`products.${index}.files`}
+                                        control={control}
+                                        render={({ field }) => (
+                                          <UploadMultipleFilesInput
+                                            {...field}
+                                            label="Product Images"
+                                            maxFiles={10}
+                                            allowedExtensions={[
+                                              "jpg",
+                                              "jpeg",
+                                              "png",
+                                              "webp",
+                                              "pdf",
+                                            ]}
+                                            id={`products-synced-${index}.files`}
+                                          />
+                                        )}
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                                <button
+                                  type="button"
+                                  onClick={() => appendProduct({ ...defaultProduct })}
+                                  className="w-fit text-sm text-primary"
+                                >
+                                  + Add Product
+                                </button>
+                              </div>
+                            );
+                          })()}
+                          </div>
+                        </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="mt-3 text-xs text-slate-500">
+                    No product pages added yet. Select from dropdown and click Add Product Page.
+                  </p>
+                )}
+              </div>
+            ) : null}
+
+            {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
+              .trim()
+              .toLowerCase() === "about-us" ? (
+              <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-sm font-semibold text-slate-800">About Page</p>
+                <div className="mt-3 grid grid-cols-1 gap-3">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <Controller
+                      name="aboutPageIntro"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          size="small"
+                          label="About Page Heading / Hero Intro"
+                          fullWidth
+                          placeholder="About {Company Name}"
+                        />
+                      )}
+                    />
+                  </div>
+
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-semibold text-slate-700">
+                      Company Overview (Synced From Home About)
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Same about paragraphs are shared with Home section.
+                    </p>
+                    <div className="mt-3 grid grid-cols-1 gap-3">
+                      {aboutFields.map((field, index) => (
+                        <div key={`about-sync-${field.id}`} className="rounded-md border border-slate-200 bg-white p-3">
+                          <Controller
+                            name={`about.${index}.text`}
+                            control={control}
+                            render={({ field }) => (
+                              <TextField
+                                {...field}
+                                size="small"
+                                label={`Shared About Paragraph ${index + 1}`}
+                                fullWidth
+                                multiline
+                                minRows={3}
+                              />
+                            )}
+                          />
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => appendAbout({ text: "" })}
+                        className="w-fit text-sm text-primary"
+                      >
+                        + Add Shared Paragraph
+                      </button>
+                    </div>
+                  </div>
+                  <Controller
+                    name="aboutPageStory"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        size="small"
+                        label="Our Story"
+                        fullWidth
+                        multiline
+                        minRows={4}
+                      />
+                    )}
+                  />
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <Controller
+                      name="aboutPageMission"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          size="small"
+                          label="Mission"
+                          fullWidth
+                          multiline
+                          minRows={3}
+                        />
+                      )}
+                    />
+                    <Controller
+                      name="aboutPageVision"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          size="small"
+                          label="Vision"
+                          fullWidth
+                          multiline
+                          minRows={3}
+                        />
+                      )}
+                    />
+                  </div>
+                  <Controller
+                    name="aboutPageValues"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        size="small"
+                        label="Values (comma separated)"
+                        fullWidth
+                        placeholder="Community, Trust, Transparency"
+                      />
+                    )}
+                  />
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <div className="py-2 border-b-default border-borderGray">
+                      <span className="text-subtitle font-pmedium">Our Team Section</span>
+                    </div>
+                    <div className="mt-4">
+                      <Controller
+                        name="aboutPageTeamHeading"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField
+                            {...field}
+                            size="small"
+                            label="Our Team Heading"
+                            placeholder="Our Team"
+                            fullWidth
+                          />
+                        )}
+                      />
+                    </div>
+                    <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      {aboutImageCardFields.map((field, index) => (
+                        <div key={field.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                          <div className="mb-4">
+                            <Controller
+                              name={`aboutPageImageCards.${index}.image`}
+                              control={control}
+                              render={({ field }) => (
+                                <UploadFileInput
+                                  value={field.value}
+                                  label="Profile Image"
+                                  onChange={field.onChange}
+                                  id={`about-page-image-card-${index}`}
+                                />
+                              )}
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 gap-4">
+                            <Controller
+                              name={`aboutPageImageCards.${index}.title`}
+                              control={control}
+                              render={({ field }) => (
+                                <TextField {...field} size="small" label="Name / Title" fullWidth />
+                              )}
+                            />
+                            <Controller
+                              name={`aboutPageImageCards.${index}.description`}
+                              control={control}
+                              render={({ field }) => (
+                                <TextField
+                                  {...field}
+                                  size="small"
+                                  label="Role / Description"
+                                  fullWidth
+                                />
+                              )}
+                            />
+                          </div>
+                          {aboutImageCardFields.length > 1 ? (
+                            <button
+                              type="button"
+                              className="mt-3 text-sm text-red-600"
+                              onClick={() => removeAboutImageCard(index)}
+                            >
+                              Remove Card
+                            </button>
+                          ) : null}
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          appendAboutImageCard({ title: "", description: "", image: null })
+                        }
+                        className="w-fit rounded-md bg-white px-3 py-2 text-sm font-semibold text-primary md:col-span-2 xl:col-span-3"
+                      >
+                        + Add Team Member / Highlight
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
+              .trim()
+              .toLowerCase() === "gallery" ? (
+              <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-sm font-semibold text-slate-800">Gallery Page</p>
+                <div className="mt-3 grid grid-cols-1 gap-3">
+                  <Controller
+                    name="galleryPageHeading"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        size="small"
+                        label="Gallery Heading Text"
+                        placeholder="Gallery Images"
+                        fullWidth
+                      />
+                    )}
+                  />
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div className="py-2 border-b-default border-borderGray">
+                      <span className="text-subtitle font-pmedium">Gallery Images (Synced)</span>
+                    </div>
+                    <div className="mt-3">
+                      <Controller
+                        name="gallery"
+                        control={control}
+                        render={({ field }) => (
+                          <UploadMultipleFilesInput
+                            {...field}
+                            name="gallery"
+                            label="Gallery Images"
+                            maxFiles={40}
+                            allowedExtensions={["jpg", "jpeg", "png", "pdf", "webp"]}
+                            id="gallery-page-synced"
+                          />
+                        )}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-slate-500">
+                      Home preview can show first 6 images; `Show More` should navigate to `/gallery`.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
+              .trim()
+              .toLowerCase() === "testimonials" ? (
+              <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-sm font-semibold text-slate-800">Testimonials Page</p>
+                <div className="mt-3 grid grid-cols-1 gap-3">
+                  <Controller
+                    name="testimonialsPageHeading"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        size="small"
+                        label="Section Heading"
+                        placeholder="What People Say"
+                        fullWidth
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="testimonialsPageIntro"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        size="small"
+                        label="Section Intro"
+                        placeholder="Real experiences shared by our community"
+                        fullWidth
+                      />
+                    )}
+                  />
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <Controller
+                      name="testimonialsHomePreviewCount"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          type="number"
+                          size="small"
+                          label="Show On Home (Preview Count)"
+                          fullWidth
+                          inputProps={{ min: 1, max: 20 }}
+                        />
+                      )}
+                    />
+                  </div>
+                  <Controller
+                    name="testimonialsEnableWriteReview"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField {...field} select size="small" label="Write Review Form" fullWidth>
+                        <MenuItem value={true}>Enabled</MenuItem>
+                        <MenuItem value={false}>Disabled</MenuItem>
+                      </TextField>
+                    )}
+                  />
+                  <Controller
+                    name="testimonialsSuccessMessage"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        size="small"
+                        label="Submit Success Message"
+                        fullWidth
+                        multiline
+                        minRows={2}
+                      />
+                    )}
+                  />
+                  <p className="text-xs text-slate-500">
+                    Public form fields: Name, Designation/Role, Star Rating, Review.
+                    Only approved reviews are shown on website.
+                  </p>
+                </div>
+
+                <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="py-2 border-b-default border-borderGray">
+                    <span className="text-subtitle font-pmedium">
+                      Shared Testimonials (Synced with Home)
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 gap-4">
+                    <Controller
+                      name="testimonialTitle"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          size="small"
+                          label="Testimonials Section Title"
+                          fullWidth
+                          inputProps={{ maxLength: CHAR_LIMITS.testimonialTitle }}
+                          helperText={getHelperText(
+                            errors?.testimonialTitle?.message,
+                            values?.testimonialTitle,
+                            CHAR_LIMITS.testimonialTitle,
+                          )}
+                        />
+                      )}
+                    />
+
+                    {testimonialFields.map((field, index) => (
+                      <div
+                        key={`shared-testimonial-${field.id}`}
+                        className="rounded-xl border border-borderGray bg-white p-4"
+                      >
+                        <div className="mb-3 flex items-center justify-between">
+                          <span className="font-pmedium">Testimonial #{index + 1}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeTestimonial(index)}
+                            className="text-sm text-red-600"
+                          >
+                            Remove
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <Controller
+                            name={`testimonials.${index}.name`}
+                            control={control}
+                            render={({ field }) => (
+                              <TextField
+                                {...field}
+                                size="small"
+                                label="Name"
+                                fullWidth
+                                inputProps={{
+                                  maxLength: CHAR_LIMITS.testimonialName,
+                                }}
+                                helperText={getHelperText(
+                                  errors?.testimonials?.[index]?.name?.message,
+                                  values?.testimonials?.[index]?.name,
+                                  CHAR_LIMITS.testimonialName,
+                                )}
+                                error={!!errors?.testimonials?.[index]?.name}
+                              />
+                            )}
+                          />
+                          <Controller
+                            name={`testimonials.${index}.jobPosition`}
+                            control={control}
+                            render={({ field }) => (
+                              <TextField
+                                {...field}
+                                size="small"
+                                label="Designation / Role"
+                                fullWidth
+                                inputProps={{
+                                  maxLength: CHAR_LIMITS.testimonialJobPosition,
+                                }}
+                                helperText={getHelperText(
+                                  errors?.testimonials?.[index]?.jobPosition?.message,
+                                  values?.testimonials?.[index]?.jobPosition,
+                                  CHAR_LIMITS.testimonialJobPosition,
+                                )}
+                                error={!!errors?.testimonials?.[index]?.jobPosition}
+                              />
+                            )}
+                          />
+                          <Controller
+                            name={`testimonials.${index}.rating`}
+                            control={control}
+                            render={({ field }) => (
+                              <TextField
+                                {...field}
+                                type="number"
+                                size="small"
+                                label="Rating (1-5)"
+                                fullWidth
+                                inputProps={{ min: 1, max: 5 }}
+                                helperText={
+                                  errors?.testimonials?.[index]?.rating?.message
+                                }
+                                error={!!errors?.testimonials?.[index]?.rating}
+                              />
+                            )}
+                          />
+                          <Controller
+                            name={`testimonials.${index}.testimony`}
+                            control={control}
+                            render={({ field }) => (
+                              <TextField
+                                {...field}
+                                size="small"
+                                label="Review"
+                                fullWidth
+                                multiline
+                                minRows={3}
+                                inputProps={{
+                                  maxLength: CHAR_LIMITS.testimonialTestimony,
+                                }}
+                                helperText={getHelperText(
+                                  errors?.testimonials?.[index]?.testimony?.message,
+                                  values?.testimonials?.[index]?.testimony,
+                                  CHAR_LIMITS.testimonialTestimony,
+                                )}
+                                error={!!errors?.testimonials?.[index]?.testimony}
+                              />
+                            )}
+                          />
+                        </div>
+
+                        <div className="mt-3">
+                          <Controller
+                            name={`testimonials.${index}.file`}
+                            control={control}
+                            render={({ field }) => (
+                              <UploadFileInput
+                                value={field.value}
+                                label="Reviewer Image (Optional)"
+                                onChange={field.onChange}
+                                id={`shared-testimonial-file-${index}`}
+                              />
+                            )}
+                          />
+                        </div>
+                      </div>
+                    ))}
+
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => appendTestimonial({ ...defaultTestimonial })}
+                        className="text-sm text-primary"
+                      >
+                        + Add Testimonial
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
+              .trim()
+              .toLowerCase() === "contact-us" ? (
+              <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-sm font-semibold text-slate-800">Contact Page</p>
+                <div className="mt-3 grid grid-cols-1 gap-3">
+                  <Controller
+                    name="contactPageHeading"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        size="small"
+                        label="Page Heading"
+                        placeholder="Get In Touch"
+                        fullWidth
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="contactPageIntro"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        size="small"
+                        label="Page Intro"
+                        placeholder="We would love to hear from you."
+                        fullWidth
+                      />
+                    )}
+                  />
+
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div className="py-2 border-b-default border-borderGray">
+                      <span className="text-subtitle font-pmedium">
+                        Contact Details (Synced with Home)
+                      </span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <Controller
+                        name="websiteEmail"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField {...field} size="small" label="Email" fullWidth />
+                        )}
+                      />
+                      <Controller
+                        name="phone"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField {...field} size="small" label="Phone" fullWidth />
+                        )}
+                      />
+                      <Controller
+                        name="address"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField
+                            {...field}
+                            size="small"
+                            label="Address"
+                            fullWidth
+                            multiline
+                            minRows={2}
+                          />
+                        )}
+                      />
+                      <Controller
+                        name="mapUrl"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField
+                            {...field}
+                            size="small"
+                            label="Map Embed URL"
+                            fullWidth
+                          />
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <Controller
+                      name="contactBusinessHours"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          size="small"
+                          label="Business Hours (Optional)"
+                          placeholder="Mon-Fri 9:00 AM - 7:00 PM"
+                          fullWidth
+                        />
+                      )}
+                    />
+                    <Controller
+                      name="contactEnableInquiryForm"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField {...field} select size="small" label="Enable Inquiry Form" fullWidth>
+                          <MenuItem value={true}>Enabled</MenuItem>
+                          <MenuItem value={false}>Disabled</MenuItem>
+                        </TextField>
+                      )}
+                    />
+                  </div>
+
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <div className="py-2 border-b-default border-borderGray">
+                      <span className="text-subtitle font-pmedium">Contact Person (Optional)</span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <Controller
+                        name="contactPersonName"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField {...field} size="small" label="Name" fullWidth />
+                        )}
+                      />
+                      <Controller
+                        name="contactPersonRole"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField {...field} size="small" label="Role" fullWidth />
+                        )}
+                      />
+                      <Controller
+                        name="contactPersonEmail"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField {...field} size="small" label="Email" fullWidth />
+                        )}
+                      />
+                      <Controller
+                        name="contactPersonPhone"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField {...field} size="small" label="Phone" fullWidth />
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  <Controller
+                    name="contactInquirySuccessMessage"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        size="small"
+                        label="Inquiry Submit Success Message"
+                        fullWidth
+                        multiline
+                        minRows={2}
+                      />
+                    )}
+                  />
+                  <p className="text-xs text-slate-500">
+                    Inquiry form fields: Name, Email, Phone (optional), Message.
+                    Submissions should be treated as `General Inquiry` leads.
+                  </p>
+                </div>
+              </div>
+            ) : null}
+          </div>
+          {activeMainPageSlug === "home" ? (
           <div className="md:grid grid-cols-2 sm:grid-cols-1 md:grid-cols-2 gap-4">
             {/* HERO / COMPANY */}
             {activeSections.includes("hero") && (
@@ -872,7 +3234,106 @@ const CreateWebsite = () => {
             )}
 
             {/* PRODUCTS */}
-            {selectedVertical === "co-working" && (
+            {activeSections.includes("products") && (
+            <div className="col-span-2">
+              <div className="py-4 border-b-default border-borderGray">
+                <span className="text-subtitle font-pmedium">Our Products Pages</span>
+              </div>
+              <div className="grid grid-cols-1 gap-4 p-4">
+                <Controller
+                  name="productTitle"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      size="small"
+                      label="Home Products Section Heading"
+                      fullWidth
+                      placeholder="Our Products"
+                      inputProps={{ maxLength: CHAR_LIMITS.productTitle }}
+                    />
+                  )}
+                />
+
+                {productPageFields.length > 0 ? (
+                  productPageFields.map((pageField, index) => {
+                    const pageName =
+                      watch(`productDropdownPages.${index}.name`) ||
+                      `Product Page ${index + 1}`;
+                    const pageSlug = String(
+                      watch(`productDropdownPages.${index}.slug`) || "",
+                    )
+                      .trim()
+                      .toLowerCase();
+                    return (
+                      <div
+                        key={`home-product-page-card-${pageField.id}`}
+                        className="rounded-xl border border-borderGray p-4"
+                      >
+                        <div className="mb-3 flex items-center justify-between">
+                          <span className="font-pmedium">{pageName}</span>
+                          <span className="text-xs text-slate-500">
+                            Explore route: /products/{pageSlug || "page-slug"}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <Controller
+                            name={`productDropdownPages.${index}.homeCardHeading`}
+                            control={control}
+                            render={({ field }) => (
+                              <TextField
+                                {...field}
+                                value={field.value || ""}
+                                size="small"
+                                label="Card Heading"
+                                fullWidth
+                                placeholder={pageName}
+                              />
+                            )}
+                          />
+                          <Controller
+                            name={`productDropdownPages.${index}.homeCardSubText`}
+                            control={control}
+                            render={({ field }) => (
+                              <TextField
+                                {...field}
+                                value={field.value || ""}
+                                size="small"
+                                label="Card Sub Text"
+                                fullWidth
+                                placeholder="Short description for this product page"
+                              />
+                            )}
+                          />
+                        </div>
+                        <div className="mt-4">
+                          <Controller
+                            name={`productDropdownPages.${index}.homeCardImage`}
+                            control={control}
+                            render={({ field }) => (
+                              <UploadFileInput
+                                value={field.value}
+                                label="Card Image"
+                                onChange={field.onChange}
+                                id={`product-page-home-card-image-${index}`}
+                              />
+                            )}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    Add product pages in the Products tab to create Home section cards here.
+                  </p>
+                )}
+              </div>
+            </div>
+            )}
+
+            {/* PRODUCTS (Legacy Home Product Editor) - kept for reference, intentionally disabled */}
+            {legacyHomeProductsEditorEnabled && selectedVertical === "co-working" && (
             <div className="col-span-2">
               <div className="py-4 border-b-default border-borderGray">
                 <span className="text-subtitle font-pmedium">Products</span>
@@ -1051,6 +3512,10 @@ const CreateWebsite = () => {
               <RoomsSection
                 control={control}
                 register={register}
+                fieldName="meetingRooms"
+                sectionTitle="Meeting Rooms"
+                itemLabel="Room"
+                imageLabel="Room Images"
                 priceLabel="Price per hour"
               />
             )}
@@ -1453,20 +3918,27 @@ const CreateWebsite = () => {
             </div>
             )}
           </div>
+          ) : null}
 
-              {/* Submit / Reset */}
-              <div className="flex justify-center mb-3">
+              {/* Publish / Preview / Reset */}
+              {/* Credit widget intentionally hidden for current dynamic-pages demo pass. */}
+              {/* <div className="flex justify-center mb-3">
                 {workspaceId || companyId ? (
                   <CreditsIndicator workspaceId={workspaceId} companyId={companyId} />
                 ) : null}
-              </div>
+              </div> */}
               <div className="flex items-center justify-center gap-4">
                 <PrimaryButton
                   type="button"
-                  title={"Submit"}
+                  title={isEditMode ? "Submit" : "Publish"}
                   onClick={() => setShowConfirmPopup(true)}
-                  isLoading={isCreateWebsiteLoading}
-                  disabled={isCreateWebsiteLoading || isRedirectingAfterCreate}
+                  isLoading={isWebsiteSubmitting}
+                  disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
+                />
+                <SecondaryButton
+                  type="button"
+                  title="Preview"
+                  onClick={openPreview}
                 />
                 <button
                   type="button"
@@ -1476,12 +3948,25 @@ const CreateWebsite = () => {
                   Reset
                 </button>
               </div>
+              {publishedWebsiteUrl ? (
+                <div className="mt-3 text-center">
+                  <p className="text-xs text-slate-500">Published URL</p>
+                  <a
+                    href={publishedWebsiteUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm font-semibold text-primary underline"
+                  >
+                    {publishedWebsiteUrl}
+                  </a>
+                </div>
+              ) : null}
             </form>
 
-            <Dialog
+              <Dialog
               open={showConfirmPopup}
               onClose={() => {
-                if (!isCreateWebsiteLoading && !isRedirectingAfterCreate) setShowConfirmPopup(false);
+                if (!isWebsiteSubmitting && !isRedirectingAfterCreate) setShowConfirmPopup(false);
               }}
               fullWidth
               maxWidth="sm"
@@ -1492,7 +3977,7 @@ const CreateWebsite = () => {
               <DialogTitle sx={{ pb: 1 }}>
                 <div className="flex items-center justify-between">
                   <span className="text-lg font-semibold text-slate-900">
-                    Confirm Website Creation
+                    Confirm Website Publish
                   </span>
                   <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
                     First Time Free
@@ -1502,19 +3987,19 @@ const CreateWebsite = () => {
               <DialogContent>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-sm font-medium text-slate-700">
-                    Your website will be created for {selectedVerticalLabel}. This
-                    vertical cannot be changed later. Do you want to continue?
+                    Your website will be created with page-style navigation (Home, About, Products,
+                    Gallery, Testimonials, Contact). Do you want to continue?
                   </p>
                   <p className="mt-2 text-xs text-slate-600">
-                    First-time website creation is free. Credits are charged only when
-                    you submit updates from the Edit Website page.
+                    This is a frontend-first demo pass. Backend page contracts will be aligned after
+                    finalizing the UI flow.
                   </p>
                 </div>
               </DialogContent>
               <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
                 <Button
                   onClick={() => setShowConfirmPopup(false)}
-                  disabled={isCreateWebsiteLoading || isRedirectingAfterCreate}
+                  disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
                   sx={{
                     borderRadius: "6px",
                     textTransform: "none",
@@ -1531,7 +4016,7 @@ const CreateWebsite = () => {
                 </Button>
                 <Button
                   variant="contained"
-                  disabled={isCreateWebsiteLoading || isRedirectingAfterCreate}
+                  disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
                   sx={{
                     borderRadius: "6px",
                     textTransform: "none",
@@ -1544,14 +4029,20 @@ const CreateWebsite = () => {
                     },
                   }}
                   onClick={() => {
-                    if (isCreateWebsiteLoading || isRedirectingAfterCreate) return;
+                    if (isWebsiteSubmitting || isRedirectingAfterCreate) return;
                     setShowConfirmPopup(false);
                     void handleSubmit((values, e) => {
                       submitCreateWebsite(values, e);
                     })();
                   }}
                 >
-                  {isCreateWebsiteLoading ? "Submitting..." : "Confirm & Create"}
+                  {isWebsiteSubmitting
+                    ? isEditMode
+                      ? "Submitting..."
+                      : "Publishing..."
+                    : isEditMode
+                      ? "Confirm & Submit"
+                      : "Confirm & Publish"}
                 </Button>
               </DialogActions>
             </Dialog>

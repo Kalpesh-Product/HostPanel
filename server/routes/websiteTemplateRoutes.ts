@@ -11,6 +11,7 @@ import {
   getInActiveTemplates,
   activateTemplate,
   getInActiveTemplate,
+  saveTemplateDraft,
   publishWebsite,
 } from "../controllers/websiteControllers/websiteTemplateControllers.js";
 
@@ -31,6 +32,7 @@ router.get("/get-website/:companyName", getTemplate);
 router.get("/get-websites", getTemplates);
 router.get("/get-inactive-website", getInActiveTemplate);
 router.get("/get-inactive-websites", getInActiveTemplates);
+router.post("/save-website-draft", uploadImages.any(), saveTemplateDraft);
 router.post("/publish-website", publishWebsite);
 
 export default router;

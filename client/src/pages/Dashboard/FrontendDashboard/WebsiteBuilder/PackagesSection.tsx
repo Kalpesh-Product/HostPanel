@@ -42,7 +42,8 @@ const PackagesSection = ({ control, register }) => {
               />
               <TextField
                 size="small"
-                label="Duration"
+                label="Stay Duration"
+                placeholder="e.g., 2 days / 1 week / 14 nights"
                 fullWidth
                 {...register(`packages.${index}.duration`)}
               />

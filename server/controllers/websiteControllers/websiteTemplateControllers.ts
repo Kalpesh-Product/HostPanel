@@ -103,43 +103,129 @@ const escapeRegex = (value = "") =>
 const normalizeSearchKeyFromName = (name = "") =>
   String(name).toLowerCase().split("-")[0].replace(/\s+/g, "");
 
+const toBool = (value, fallback = false) => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const v = value.trim().toLowerCase();
+    if (v === "true") return true;
+    if (v === "false") return false;
+  }
+  return fallback;
+};
+
+const toNum = (value, fallback = 0) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+const normalizePageNavItems = (items = []) =>
+  (Array.isArray(items) ? items : []).map((item) => ({
+    name: String(item?.name || "").trim(),
+    slug: String(item?.slug || "").trim().toLowerCase(),
+    enabled: toBool(item?.enabled, true),
+    pageHeading: String(item?.pageHeading || "").trim(),
+    pageIntro: String(item?.pageIntro || "").trim(),
+    metaTitle: String(item?.metaTitle || "").trim(),
+    metaDescription: String(item?.metaDescription || "").trim(),
+  }));
+
+const normalizeProductDropdownPages = (items = []) =>
+  (Array.isArray(items) ? items : []).map((item) => {
+    const page = {
+      name: String(item?.name || "").trim(),
+      slug: String(item?.slug || "").trim().toLowerCase(),
+      enabled: toBool(item?.enabled, true),
+      heroHeading: String(item?.heroHeading || "").trim(),
+      heroSubHeading: String(item?.heroSubHeading || "").trim(),
+      heroMode: String(item?.heroMode || "single").trim().toLowerCase(),
+      heroImages: Array.isArray(item?.heroImages)
+        ? item.heroImages
+            .map((img) => ({
+              id: String(img?.id || "").trim(),
+              url: String(img?.url || "").trim(),
+            }))
+            .filter((img) => img.id || img.url)
+        : [],
+      heroButtonText: String(item?.heroButtonText || "").trim(),
+      homeCardHeading: String(item?.homeCardHeading || "").trim(),
+      homeCardSubText: String(item?.homeCardSubText || "").trim(),
+      leadEnabled: toBool(item?.leadEnabled, true),
+      leadFormLabel: String(item?.leadFormLabel || "").trim(),
+    };
+
+    if (item?.heroImage && typeof item.heroImage === "object") {
+      page.heroImage = {
+        id: String(item.heroImage.id || "").trim(),
+        url: String(item.heroImage.url || "").trim(),
+      };
+    }
+
+    if (item?.homeCardImage && typeof item.homeCardImage === "object") {
+      page.homeCardImage = {
+        id: String(item.homeCardImage.id || "").trim(),
+        url: String(item.homeCardImage.url || "").trim(),
+      };
+    }
+
+    return page;
+  });
+
+const sanitizeProductDropdownPagesForPersistence = (items = []) =>
+  (Array.isArray(items) ? items : []).map((item) => {
+    const page = { ...item };
+    if (!page.heroImage) delete page.heroImage;
+    if (!page.homeCardImage) delete page.homeCardImage;
+    return page;
+  });
+
+const sanitizeMenuItemsForPersistence = (items = []) =>
+  (Array.isArray(items) ? items : []).map((item) => {
+    const menuItem = { ...item };
+    if (!menuItem.image) delete menuItem.image;
+    return menuItem;
+  });
+
+const serializeProductDropdownPagesForClient = (items = []) =>
+  normalizeProductDropdownPages(items).map((page) => ({
+    ...page,
+    heading:
+      String(page?.homeCardHeading || page?.name || "").trim(),
+    subText: String(page?.homeCardSubText || "").trim(),
+    cardImage: page?.homeCardImage?.url || "",
+    heroImage: page?.heroImage?.url || "",
+    heroImages: Array.isArray(page?.heroImages)
+      ? page.heroImages.map((img) => img?.url || "").filter(Boolean)
+      : [],
+  }));
+
+const serializeWebsiteTemplateForClient = (template) => {
+  const payload = template?.toObject ? template.toObject() : { ...template };
+  payload.mapUrl = normalizeMapUrl(payload.mapUrl);
+  payload.companyName =
+    resolveUsableCompanyName(payload.companyName, payload.registeredCompanyName) ||
+    payload.searchKey ||
+    "";
+  payload.pageNavItems = Array.isArray(payload.pageNavItems)
+    ? normalizePageNavItems(payload.pageNavItems)
+    : [];
+  payload.navItems = payload.pageNavItems;
+  payload.productDropdownPages = Array.isArray(payload.productDropdownPages)
+    ? normalizeProductDropdownPages(payload.productDropdownPages)
+    : [];
+  payload.productPages = serializeProductDropdownPagesForClient(
+    payload.productDropdownPages,
+  );
+  return payload;
+};
+
 const buildTemplateLookupByCompanyAndVertical = (searchKey, vertical) => {
   const normalizedSearchKey = String(searchKey || "").trim().toLowerCase();
-  const hasVertical =
-    typeof vertical === "string" && String(vertical).trim().length > 0;
-  const normalizedVertical = hasVertical
-    ? normalizeVertical(vertical)
-    : null;
-
-  if (!hasVertical) {
-    return { searchKey: normalizedSearchKey };
-  }
-
-  return {
-    searchKey: normalizedSearchKey,
-    $or: [
-      { vertical: normalizedVertical },
-      // Backward compatibility for legacy records where vertical was not set.
-      { vertical: { $exists: false } },
-      { vertical: null },
-      { vertical: "" },
-    ],
-  };
+  return { searchKey: normalizedSearchKey };
 };
 
 const buildStrictTemplateLookupByCompanyAndVertical = (searchKey, vertical) => {
   const normalizedSearchKey = String(searchKey || "").trim().toLowerCase();
-  const hasVertical =
-    typeof vertical === "string" && String(vertical).trim().length > 0;
-
-  if (!hasVertical) {
-    return { searchKey: normalizedSearchKey };
-  }
-
-  return {
-    searchKey: normalizedSearchKey,
-    vertical: normalizeVertical(vertical),
-  };
+  return { searchKey: normalizedSearchKey };
 };
 
 const getFirstDayOfNextMonthUtc = () => {
@@ -182,6 +268,23 @@ const safeNum = (value, fallback = 0) => {
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
 };
+
+const sanitizeDraftData = (value = {}) => {
+  if (!value || typeof value !== "object") return {};
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch (error) {
+    return {};
+  }
+};
+
+const extractDraftTextList = (items = []) =>
+  (Array.isArray(items) ? items : [])
+    .map((item) => {
+      if (typeof item === "string") return item.trim();
+      return String(item?.text || "").trim();
+    })
+    .filter(Boolean);
 
 const ensureNomadsCompanyRecord = async ({
   template,
@@ -281,6 +384,589 @@ const ensureNomadsCompanyRecord = async ({
   }
 };
 
+export const saveTemplateDraft = async (req, res) => {
+  try {
+    const parsedDraftData =
+      typeof req.body?.draftData === "string"
+        ? JSON.parse(req.body.draftData || "{}")
+        : req.body?.draftData || {};
+    const draftData = sanitizeDraftData(parsedDraftData);
+    const vertical = normalizeVertical(
+      req.body?.vertical ?? req.body?.verticalType ?? draftData?.vertical,
+    );
+    const resolvedCompanyName = resolveUsableCompanyName(
+      req.body?.companyName,
+      req.body?.registeredCompanyName,
+      draftData?.companyName,
+    );
+    const searchKey = String(
+      req.body?.searchKey ||
+        draftData?.searchKey ||
+        normalizeSearchKeyFromName(resolvedCompanyName),
+    )
+      .trim()
+      .toLowerCase();
+
+    if (!resolvedCompanyName || !searchKey) {
+      return res.status(400).json({
+        message: "Company name is required to save a website draft.",
+      });
+    }
+
+    const themeIdFromConfig = VERTICAL_CONFIG?.[vertical]?.themeId;
+    const themeId =
+      themeIdFromConfig && THEME_TOKENS?.[themeIdFromConfig]
+        ? themeIdFromConfig
+        : "co-working-default";
+    const activeSections = Array.isArray(VERTICAL_CONFIG?.[vertical]?.sections)
+      ? VERTICAL_CONFIG[vertical].sections
+      : [
+          "hero",
+          "about",
+          "products",
+          "gallery",
+          "testimonials",
+          "contact",
+          "footer",
+        ];
+
+    let template = await WebsiteTemplate.findOne(
+      buildStrictTemplateLookupByCompanyAndVertical(searchKey, vertical),
+    );
+
+    if (!template) {
+      template = new WebsiteTemplate({
+        searchKey,
+        companyName: resolvedCompanyName,
+        companyId: String(req.body?.companyId || "").trim() || undefined,
+        workspaceId: String(req.body?.workspaceId || "").trim() || null,
+        themeId,
+        activeSections,
+        isActive: true,
+      });
+    }
+
+    template.searchKey = searchKey;
+    template.companyName = resolvedCompanyName;
+    template.companyId =
+      String(req.body?.companyId || template.companyId || "").trim() || undefined;
+    template.workspaceId =
+      String(req.body?.workspaceId || template.workspaceId || "").trim() || null;
+    template.themeId = themeId;
+    template.activeSections = activeSections;
+    template.isActive = true;
+    template.isDraft = true;
+    template.draftUpdatedAt = new Date();
+    template.productDropdownPages = sanitizeProductDropdownPagesForPersistence(
+      template.productDropdownPages,
+    );
+    template.menuItems = sanitizeMenuItemsForPersistence(template.menuItems);
+    template.draftData = draftData;
+
+    template.registeredCompanyName =
+      resolveUsableCompanyName(
+        req.body?.registeredCompanyName,
+        draftData?.registeredCompanyName,
+        resolvedCompanyName,
+      ) || template.registeredCompanyName;
+
+    template.title =
+      draftData?.title !== undefined
+        ? String(draftData.title || "").trim()
+        : template.title;
+    template.subTitle =
+      draftData?.subTitle !== undefined
+        ? String(draftData.subTitle || "").trim()
+        : template.subTitle;
+    template.CTAButtonText =
+      draftData?.CTAButtonText !== undefined
+        ? String(draftData.CTAButtonText || "").trim()
+        : template.CTAButtonText;
+    template.about =
+      draftData?.about !== undefined
+        ? extractDraftTextList(draftData.about)
+        : template.about;
+    template.productTitle =
+      draftData?.productTitle !== undefined
+        ? String(draftData.productTitle || "").trim()
+        : template.productTitle;
+    template.galleryTitle =
+      draftData?.galleryTitle !== undefined
+        ? String(draftData.galleryTitle || "").trim()
+        : template.galleryTitle;
+    template.testimonialTitle =
+      draftData?.testimonialTitle !== undefined
+        ? String(draftData.testimonialTitle || "").trim()
+        : template.testimonialTitle;
+    template.contactTitle =
+      draftData?.contactTitle !== undefined
+        ? String(draftData.contactTitle || "").trim()
+        : template.contactTitle;
+    template.mapUrl =
+      draftData?.mapUrl !== undefined
+        ? normalizeMapUrl(draftData.mapUrl)
+        : template.mapUrl;
+    template.email =
+      draftData?.websiteEmail !== undefined || draftData?.email !== undefined
+        ? String(draftData.websiteEmail || draftData.email || "").trim()
+        : template.email;
+    template.phone =
+      draftData?.phone !== undefined
+        ? String(draftData.phone || "").trim()
+        : template.phone;
+    template.address =
+      draftData?.address !== undefined
+        ? String(draftData.address || "").trim()
+        : template.address;
+    template.copyrightText =
+      draftData?.copyrightText !== undefined
+        ? String(draftData.copyrightText || "").trim()
+        : template.copyrightText;
+    template.pageNavItems =
+      draftData?.pageNavItems !== undefined
+        ? normalizePageNavItems(draftData.pageNavItems)
+        : template.pageNavItems;
+    if (draftData?.productDropdownPages !== undefined) {
+      const normalizedPages = normalizeProductDropdownPages(draftData.productDropdownPages);
+      template.productDropdownPages = normalizedPages.map((page, index) => {
+        const existing = template.productDropdownPages?.[index] || {};
+        return {
+          ...page,
+          ...(page?.heroImage?.url
+            ? { heroImage: page.heroImage }
+            : existing?.heroImage
+              ? { heroImage: existing.heroImage }
+              : {}),
+          heroImages:
+            Array.isArray(page?.heroImages) && page.heroImages.length
+              ? page.heroImages
+              : existing?.heroImages || [],
+          ...(page?.homeCardImage?.url
+            ? { homeCardImage: page.homeCardImage }
+            : existing?.homeCardImage
+              ? { homeCardImage: existing.homeCardImage }
+              : {}),
+        };
+      });
+    }
+    template.aboutPageIntro =
+      draftData?.aboutPageIntro !== undefined
+        ? String(draftData.aboutPageIntro || "").trim()
+        : template.aboutPageIntro;
+    template.aboutPageOverview =
+      draftData?.aboutPageOverview !== undefined
+        ? String(draftData.aboutPageOverview || "").trim()
+        : template.aboutPageOverview;
+    template.aboutPageStory =
+      draftData?.aboutPageStory !== undefined
+        ? String(draftData.aboutPageStory || "").trim()
+        : template.aboutPageStory;
+    template.aboutPageMission =
+      draftData?.aboutPageMission !== undefined
+        ? String(draftData.aboutPageMission || "").trim()
+        : template.aboutPageMission;
+    template.aboutPageVision =
+      draftData?.aboutPageVision !== undefined
+        ? String(draftData.aboutPageVision || "").trim()
+        : template.aboutPageVision;
+    template.aboutPageValues =
+      draftData?.aboutPageValues !== undefined
+        ? String(draftData.aboutPageValues || "").trim()
+        : template.aboutPageValues;
+    template.aboutPageTeamHeading =
+      draftData?.aboutPageTeamHeading !== undefined
+        ? String(draftData.aboutPageTeamHeading || "").trim()
+        : template.aboutPageTeamHeading;
+    template.aboutPageImageCards =
+      draftData?.aboutPageImageCards !== undefined &&
+      Array.isArray(draftData.aboutPageImageCards)
+        ? draftData.aboutPageImageCards.map((card) => ({
+            title: String(card?.title || "").trim(),
+            description: String(card?.description || "").trim(),
+          }))
+        : template.aboutPageImageCards;
+    template.galleryPageHeading =
+      draftData?.galleryPageHeading !== undefined
+        ? String(draftData.galleryPageHeading || "").trim()
+        : template.galleryPageHeading;
+    template.testimonialsPageHeading =
+      draftData?.testimonialsPageHeading !== undefined
+        ? String(draftData.testimonialsPageHeading || "").trim()
+        : template.testimonialsPageHeading;
+    template.testimonialsPageIntro =
+      draftData?.testimonialsPageIntro !== undefined
+        ? String(draftData.testimonialsPageIntro || "").trim()
+        : template.testimonialsPageIntro;
+    template.testimonialsHomePreviewCount =
+      draftData?.testimonialsHomePreviewCount !== undefined
+        ? toNum(draftData.testimonialsHomePreviewCount, 3)
+        : template.testimonialsHomePreviewCount;
+    template.testimonialsEnableWriteReview =
+      draftData?.testimonialsEnableWriteReview !== undefined
+        ? toBool(draftData.testimonialsEnableWriteReview, true)
+        : template.testimonialsEnableWriteReview;
+    template.testimonialsSuccessMessage =
+      draftData?.testimonialsSuccessMessage !== undefined
+        ? String(draftData.testimonialsSuccessMessage || "").trim()
+        : template.testimonialsSuccessMessage;
+    template.contactPageHeading =
+      draftData?.contactPageHeading !== undefined
+        ? String(draftData.contactPageHeading || "").trim()
+        : template.contactPageHeading;
+    template.contactPageIntro =
+      draftData?.contactPageIntro !== undefined
+        ? String(draftData.contactPageIntro || "").trim()
+        : template.contactPageIntro;
+    template.contactEnableInquiryForm =
+      draftData?.contactEnableInquiryForm !== undefined
+        ? toBool(draftData.contactEnableInquiryForm, true)
+        : template.contactEnableInquiryForm;
+    template.contactInquirySuccessMessage =
+      draftData?.contactInquirySuccessMessage !== undefined
+        ? String(draftData.contactInquirySuccessMessage || "").trim()
+        : template.contactInquirySuccessMessage;
+    template.products = Array.isArray(draftData?.products)
+      ? draftData.products.map((item, index) => {
+          const existing = template.products?.[index];
+          return {
+          type: String(item?.type || "").trim(),
+          name: String(item?.name || "").trim(),
+          cost: String(item?.cost || "").trim(),
+          description: String(item?.description || "").trim(),
+          images: Array.isArray(existing?.images) ? existing.images : [],
+          };
+        })
+      : template.products;
+    template.menuItems = Array.isArray(draftData?.menuItems)
+      ? draftData.menuItems.map((item, index) => {
+          const existing = template.menuItems?.[index];
+          const nextItem = {
+            category: String(item?.category || "").trim(),
+            name: String(item?.name || "").trim(),
+            description: String(item?.description || "").trim(),
+            price: String(item?.price || "").trim(),
+          };
+          if (existing?.image) nextItem.image = existing.image;
+          return nextItem;
+        })
+      : template.menuItems;
+    template.rooms = Array.isArray(draftData?.rooms)
+      ? draftData.rooms.map((item, index) => {
+          const existing = template.rooms?.[index];
+          return {
+          title: String(item?.title || "").trim(),
+          description: String(item?.description || "").trim(),
+          price: String(item?.price || "").trim(),
+          images: Array.isArray(existing?.images) ? existing.images : [],
+          };
+        })
+      : template.rooms;
+    template.meetingRooms = Array.isArray(draftData?.meetingRooms)
+      ? draftData.meetingRooms.map((item, index) => {
+          const existing = template.meetingRooms?.[index];
+          return {
+          title: String(item?.title || "").trim(),
+          description: String(item?.description || "").trim(),
+          price: String(item?.price || "").trim(),
+          images: Array.isArray(existing?.images) ? existing.images : [],
+          };
+        })
+      : Array.isArray(draftData?.rooms)
+        ? draftData.rooms.map((item, index) => {
+            const existing = template.meetingRooms?.[index];
+            return {
+            title: String(item?.title || "").trim(),
+            description: String(item?.description || "").trim(),
+            price: String(item?.price || "").trim(),
+            images: Array.isArray(existing?.images) ? existing.images : [],
+            };
+          })
+        : template.meetingRooms;
+    template.coLivingRooms = Array.isArray(draftData?.coLivingRooms)
+      ? draftData.coLivingRooms.map((item, index) => {
+          const existing = template.coLivingRooms?.[index];
+          return {
+          title: String(item?.title || "").trim(),
+          description: String(item?.description || "").trim(),
+          price: String(item?.price || "").trim(),
+          images: Array.isArray(existing?.images) ? existing.images : [],
+          };
+        })
+      : template.coLivingRooms;
+    template.packages = Array.isArray(draftData?.packages)
+      ? draftData.packages.map((item, index) => {
+          const existing = template.packages?.[index];
+          return {
+          title: String(item?.title || "").trim(),
+          description: String(item?.description || "").trim(),
+          price: String(item?.price || "").trim(),
+          duration: String(item?.duration || "").trim(),
+          images: Array.isArray(existing?.images) ? existing.images : [],
+          };
+        })
+      : template.packages;
+    template.dorms = Array.isArray(draftData?.dorms)
+      ? draftData.dorms.map((item, index) => {
+          const existing = template.dorms?.[index];
+          return {
+          title: String(item?.title || "").trim(),
+          description: String(item?.description || "").trim(),
+          price: String(item?.price || "").trim(),
+          capacity: toNum(item?.capacity, 0),
+          images: Array.isArray(existing?.images) ? existing.images : [],
+          };
+        })
+      : template.dorms;
+    template.testimonials = Array.isArray(draftData?.testimonials)
+      ? draftData.testimonials.map((item) => ({
+          name: String(item?.name || "").trim(),
+          jobPosition: String(
+            item?.jobPosition || item?.role || "",
+          ).trim(),
+          testimony: String(item?.testimony || item?.text || "").trim(),
+          rating: toNum(item?.rating, 5),
+        }))
+      : template.testimonials;
+
+    const filesByField = {};
+    for (const file of req.files || []) {
+      if (!filesByField[file.fieldname]) filesByField[file.fieldname] = [];
+      filesByField[file.fieldname].push(file);
+    }
+
+    const uploadImagesForDraft = async (files = [], folder, limit = 10) => {
+      const uploaded = [];
+      for (const file of files.slice(0, limit)) {
+        const buffer = await sharp(file.buffer).webp({ quality: 80 }).toBuffer();
+        const route = `${folder}/${Date.now()}_${file.originalname.replace(/\s+/g, "_")}`;
+        const data = await uploadFileToS3(route, {
+          buffer,
+          mimetype: "image/webp",
+        });
+        uploaded.push({ id: data.id, url: data.url });
+      }
+      return uploaded;
+    };
+
+    const baseFolder = `hosts/template/${searchKey}`;
+
+    if (filesByField.companyLogo?.[0]) {
+      const uploaded = await uploadImagesForDraft(
+        [filesByField.companyLogo[0]],
+        `${baseFolder}/companyLogo`,
+        1,
+      );
+      template.companyLogo = uploaded[0] || template.companyLogo;
+    }
+
+    if (filesByField.heroImages?.length) {
+      const uploaded = await uploadImagesForDraft(
+        filesByField.heroImages,
+        `${baseFolder}/heroImages`,
+        5,
+      );
+      template.heroImages = [...(template.heroImages || []), ...uploaded];
+    }
+
+    if (filesByField.gallery?.length) {
+      const uploaded = await uploadImagesForDraft(
+        filesByField.gallery,
+        `${baseFolder}/gallery`,
+        40,
+      );
+      template.gallery = [...(template.gallery || []), ...uploaded];
+    }
+
+    if (filesByField.aboutPageImages?.length) {
+      const uploaded = await uploadImagesForDraft(
+        filesByField.aboutPageImages,
+        `${baseFolder}/aboutPageImages`,
+        20,
+      );
+      template.aboutPageImages = [...(template.aboutPageImages || []), ...uploaded];
+    }
+
+    if (Array.isArray(template.productDropdownPages)) {
+      for (let i = 0; i < template.productDropdownPages.length; i++) {
+        const singleHero = (filesByField[`productPageHeroImage_${i}`] || [])[0];
+        if (singleHero) {
+          const uploaded = await uploadImagesForDraft(
+            [singleHero],
+            `${baseFolder}/productPageHeroImage/${i}`,
+            1,
+          );
+          template.productDropdownPages[i].heroImage = uploaded[0] || undefined;
+        }
+
+        const heroImages = filesByField[`productPageHeroImages_${i}`] || [];
+        if (heroImages.length) {
+          template.productDropdownPages[i].heroImages = await uploadImagesForDraft(
+            heroImages,
+            `${baseFolder}/productPageHeroImages/${i}`,
+            5,
+          );
+        }
+
+        const homeCardImage = (filesByField[`productPageHomeCardImage_${i}`] || [])[0];
+        if (homeCardImage) {
+          const uploaded = await uploadImagesForDraft(
+            [homeCardImage],
+            `${baseFolder}/productPageHomeCardImage/${i}`,
+            1,
+          );
+          template.productDropdownPages[i].homeCardImage = uploaded[0] || undefined;
+        }
+      }
+    }
+
+    const ensureArrayAt = (arr, index) => {
+      while (arr.length <= index) arr.push({});
+      return arr[index];
+    };
+
+    for (const fieldName of Object.keys(filesByField)) {
+      let match = fieldName.match(/^draftMenuItemImage_(\d+)$/);
+      if (match) {
+        const idx = Number(match[1]);
+        const uploaded = await uploadImagesForDraft(
+          filesByField[fieldName],
+          `${baseFolder}/menuItems/${idx}`,
+          1,
+        );
+        if (!template.menuItems[idx]) template.menuItems[idx] = {};
+        template.menuItems[idx].image = uploaded[0] || template.menuItems[idx].image;
+        continue;
+      }
+
+      match = fieldName.match(/^draftRoomImages_(\d+)_(\d+)$/);
+      if (match) {
+        const itemIdx = Number(match[1]);
+        const uploaded = await uploadImagesForDraft(
+          filesByField[fieldName],
+          `${baseFolder}/rooms/${itemIdx}`,
+          1,
+        );
+        if (!template.rooms[itemIdx]) template.rooms[itemIdx] = {};
+        const existing = Array.isArray(template.rooms[itemIdx].images)
+          ? template.rooms[itemIdx].images
+          : [];
+        template.rooms[itemIdx].images = [...existing, ...uploaded];
+        continue;
+      }
+
+      match = fieldName.match(/^draftMeetingRoomImages_(\d+)_(\d+)$/);
+      if (match) {
+        const itemIdx = Number(match[1]);
+        const uploaded = await uploadImagesForDraft(
+          filesByField[fieldName],
+          `${baseFolder}/meetingRooms/${itemIdx}`,
+          1,
+        );
+        const meetingRooms = Array.isArray(draftData?.meetingRooms)
+          ? [...draftData.meetingRooms]
+          : [];
+        const target = ensureArrayAt(meetingRooms, itemIdx);
+        const existing = Array.isArray(target?.images) ? target.images : [];
+        target.images = [...existing, ...uploaded];
+        draftData.meetingRooms = meetingRooms;
+        if (!Array.isArray(template.meetingRooms)) template.meetingRooms = [];
+        if (!template.meetingRooms[itemIdx]) template.meetingRooms[itemIdx] = {};
+        const templateExisting = Array.isArray(template.meetingRooms[itemIdx].images)
+          ? template.meetingRooms[itemIdx].images
+          : [];
+        template.meetingRooms[itemIdx].images = [...templateExisting, ...uploaded];
+        continue;
+      }
+
+      match = fieldName.match(/^draftPackageImages_(\d+)_(\d+)$/);
+      if (match) {
+        const itemIdx = Number(match[1]);
+        const uploaded = await uploadImagesForDraft(
+          filesByField[fieldName],
+          `${baseFolder}/packages/${itemIdx}`,
+          1,
+        );
+        if (!template.packages[itemIdx]) template.packages[itemIdx] = {};
+        const existing = Array.isArray(template.packages[itemIdx].images)
+          ? template.packages[itemIdx].images
+          : [];
+        template.packages[itemIdx].images = [...existing, ...uploaded];
+        continue;
+      }
+
+      match = fieldName.match(/^draftDormImages_(\d+)_(\d+)$/);
+      if (match) {
+        const itemIdx = Number(match[1]);
+        const uploaded = await uploadImagesForDraft(
+          filesByField[fieldName],
+          `${baseFolder}/dorms/${itemIdx}`,
+          1,
+        );
+        if (!template.dorms[itemIdx]) template.dorms[itemIdx] = {};
+        const existing = Array.isArray(template.dorms[itemIdx].images)
+          ? template.dorms[itemIdx].images
+          : [];
+        template.dorms[itemIdx].images = [...existing, ...uploaded];
+        continue;
+      }
+
+      match = fieldName.match(/^draftProductImages_(\d+)_(\d+)$/);
+      if (match) {
+        const itemIdx = Number(match[1]);
+        const uploaded = await uploadImagesForDraft(
+          filesByField[fieldName],
+          `${baseFolder}/products/${itemIdx}`,
+          1,
+        );
+        if (!template.products[itemIdx]) template.products[itemIdx] = {};
+        const existing = Array.isArray(template.products[itemIdx].images)
+          ? template.products[itemIdx].images
+          : [];
+        template.products[itemIdx].images = [...existing, ...uploaded];
+        continue;
+      }
+
+      match = fieldName.match(/^draftCoLivingRoomImages_(\d+)_(\d+)$/);
+      if (match) {
+        const itemIdx = Number(match[1]);
+        const uploaded = await uploadImagesForDraft(
+          filesByField[fieldName],
+          `${baseFolder}/coLivingRooms/${itemIdx}`,
+          1,
+        );
+        const coLivingRooms = Array.isArray(draftData?.coLivingRooms)
+          ? [...draftData.coLivingRooms]
+          : [];
+        const target = ensureArrayAt(coLivingRooms, itemIdx);
+        const existing = Array.isArray(target?.images) ? target.images : [];
+        target.images = [...existing, ...uploaded];
+        draftData.coLivingRooms = coLivingRooms;
+        if (!Array.isArray(template.coLivingRooms)) template.coLivingRooms = [];
+        if (!template.coLivingRooms[itemIdx]) template.coLivingRooms[itemIdx] = {};
+        const templateExisting = Array.isArray(template.coLivingRooms[itemIdx].images)
+          ? template.coLivingRooms[itemIdx].images
+          : [];
+        template.coLivingRooms[itemIdx].images = [...templateExisting, ...uploaded];
+      }
+    }
+
+    template.draftData = draftData;
+
+    template.productDropdownPages = sanitizeProductDropdownPagesForPersistence(
+      template.productDropdownPages,
+    );
+    template.menuItems = sanitizeMenuItemsForPersistence(template.menuItems);
+    await template.save();
+
+    return res.status(200).json({
+      message: "Website draft saved successfully",
+      template: serializeWebsiteTemplateForClient(template),
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to save website draft" });
+  }
+};
+
 export const createTemplate = async (req, res, next) => {
   try {
     console.log("REQ BODY VERTICAL:", req.body.vertical);
@@ -293,10 +979,15 @@ export const createTemplate = async (req, res, next) => {
       products,
       menuItems,
       rooms,
+      meetingRooms,
+      coLivingRooms,
       packages,
       dorms,
       testimonials,
       about,
+      pageNavItems,
+      productDropdownPages,
+      aboutPageImageCards,
       enabledSections,
       sectionOverrides,
       styleConfig,
@@ -315,9 +1006,14 @@ export const createTemplate = async (req, res, next) => {
     products = safeParse(products, []);
     menuItems = safeParse(menuItems, []);
     rooms = safeParse(rooms, []);
+    meetingRooms = safeParse(meetingRooms, []);
+    coLivingRooms = safeParse(coLivingRooms, []);
     packages = safeParse(packages, []);
     dorms = safeParse(dorms, []);
     testimonials = safeParse(testimonials, []);
+    pageNavItems = safeParse(pageNavItems, []);
+    productDropdownPages = safeParse(productDropdownPages, []);
+    aboutPageImageCards = safeParse(aboutPageImageCards, []);
     enabledSections = safeParse(enabledSections, []);
     sectionOverrides = safeParse(sectionOverrides, {});
     styleConfig = safeParse(styleConfig, {});
@@ -532,7 +1228,10 @@ export const createTemplate = async (req, res, next) => {
       buildStrictTemplateLookupByCompanyAndVertical(searchKey, vertical),
     );
 
-    if (template) {
+    const canPromoteExistingDraft =
+      Boolean(template) && template.isDraft === true && template.isPublished !== true;
+
+    if (template && !canPromoteExistingDraft) {
       return res
         .status(400)
         .json({
@@ -546,47 +1245,141 @@ export const createTemplate = async (req, res, next) => {
         });
     }
 
-    template = new WebsiteTemplate({
-      searchKey,
-      companyId: req.body?.companyId,
-      workspaceId: req.body?.workspaceId || null,
-      companyName: req.body.companyName,
-      title: req.body.title,
-      subTitle: req.body.subTitle,
-      CTAButtonText: req.body.CTAButtonText,
-      about: about,
-      productTitle: resolvedProductTitle,
-      galleryTitle: req.body?.galleryTitle,
-      testimonialTitle: req.body.testimonialTitle,
-      contactTitle: req.body.contactTitle,
-      mapUrl: normalizeMapUrl(req.body.mapUrl),
-      email: req.body.websiteEmail,
-      phone: req.body.phone,
-      address: req.body.address,
-      registeredCompanyName:
-        resolveUsableCompanyName(
-          req.body.registeredCompanyName,
-          req.body.companyName,
-        ) || req.body.registeredCompanyName,
-      copyrightText: req.body.copyrightText,
-      verticalType: normalizeVertical(req.body.verticalType || vertical),
-      heroVariant: req.body.heroVariant || "text-image",
-      themeVariant: req.body.themeVariant || "default",
-      vertical,
-      themeId,
-      activeSections,
-      enabledSections: Array.isArray(enabledSections) ? enabledSections : [],
-      sectionOverrides,
-      styleConfig,
-      isWebsiteTemplate: true,
-      isActive: true,
-      products: [],
-      menuItems: [],
-      rooms: [],
-      packages: [],
-      dorms: [],
-      testimonials: [],
-    });
+    if (!template || !canPromoteExistingDraft) {
+      template = new WebsiteTemplate({
+        searchKey,
+        companyId: req.body?.companyId,
+        workspaceId: req.body?.workspaceId || null,
+        companyName: req.body.companyName,
+        title: req.body.title,
+        subTitle: req.body.subTitle,
+        CTAButtonText: req.body.CTAButtonText,
+        about: about,
+        productTitle: resolvedProductTitle,
+        galleryTitle: req.body?.galleryTitle,
+        testimonialTitle: req.body.testimonialTitle,
+        contactTitle: req.body.contactTitle,
+        mapUrl: normalizeMapUrl(req.body.mapUrl),
+        email: req.body.websiteEmail,
+        phone: req.body.phone,
+        address: req.body.address,
+        registeredCompanyName:
+          resolveUsableCompanyName(
+            req.body.registeredCompanyName,
+            req.body.companyName,
+          ) || req.body.registeredCompanyName,
+        copyrightText: req.body.copyrightText,
+        heroVariant: req.body.heroVariant || "text-image",
+        themeVariant: req.body.themeVariant || "default",
+        themeId,
+        activeSections,
+        enabledSections: Array.isArray(enabledSections) ? enabledSections : [],
+        sectionOverrides,
+        styleConfig,
+        pageNavItems: normalizePageNavItems(pageNavItems),
+        productDropdownPages: normalizeProductDropdownPages(productDropdownPages),
+        aboutPageIntro: String(req.body?.aboutPageIntro || "").trim(),
+        aboutPageOverview: String(req.body?.aboutPageOverview || "").trim(),
+        aboutPageStory: String(req.body?.aboutPageStory || "").trim(),
+        aboutPageMission: String(req.body?.aboutPageMission || "").trim(),
+        aboutPageVision: String(req.body?.aboutPageVision || "").trim(),
+        aboutPageValues: String(req.body?.aboutPageValues || "").trim(),
+        aboutPageTeamHeading: String(req.body?.aboutPageTeamHeading || "").trim(),
+        galleryPageHeading: String(req.body?.galleryPageHeading || "").trim(),
+        testimonialsPageHeading: String(req.body?.testimonialsPageHeading || "").trim(),
+        testimonialsPageIntro: String(req.body?.testimonialsPageIntro || "").trim(),
+        testimonialsHomePreviewCount: toNum(req.body?.testimonialsHomePreviewCount, 3),
+        testimonialsEnableWriteReview: toBool(req.body?.testimonialsEnableWriteReview, true),
+        testimonialsSuccessMessage: String(req.body?.testimonialsSuccessMessage || "").trim(),
+        contactPageHeading: String(req.body?.contactPageHeading || "").trim(),
+        contactPageIntro: String(req.body?.contactPageIntro || "").trim(),
+        contactEnableInquiryForm: toBool(req.body?.contactEnableInquiryForm, true),
+        contactInquirySuccessMessage: String(req.body?.contactInquirySuccessMessage || "").trim(),
+        contactBusinessHours: String(req.body?.contactBusinessHours || "").trim(),
+        contactPersonName: String(req.body?.contactPersonName || "").trim(),
+        contactPersonRole: String(req.body?.contactPersonRole || "").trim(),
+        contactPersonEmail: String(req.body?.contactPersonEmail || "").trim(),
+        contactPersonPhone: String(req.body?.contactPersonPhone || "").trim(),
+        isWebsiteTemplate: true,
+        isActive: true,
+        products: [],
+        menuItems: [],
+        rooms: [],
+        meetingRooms: [],
+        coLivingRooms: [],
+        packages: [],
+        dorms: [],
+        testimonials: [],
+      });
+    } else {
+      Object.assign(template, {
+        companyId: req.body?.companyId,
+        workspaceId: req.body?.workspaceId || null,
+        companyName: req.body.companyName,
+        title: req.body.title,
+        subTitle: req.body.subTitle,
+        CTAButtonText: req.body.CTAButtonText,
+        about: about,
+        productTitle: resolvedProductTitle,
+        galleryTitle: req.body?.galleryTitle,
+        testimonialTitle: req.body.testimonialTitle,
+        contactTitle: req.body.contactTitle,
+        mapUrl: normalizeMapUrl(req.body.mapUrl),
+        email: req.body.websiteEmail,
+        phone: req.body.phone,
+        address: req.body.address,
+        registeredCompanyName:
+          resolveUsableCompanyName(
+            req.body.registeredCompanyName,
+            req.body.companyName,
+          ) || req.body.registeredCompanyName,
+        copyrightText: req.body.copyrightText,
+        heroVariant: req.body.heroVariant || "text-image",
+        themeVariant: req.body.themeVariant || "default",
+        themeId,
+        activeSections,
+        enabledSections: Array.isArray(enabledSections) ? enabledSections : [],
+        sectionOverrides,
+        styleConfig,
+        pageNavItems: normalizePageNavItems(pageNavItems),
+        productDropdownPages: normalizeProductDropdownPages(productDropdownPages),
+        aboutPageIntro: String(req.body?.aboutPageIntro || "").trim(),
+        aboutPageOverview: String(req.body?.aboutPageOverview || "").trim(),
+        aboutPageStory: String(req.body?.aboutPageStory || "").trim(),
+        aboutPageMission: String(req.body?.aboutPageMission || "").trim(),
+        aboutPageVision: String(req.body?.aboutPageVision || "").trim(),
+        aboutPageValues: String(req.body?.aboutPageValues || "").trim(),
+        aboutPageTeamHeading: String(req.body?.aboutPageTeamHeading || "").trim(),
+        galleryPageHeading: String(req.body?.galleryPageHeading || "").trim(),
+        testimonialsPageHeading: String(req.body?.testimonialsPageHeading || "").trim(),
+        testimonialsPageIntro: String(req.body?.testimonialsPageIntro || "").trim(),
+        testimonialsHomePreviewCount: toNum(req.body?.testimonialsHomePreviewCount, 3),
+        testimonialsEnableWriteReview: toBool(req.body?.testimonialsEnableWriteReview, true),
+        testimonialsSuccessMessage: String(req.body?.testimonialsSuccessMessage || "").trim(),
+        contactPageHeading: String(req.body?.contactPageHeading || "").trim(),
+        contactPageIntro: String(req.body?.contactPageIntro || "").trim(),
+        contactEnableInquiryForm: toBool(req.body?.contactEnableInquiryForm, true),
+        contactInquirySuccessMessage: String(req.body?.contactInquirySuccessMessage || "").trim(),
+        contactBusinessHours: String(req.body?.contactBusinessHours || "").trim(),
+        contactPersonName: String(req.body?.contactPersonName || "").trim(),
+        contactPersonRole: String(req.body?.contactPersonRole || "").trim(),
+        contactPersonEmail: String(req.body?.contactPersonEmail || "").trim(),
+        contactPersonPhone: String(req.body?.contactPersonPhone || "").trim(),
+        isWebsiteTemplate: true,
+        isActive: true,
+        products: [],
+        menuItems: [],
+        rooms: [],
+        meetingRooms: [],
+        coLivingRooms: [],
+        packages: [],
+        dorms: [],
+        testimonials: [],
+      });
+    }
+    template.isDraft = false;
+    template.draftData = null;
+    template.draftUpdatedAt = null;
     console.log("CREATING WEBSITE WITH:", {
       vertical: req.body.vertical,
       isActive: true,
@@ -684,6 +1477,54 @@ export const createTemplate = async (req, res, next) => {
       }
     }
 
+    const allowProductFallback = products.length === 0;
+
+    for (let i = 0; i < rooms.length; i++) {
+      const roomFiles = filesByField[`roomImages_${i}`] || (allowProductFallback ? filesByField[`productImages_${i}`] || [] : []);
+      if (roomFiles.length > 10) {
+        return res.status(400).json({
+          message: `Max 10 images allowed per room (${rooms[i].title || "Room"}).`,
+        });
+      }
+    }
+
+    for (let i = 0; i < meetingRooms.length; i++) {
+      const meetingRoomFiles =
+        filesByField[`meetingRoomImages_${i}`] || (allowProductFallback ? filesByField[`productImages_${i}`] || [] : []);
+      if (meetingRoomFiles.length > 10) {
+        return res.status(400).json({
+          message: `Max 10 images allowed per meeting room (${meetingRooms[i].title || "Room"}).`,
+        });
+      }
+    }
+
+    for (let i = 0; i < coLivingRooms.length; i++) {
+      const coLivingFiles = filesByField[`coLivingRoomImages_${i}`] || [];
+      if (coLivingFiles.length > 10) {
+        return res.status(400).json({
+          message: `Max 10 images allowed per co-living room (${coLivingRooms[i].title || "Room"}).`,
+        });
+      }
+    }
+
+    for (let i = 0; i < packages.length; i++) {
+      const packageFiles = filesByField[`packageImages_${i}`] || (allowProductFallback ? filesByField[`productImages_${i}`] || [] : []);
+      if (packageFiles.length > 10) {
+        return res.status(400).json({
+          message: `Max 10 images allowed per package (${packages[i].title || "Package"}).`,
+        });
+      }
+    }
+
+    for (let i = 0; i < dorms.length; i++) {
+      const dormFiles = filesByField[`dormImages_${i}`] || (allowProductFallback ? filesByField[`productImages_${i}`] || [] : []);
+      if (dormFiles.length > 10) {
+        return res.status(400).json({
+          message: `Max 10 images allowed per dorm (${dorms[i].title || "Dorm"}).`,
+        });
+      }
+    }
+
     // Gallery: max 40
     if (galleryFiles.length > 40) {
       return res.status(400).json({
@@ -734,6 +1575,65 @@ export const createTemplate = async (req, res, next) => {
       );
     }
 
+    if (filesByField.aboutPageImages?.length) {
+      template.aboutPageImages = await uploadImages(
+        filesByField.aboutPageImages,
+        `${baseFolder}/aboutPageImages`,
+      );
+    }
+
+    const normalizedAboutCards = Array.isArray(aboutPageImageCards)
+      ? aboutPageImageCards.map((card) => ({
+          title: String(card?.title || "").trim(),
+          description: String(card?.description || "").trim(),
+        }))
+      : [];
+    for (let i = 0; i < normalizedAboutCards.length; i++) {
+      const cardFiles = filesByField[`aboutPageImageCardImage_${i}`] || [];
+      if (cardFiles.length > 0) {
+        const uploaded = await uploadImages(
+          [cardFiles[0]],
+          `${baseFolder}/aboutPageImageCards/${i}`,
+        );
+        normalizedAboutCards[i].image = uploaded[0] || normalizedAboutCards[i].image;
+      }
+    }
+    if (normalizedAboutCards.length) {
+      template.aboutPageImageCards = normalizedAboutCards;
+    }
+
+    const normalizedProductPages = normalizeProductDropdownPages(productDropdownPages);
+    for (let i = 0; i < normalizedProductPages.length; i++) {
+      const singleHeroFile = (filesByField[`productPageHeroImage_${i}`] || [])[0];
+      if (singleHeroFile) {
+        const uploaded = await uploadImages(
+          [singleHeroFile],
+          `${baseFolder}/productPageHeroImage/${i}`,
+        );
+        normalizedProductPages[i].heroImage = uploaded[0] || undefined;
+      }
+      const heroCarouselFiles = filesByField[`productPageHeroImages_${i}`] || [];
+      if (heroCarouselFiles.length) {
+        normalizedProductPages[i].heroImages = await uploadImages(
+          heroCarouselFiles.slice(0, 5),
+          `${baseFolder}/productPageHeroImages/${i}`,
+        );
+      } else {
+        normalizedProductPages[i].heroImages = [];
+      }
+      const homeCardFile = (filesByField[`productPageHomeCardImage_${i}`] || [])[0];
+      if (homeCardFile) {
+        const uploaded = await uploadImages(
+          [homeCardFile],
+          `${baseFolder}/productPageHomeCardImage/${i}`,
+        );
+        normalizedProductPages[i].homeCardImage = uploaded[0] || undefined;
+      }
+    }
+    if (normalizedProductPages.length) {
+      template.productDropdownPages = normalizedProductPages;
+    }
+
     if (Array.isArray(products) && products.length) {
       for (let i = 0; i < products.length; i++) {
         const p = products[i] || {};
@@ -756,22 +1656,23 @@ export const createTemplate = async (req, res, next) => {
     if (Array.isArray(menuItems) && menuItems.length) {
       for (let i = 0; i < menuItems.length; i++) {
         const item = menuItems[i] || {};
-        const imageFile = (filesByField[`productImages_${i}`] || [])[0];
-        let uploadedImage = null;
+        const imageFile = (filesByField[`menuItemImages_${i}`] || (allowProductFallback ? filesByField[`productImages_${i}`] || [] : []))[0];
+        let uploadedImage;
         if (imageFile) {
           const uploaded = await uploadImages(
             [imageFile],
             `${baseFolder}/menuItems/${i}`,
           );
-          uploadedImage = uploaded[0] || null;
+          uploadedImage = uploaded[0];
         }
-        template.menuItems.push({
+        const menuItemRecord = {
           category: item.category || "",
           name: item.name || "",
           description: item.description || "",
           price: item.price || "",
-          image: uploadedImage,
-        });
+        };
+        if (uploadedImage) menuItemRecord.image = uploadedImage;
+        template.menuItems.push(menuItemRecord);
       }
     }
 
@@ -779,10 +1680,42 @@ export const createTemplate = async (req, res, next) => {
       for (let i = 0; i < rooms.length; i++) {
         const item = rooms[i] || {};
         const uploaded = await uploadImages(
-          filesByField[`productImages_${i}`] || [],
+          filesByField[`roomImages_${i}`] || (allowProductFallback ? filesByField[`productImages_${i}`] || [] : []),
           `${baseFolder}/rooms/${i}`,
         );
         template.rooms.push({
+          title: item.title || "",
+          description: item.description || "",
+          price: item.price || "",
+          images: uploaded,
+        });
+      }
+    }
+
+    if (Array.isArray(meetingRooms) && meetingRooms.length) {
+      for (let i = 0; i < meetingRooms.length; i++) {
+        const item = meetingRooms[i] || {};
+        const uploaded = await uploadImages(
+          filesByField[`meetingRoomImages_${i}`] || (allowProductFallback ? filesByField[`productImages_${i}`] || [] : []),
+          `${baseFolder}/meetingRooms/${i}`,
+        );
+        template.meetingRooms.push({
+          title: item.title || "",
+          description: item.description || "",
+          price: item.price || "",
+          images: uploaded,
+        });
+      }
+    }
+
+    if (Array.isArray(coLivingRooms) && coLivingRooms.length) {
+      for (let i = 0; i < coLivingRooms.length; i++) {
+        const item = coLivingRooms[i] || {};
+        const uploaded = await uploadImages(
+          filesByField[`coLivingRoomImages_${i}`] || [],
+          `${baseFolder}/coLivingRooms/${i}`,
+        );
+        template.coLivingRooms.push({
           title: item.title || "",
           description: item.description || "",
           price: item.price || "",
@@ -795,7 +1728,7 @@ export const createTemplate = async (req, res, next) => {
       for (let i = 0; i < packages.length; i++) {
         const item = packages[i] || {};
         const uploaded = await uploadImages(
-          filesByField[`productImages_${i}`] || [],
+          filesByField[`packageImages_${i}`] || (allowProductFallback ? filesByField[`productImages_${i}`] || [] : []),
           `${baseFolder}/packages/${i}`,
         );
         template.packages.push({
@@ -812,7 +1745,7 @@ export const createTemplate = async (req, res, next) => {
       for (let i = 0; i < dorms.length; i++) {
         const item = dorms[i] || {};
         const uploaded = await uploadImages(
-          filesByField[`productImages_${i}`] || [],
+          filesByField[`dormImages_${i}`] || (allowProductFallback ? filesByField[`productImages_${i}`] || [] : []),
           `${baseFolder}/dorms/${i}`,
         );
         template.dorms.push({
@@ -877,7 +1810,6 @@ export const createTemplate = async (req, res, next) => {
           $set: {
             isWebsiteTemplate: true,
             vertical,
-            verticalType: req.body.verticalType || vertical,
             industry: normalizedIndustry,
           },
           $addToSet: {
@@ -929,7 +1861,9 @@ export const createTemplate = async (req, res, next) => {
       companyId: req.body?.companyId || savedTemplate?.companyId,
     });
 
-    return res.status(201).json({ message: "Template created", template: savedTemplate });
+    return res
+      .status(201)
+      .json({ message: "Template created", template: serializeWebsiteTemplateForClient(savedTemplate) });
   } catch (error) {
     next(error);
   }
@@ -954,14 +1888,7 @@ export const getTemplate = async (req, res) => {
     if (!template) {
       return res.status(200).json([]);
     }
-    const payload = template.toObject ? template.toObject() : template;
-    payload.mapUrl = normalizeMapUrl(payload.mapUrl);
-    payload.companyName =
-      resolveUsableCompanyName(
-        payload.companyName,
-        payload.registeredCompanyName,
-      ) || payload.searchKey || "";
-    res.json(payload);
+    res.json(serializeWebsiteTemplateForClient(template));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -980,7 +1907,7 @@ export const getInActiveTemplate = async (req, res) => {
     if (!template) {
       return res.status(200).json([]);
     }
-    res.json(template);
+    res.json(serializeWebsiteTemplateForClient(template));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1062,21 +1989,12 @@ export const getTemplates = async (req, res) => {
     }
 
     let sanitizedTemplates = candidates.map((template) => {
-      const payload = template.toObject ? template.toObject() : template;
-      payload.mapUrl = normalizeMapUrl(payload.mapUrl);
-      payload.companyName =
-        resolveUsableCompanyName(
-          payload.companyName,
-          payload.registeredCompanyName,
-        ) || payload.searchKey || "";
-      return payload;
+      return serializeWebsiteTemplateForClient(template);
     });
 
     if (normalizedRequestedVertical) {
       sanitizedTemplates = sanitizedTemplates.filter(
-        (template) =>
-          normalizeVertical(template?.vertical || template?.verticalType) ===
-          normalizedRequestedVertical,
+        (template) => !template?.vertical || normalizeVertical(template?.vertical) === normalizedRequestedVertical,
       );
     }
 
@@ -1094,7 +2012,7 @@ export const getInActiveTemplates = async (req, res) => {
       return res.status(200).json([]);
     }
 
-    res.json(templates);
+    res.json(templates.map((template) => serializeWebsiteTemplateForClient(template)));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1131,10 +2049,15 @@ export const editTemplate = async (req, res, next) => {
       products,
       menuItems,
       rooms,
+      meetingRooms,
+      coLivingRooms,
       packages,
       dorms,
       testimonials,
       about,
+      pageNavItems,
+      productDropdownPages,
+      aboutPageImageCards,
       enabledSections,
       sectionOverrides,
       styleConfig,
@@ -1153,9 +2076,14 @@ export const editTemplate = async (req, res, next) => {
     products = safeParse(products, []);
     menuItems = safeParse(menuItems, []);
     rooms = safeParse(rooms, []);
+    meetingRooms = safeParse(meetingRooms, []);
+    coLivingRooms = safeParse(coLivingRooms, []);
     packages = safeParse(packages, []);
     dorms = safeParse(dorms, []);
     testimonials = safeParse(testimonials, []);
+    pageNavItems = safeParse(pageNavItems, null);
+    productDropdownPages = safeParse(productDropdownPages, null);
+    aboutPageImageCards = safeParse(aboutPageImageCards, null);
     enabledSections = safeParse(enabledSections, null);
     sectionOverrides = safeParse(sectionOverrides, null);
     styleConfig = safeParse(styleConfig, null);
@@ -1361,9 +2289,7 @@ export const editTemplate = async (req, res, next) => {
       about: Array.isArray(about) ? about : template.about,
       productTitle:
         String(req.body?.productTitle || "").trim() ||
-        sectionTitleByVertical[
-          String(normalizedVertical || template?.vertical || "").trim()
-        ] ||
+        sectionTitleByVertical[String(normalizedVertical || "").trim()] ||
         template.productTitle,
       galleryTitle: req.body.galleryTitle ?? template.galleryTitle,
       testimonialTitle: req.body.testimonialTitle ?? template.testimonialTitle,
@@ -1383,13 +2309,6 @@ export const editTemplate = async (req, res, next) => {
           template.companyName,
         ) || template.registeredCompanyName,
       copyrightText: req.body.copyrightText ?? template.copyrightText,
-      verticalType: normalizeVertical(
-        req.body.verticalType ??
-          req.body.vertical ??
-          template.verticalType ??
-          template.vertical ??
-          "co-working",
-      ),
       heroVariant: req.body.heroVariant ?? template.heroVariant ?? "text-image",
       themeVariant: req.body.themeVariant ?? template.themeVariant ?? "default",
       enabledSections:
@@ -1401,6 +2320,102 @@ export const editTemplate = async (req, res, next) => {
       sectionOverrides:
         sectionOverrides === null ? template.sectionOverrides : sectionOverrides,
       styleConfig: styleConfig === null ? template.styleConfig : styleConfig,
+      pageNavItems:
+        pageNavItems === null
+          ? template.pageNavItems
+          : normalizePageNavItems(pageNavItems),
+      productDropdownPages:
+        productDropdownPages === null
+          ? template.productDropdownPages
+          : normalizeProductDropdownPages(productDropdownPages),
+      aboutPageIntro:
+        req.body?.aboutPageIntro !== undefined
+          ? String(req.body.aboutPageIntro || "").trim()
+          : template.aboutPageIntro,
+      aboutPageOverview:
+        req.body?.aboutPageOverview !== undefined
+          ? String(req.body.aboutPageOverview || "").trim()
+          : template.aboutPageOverview,
+      aboutPageStory:
+        req.body?.aboutPageStory !== undefined
+          ? String(req.body.aboutPageStory || "").trim()
+          : template.aboutPageStory,
+      aboutPageMission:
+        req.body?.aboutPageMission !== undefined
+          ? String(req.body.aboutPageMission || "").trim()
+          : template.aboutPageMission,
+      aboutPageVision:
+        req.body?.aboutPageVision !== undefined
+          ? String(req.body.aboutPageVision || "").trim()
+          : template.aboutPageVision,
+      aboutPageValues:
+        req.body?.aboutPageValues !== undefined
+          ? String(req.body.aboutPageValues || "").trim()
+          : template.aboutPageValues,
+      aboutPageTeamHeading:
+        req.body?.aboutPageTeamHeading !== undefined
+          ? String(req.body.aboutPageTeamHeading || "").trim()
+          : template.aboutPageTeamHeading,
+      galleryPageHeading:
+        req.body?.galleryPageHeading !== undefined
+          ? String(req.body.galleryPageHeading || "").trim()
+          : template.galleryPageHeading,
+      testimonialsPageHeading:
+        req.body?.testimonialsPageHeading !== undefined
+          ? String(req.body.testimonialsPageHeading || "").trim()
+          : template.testimonialsPageHeading,
+      testimonialsPageIntro:
+        req.body?.testimonialsPageIntro !== undefined
+          ? String(req.body.testimonialsPageIntro || "").trim()
+          : template.testimonialsPageIntro,
+      testimonialsHomePreviewCount:
+        req.body?.testimonialsHomePreviewCount !== undefined
+          ? toNum(req.body.testimonialsHomePreviewCount, 3)
+          : template.testimonialsHomePreviewCount,
+      testimonialsEnableWriteReview:
+        req.body?.testimonialsEnableWriteReview !== undefined
+          ? toBool(req.body.testimonialsEnableWriteReview, true)
+          : template.testimonialsEnableWriteReview,
+      testimonialsSuccessMessage:
+        req.body?.testimonialsSuccessMessage !== undefined
+          ? String(req.body.testimonialsSuccessMessage || "").trim()
+          : template.testimonialsSuccessMessage,
+      contactPageHeading:
+        req.body?.contactPageHeading !== undefined
+          ? String(req.body.contactPageHeading || "").trim()
+          : template.contactPageHeading,
+      contactPageIntro:
+        req.body?.contactPageIntro !== undefined
+          ? String(req.body.contactPageIntro || "").trim()
+          : template.contactPageIntro,
+      contactEnableInquiryForm:
+        req.body?.contactEnableInquiryForm !== undefined
+          ? toBool(req.body.contactEnableInquiryForm, true)
+          : template.contactEnableInquiryForm,
+      contactInquirySuccessMessage:
+        req.body?.contactInquirySuccessMessage !== undefined
+          ? String(req.body.contactInquirySuccessMessage || "").trim()
+          : template.contactInquirySuccessMessage,
+      contactBusinessHours:
+        req.body?.contactBusinessHours !== undefined
+          ? String(req.body.contactBusinessHours || "").trim()
+          : template.contactBusinessHours,
+      contactPersonName:
+        req.body?.contactPersonName !== undefined
+          ? String(req.body.contactPersonName || "").trim()
+          : template.contactPersonName,
+      contactPersonRole:
+        req.body?.contactPersonRole !== undefined
+          ? String(req.body.contactPersonRole || "").trim()
+          : template.contactPersonRole,
+      contactPersonEmail:
+        req.body?.contactPersonEmail !== undefined
+          ? String(req.body.contactPersonEmail || "").trim()
+          : template.contactPersonEmail,
+      contactPersonPhone:
+        req.body?.contactPersonPhone !== undefined
+          ? String(req.body.contactPersonPhone || "").trim()
+          : template.contactPersonPhone,
       menuItems:
         String(normalizedVertical || template?.vertical || "").trim() === "cafe"
           ? template.menuItems
@@ -1408,12 +2423,22 @@ export const editTemplate = async (req, res, next) => {
             ? menuItems
             : template.menuItems,
       rooms: Array.isArray(rooms) ? rooms : template.rooms,
+      meetingRooms: Array.isArray(meetingRooms)
+        ? meetingRooms
+        : Array.isArray(rooms)
+          ? rooms
+          : template.meetingRooms,
+      coLivingRooms: Array.isArray(coLivingRooms)
+        ? coLivingRooms
+        : template.coLivingRooms,
       packages: Array.isArray(packages) ? packages : template.packages,
       dorms: Array.isArray(dorms) ? dorms : template.dorms,
     });
+    template.isDraft = false;
+    template.draftData = null;
+    template.draftUpdatedAt = null;
 
     if (hasVerticalInBody && normalizedVertical) {
-      template.vertical = normalizedVertical;
       template.themeId =
         derivedThemeId && THEME_TOKENS?.[derivedThemeId]
           ? derivedThemeId
@@ -1496,6 +2521,105 @@ export const editTemplate = async (req, res, next) => {
       template.gallery.push(...newGallery);
     }
 
+    const aboutPageImageKeepIds = safeParse(req.body.aboutPageImageIds, []);
+    if (req.body.aboutPageImageIds !== undefined) {
+      const toDelete = (template.aboutPageImages || []).filter(
+        (img) => !aboutPageImageKeepIds.includes(img.id),
+      );
+      await deleteImagesFromS3(toDelete);
+      template.aboutPageImages = (template.aboutPageImages || []).filter((img) =>
+        aboutPageImageKeepIds.includes(img.id),
+      );
+    }
+    const newAboutPageImages = filesByField.aboutPageImages || [];
+    if (newAboutPageImages.length) {
+      const uploadedAboutPageImages = await uploadImages(
+        newAboutPageImages,
+        `${baseFolder}/aboutPageImages`,
+      );
+      template.aboutPageImages = [
+        ...(template.aboutPageImages || []),
+        ...uploadedAboutPageImages,
+      ];
+    }
+
+    if (aboutPageImageCards !== null) {
+      const normalizedCards = (Array.isArray(aboutPageImageCards)
+        ? aboutPageImageCards
+        : []
+      ).map((card, index) => {
+        const existing = template.aboutPageImageCards?.[index];
+        return {
+          title: String(card?.title || "").trim(),
+          description: String(card?.description || "").trim(),
+          ...(existing?.image ? { image: existing.image } : {}),
+        };
+      });
+
+      for (let i = 0; i < normalizedCards.length; i++) {
+        const cardFile = (filesByField[`aboutPageImageCardImage_${i}`] || [])[0];
+        if (cardFile) {
+          if (normalizedCards[i]?.image?.url) {
+            await deleteImagesFromS3([normalizedCards[i].image]);
+          }
+          const uploaded = await uploadImages(
+            [cardFile],
+            `${baseFolder}/aboutPageImageCards/${i}`,
+            1,
+          );
+          normalizedCards[i].image = uploaded[0] || normalizedCards[i].image;
+        }
+      }
+      template.aboutPageImageCards = normalizedCards;
+    }
+
+    if (productDropdownPages !== null) {
+      const normalizedPages = normalizeProductDropdownPages(productDropdownPages);
+      for (let i = 0; i < normalizedPages.length; i++) {
+        const existing = template.productDropdownPages?.[i];
+        normalizedPages[i].heroImage = existing?.heroImage || undefined;
+        normalizedPages[i].heroImages = existing?.heroImages || [];
+        normalizedPages[i].homeCardImage = existing?.homeCardImage || undefined;
+
+        const singleHeroFile = (filesByField[`productPageHeroImage_${i}`] || [])[0];
+        if (singleHeroFile) {
+          if (normalizedPages[i]?.heroImage?.url) {
+            await deleteImagesFromS3([normalizedPages[i].heroImage]);
+          }
+          const uploaded = await uploadImages(
+            [singleHeroFile],
+            `${baseFolder}/productPageHeroImage/${i}`,
+            1,
+          );
+          normalizedPages[i].heroImage = uploaded[0] || undefined;
+        }
+
+        const heroCarouselFiles = filesByField[`productPageHeroImages_${i}`] || [];
+        if (heroCarouselFiles.length) {
+          await deleteImagesFromS3(normalizedPages[i].heroImages || []);
+          normalizedPages[i].heroImages = await uploadImages(
+            heroCarouselFiles.slice(0, 5),
+            `${baseFolder}/productPageHeroImages/${i}`,
+            5,
+          );
+        }
+
+        const homeCardFile = (filesByField[`productPageHomeCardImage_${i}`] || [])[0];
+        if (homeCardFile) {
+          if (normalizedPages[i]?.homeCardImage?.url) {
+            await deleteImagesFromS3([normalizedPages[i].homeCardImage]);
+          }
+          const uploaded = await uploadImages(
+            [homeCardFile],
+            `${baseFolder}/productPageHomeCardImage/${i}`,
+            1,
+          );
+          normalizedPages[i].homeCardImage = uploaded[0] || undefined;
+        }
+      }
+      template.productDropdownPages = normalizedPages;
+    }
+
     // === 🛍 PRODUCTS (max 10 per product) ===
     const existingMap = new Map(
       (template.products || []).map((p) => [String(p._id), p]),
@@ -1574,7 +2698,7 @@ export const editTemplate = async (req, res, next) => {
     template.products = updatedProducts;
 
     // Keep cafe menu items synced with product cards so published menu images/titles stay consistent.
-    if (String(template.vertical || "").trim() === "cafe") {
+    if (String(normalizedVertical || "").trim() === "cafe") {
       const existingMenuByName = new Map(
         (template.menuItems || []).map((item) => [String(item?.name || "").trim(), item]),
       );
@@ -1630,14 +2754,14 @@ export const editTemplate = async (req, res, next) => {
         ? await uploadImages(newFiles, `${baseFolder}/testimonialImages`, 1)
         : [];
 
-      if (existing) {
-        if (uploaded[0]) {
-          if (existing.image?.url) await deleteImagesFromS3([existing.image]);
-          existing.image = uploaded[0];
-        } else if (t.imageId === null) {
-          if (existing.image?.url) await deleteImagesFromS3([existing.image]);
-          existing.image = null;
-        }
+        if (existing) {
+          if (uploaded[0]) {
+            if (existing.image?.url) await deleteImagesFromS3([existing.image]);
+            existing.image = uploaded[0];
+          } else if (t.imageId === null) {
+            if (existing.image?.url) await deleteImagesFromS3([existing.image]);
+            delete existing.image;
+          }
         existing.name = t.name ?? existing.name;
         existing.jobPosition = t.jobPosition ?? existing.jobPosition;
         existing.testimony = t.testimony ?? existing.testimony;
@@ -1649,7 +2773,7 @@ export const editTemplate = async (req, res, next) => {
           jobPosition: t.jobPosition,
           testimony: t.testimony,
           rating: t.rating,
-          image: uploaded[0] || null,
+          ...(uploaded[0] ? { image: uploaded[0] } : {}),
         });
       }
     }
@@ -1678,7 +2802,10 @@ export const editTemplate = async (req, res, next) => {
 
     res
       .status(200)
-      .json({ message: "Template updated successfully", template });
+      .json({
+        message: "Template updated successfully",
+        template: serializeWebsiteTemplateForClient(template),
+      });
   } catch (err) {
     // Capture the original error message before aborting
     const originalError = err.message || "Template update failed";
@@ -1717,6 +2844,10 @@ export const publishWebsite = async (req, res, next) => {
     template.isPublished = true;
     template.deployedAt = deployedAt;
     template.deployedUrl = deployedUrl;
+    template.productDropdownPages = sanitizeProductDropdownPagesForPersistence(
+      template.productDropdownPages,
+    );
+    template.menuItems = sanitizeMenuItemsForPersistence(template.menuItems);
     await template.save();
 
     subscription.publishedProjectId = websiteId;
@@ -1727,6 +2858,7 @@ export const publishWebsite = async (req, res, next) => {
       success: true,
       deployedUrl,
       deployedAt,
+      template: serializeWebsiteTemplateForClient(template),
     });
   } catch (error) {
     return next(error);

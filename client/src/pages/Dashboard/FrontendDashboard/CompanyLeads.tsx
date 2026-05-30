@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import React, { useEffect, useMemo, useState } from "react";
 import YearWiseTable from "../../../components/Tables/YearWiseTable";
 import PageFrame from "../../../components/Pages/PageFrame";
@@ -13,6 +13,8 @@ import { Controller, useForm } from "react-hook-form";
 import PrimaryButton from "../../../components/PrimaryButton";
 import { toast } from "sonner";
 
+const WEBSITE_BUILDER_LEAD_STORAGE_KEY = "website_builder_preview_leads";
+
 const CompanyLeads = () => {
   const selectedCompany = useSelector((state) => state.company.selectedCompany);
   const axiosPrivate = useAxiosPrivate();
@@ -22,6 +24,7 @@ const CompanyLeads = () => {
   const [openModal, setOpenModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
   const [activeVertical, setActiveVertical] = useState("co-working");
+  const [previewLeads, setPreviewLeads] = useState([]);
   const workspaceId =
     selectedCompany?.workspaceId ||
     auth?.user?.primaryWorkspace ||
@@ -60,7 +63,24 @@ const CompanyLeads = () => {
     auth?.user?.companyName,
   ]);
 
-  // 🔹 Fetch Leads
+  useEffect(() => {
+    const syncPreviewLeads = () => {
+      try {
+        const stored = JSON.parse(
+          localStorage.getItem(WEBSITE_BUILDER_LEAD_STORAGE_KEY) || "[]",
+        );
+        setPreviewLeads(Array.isArray(stored) ? stored : []);
+      } catch (error) {
+        console.error("Failed to load preview leads", error);
+      }
+    };
+
+    syncPreviewLeads();
+    window.addEventListener("storage", syncPreviewLeads);
+    return () => window.removeEventListener("storage", syncPreviewLeads);
+  }, []);
+
+  // ðŸ”¹ Fetch Leads
   const {
     data = [],
     isPending,
@@ -80,7 +100,7 @@ const CompanyLeads = () => {
     },
   });
 
-  // 🔹 Mutation for updating lead
+  // ðŸ”¹ Mutation for updating lead
   const updateLeadMutation = useMutation({
     mutationFn: async (payload) => {
       const res = await axiosPrivate.patch("/api/leads/update-lead", payload);
@@ -96,7 +116,7 @@ const CompanyLeads = () => {
     },
   });
 
-  // 🔹 Comment Modal form
+  // ðŸ”¹ Comment Modal form
   const { control, handleSubmit, reset } = useForm({
     defaultValues: { comment: "" },
   });
@@ -118,7 +138,7 @@ const CompanyLeads = () => {
     updateLeadMutation.mutate({ leadId, status: newStatus });
   };
 
-  // 🔹 Table columns
+  // ðŸ”¹ Table columns
   const dynamicVerticalColumns = useMemo(() => {
     const map = {
       "co-working": [
@@ -237,7 +257,20 @@ const CompanyLeads = () => {
     },
   ];
 
-  if (isPending) return <>Loading Leads</>;
+  const mergedLeads = useMemo(() => {
+    const remote = Array.isArray(data) ? data : [];
+    const local = Array.isArray(previewLeads) ? previewLeads : [];
+    return [...local, ...remote];
+  }, [data, previewLeads]);
+
+  useEffect(() => {
+    if (previewLeads.length > 0) {
+      const firstLeadVertical = String(previewLeads[0]?.vertical || "").trim();
+      if (firstLeadVertical) setActiveVertical(firstLeadVertical);
+    }
+  }, [previewLeads]);
+
+  if (isPending && previewLeads.length === 0) return <>Loading Leads</>;
   if (isError) return <span className="text-red-500">Error Loading Leads</span>;
 
   return (
@@ -245,17 +278,17 @@ const CompanyLeads = () => {
       <PageFrame>
         {/* <YearWiseTable data={data} tableTitle={"Leads"} columns={columns} /> */}
         <YearWiseTable
-          data={Array.isArray(data) ? data : []} // 👈 ensure array
+          data={mergedLeads}
           tableTitle={"Leads"}
           columns={columns}
         />
 
-        {Array.isArray(data) && data.length === 0 && (
+        {mergedLeads.length === 0 && (
           <div className="text-center text-gray-500 py-4">No records found</div>
         )}
       </PageFrame>
 
-      {/* 🔹 Comment Modal */}
+      {/* ðŸ”¹ Comment Modal */}
       <MuiModal
         open={openModal}
         onClose={() => setOpenModal(false)}
@@ -291,4 +324,5 @@ const CompanyLeads = () => {
 };
 
 export default CompanyLeads;
+
 

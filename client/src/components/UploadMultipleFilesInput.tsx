@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import { TextField, IconButton, Avatar, Box, Chip } from "@mui/material";
+import { TextField, IconButton, Avatar, Box } from "@mui/material";
 import { LuImageUp } from "react-icons/lu";
 import { MdDelete } from "react-icons/md";
 import MuiModal from "./MuiModal";
 
 type PreviewType = "image" | "pdf" | "none" | "auto";
+type MediaValue = File | { id?: string; url?: string; name?: string };
 
 interface UploadMultipleFilesInputProps {
-  value?: File[];
-  onChange?: (files: File[]) => void;
+  value?: MediaValue[];
+  onChange?: (files: MediaValue[]) => void;
   disabled?: boolean;
   label?: string;
   allowedExtensions?: string[];
@@ -20,9 +21,10 @@ interface UploadMultipleFilesInputProps {
 }
 
 interface PreviewItem {
-  file: File;
+  file: MediaValue;
   url: string;
   ext: string;
+  revokeOnCleanup: boolean;
 }
 
 const UploadMultipleFilesInput = ({
@@ -44,32 +46,56 @@ const UploadMultipleFilesInput = ({
     fileName.includes(".") ? fileName.split(".").pop()?.toLowerCase() ?? "" : "";
 
   const isImage = (ext: string) => ["jpg", "jpeg", "png", "webp", "gif", "bmp"].includes(ext);
-
   const isPDF = (ext: string) => ext === "pdf";
+
+  const getItemName = (file: MediaValue) =>
+    file instanceof File
+      ? file.name
+      : String(file?.name || file?.url || file?.id || "file");
 
   const previews = useMemo<PreviewItem[]>(
     () =>
-      (value || []).map((file) => ({
-        file,
-        url: URL.createObjectURL(file),
-        ext: getExtension(file.name),
-      })),
+      (value || [])
+        .map((file) => {
+          if (file instanceof File) {
+            return {
+              file,
+              url: URL.createObjectURL(file),
+              ext: getExtension(file.name),
+              revokeOnCleanup: true,
+            };
+          }
+          const url = String(file?.url || "").trim();
+          if (!url) return null;
+          return {
+            file,
+            url,
+            ext: getExtension(getItemName(file)),
+            revokeOnCleanup: false,
+          };
+        })
+        .filter(Boolean) as PreviewItem[],
     [value]
   );
 
   useEffect(() => {
     return () => {
-      previews.forEach((preview) => URL.revokeObjectURL(preview.url));
+      previews.forEach((preview) => {
+        if (preview.revokeOnCleanup) URL.revokeObjectURL(preview.url);
+      });
     };
   }, [previews]);
 
   const acceptAttr = allowedExtensions.map((ext) => `.${ext}`).join(",");
 
-  const dedupe = (filesArr: File[]) => {
+  const dedupe = (filesArr: MediaValue[]) => {
     const seen = new Set<string>();
-    const out: File[] = [];
+    const out: MediaValue[] = [];
     for (const file of filesArr) {
-      const key = `${file.name}-${file.size}-${file.lastModified}`;
+      const key =
+        file instanceof File
+          ? `${file.name}-${file.size}-${file.lastModified}`
+          : `${String(file?.id || "")}-${String(file?.url || "")}-${String(file?.name || "")}`;
       if (!seen.has(key)) {
         seen.add(key);
         out.push(file);
@@ -126,7 +152,7 @@ const UploadMultipleFilesInput = ({
       return (
         <Avatar
           src={preview.url}
-          alt={preview.file.name}
+          alt={getItemName(preview.file)}
           sx={{ width: "100%", height: "auto", borderRadius: 2 }}
           variant="square"
         />
@@ -137,20 +163,24 @@ const UploadMultipleFilesInput = ({
       return (
         <iframe
           src={preview.url}
-          title={preview.file.name}
+          title={getItemName(preview.file)}
           style={{ width: "100%", height: "65vh", borderRadius: "8px" }}
         />
       );
     }
 
-    return <div className="text-sm text-gray-500">Preview not available for “{preview.file.name}”</div>;
+    return (
+      <div className="text-sm text-gray-500">
+        Preview not available for "{getItemName(preview.file)}"
+      </div>
+    );
   };
 
   const displayValue =
     (value?.length || 0) === 0
       ? ""
       : value.length === 1
-        ? value[0].name
+        ? getItemName(value[0])
         : `${value.length} files selected`;
 
   const reachedLimit = (value?.length || 0) >= maxFiles;
@@ -193,25 +223,10 @@ const UploadMultipleFilesInput = ({
         }}
       />
 
-      {value?.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {value.map((file, index) => (
-            <Chip
-              key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
-              label={file.name}
-              onDelete={() => handleRemoveAt(index)}
-              deleteIcon={<MdDelete />}
-              variant="outlined"
-              size="small"
-            />
-          ))}
-        </div>
-      )}
-
       {previews.length > 0 && (
         <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
           {previews.map((preview, index) => (
-            <div key={`${preview.file.name}-${index}`} className="flex flex-col gap-2 rounded-md border p-2">
+            <div key={`${getItemName(preview.file)}-${index}`} className="flex flex-col gap-2 rounded-md border p-2">
               <div
                 className="cursor-pointer"
                 onClick={() => {
@@ -223,7 +238,7 @@ const UploadMultipleFilesInput = ({
                 {isImage(preview.ext) ? (
                   <img
                     src={preview.url}
-                    alt={preview.file.name}
+                    alt={getItemName(preview.file)}
                     className="h-32 w-full rounded object-cover"
                   />
                 ) : isPDF(preview.ext) ? (
@@ -237,11 +252,13 @@ const UploadMultipleFilesInput = ({
                 )}
               </div>
 
-              <div className="flex items-center justify-between">
-                <span className="truncate text-xs" title={preview.file.name}>
-                  {preview.file.name}
-                </span>
-                <IconButton color="error" size="small" onClick={() => handleRemoveAt(index)} title="Remove">
+              <div className="flex justify-end">
+                <IconButton
+                  color="error"
+                  size="small"
+                  onClick={() => handleRemoveAt(index)}
+                  title="Remove"
+                >
                   <MdDelete />
                 </IconButton>
               </div>
@@ -261,7 +278,7 @@ const UploadMultipleFilesInput = ({
       <MuiModal
         open={openModal}
         onClose={() => setOpenModal(false)}
-        title={previews[modalIndex]?.file?.name || "File Preview"}
+        title={previews[modalIndex] ? getItemName(previews[modalIndex].file) : "File Preview"}
       >
         <div className="flex flex-col gap-2">
           <div className="rounded-md border border-gray-300 p-2">

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { LuHardDriveUpload } from "react-icons/lu";
 import { SiGoogleadsense } from "react-icons/si";
-import { Loader2, Lock } from "lucide-react";
+import { MdOutlineRateReview } from "react-icons/md";
+import { Loader2 } from "lucide-react";
 import Card from "../../../../components/Card";
 import PageFrame from "../../../../components/Pages/PageFrame";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
@@ -10,17 +11,7 @@ import { useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   BUSINESS_TYPE_TO_VERTICAL_KEY,
-  VERTICAL_KEY_TO_LABEL,
 } from "../../../../constants/verticalConfig";
-
-const VERTICAL_ICON_BY_KEY = {
-  "co-working": "\u{1F5A5}\uFE0F",
-  "co-living": "\u{1F3E0}",
-  hostel: "\u{1F6CF}\uFE0F",
-  workation: "\u{2708}\uFE0F",
-  "meeting-rooms": "\u{1F4C5}",
-  cafe: "\u{2615}",
-};
 
 const normalizeVerticalKey = (value: unknown) => {
   const raw = String(value || "").trim().toLowerCase();
@@ -41,27 +32,49 @@ const normalizeVerticalKey = (value: unknown) => {
   return aliasMap[raw] || aliasMap[compact] || aliasMap[hyphen] || "co-working";
 };
 
-const WebsiteBuilderTypeActions = ({ type = "static" }) => {
+const isSameCompanyTemplate = ({
+  website,
+  companyId,
+  workspaceId,
+  businessName,
+}: {
+  website: any;
+  companyId: string;
+  workspaceId: string;
+  businessName: string;
+}) => {
+  const websiteCompanyId = String(website?.companyId || "").trim();
+  const websiteWorkspaceId = String(website?.workspaceId || "").trim();
+  const websiteCompanyName = String(website?.companyName || "")
+    .trim()
+    .toLowerCase();
+  const normalizedBusinessName = String(businessName || "").trim().toLowerCase();
+
+  if (companyId) return websiteCompanyId === String(companyId).trim();
+  if (workspaceId) return websiteWorkspaceId === String(workspaceId).trim();
+  if (normalizedBusinessName) return websiteCompanyName === normalizedBusinessName;
+  return false;
+};
+
+const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
   const axios = useAxiosPrivate();
   const { auth } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const selectedCompany = useSelector((state: any) => state.company.selectedCompany);
   const [existingWebsite, setExistingWebsite] = useState<any>(null);
-  const [isCheckingWebsite, setIsCheckingWebsite] = useState(type !== "static");
+  const [isCheckingWebsite, setIsCheckingWebsite] = useState(true);
   const [workspaceBusinessName, setWorkspaceBusinessName] = useState("");
   const [workspaceBusinessTypes, setWorkspaceBusinessTypes] = useState<string[]>([]);
-  const [workspacePlan, setWorkspacePlan] = useState("");
+  // const [workspacePlan, setWorkspacePlan] = useState("");
   const builderBasePath = location.pathname.includes("/company-settings/website-builder")
     ? "/company-settings/website-builder"
     : "/dashboard/website-builder";
 
-  const contextCompanyId = auth?.user?.companyId || "";
-  const reduxCompanyId = selectedCompany?.companyId || "";
-  const userDataRaw = localStorage.getItem("user");
-  const userData = userDataRaw ? JSON.parse(userDataRaw) : null;
-  const realCompanyId = userData?.companyId || "";
-  const companyId = realCompanyId || reduxCompanyId || contextCompanyId || "";
+  const contextCompanyId = String(auth?.user?.companyId || "").trim();
+  const reduxCompanyId = String(selectedCompany?.companyId || "").trim();
+  // Always prioritize actively selected company context over stale localStorage user payloads.
+  const companyId = reduxCompanyId || contextCompanyId || "";
   const selectedVertical = normalizeVerticalKey(localStorage.getItem("selectedVertical"));
   const workspaceId =
     selectedCompany?.workspaceId ||
@@ -93,14 +106,12 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
 
   useEffect(() => {
     const checkExistingWebsite = async () => {
-      if (type !== "static") {
-        return;
-      }
+      // Dynamic-only mode: keep existing website lookup enabled.
       try {
         setIsCheckingWebsite(true);
         const businessName = String(
-          workspaceBusinessName ||
-            selectedCompany?.companyName ||
+          selectedCompany?.companyName ||
+            workspaceBusinessName ||
             auth?.user?.companyName ||
             "",
         ).trim();
@@ -117,18 +128,15 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
           },
         });
         const websites = Array.isArray(response?.data) ? response.data : [];
-        const byCompany = (website) =>
-          String(website?.companyId || "").trim() === String(companyId).trim() ||
-          String(website?.companyName || "").trim().toLowerCase() ===
-            businessName.toLowerCase();
-        const foundByVertical = websites.find((website) => {
-          if (!byCompany(website)) return false;
-          const websiteVertical = normalizeVerticalKey(
-            website?.vertical || website?.verticalType,
-          );
-          return websiteVertical === selectedVertical;
-        });
-        const found = foundByVertical || websites.find(byCompany) || null;
+        const found =
+          websites.find((website) =>
+            isSameCompanyTemplate({
+              website,
+              companyId,
+              workspaceId,
+              businessName,
+            }),
+          ) || null;
         setExistingWebsite(found);
       } catch (error) {
         setExistingWebsite(null);
@@ -146,86 +154,80 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
     selectedCompany?.companyName,
     workspaceBusinessName,
     workspaceId,
-    selectedVertical,
     type,
   ]);
 
-  useEffect(() => {
-    const fetchSubscriptionPlan = async () => {
-      if (!companyId) {
-        setWorkspacePlan("");
-        return;
-      }
-      try {
-        const res = await axios.get(`/api/subscription/${companyId}`);
-        setWorkspacePlan(String(res?.data?.plan || "").trim());
-      } catch (error) {
-        setWorkspacePlan("");
-      }
-    };
+  // Dynamic-only mode: plan-lock fetch intentionally disabled.
+  // useEffect(() => {
+  //   const fetchSubscriptionPlan = async () => {
+  //     if (!companyId) {
+  //       setWorkspacePlan("");
+  //       return;
+  //     }
+  //     try {
+  //       const res = await axios.get(`/api/subscription/${companyId}`);
+  //       setWorkspacePlan(String(res?.data?.plan || "").trim());
+  //     } catch (error) {
+  //       setWorkspacePlan("");
+  //     }
+  //   };
+  //
+  //   fetchSubscriptionPlan();
+  // }, [axios, companyId]);
 
-    fetchSubscriptionPlan();
-  }, [axios, companyId]);
-
-  const createOrEditTitle = existingWebsite ? "Edit Website" : "Create Website";
-  const searchKey = existingWebsite?.searchKey || "";
-  const companyName = existingWebsite?.companyName || "";
-  const staticVerticalPickerRoute = `${builderBasePath}/static/select-vertical${
-    workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : ""
-  }`;
-  const createOrEditRoute =
-    type === "static"
-      ? staticVerticalPickerRoute
-      : `${builderBasePath}/${type}/create-website`;
-  const leadsRoute = `${builderBasePath}/${type}/leads`;
-  const normalizedPlan = workspacePlan.toLowerCase();
-  const isLockedPlan = normalizedPlan === "static-free" || normalizedPlan === "basic";
-  const isProfessionalPlan =
-    normalizedPlan === "professional" || (!isLockedPlan && normalizedPlan === "pro");
-  const existingVerticalKey = String(existingWebsite?.vertical || "").trim();
-  const existingVerticalLabel =
-    VERTICAL_KEY_TO_LABEL[existingVerticalKey] ||
-    String(existingWebsite?.verticalLabel || "").trim() ||
-    String(existingWebsite?.vertical || "").trim() ||
-    "Co-Working";
-  const existingVerticalIcon = VERTICAL_ICON_BY_KEY[existingVerticalKey] || "\u{1F310}";
-  const existingWebsiteUrl =
-    String(existingWebsite?.deployedUrl || "").trim() ||
-    `${String(existingWebsite?.searchKey || "company")
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "")}.wono.co`;
-
+  const createOrEditRoute = `${builderBasePath}/dynamic/create-website`;
+  const leadsRoute = `${builderBasePath}/dynamic/leads`;
+  const reviewsRoute = `${builderBasePath}/dynamic/reviews`;
+  const hasResumableDraft =
+    existingWebsite?.isDraft === true &&
+    existingWebsite?.isPublished !== true &&
+    Boolean(String(existingWebsite?.searchKey || "").trim());
+  const canEditExistingWebsite =
+    hasResumableDraft || Boolean(existingWebsite?.draftData);
+  const createOrEditLabel = canEditExistingWebsite ? "Edit Website" : "Create Website";
+  // const normalizedPlan = workspacePlan.toLowerCase();
+  // Dynamic-only mode: keep plan lock logic disabled for now.
+  // const isLockedPlan = normalizedPlan === "static-free" || normalizedPlan === "basic";
+  // const isProfessionalPlan =
+  //   normalizedPlan === "professional" || (!isLockedPlan && normalizedPlan === "pro");
   const handleEditWebsiteClick = () => {
-    const editSearchKey = String(existingWebsite?.searchKey || "").trim();
+    const targetWebsite = existingWebsite;
+    const editSearchKey = String(targetWebsite?.searchKey || "").trim();
     if (!editSearchKey) return;
-    const editVertical = String(existingWebsite?.vertical || "").trim();
-    localStorage.setItem("selectedVertical", editVertical);
-    localStorage.setItem(
-      "selectedVerticalLabel",
-      VERTICAL_KEY_TO_LABEL[editVertical] || editVertical,
-    );
-    navigate(
-      `../edit-website/${encodeURIComponent(editSearchKey)}?vertical=${encodeURIComponent(editVertical || "co-working")}`,
-      {
-      state: {
-        searchKey: editSearchKey,
-        companyName: existingWebsite?.companyName,
-        vertical: editVertical || "co-working",
-      },
-    });
-  };
+    const isDraftOnly = targetWebsite?.isDraft === true && targetWebsite?.isPublished !== true;
 
-  const handleCreateOrEditClick = async () => {
-    if (type !== "static") {
-      navigate(createOrEditRoute);
+    if (!canEditExistingWebsite) {
+      navigate(createOrEditRoute, { replace: true });
       return;
     }
 
+    if (isDraftOnly) {
+      navigate(createOrEditRoute, { replace: true });
+      return;
+    }
+
+    // Edit flow should not carry vertical in the URL anymore.
+    navigate(
+      `${builderBasePath}/edit-website/${encodeURIComponent(editSearchKey)}`,
+      {
+        state: {
+          searchKey: editSearchKey,
+          companyName: existingWebsite?.companyName,
+        },
+      },
+    );
+  };
+
+  const handleCreateOrEditClick = async () => {
+    // Dynamic-only mode: previous static branch intentionally skipped.
+    // if (type !== "static") {
+    //   navigate(createOrEditRoute);
+    //   return;
+    // }
     try {
       const businessName = String(
-        workspaceBusinessName ||
-          selectedCompany?.companyName ||
+        selectedCompany?.companyName ||
+          workspaceBusinessName ||
           auth?.user?.companyName ||
           "",
       ).trim();
@@ -237,21 +239,28 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
         },
       });
       const websites = Array.isArray(response?.data) ? response.data : [];
-      const byCompany = (website) =>
-        String(website?.companyId || "").trim() === String(companyId).trim() ||
-        String(website?.companyName || "").trim().toLowerCase() ===
-          businessName.toLowerCase();
-      const foundByVertical = websites.find((website) => {
-        if (!byCompany(website)) return false;
-        const websiteVertical = normalizeVerticalKey(
-          website?.vertical || website?.verticalType,
-        );
-        return websiteVertical === selectedVertical;
-      });
-      const found = foundByVertical || websites.find(byCompany) || null;
+      const found =
+        websites.find((website) =>
+          isSameCompanyTemplate({
+            website,
+            companyId,
+            workspaceId,
+            businessName,
+          }),
+        ) || null;
       const resolvedSearchKey = String(found?.searchKey || "").trim();
 
       if (found && resolvedSearchKey) {
+        const isDraftOnly = found?.isDraft === true && found?.isPublished !== true;
+        const canResumeDraft = isDraftOnly || Boolean(found?.draftData);
+        if (!canResumeDraft) {
+          navigate(createOrEditRoute);
+          return;
+        }
+        if (isDraftOnly) {
+          navigate(createOrEditRoute);
+          return;
+        }
         const existingVertical = String(found?.vertical || "").trim();
         const existingVerticalLabel = String(found?.verticalLabel || "").trim();
         const mappedVerticalKey = BUSINESS_TYPE_TO_VERTICAL_KEY[existingVerticalLabel];
@@ -264,16 +273,12 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
         if (existingVerticalLabel) {
           localStorage.setItem("selectedVerticalLabel", existingVerticalLabel);
         }
-        const resolvedVertical = normalizeVerticalKey(
-          found?.vertical || found?.verticalType,
-        );
         navigate(
-          `../edit-website/${encodeURIComponent(resolvedSearchKey)}?vertical=${encodeURIComponent(resolvedVertical)}`,
+          `${builderBasePath}/edit-website/${encodeURIComponent(resolvedSearchKey)}`,
           {
             state: {
               searchKey: resolvedSearchKey,
               companyName: found?.companyName,
-              vertical: resolvedVertical,
             },
           },
         );
@@ -283,17 +288,12 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
       // fall through to picker flow
     }
 
-    if (workspaceBusinessTypes.length <= 1) {
-      const selectedType = workspaceBusinessTypes[0] || "Co-Working";
-      const selectedVertical =
-        BUSINESS_TYPE_TO_VERTICAL_KEY[selectedType] || "co-working";
-      localStorage.setItem("selectedVertical", selectedVertical);
-      localStorage.setItem("selectedVerticalLabel", selectedType);
-      navigate(`${builderBasePath}/static/create-website`);
-      return;
-    }
-
-    navigate(staticVerticalPickerRoute);
+    const selectedType = workspaceBusinessTypes[0] || "Co-Working";
+    const selectedVertical =
+      BUSINESS_TYPE_TO_VERTICAL_KEY[selectedType] || "co-working";
+    localStorage.setItem("selectedVertical", selectedVertical);
+    localStorage.setItem("selectedVerticalLabel", selectedType);
+    navigate(createOrEditRoute);
   };
 
   return (
@@ -301,7 +301,7 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
       <PageFrame>
         <div className="flex flex-col gap-5">
           <h2 className="text-title font-pmedium text-primary uppercase">
-            {type === "dynamic" ? "Dynamic Website" : "Static Website"}
+            Dynamic Website
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -330,46 +330,10 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
                 >
                   <Card
                     icon={<LuHardDriveUpload />}
-                    title="Edit Website"
+                    title={createOrEditLabel}
                     route={location.pathname}
                   />
                 </div>
-
-                {isProfessionalPlan ? (
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => navigate(staticVerticalPickerRoute)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        navigate(staticVerticalPickerRoute);
-                      }
-                    }}
-                    className="cursor-pointer"
-                  >
-                    <Card
-                      icon={<LuHardDriveUpload />}
-                      title="Create Another Website"
-                      route={location.pathname}
-                    />
-                  </div>
-                ) : (
-                  <div className="group relative cursor-not-allowed">
-                    <div className="pointer-events-none">
-                      <Card
-                        icon={<LuHardDriveUpload />}
-                        title="Create Another Website"
-                        route={location.pathname}
-                      />
-                    </div>
-                    <div className="pointer-events-none absolute inset-0 rounded-2xl bg-white/45" />
-                    <div className="absolute inset-0 hidden items-center justify-center rounded-2xl bg-black/40 text-sm font-semibold text-white group-hover:flex">
-                      Upgrade your plan
-                    </div>
-                    <Lock size={16} className="absolute right-4 top-4 text-slate-600" />
-                  </div>
-                )}
               </>
             ) : (
               <>
@@ -389,13 +353,14 @@ const WebsiteBuilderTypeActions = ({ type = "static" }) => {
                 >
                   <Card
                     icon={<LuHardDriveUpload />}
-                    title={createOrEditTitle}
+                    title={createOrEditLabel}
                     route={location.pathname}
                   />
                 </div>
               </>
             )}
             <Card icon={<SiGoogleadsense />} title="Leads" route={leadsRoute} />
+            <Card icon={<MdOutlineRateReview />} title="Reviews" route={reviewsRoute} />
           </div>
         </div>
       </PageFrame>

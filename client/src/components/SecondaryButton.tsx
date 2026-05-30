@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 interface SecondaryButtonProps {
   title: ReactNode;
   handleSubmit?: MouseEventHandler<HTMLButtonElement>;
+  onClick?: MouseEventHandler<HTMLButtonElement>;
   type?: "button" | "submit" | "reset";
   fontSize?: string;
   externalStyles?: string;
@@ -15,6 +16,7 @@ interface SecondaryButtonProps {
 const SecondaryButton = ({
   title,
   handleSubmit,
+  onClick,
   type,
   fontSize,
   externalStyles,
@@ -32,7 +34,7 @@ const SecondaryButton = ({
       } motion-preset-slide-up-sm rounded-md text-black ${
         fontSize ? fontSize : "text-content leading-5"
       } ${externalStyles ?? ""}`}
-      onClick={handleSubmit}
+      onClick={onClick ?? handleSubmit}
     >
       {isLoading && <CircularProgress size={16} sx={{ color: "#1E3D73" }} />}
       <span>{isLoading ? `${String(title)}ing` : title}</span>
