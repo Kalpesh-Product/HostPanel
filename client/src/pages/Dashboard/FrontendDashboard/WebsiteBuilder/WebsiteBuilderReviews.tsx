@@ -1,46 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
-import {
-  MenuItem,
-  TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-} from "@mui/material";
+// @ts-nocheck
+import React, { useMemo, useState } from "react";
+import { MenuItem, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
 import { FaUserCircle } from "react-icons/fa";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSelector } from "react-redux";
+import { toast } from "sonner";
 import PageFrame from "../../../../components/Pages/PageFrame";
 import AgTable from "../../../../components/AgTable";
-
-const mockReviews = [
-  {
-    _id: "r1",
-    reviewerName: "Ananya Sharma",
-    role: "Product Manager",
-    rating: 5,
-    reviewerImage:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop",
-    review:
-      "Great workspace experience, smooth booking and helpful support team.",
-    status: "pending",
-    source: "Website Form",
-    submittedAt: "2026-05-28",
-  },
-  {
-    _id: "r2",
-    reviewerName: "Rohit Mehta",
-    role: "Founder",
-    rating: 4,
-    reviewerImage:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop",
-    review:
-      "Good amenities and location. Team is responsive and professional.",
-    status: "approved",
-    source: "Website Form",
-    submittedAt: "2026-05-25",
-  },
-];
-const WEBSITE_BUILDER_REVIEW_STORAGE_KEY = "website_builder_preview_reviews";
+import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
+import useAuth from "../../../../hooks/useAuth";
 
 const formatStatus = (value = "") => {
   const raw = String(value || "").trim().toLowerCase();
@@ -54,53 +22,94 @@ const statusStyles = {
   Rejected: { bg: "#FEE2E2", color: "#991B1B" },
 };
 
+const parseReviews = (response) => {
+  const reviews =
+    response?.data?.reviews ??
+    response?.data?.data?.reviews ??
+    response?.data?.data ??
+    response?.data;
+  return Array.isArray(reviews) ? reviews : [];
+};
+
 const WebsiteBuilderReviews = () => {
-  const [rows, setRows] = useState(
-    mockReviews.map((item, index) => ({ ...item, srNo: index + 1 })),
-  );
+  const selectedCompany = useSelector((state) => state.company.selectedCompany);
+  const axiosPrivate = useAxiosPrivate();
+  const { auth } = useAuth();
+  const queryClient = useQueryClient();
   const [selectedReview, setSelectedReview] = useState(null);
 
-  useEffect(() => {
-    const syncPreviewReviews = () => {
-      try {
-        const stored = JSON.parse(
-          localStorage.getItem(WEBSITE_BUILDER_REVIEW_STORAGE_KEY) || "[]",
-        );
-        const merged = [...(Array.isArray(stored) ? stored : []), ...mockReviews].map(
-          (item, index) => ({
-            ...item,
-            srNo: index + 1,
-          }),
-        );
-        setRows(merged);
-      } catch (error) {
-        console.error("Failed to load website builder reviews", error);
-      }
-    };
+  const companyId =
+    selectedCompany?.companyId || auth?.user?.companyId || "";
+  const workspaceId =
+    selectedCompany?.workspaceId ||
+    auth?.user?.primaryWorkspace ||
+    auth?.user?.workspaceId ||
+    "";
 
-    syncPreviewReviews();
-    window.addEventListener("storage", syncPreviewReviews);
-    return () => window.removeEventListener("storage", syncPreviewReviews);
-  }, []);
+  const { data = [], isPending, isError } = useQuery({
+    queryKey: ["websiteBuilderReviews", companyId, workspaceId],
+    enabled: !!companyId || !!workspaceId,
+    queryFn: async () => {
+      const response = await axiosPrivate.get(`/api/review`, {
+        params: {
+          companyId,
+          workspaceId,
+        },
+        headers: { "Cache-Control": "no-cache" },
+      });
+      return parseReviews(response);
+    },
+  });
 
-  const updateStatus = (reviewId, nextStatus) => {
-    setRows((prev) =>
-      prev.map((row) =>
-        row._id === reviewId ? { ...row, status: String(nextStatus).toLowerCase() } : row,
-      ),
-    );
-  };
+  const updateReviewMutation = useMutation({
+    mutationFn: async ({ reviewId, status }) => {
+      const res = await axiosPrivate.patch(`/api/review/${reviewId}`, { status });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || "Review updated");
+      queryClient.invalidateQueries(["websiteBuilderReviews"]);
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.message || "Update failed");
+    },
+  });
+
+  const rows = useMemo(() => {
+    const statusOrder = { pending: 0, rejected: 1, approved: 2 };
+    return (Array.isArray(data) ? data : [])
+      .slice()
+      .sort((a, b) => {
+        const aStatus = String(a?.status || "pending").toLowerCase();
+        const bStatus = String(b?.status || "pending").toLowerCase();
+        return (statusOrder[aStatus] ?? 99) - (statusOrder[bStatus] ?? 99);
+      })
+      .map((item, index) => ({
+        ...item,
+        srNo: index + 1,
+      }));
+  }, [data]);
 
   const columns = useMemo(
     () => [
       { field: "srNo", headerName: "SrNo", width: 90 },
-      { field: "reviewerName", headerName: "Name", minWidth: 180 },
+      {
+        field: "reviewerName",
+        headerName: "Name",
+        minWidth: 180,
+        valueGetter: (params) =>
+          params.data.reviewerName ||
+          params.data.reviewreName ||
+          params.data.fullName ||
+          params.data.name ||
+          "-",
+      },
       {
         field: "reviewerImage",
         headerName: "Image",
         minWidth: 110,
         cellRenderer: (params) => {
-          const imageUrl = String(params?.data?.reviewerImage || "").trim();
+          const imageUrl = String(params?.data?.reviewerImage || params?.data?.image || "").trim();
           if (!imageUrl) {
             return <FaUserCircle className="h-9 w-9 text-slate-400" />;
           }
@@ -113,10 +122,28 @@ const WebsiteBuilderReviews = () => {
           );
         },
       },
-      { field: "role", headerName: "Role", minWidth: 160 },
-      { field: "rating", headerName: "Rating", minWidth: 110 },
+      {
+        field: "role",
+        headerName: "Role",
+        minWidth: 160,
+        valueGetter: (params) =>
+          params.data.role || params.data.designation || params.data.jobPosition || "-",
+      },
+      {
+        field: "rating",
+        headerName: "Rating",
+        minWidth: 110,
+        valueGetter: (params) =>
+          params.data.starCount ?? params.data.rating ?? params.data.rate ?? "-",
+      },
       { field: "source", headerName: "Source", minWidth: 140 },
-      { field: "submittedAt", headerName: "Submitted", minWidth: 140 },
+      {
+        field: "submittedAt",
+        headerName: "Submitted",
+        minWidth: 160,
+        valueGetter: (params) =>
+          params.data.submittedAt || params.data.createdAt || params.data.updatedAt || "-",
+      },
       {
         field: "status",
         headerName: "Status",
@@ -124,31 +151,57 @@ const WebsiteBuilderReviews = () => {
         cellRenderer: (params) => {
           const display = formatStatus(params?.data?.status);
           const style = statusStyles[display] || statusStyles.Pending;
+          const isFinalStatus = display === "Approved" || display === "Rejected";
+
           return (
             <div style={{ display: "flex", justifyContent: "center" }}>
-              <TextField
-                select
-                size="small"
-                value={display}
-                onChange={(event) => updateStatus(params.data._id, event.target.value)}
-                sx={{
-                  "& .MuiOutlinedInput-root": {
+              {isFinalStatus ? (
+                <span
+                  style={{
                     borderRadius: "9999px",
-                    px: 1.5,
+                    padding: "4px 16px",
                     fontWeight: 600,
                     fontSize: "0.85rem",
                     backgroundColor: style.bg,
                     color: style.color,
-                    "& fieldset": { border: "none" },
-                  },
-                }}
-              >
-                {["Pending", "Approved", "Rejected"].map((option) => (
-                  <MenuItem key={option} value={option}>
-                    {option}
-                  </MenuItem>
-                ))}
-              </TextField>
+                    lineHeight: 1.5,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {display}
+                </span>
+              ) : (
+                <TextField
+                  select
+                  size="small"
+                  value={display}
+                  onChange={(event) =>
+                    updateReviewMutation.mutate({
+                      reviewId: params.data._id,
+                      status: String(event.target.value).toLowerCase(),
+                    })
+                  }
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: "9999px",
+                      px: 1.5,
+                      fontWeight: 600,
+                      fontSize: "0.85rem",
+                      backgroundColor: style.bg,
+                      color: style.color,
+                      "& fieldset": { border: "none" },
+                    },
+                  }}
+                >
+                  {["Pending", "Approved", "Rejected"].map((option) => (
+                    <MenuItem key={option} value={option}>
+                      {option}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
             </div>
           );
         },
@@ -168,8 +221,11 @@ const WebsiteBuilderReviews = () => {
         ),
       },
     ],
-    [],
+    [updateReviewMutation],
   );
+
+  if (isPending) return <div className="p-4">Loading reviews...</div>;
+  if (isError) return <div className="p-4 text-red-500">Error loading reviews.</div>;
 
   return (
     <div className="p-4">
@@ -179,7 +235,7 @@ const WebsiteBuilderReviews = () => {
             Website Reviews
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            Builder UI placeholder for company-scoped review moderation. Backend integration pending.
+            Public website reviews submitted through the builder template. Only approved reviews should be shown on the live site.
           </p>
         </div>
         <AgTable data={rows} columns={columns} tableTitle="Reviews" search />
@@ -196,23 +252,34 @@ const WebsiteBuilderReviews = () => {
           <div className="grid grid-cols-1 gap-3 py-1">
             <TextField
               label="Reviewer Name"
-              value={selectedReview?.reviewerName || ""}
+              value={
+                selectedReview?.reviewerName ||
+                selectedReview?.reviewreName ||
+                selectedReview?.fullName ||
+                selectedReview?.name ||
+                ""
+              }
               size="small"
               fullWidth
               disabled
             />
             <TextField
               label="Role"
-              value={selectedReview?.role || ""}
+              value={
+                selectedReview?.role ||
+                selectedReview?.designation ||
+                selectedReview?.jobPosition ||
+                ""
+              }
               size="small"
               fullWidth
               disabled
             />
             <div className="flex items-center gap-3">
               <span className="text-sm text-slate-600">Reviewer Image:</span>
-              {selectedReview?.reviewerImage ? (
+              {selectedReview?.reviewerImage || selectedReview?.image ? (
                 <img
-                  src={selectedReview.reviewerImage}
+                  src={selectedReview?.reviewerImage || selectedReview?.image}
                   alt={selectedReview?.reviewerName || "Reviewer"}
                   className="h-14 w-14 rounded-full object-cover border border-slate-200"
                 />
@@ -222,14 +289,24 @@ const WebsiteBuilderReviews = () => {
             </div>
             <TextField
               label="Rating"
-              value={selectedReview?.rating || ""}
+              value={
+                selectedReview?.starCount ??
+                selectedReview?.rating ??
+                selectedReview?.rate ??
+                ""
+              }
               size="small"
               fullWidth
               disabled
             />
             <TextField
               label="Review"
-              value={selectedReview?.review || ""}
+              value={
+                selectedReview?.review ||
+                selectedReview?.comment ||
+                selectedReview?.description ||
+                ""
+              }
               size="small"
               fullWidth
               multiline

@@ -513,6 +513,7 @@ const CreateWebsite = () => {
   const [draftTemplateId, setDraftTemplateId] = useState("");
   const [draftUpdatedAt, setDraftUpdatedAt] = useState<string | null>(null);
   const [draftStatus, setDraftStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [approvedWebsiteReviews, setApprovedWebsiteReviews] = useState<any[]>([]);
   const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
   const draftHydrationReadyRef = useRef(false);
   const lastDraftSnapshotRef = useRef("");
@@ -612,13 +613,13 @@ const CreateWebsite = () => {
     auth?.user?.workspaceId;
   const companyId =
     selectedCompany?.companyId ||
-    auth?.user?.companyId ||
     hostCompanyIdentity?.companyId ||
+    auth?.user?.companyId ||
     "";
   const prefillCompanyId =
     selectedCompany?.companyId ||
-    auth?.user?.companyId ||
     hostCompanyIdentity?.companyId ||
+    auth?.user?.companyId ||
     "";
   const prefillCompanyName =
     selectedCompany?.companyName ||
@@ -726,6 +727,39 @@ const CreateWebsite = () => {
 
     fetchHostCompanyIdentity();
   }, [axios, auth?.user?.primaryWorkspace]);
+
+  useEffect(() => {
+    const fetchApprovedWebsiteReviews = async () => {
+      const resolvedCompanyId = String(prefillCompanyId || "").trim();
+      const resolvedWorkspaceId = String(workspaceId || "").trim();
+      const resolvedCompanyName = String(prefillCompanyName || "").trim();
+      if (!resolvedCompanyId && !resolvedWorkspaceId && !resolvedCompanyName) {
+        setApprovedWebsiteReviews([]);
+        return;
+      }
+
+      try {
+        const response = await axios.get("/api/review/public", {
+          params: {
+            companyId: resolvedCompanyId,
+            workspaceId: resolvedWorkspaceId,
+            companyName: resolvedCompanyName,
+          },
+          headers: { "Cache-Control": "no-cache" },
+        });
+        const reviews =
+          response?.data?.reviews ??
+          response?.data?.data?.reviews ??
+          response?.data?.data ??
+          response?.data;
+        setApprovedWebsiteReviews(Array.isArray(reviews) ? reviews : []);
+      } catch (error) {
+        setApprovedWebsiteReviews([]);
+      }
+    };
+
+    void fetchApprovedWebsiteReviews();
+  }, [axios, prefillCompanyId, prefillCompanyName, workspaceId]);
 
   useEffect(() => {
     if (prefillCompanyId || prefillCompanyName) {
@@ -2697,9 +2731,55 @@ const CreateWebsite = () => {
                     )}
                   />
                   <p className="text-xs text-slate-500">
-                    Public form fields: Name, Designation/Role, Star Rating, Review.
+                    Public form fields: Name, Star Rating, Review.
                     Only approved reviews are shown on website.
                   </p>
+                </div>
+
+                <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex items-center justify-between gap-3 border-b-default border-borderGray py-2">
+                    <span className="text-subtitle font-pmedium">
+                      Approved Website Reviews
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      These are the backend-approved reviews that should appear on the website template.
+                    </span>
+                  </div>
+                  {approvedWebsiteReviews.length > 0 ? (
+                    <div className="mt-3 grid grid-cols-1 gap-3">
+                      {approvedWebsiteReviews.map((review, index) => (
+                        <div
+                          key={review?._id || `approved-review-${index}`}
+                          className="rounded-xl border border-slate-200 bg-white p-3"
+                        >
+                          <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+                            <div>
+                              <p className="font-semibold text-slate-900">
+                                {review?.reviewerName ||
+                                  review?.reviewreName ||
+                                  review?.fullName ||
+                                  review?.name ||
+                                  `Reviewer ${index + 1}`}
+                              </p>
+                              <p className="text-sm text-slate-500">
+                                {review?.role || review?.designation || review?.jobPosition || "-"}
+                              </p>
+                            </div>
+                            <p className="text-sm font-semibold text-slate-700">
+                              {review?.starCount ?? review?.rating ?? review?.rate ?? 0}/5
+                            </p>
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-slate-600">
+                            {review?.review || review?.comment || review?.description || "-"}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-sm text-slate-500">
+                      No approved website reviews found for this company yet.
+                    </p>
+                  )}
                 </div>
 
                 <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">

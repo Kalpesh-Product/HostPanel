@@ -7,13 +7,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import useAuth from "../../../hooks/useAuth";
 import { MenuItem, TextField, IconButton } from "@mui/material";
-import { MdOutlineRateReview } from "react-icons/md";
+import { MdOutlineRateReview, MdOutlineRemoveRedEye } from "react-icons/md";
 import MuiModal from "../../../components/MuiModal";
 import { Controller, useForm } from "react-hook-form";
 import PrimaryButton from "../../../components/PrimaryButton";
 import { toast } from "sonner";
-
-const WEBSITE_BUILDER_LEAD_STORAGE_KEY = "website_builder_preview_leads";
 
 const CompanyLeads = () => {
   const selectedCompany = useSelector((state) => state.company.selectedCompany);
@@ -23,8 +21,9 @@ const CompanyLeads = () => {
 
   const [openModal, setOpenModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsLead, setDetailsLead] = useState(null);
   const [activeVertical, setActiveVertical] = useState("co-working");
-  const [previewLeads, setPreviewLeads] = useState([]);
   const workspaceId =
     selectedCompany?.workspaceId ||
     auth?.user?.primaryWorkspace ||
@@ -62,23 +61,6 @@ const CompanyLeads = () => {
     auth?.user?.companyId,
     auth?.user?.companyName,
   ]);
-
-  useEffect(() => {
-    const syncPreviewLeads = () => {
-      try {
-        const stored = JSON.parse(
-          localStorage.getItem(WEBSITE_BUILDER_LEAD_STORAGE_KEY) || "[]",
-        );
-        setPreviewLeads(Array.isArray(stored) ? stored : []);
-      } catch (error) {
-        console.error("Failed to load preview leads", error);
-      }
-    };
-
-    syncPreviewLeads();
-    window.addEventListener("storage", syncPreviewLeads);
-    return () => window.removeEventListener("storage", syncPreviewLeads);
-  }, []);
 
   // ðŸ”¹ Fetch Leads
   const {
@@ -127,6 +109,11 @@ const CompanyLeads = () => {
     setOpenModal(true);
   };
 
+  const handleOpenDetails = (lead) => {
+    setDetailsLead(lead);
+    setDetailsOpen(true);
+  };
+
   const onSubmitComment = (data) => {
     updateLeadMutation.mutate({
       leadId: selectedLead._id,
@@ -138,50 +125,132 @@ const CompanyLeads = () => {
     updateLeadMutation.mutate({ leadId, status: newStatus });
   };
 
-  // ðŸ”¹ Table columns
-  const dynamicVerticalColumns = useMemo(() => {
+  const getLeadContext = (lead) => {
+    const context = [
+      lead?.vertical,
+      lead?.productType,
+      lead?.roomType,
+      lead?.packageName,
+      lead?.dormType,
+      activeVertical,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return context;
+  };
+
+  const resolveLeadCategory = (lead) => {
+    const context = getLeadContext(lead);
+    if (context.includes("meeting")) return "meeting-rooms";
+    if (context.includes("workation")) return "workation";
+    if (context.includes("co-living") || context.includes("coliving")) return "co-living";
+    if (context.includes("hostel")) return "hostel";
+    if (context.includes("cafe")) return "cafe";
+    if (context.includes("co-working") || context.includes("cowork")) return "co-working";
+    return activeVertical || "co-working";
+  };
+
+  const getLeadCategoryLabel = (lead) => {
+    const category = resolveLeadCategory(lead);
     const map = {
-      "co-working": [
-        { field: "productType", headerName: "Product" },
-        { field: "noOfPeople", headerName: "People Count" },
-        { field: "startDate", headerName: "Start Date" },
-        { field: "endDate", headerName: "End Date" },
-      ],
-      "co-living": [
-        { field: "roomType", headerName: "Room Type" },
-        { field: "startDate", headerName: "Move-in Date" },
-        { field: "stayDuration", headerName: "Stay Duration" },
-      ],
-      workation: [
-        { field: "packageName", headerName: "Package" },
-        { field: "attendees", headerName: "Team Size" },
-        { field: "startDate", headerName: "Travel Date" },
-      ],
-      hostel: [
-        { field: "dormType", headerName: "Dorm Type" },
-        { field: "startDate", headerName: "Check-in" },
-        { field: "endDate", headerName: "Check-out" },
-      ],
-      "meeting-rooms": [
-        { field: "roomType", headerName: "Room" },
-        { field: "attendees", headerName: "Attendees" },
-        { field: "startDate", headerName: "Booking Date" },
-        { field: "timeSlot", headerName: "Time Slot" },
-      ],
-      cafe: [
-        { field: "inquiryType", headerName: "Inquiry Type" },
-        { field: "attendees", headerName: "Guest Count" },
-        { field: "startDate", headerName: "Preferred Date" },
-      ],
+      "co-working": "Co-Working",
+      "co-living": "Co-Living",
+      hostel: "Hostel",
+      workation: "Workation",
+      "meeting-rooms": "Meeting Rooms",
+      cafe: "Cafe",
     };
-    return map[activeVertical] || map["co-working"];
-  }, [activeVertical]);
+    if (map[category]) return map[category];
+    const raw = String(lead?.vertical || category || "").trim();
+    return raw ? raw.replace(/\b\w/g, (c) => c.toUpperCase()) : "Co-Working";
+  };
+
+  const getPeopleLabel = (lead) => {
+    const context = getLeadContext(lead);
+    if (context.includes("hostel")) return "Beds Required";
+    if (context.includes("workation")) return "No. Of Guests";
+    if (context.includes("co-living") || context.includes("coliving")) return "No. Of Occupants";
+    if (context.includes("meeting")) return "No. Of Attendees";
+    if (context.includes("cafe")) return "Guest Count";
+    return "People Count";
+  };
+
+  const getLeadDetails = (lead) => {
+    if (!lead) return [];
+    const details = [];
+    const addField = (label, value) => {
+      const cleanValue = String(value || "").trim();
+      if (!cleanValue) return;
+      if (details.some((item) => item.label === label && item.value === cleanValue)) return;
+      details.push({ label, value: cleanValue });
+    };
+
+    const peopleValue = lead?.noOfPeople || lead?.attendees || "";
+    const category = resolveLeadCategory(lead);
+
+    if (category === "co-working") {
+      addField("Product", lead?.productType || "");
+      addField(getPeopleLabel(lead), peopleValue);
+      addField("Start Date", lead?.startDate);
+      addField("End Date", lead?.endDate);
+      return details;
+    }
+
+    if (category === "co-living") {
+      addField("Room Type", lead?.roomType);
+      addField("Move-in Date", lead?.startDate);
+      addField("Stay Duration", lead?.stayDuration);
+      return details;
+    }
+
+    if (category === "workation") {
+      addField("Package", lead?.packageName);
+      addField(getPeopleLabel(lead), peopleValue);
+      addField("Travel Date", lead?.startDate);
+      return details;
+    }
+
+    if (category === "hostel") {
+      addField("Dorm Type", lead?.dormType);
+      addField(getPeopleLabel(lead), peopleValue);
+      addField("Check-in", lead?.startDate);
+      addField("Check-out", lead?.endDate);
+      return details;
+    }
+
+    if (category === "meeting-rooms") {
+      addField("Room", lead?.roomType);
+      addField(getPeopleLabel(lead), peopleValue);
+      addField("Booking Date", lead?.startDate);
+      addField("Time Slot", lead?.timeSlot);
+      return details;
+    }
+
+    if (category === "cafe") {
+      addField("Inquiry Type", lead?.inquiryType);
+      addField(getPeopleLabel(lead), peopleValue);
+      addField("Preferred Date", lead?.startDate);
+      return details;
+    }
+
+    addField("Product", lead?.productType || "");
+    addField(getPeopleLabel(lead), peopleValue);
+    addField("Start Date", lead?.startDate);
+    addField("End Date", lead?.endDate);
+
+    return details;
+  };
 
   const columns = [
     { field: "srNo", headerName: "SrNo", width: 100 },
     { field: "fullName", headerName: "Lead Name" },
     { field: "source", headerName: "Source" },
-    ...dynamicVerticalColumns,
+    {
+      field: "product",
+      headerName: "Product",
+      valueGetter: (params) => getLeadCategoryLabel(params.data),
+    },
     { field: "mobileNumber", headerName: "Mobile Number" },
     { field: "email", headerName: "Email" },
     { field: "recievedDate", headerName: "Received Date" },
@@ -245,6 +314,17 @@ const CompanyLeads = () => {
       },
     },
     {
+      field: "details",
+      headerName: "Details",
+      cellRenderer: (params) => (
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <IconButton onClick={() => handleOpenDetails(params.data)}>
+            <MdOutlineRemoveRedEye />
+          </IconButton>
+        </div>
+      ),
+    },
+    {
       field: "comment",
       headerName: "Comment",
       cellRenderer: (params) => (
@@ -258,19 +338,15 @@ const CompanyLeads = () => {
   ];
 
   const mergedLeads = useMemo(() => {
-    const remote = Array.isArray(data) ? data : [];
-    const local = Array.isArray(previewLeads) ? previewLeads : [];
-    return [...local, ...remote];
-  }, [data, previewLeads]);
+    return Array.isArray(data) ? data : [];
+  }, [data]);
 
-  useEffect(() => {
-    if (previewLeads.length > 0) {
-      const firstLeadVertical = String(previewLeads[0]?.vertical || "").trim();
-      if (firstLeadVertical) setActiveVertical(firstLeadVertical);
-    }
-  }, [previewLeads]);
+  const detailFields = useMemo(
+    () => getLeadDetails(detailsLead),
+    [detailsLead, activeVertical],
+  );
 
-  if (isPending && previewLeads.length === 0) return <>Loading Leads</>;
+  if (isPending) return <>Loading Leads</>;
   if (isError) return <span className="text-red-500">Error Loading Leads</span>;
 
   return (
@@ -318,6 +394,29 @@ const CompanyLeads = () => {
             isLoading={updateLeadMutation.isLoading}
           />
         </form>
+      </MuiModal>
+
+      <MuiModal
+        open={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+        title="Lead Details"
+      >
+        <div className="grid grid-cols-1 gap-3">
+          {detailFields.length ? (
+            detailFields.map((item) => (
+              <TextField
+                key={`${item.label}-${item.value}`}
+                label={item.label}
+                value={item.value}
+                size="small"
+                fullWidth
+                disabled
+              />
+            ))
+          ) : (
+            <div className="text-sm text-gray-500">No lead details available.</div>
+          )}
+        </div>
       </MuiModal>
     </div>
   );

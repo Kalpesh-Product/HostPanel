@@ -15,6 +15,10 @@ import { createWebsiteLead } from "./controllers/leadsControllers.js";
 import listingRoutes from "./routes/listingRoutes.js";
 import hostUserRoutes from "./routes/hostUserRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
+import {
+  createWebsiteReview,
+  getApprovedWebsiteReviews,
+} from "./controllers/reviewControllers.js";
 import workspaceRoutes from "./routes/workspaceRoutes.js";
 import organizationRoutes from "./routes/organizationRoutes.js";
 import subscriptionRoutes from "./routes/subscriptionRoutes.js";
@@ -48,6 +52,8 @@ app.use("/api/auth", authRoutes);
 app.post("/api/leads/create-lead", createWebsiteLead);
 app.post("/api/company/create-lead", createWebsiteLead);
 app.post("/api/company/createLead", createWebsiteLead);
+app.post("/api/review/create-website-review", createWebsiteReview);
+app.get("/api/review/public", getApprovedWebsiteReviews);
 app.use("/api/editor", verifyJwt, websiteTemplateRoutes);
 app.use("/api/services", verifyJwt, serviceRoutes);
 app.use("/api/leads", verifyJwt, leadsRoutes);

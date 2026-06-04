@@ -1,8 +1,41 @@
 // @ts-nocheck
 import axios from "axios";
+import Company from "../models/Company.js";
 import WebsiteTemplate from "../models/website/WebsiteTemplate.js";
 import Workspace from "../models/Workspace.js";
 import WebsiteLead from "../models/WebsiteLead.js";
+
+const sanitizeValue = (value) => String(value || "").trim();
+const isSyntheticCompanyId = (value) => sanitizeValue(value).includes("-dev-");
+
+const resolveCompanyIdFromWorkspace = async (workspaceId) => {
+  const normalizedWorkspaceId = sanitizeValue(workspaceId);
+  if (!normalizedWorkspaceId) return "";
+
+  const template = await WebsiteTemplate.findOne({ workspaceId: normalizedWorkspaceId })
+    .select("companyId")
+    .lean()
+    .exec();
+  const templateCompanyId = sanitizeValue(template?.companyId);
+  if (templateCompanyId && !isSyntheticCompanyId(templateCompanyId)) {
+    return templateCompanyId;
+  }
+
+  const workspace = await Workspace.findById(normalizedWorkspaceId)
+    .select("company companyId")
+    .lean()
+    .exec();
+  if (workspace?.company) {
+    const linkedCompany = await Company.findById(workspace.company)
+      .select("companyId")
+      .lean()
+      .exec();
+    const linkedCompanyId = sanitizeValue(linkedCompany?.companyId);
+    if (linkedCompanyId) return linkedCompanyId;
+  }
+
+  return sanitizeValue(workspace?.companyId);
+};
 
 export const getLeads = async (req, res, next) => {
   try {
@@ -15,21 +48,7 @@ export const getLeads = async (req, res, next) => {
     // If workspaceId is present, always resolve company from workspace/template first.
     let companyId = "";
     if (requestedWorkspaceId) {
-      const templateByWorkspace = await WebsiteTemplate.findOne({
-        workspaceId: requestedWorkspaceId,
-      })
-        .select("companyId")
-        .lean()
-        .exec();
-      companyId = sanitizeValue(templateByWorkspace?.companyId);
-
-      if (!companyId) {
-        const workspace = await Workspace.findById(requestedWorkspaceId)
-          .select("companyId")
-          .lean()
-          .exec();
-        companyId = sanitizeValue(workspace?.companyId);
-      }
+      companyId = await resolveCompanyIdFromWorkspace(requestedWorkspaceId);
     }
 
     // Fallback to explicit companyId only when workspace context is unavailable.
@@ -164,8 +183,6 @@ export const updateLeads = async (req, res, next) => {
   }
 };
 
-const sanitizeValue = (value) => String(value || "").trim();
-
 const resolveHostCandidates = (req) => {
   const candidates = [];
   const collect = (raw) => {
@@ -298,8 +315,11 @@ export const createWebsiteLead = async (req, res) => {
         template?.registeredCompanyName ||
         template?.searchKey,
     );
-    const resolvedCompanyId = sanitizeValue(body.companyId || template?.companyId);
     const resolvedWorkspaceId = sanitizeValue(body.workspaceId || template?.workspaceId);
+    const resolvedCompanyId =
+      (resolvedWorkspaceId
+        ? await resolveCompanyIdFromWorkspace(resolvedWorkspaceId)
+        : "") || sanitizeValue(body.companyId || template?.companyId);
     const resolvedSource = sanitizeValue(body.source) || "website";
 
     if (!visitorName || !visitorEmail || !visitorPhone) {
