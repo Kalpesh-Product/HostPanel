@@ -519,6 +519,10 @@ export const routes = createBrowserRouter([
                 element: <ModuleCardsLanding section="key-apps" />,
               },
               {
+                path: "module-sections/:sectionId",
+                element: <ModuleCardsLanding />,
+              },
+              {
                 path: "services",
                 element: <Services />,
               },

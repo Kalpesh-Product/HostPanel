@@ -1,5 +1,306 @@
-import { Breadcrumbs, Typography, Link } from "@mui/material";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Breadcrumbs, Link, Typography } from "@mui/material";
+import { matchPath, useLocation, useNavigate } from "react-router-dom";
+
+type Crumb = {
+  label: string;
+  path?: string;
+};
+
+type BreadcrumbMatcher = {
+  pattern: string;
+  crumbs: Crumb[];
+};
+
+const SECTION_LABELS = {
+  common: "Common Modules",
+  extraCommon: "Extra Common Modules",
+  keyApps: "Key Apps",
+  founderCore: "Founder Core Modules",
+  departmentAccesses: "Department Accesses",
+  general: "General",
+} as const;
+
+const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
+  {
+    pattern: "/module-sections/common-modules",
+    crumbs: [{ label: SECTION_LABELS.common }],
+  },
+  {
+    pattern: "/module-sections/extra-common-modules",
+    crumbs: [{ label: SECTION_LABELS.extraCommon }],
+  },
+  {
+    pattern: "/module-sections/key-apps",
+    crumbs: [{ label: SECTION_LABELS.keyApps }],
+  },
+  {
+    pattern: "/module-sections/founder-core-modules",
+    crumbs: [{ label: SECTION_LABELS.founderCore }],
+  },
+  {
+    pattern: "/module-sections/department-accesses",
+    crumbs: [{ label: SECTION_LABELS.departmentAccesses }],
+  },
+  {
+    pattern: "/dashboard",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
+      { label: "Dashboard" },
+    ],
+  },
+  {
+    pattern: "/company-settings/customer-support",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
+      { label: "Customer Support" },
+    ],
+  },
+  {
+    pattern: "/visitors/visitor-management",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Visitor Management" },
+    ],
+  },
+  {
+    pattern: "/company-settings/wono-nomad",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Wono Nomad" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/leads",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Leads" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/dynamic/leads",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Leads" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/dynamic/reviews",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Website Reviews" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/dynamic/create-website",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Create Website" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/select-theme",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Select Theme" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/view-theme",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "View Theme" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/live-demo",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Live Demo" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/edit-website",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Edit Website" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/edit-website/:website",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Edit Website" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/edit-theme/:templateName/:pageName",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Edit Theme" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/data/leads",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Leads" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/data/website-issue-reports",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Website Issue Reports" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/data/monthly-invoice-reports",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Monthly Invoice Reports" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/data/vendor",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Vendor" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/data/vendor/vendor-onboard",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Vendor Onboard" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/data/vendor/:id",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Vendor" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/settings/bulk-upload",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Bulk Upload" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/settings/sops",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "SOPs" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/settings/policies",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Policies" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/finance/budget",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Budget" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/finance/payment-schedule",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Payment Schedule" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/finance/voucher",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Voucher" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder" },
+    ],
+  },
+  {
+    pattern: "/company-settings/organization-management",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/module-sections/founder-core-modules" },
+      { label: "Organization Management" },
+    ],
+  },
+  {
+    pattern: "/company-settings/access-grants",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/module-sections/founder-core-modules" },
+      { label: "Access Grants" },
+    ],
+  },
+  {
+    pattern: "/company-settings/workspace-settings",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/module-sections/founder-core-modules" },
+      { label: "Workspace Settings" },
+    ],
+  },
+  {
+    pattern: "/company-settings/workspace-management",
+    crumbs: [
+      { label: SECTION_LABELS.founderCore, path: "/module-sections/founder-core-modules" },
+      { label: "Workspace Management" },
+    ],
+  },
+  {
+    pattern: "/profile/company-profile",
+    crumbs: [
+      { label: SECTION_LABELS.general },
+      { label: "Profile" },
+    ],
+  },
+];
+
+const toTitleCase = (value: string) =>
+  decodeURIComponent(value)
+    .replace(/[-_]/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const buildFallbackCrumbs = (pathname: string): Crumb[] => {
+  const segments = pathname.split("/").filter(Boolean);
+  if (!segments.length) return [];
+
+  return segments.map((segment, index) => ({
+    label: toTitleCase(segment),
+    path: index === segments.length - 1 ? undefined : `/${segments.slice(0, index + 1).join("/")}`,
+  }));
+};
 
 const BreadCrumbComponent = () => {
   const location = useLocation();
@@ -8,117 +309,44 @@ const BreadCrumbComponent = () => {
   const searchParams = new URLSearchParams(location.search);
   const queryParamEntries = Array.from(searchParams.entries());
 
-  const rawSegments = location.pathname.startsWith("/dashboard")
-    ? ["dashboard"]
-    : location.pathname
-        .split("/")
-        .filter((segment) => segment && segment !== "app" && segment !== "dashboard");
+  const matchedConfig = BREADCRUMB_MATCHERS.find((matcher) =>
+    Boolean(matchPath({ path: matcher.pattern, end: true }, location.pathname)),
+  );
 
-  const pathSegments = (() => {
-    if (
-      rawSegments.length >= 2 &&
-      rawSegments[0] === "visitors" &&
-      rawSegments[1] === "visitor-management"
-    ) {
-      return ["key-apps", "visitor-management", ...rawSegments.slice(2)];
-    }
+  const breadcrumbs = matchedConfig?.crumbs || buildFallbackCrumbs(location.pathname);
 
-    if (
-      rawSegments.length >= 2 &&
-      rawSegments[0] === "company-settings" &&
-      ["wono-nomad", "nomad-listings", "reviews"].includes(rawSegments[1])
-    ) {
-      if (rawSegments[1] === "wono-nomad") return rawSegments;
-      return ["company-settings", "wono-nomad", ...rawSegments.slice(1)];
-    }
-
-    return rawSegments;
-  })();
-
-  const displayLabel = (segment: string, index: number) => {
-    const previousSegment = pathSegments[index - 1];
-
-    if (segment === "key-apps") return "Key Apps";
-    if (segment === "company-settings") return "Company Settings";
-    if (segment === "wono-nomad") return "Wono Nomad";
-    if (segment === "nomad-listings") return "Nomad Listings";
-    if (segment === "add" && previousSegment === "nomad-listings") return "Add Listing";
-    if (
-      previousSegment === "nomad-listings" &&
-      segment !== "add" &&
-      segment !== "nomad-listings"
-    ) {
-      return "Edit Listing";
-    }
-
-    return decodeURIComponent(segment)
-      .replace(/-/g, " ")
-      .replace(/\b\w/g, (char) => char.toUpperCase());
-  };
-
-  const resolvePathForCrumb = (index: number) => {
-    const upto = pathSegments.slice(0, index + 1);
-    const isDashboardScoped = location.pathname === "/dashboard" || location.pathname.startsWith("/dashboard/");
-
-    if (upto.length === 1 && upto[0] === "company-settings") {
-      return "/company-settings";
-    }
-
-    if (upto.length === 1 && upto[0] === "key-apps") {
-      return "/key-apps";
-    }
-
-    if (upto.length >= 2 && upto[0] === "key-apps" && upto[1] === "visitor-management") {
-      return `/visitors/visitor-management${upto.length > 2 ? `/${upto.slice(2).join("/")}` : ""}`;
-    }
-
-    if (
-      upto.length >= 3 &&
-      upto[0] === "company-settings" &&
-      upto[1] === "wono-nomad"
-    ) {
-      const realPathSegments = ["company-settings", ...upto.slice(2)];
-      return `/${realPathSegments.join("/")}`;
-    }
-
-    const basePath = `/${upto.join("/")}`;
-    return isDashboardScoped ? `/dashboard/${upto.join("/")}` : basePath;
-  };
-
-  const breadcrumbs = pathSegments.map((segment, index) => {
-    const isLast = index === pathSegments.length - 1;
-    const fullPath = resolvePathForCrumb(index);
-    const displayText = displayLabel(segment, index);
+  const breadcrumbsToRender = breadcrumbs.map((crumb, index) => {
+    const isLast = index === breadcrumbs.length - 1 || !crumb.path;
 
     return isLast ? (
-      <Typography key={index} color="text.primary">
-        {displayText}
+      <Typography key={`${crumb.label}-${index}`} color="text.primary">
+        {crumb.label}
       </Typography>
     ) : (
       <Link
-        key={index}
+        key={`${crumb.label}-${index}`}
         underline="hover"
         color="inherit"
-        onClick={() => navigate(fullPath)}
+        onClick={() => navigate(crumb.path!)}
         style={{ cursor: "pointer" }}
       >
-        {displayText}
+        {crumb.label}
       </Link>
     );
   });
 
   queryParamEntries.forEach(([key, value], index) => {
-    breadcrumbs.push(
+    breadcrumbsToRender.push(
       <Typography key={`param-${index}-${key}`} color="text.primary">
-        {`${value}`}
-      </Typography>
+        {value}
+      </Typography>,
     );
   });
 
   return (
     <div className="rounded-t-md">
       <Breadcrumbs
-        separator="›"
+        separator=">"
         aria-label="breadcrumb"
         sx={{
           "& .MuiBreadcrumbs-ol": {
@@ -137,7 +365,7 @@ const BreadCrumbComponent = () => {
           },
         }}
       >
-        {breadcrumbs}
+        {breadcrumbsToRender}
       </Breadcrumbs>
     </div>
   );

@@ -3,6 +3,7 @@ import type { ElementType } from "react";
 import {
   ChevronDown,
   ChevronRight,
+  CheckCircle2,
   LayoutDashboard,
   Settings,
   Globe,
@@ -46,12 +47,16 @@ import {
   LogOut,
   Handshake,
   Lock,
+  X,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { useSidebar } from "../context/SideBarContext";
 import useAuth from "../hooks/useAuth";
 import useAxiosPrivate from "../hooks/useAxiosPrivate";
 import useLogout from "../hooks/useLogout";
+import PrimaryButton from "./PrimaryButton";
+import { PLAN_UI_DATA } from "../pages/WorkspaceSetup/workspaceSetupPlans";
 import {
   getEnabledModuleIdsForPlan,
   getWorkspaceCount,
@@ -68,6 +73,7 @@ interface NavNode {
   isRed?: boolean;
   disabled?: boolean;
   disabledTitle?: string;
+  upgradeLocked?: boolean;
   defaultOpen?: boolean;
   children?: NavNode[];
 }
@@ -503,6 +509,9 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const [workspaceAccessMap, setWorkspaceAccessMap] = useState<WorkspaceAccessMapState | null>(null);
   const [isSidebarHydrated, setIsSidebarHydrated] = useState(false);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isUpgradeSubmitting, setIsUpgradeSubmitting] = useState(false);
+  const [requestedUpgradePlan, setRequestedUpgradePlan] = useState("");
   const [roleAccessContext, setRoleAccessContext] = useState<RoleAccessContext>({
     role: "",
     departments: [],
@@ -615,8 +624,41 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     }));
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const syncUpgradeRequest = async () => {
+      const companyId = await resolveMasterCompanyId();
+      if (!mounted || !companyId) return;
+      try {
+        const raw = localStorage.getItem(getUpgradeRequestStorageKey(companyId));
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as { requestedPlan?: string; status?: string };
+        if (parsed?.status === "pending" && parsed?.requestedPlan) {
+          setRequestedUpgradePlan(String(parsed.requestedPlan).toLowerCase());
+        }
+      } catch {
+        // Ignore invalid local state.
+      }
+    };
+
+    void syncUpgradeRequest();
+    return () => {
+      mounted = false;
+    };
+  }, [auth.user]);
+
   const planLabel =
     workspaceAccessMap?.selectedPlan || workspaceSetup.selectedPlan || "basic";
+  const upgradePlanOptions =
+    planLabel === "basic"
+      ? ["professional", "custom"]
+      : planLabel === "professional"
+        ? ["custom"]
+        : [];
+  const upgradePlanCards = PLAN_UI_DATA.filter((plan) =>
+    upgradePlanOptions.includes(plan.key),
+  );
   const workspaceCount = getWorkspaceCount(
     (auth.user as { workspaceCount?: number } | null)?.workspaceCount,
   );
@@ -628,6 +670,72 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     ...getEnabledModuleIdsForPlan(planLabel, workspaceCount),
     ...(workspaceAccessMap?.enabledModuleIds || workspaceSetup.enabledModuleIds || []),
   ]);
+
+  useEffect(() => {
+    if (requestedUpgradePlan && planLabel === requestedUpgradePlan) {
+      setRequestedUpgradePlan("");
+    }
+  }, [planLabel, requestedUpgradePlan]);
+
+  const getUpgradeRequestStorageKey = (companyId: string) =>
+    `hostpanel_upgrade_request_status_${companyId}`;
+
+  const resolveMasterCompanyId = async () => {
+    const authUser = auth.user as
+      | {
+          company?: string | { _id?: string; id?: string };
+          companyId?: string;
+          hostLeadCompanyId?: string;
+          companyName?: string;
+        }
+      | null;
+    const directCompanyId = String(
+      authUser?.hostLeadCompanyId ||
+        (typeof authUser?.company === "string"
+          ? authUser.company
+          : authUser?.company?._id || authUser?.company?.id) ||
+        authUser?.companyId ||
+        "",
+    ).trim();
+
+    const legacyCompanyId = String(authUser?.companyId || "").trim();
+    const companyNameHint = String(authUser?.companyName || "").trim().toLowerCase();
+
+    try {
+      const hostCompaniesResponse = await axiosPrivate.get("http://localhost:5007/api/hosts/host-companies");
+      const hostCompanies = (Array.isArray(hostCompaniesResponse?.data)
+        ? hostCompaniesResponse.data
+        : Array.isArray(hostCompaniesResponse?.data?.data)
+          ? hostCompaniesResponse.data.data
+          : Array.isArray(hostCompaniesResponse?.data?.companies)
+            ? hostCompaniesResponse.data.companies
+            : []) as Array<Record<string, unknown>>;
+
+      let matchedCompany = hostCompanies.find((company) => {
+        const leadId = String(company?.leadId || "").trim();
+        const companyId = String(company?.companyId || "").trim();
+        return legacyCompanyId && (leadId === legacyCompanyId || companyId === legacyCompanyId);
+      });
+
+      if (!matchedCompany && companyNameHint) {
+        matchedCompany = hostCompanies.find((company) => {
+          const name = String(company?.companyName || "").trim().toLowerCase();
+          return name && name === companyNameHint;
+        });
+      }
+
+      if (matchedCompany?.companyId) {
+        return String(matchedCompany.companyId).trim();
+      }
+    } catch {
+      // Fallback below.
+    }
+
+    if (directCompanyId && !/^[a-f0-9]{24}$/i.test(directCompanyId)) {
+      return directCompanyId;
+    }
+    return "";
+  };
 
   const applyEnabledState = (items: NavNode[]): NavNode[] =>
     items.map((item) => {
@@ -643,12 +751,15 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
         return {
           ...item,
           disabled: true,
+          upgradeLocked: true,
+          disabledTitle: item.disabledTitle || "Upgrade plan to unlock this",
         };
       }
       if (item.id === "workspace-management" && !isFounderRole) {
         return {
           ...item,
           disabled: true,
+          upgradeLocked: true,
           disabledTitle: "Upgrade plan to unlock this",
         };
       }
@@ -656,12 +767,17 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
         return {
           ...item,
           disabled: true,
+          upgradeLocked: true,
           disabledTitle: "Upgrade plan to unlock this",
         };
       }
       return {
         ...item,
         disabled: !enabledIds.has(item.id),
+        upgradeLocked: !enabledIds.has(item.id),
+        disabledTitle: !enabledIds.has(item.id)
+          ? item.disabledTitle || "Upgrade plan to unlock this"
+          : item.disabledTitle,
       };
     });
 
@@ -836,13 +952,21 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
           .map((tab) => {
             const tabId = String(tab?.id || "").trim();
             const tabRoute = tab?.route || ROUTE_BY_ID[tabId];
-            const unlocked = workspaceEnabledCanonicalIds.has(tabId) && roleAllowedModuleIds.has(tabId);
+            const workspaceUnlocked = workspaceEnabledCanonicalIds.has(tabId);
+            const roleUnlocked = roleAllowedModuleIds.has(tabId);
+            const unlocked = workspaceUnlocked && roleUnlocked;
             return {
               id: tabId,
               label: String(tab?.label || tabId),
               icon: ICON_BY_ID[tabId] || Boxes,
               route: tabRoute,
               disabled: !unlocked,
+              upgradeLocked: !workspaceUnlocked,
+              disabledTitle: !unlocked
+                ? workspaceUnlocked
+                  ? "You do not have access to this module"
+                  : "Upgrade plan to unlock this"
+                : undefined,
             };
           });
         return {
@@ -854,12 +978,21 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
         };
       }
       const basicPlanLocked = planLabel === "basic" && BASIC_PLAN_HARD_LOCK_IDS.has(itemId);
+      const workspaceUnlocked = workspaceEnabledCanonicalIds.has(itemId);
+      const roleUnlocked = roleAllowedModuleIds.has(itemId);
       return {
         id: itemId,
         label: String(item?.label || itemId),
         icon: ICON_BY_ID[itemId] || Boxes,
         route: itemRoute,
-        disabled: basicPlanLocked || !(workspaceEnabledCanonicalIds.has(itemId) && roleAllowedModuleIds.has(itemId)),
+        disabled: basicPlanLocked || !(workspaceUnlocked && roleUnlocked),
+        upgradeLocked: basicPlanLocked || !workspaceUnlocked,
+        disabledTitle:
+          basicPlanLocked || !workspaceUnlocked
+            ? "Upgrade plan to unlock this"
+            : !roleUnlocked
+              ? "You do not have access to this module"
+              : undefined,
       };
     }).filter(Boolean);
     const sectionKey = String(section?.sectionId || section?.sectionLabel || "section");
@@ -886,13 +1019,56 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     };
   }).filter((section) => section.items.length > 0);
 
+  const handleUpgradePlanRequest = async (plan: string) => {
+    if (requestedUpgradePlan === plan) {
+      toast.info(`${plan.toUpperCase()} plan already requested.`);
+      return;
+    }
+
+    try {
+      setIsUpgradeSubmitting(true);
+      const companyId = await resolveMasterCompanyId();
+      if (!companyId) {
+        toast.error("Company id not found. Please re-login and try again.");
+        return;
+      }
+
+      const response = await axiosPrivate.patch("http://localhost:5007/api/hosts/request-upgrade-plan", {
+        companyId,
+        requestedPlan: plan,
+      });
+      localStorage.setItem(
+        getUpgradeRequestStorageKey(companyId),
+        JSON.stringify({
+          companyId,
+          requestedPlan: plan,
+          status: "pending",
+          requestedAt: new Date().toISOString(),
+        }),
+      );
+      toast.success(response?.data?.message || "Request sent. Sales team will contact you soon.");
+      setRequestedUpgradePlan(plan);
+      setIsUpgradeModalOpen(false);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to send upgrade request.");
+    } finally {
+      setIsUpgradeSubmitting(false);
+    }
+  };
+
   const onNavigate = (item: NavNode) => {
     if (item.id === "logout") {
       void logout();
       if (onCloseDrawer) onCloseDrawer();
       return;
     }
-    if (!item.route || item.disabled) return;
+    if (item.disabled) {
+      if (item.upgradeLocked && upgradePlanCards.length > 0) {
+        setIsUpgradeModalOpen(true);
+      }
+      return;
+    }
+    if (!item.route) return;
     navigate(item.route);
     if (onCloseDrawer) onCloseDrawer();
   };
@@ -1035,6 +1211,87 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
           {!collapsed && <span className="text-xs font-medium">Become a Contributor</span>}
         </div>
       </div>
+
+      {isUpgradeModalOpen ? (
+        <div className="fixed inset-0 z-50 bg-[#0f172a]/45 backdrop-blur-[2px] px-4 py-6 flex items-center justify-center">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] border border-[#dbe5f2] shadow-[0_20px_80px_rgba(15,23,42,0.28)] p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h2 className="font-['Poppins'] text-[22px] sm:text-[26px] md:text-[30px] font-bold text-[#111b33] uppercase mb-2 tracking-normal">
+                  Upgrade Plan
+                </h2>
+                <p className="text-[14px] text-[#63738d] mt-1">
+                  Choose the plan you want and send the upgrade request to master panel.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsUpgradeModalOpen(false)}
+                className="h-9 w-9 rounded-full border border-[#d7dfeb] text-[#5c6d84] inline-flex items-center justify-center"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div
+              className={`grid grid-cols-1 ${
+                upgradePlanCards.length > 1 ? "md:grid-cols-2" : ""
+              } gap-4 mx-auto ${
+                upgradePlanCards.length > 1 ? "max-w-[700px]" : "max-w-[320px]"
+              }`}
+            >
+              {upgradePlanCards.map((plan) => (
+                <div
+                  key={plan.key}
+                  className="w-full max-w-[300px] rounded-[30px] bg-[#eef2f7] p-4 border border-[#d9e1ec] shadow-[0_4px_18px_rgba(15,27,53,0.05)] flex flex-col"
+                >
+                  <h3 className="text-[18px] font-bold text-[#0f1b35] text-center mt-1">
+                    {plan.title}
+                  </h3>
+                  <p className="text-[11px] text-[#667791] text-center mt-2 min-h-[30px]">
+                    {plan.subtitle}
+                  </p>
+                  <p className="text-center mt-3 mb-3 text-[#0f1b35] font-bold text-[18px]">
+                    {plan.priceLabel}
+                  </p>
+
+                  <div className="h-px bg-[#d8e0ea] mb-3" />
+
+                  <div className="space-y-2 flex-1 rounded-2xl border border-[#dce4ee] bg-[#f7f9fc] px-3 py-2">
+                    {plan.moduleGroups.flatMap((group) => group.items || []).map((item) => (
+                      <div key={`${plan.key}-${item}`} className="flex items-start gap-2">
+                        <CheckCircle2 size={12} className="text-[#23c35c] mt-0.5" />
+                        <span className="text-[11px] text-[#4f627d]">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="h-px bg-[#d8e0ea] mt-3 mb-2" />
+                  <p className="text-[11px] text-[#9aa8bc] text-center mb-2">{plan.note}</p>
+
+                  <div className="w-full">
+                    <PrimaryButton
+                      title={
+                        requestedUpgradePlan === plan.key
+                          ? "Requested"
+                          : isUpgradeSubmitting
+                            ? "Sending..."
+                            : `Upgrade to ${plan.title}`
+                      }
+                      handleSubmit={() => {
+                        void handleUpgradePlanRequest(plan.key);
+                      }}
+                      disabled={isUpgradeSubmitting || requestedUpgradePlan === plan.key}
+                      className="w-full rounded-full"
+                      padding="py-2"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

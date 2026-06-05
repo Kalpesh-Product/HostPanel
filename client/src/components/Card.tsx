@@ -16,6 +16,8 @@ interface CardProps {
   route: string;
   locked?: boolean;
   lockReason?: string;
+  onClick?: () => void;
+  interactive?: boolean;
 }
 
 const Card = ({
@@ -29,6 +31,8 @@ const Card = ({
   route,
   locked = false,
   lockReason = "You don't have access to this item.",
+  onClick,
+  interactive = true,
 }: CardProps) => {
   const navigate = useNavigate();
 
@@ -46,12 +50,24 @@ const Card = ({
       initial="rest"
       whileHover="hover"
       onClick={() => {
-        if (!locked) navigate(route);
+        if (locked) {
+          onClick?.();
+          return;
+        }
+        if (!interactive) {
+          onClick?.();
+          return;
+        }
+        if (onClick) {
+          onClick();
+          return;
+        }
+        navigate(route);
       }}
       title={locked ? lockReason : undefined}
       className={`group relative flex w-full flex-col items-center justify-center rounded-2xl bg-white p-6 text-center shadow-md transition-all hover:border-[0.2px] hover:border-primary hover:shadow-xl ${
         fullHeight ? "h-60" : ""
-      } ${locked ? "cursor-not-allowed opacity-75" : "cursor-pointer"}`}
+      } ${locked ? "cursor-not-allowed opacity-75" : interactive ? "cursor-pointer" : "cursor-default"}`}
       style={{
         backgroundColor: bgcolor || "#ffffff",
         color: fontColor || "#111111",
@@ -64,7 +80,7 @@ const Card = ({
           <Lock size={12} />
           Locked
         </span>
-      ) : (
+      ) : interactive ? (
         <motion.span
           className="absolute right-4 top-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
           whileHover={{ x: 4 }}
@@ -72,7 +88,7 @@ const Card = ({
         >
           <FaArrowRight size={14} />
         </motion.span>
-      )}
+      ) : null}
 
       {icon && (
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-3xl transition-transform duration-300 group-hover:scale-110">
