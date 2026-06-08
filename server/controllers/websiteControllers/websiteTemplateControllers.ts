@@ -1789,6 +1789,17 @@ export const createTemplate = async (req, res, next) => {
       rating: t.rating,
     }));
 
+    const templateSnapshot = template.toObject({
+      depopulate: true,
+      versionKey: true,
+    });
+    delete templateSnapshot.__v;
+    const latestTemplate = await WebsiteTemplate.findById(template._id).exec();
+    if (latestTemplate) {
+      latestTemplate.set(templateSnapshot);
+      template = latestTemplate;
+    }
+
     const savedTemplate = await template.save();
 
     if (!savedTemplate) {
@@ -2827,15 +2838,32 @@ export const publishWebsite = async (req, res, next) => {
   try {
     const { workspaceId, websiteId } = req.body || {};
 
-    const subscription = await WorkspaceSubscription.findOne({ workspaceId });
-
-    if (!subscription) {
-      return res.status(404).json({ error: "Workspace subscription not found" });
-    }
-
     const template = await WebsiteTemplate.findById(websiteId);
     if (!template) {
       return res.status(404).json({ error: "Website template not found" });
+    }
+
+    const resolvedWorkspaceId = String(workspaceId || template.workspaceId || "").trim();
+    const resolvedCompanyId = String(template.companyId || "").trim();
+
+    let subscription = null;
+    if (resolvedWorkspaceId) {
+      subscription = await WorkspaceSubscription.findOne({
+        $or: [
+          { workspaceId: resolvedWorkspaceId },
+          { companyId: resolvedCompanyId || resolvedWorkspaceId },
+        ],
+      }).exec();
+    }
+
+    if (!subscription) {
+      subscription = await WorkspaceSubscription.create({
+        companyId: resolvedCompanyId || resolvedWorkspaceId,
+        workspaceId: resolvedWorkspaceId || resolvedCompanyId,
+        creditsLimit: 5,
+        creditsUsed: 0,
+        addOnCreditsPurchased: 0,
+      });
     }
 
     const deployedUrl = `https://${template.searchKey}.wono.co/`;

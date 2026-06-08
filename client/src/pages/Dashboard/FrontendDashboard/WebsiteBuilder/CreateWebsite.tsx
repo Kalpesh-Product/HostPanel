@@ -1488,6 +1488,8 @@ const CreateWebsite = () => {
       ).trim(),
       testimonialsEnableWriteReview: formValues?.testimonialsEnableWriteReview !== false,
       contactTitle: String(formValues?.contactTitle || "Contact Us").trim(),
+      registeredCompanyName: String(formValues?.registeredCompanyName || "").trim(),
+      copyrightText: String(formValues?.copyrightText || "").trim(),
       email: String(formValues?.websiteEmail || "").trim(),
       phone: String(formValues?.phone || "").trim(),
       address: String(formValues?.address || "").trim(),

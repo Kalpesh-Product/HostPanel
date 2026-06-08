@@ -92,6 +92,32 @@ const getTrimmedText = (value: string, limit = 95) => {
   };
 };
 
+const IconCircle = ({ children }: { children: React.ReactNode }) => (
+  <span className="inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#f1dc3a] text-[#111827]">
+    {children}
+  </span>
+);
+
+const MailIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="M3 7l9 6 9-6" />
+  </svg>
+);
+
+const PhoneIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.86 19.86 0 0 1 2.08 4.18 2 2 0 0 1 4.07 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.77.64 2.6a2 2 0 0 1-.45 2.11L8 9.69a16 16 0 0 0 6.31 6.31l1.26-1.26a2 2 0 0 1 2.11-.45c.83.31 1.7.52 2.6.64A2 2 0 0 1 22 16.92Z" />
+  </svg>
+);
+
+const MapIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 21s6-4.35 6-10a6 6 0 1 0-12 0c0 5.65 6 10 6 10Z" />
+    <circle cx="12" cy="11" r="2.25" />
+  </svg>
+);
+
 const getLeadFieldsForProduct = (slug: string) => {
   const normalized = normalizeSlug(slug);
   if (normalized.includes("meeting")) {
@@ -229,6 +255,8 @@ const PageDemo = () => {
   const [draft, setDraft] = useState<any>(null);
   const [heroIndex, setHeroIndex] = useState(0);
   const [testimonialIndex, setTestimonialIndex] = useState(0);
+  const [galleryViewerOpen, setGalleryViewerOpen] = useState(false);
+  const [galleryViewerIndex, setGalleryViewerIndex] = useState(0);
   const [productsMenuOpen, setProductsMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileProductsMenuOpen, setMobileProductsMenuOpen] = useState(false);
@@ -365,6 +393,29 @@ const PageDemo = () => {
       ) || null,
     [productPages, currentProductSlug],
   );
+  const breadcrumbItems = useMemo(() => {
+    const items: Array<{ label: string; onClick?: () => void }> = [
+      {
+        label: "Home",
+        onClick: () => navigate("/website-preview/page/home"),
+      },
+    ];
+
+    if (currentSection !== "home") {
+      items.push({
+        label: currentSection === "testimonials" ? "Testimonials" : currentSection.charAt(0).toUpperCase() + currentSection.slice(1),
+        onClick: () => navigate(`/website-preview/page/${currentSection}`),
+      });
+    }
+
+    if (currentSection === "products" && selectedProductPage) {
+      items.push({
+        label: String(selectedProductPage?.heading || selectedProductPage?.name || "Product").trim(),
+      });
+    }
+
+    return items;
+  }, [currentSection, navigate, selectedProductPage]);
 
   const heroImages = Array.isArray(draft?.heroImages) ? draft.heroImages : [];
 
@@ -451,7 +502,9 @@ const PageDemo = () => {
   }, [draft]);
 
   const heroImage = heroImages[heroIndex] || heroImages[0] || "";
-  const galleryItems = Array.isArray(draft?.gallery) ? draft.gallery : [];
+  const galleryItems = Array.isArray(draft?.gallery)
+    ? draft.gallery.map((item: any) => getMediaSrc(item)).filter(Boolean)
+    : [];
   const homeGalleryItems = galleryItems.slice(0, 6);
   const draftTestimonials = (Array.isArray(draft?.testimonials) ? draft.testimonials : [])
     .map((item: any, index: number) => ({
@@ -482,6 +535,7 @@ const PageDemo = () => {
         (card: any) => String(card?.title || "").trim() || String(card?.description || "").trim() || card?.image,
       )
     : [];
+  const selectedGalleryImage = galleryItems[galleryViewerIndex] || galleryItems[0] || "";
   const aboutNarrativeBlocks = [
     { title: "Our Story", body: String(draft?.aboutPageStory || "").trim() },
     { title: "Our Mission", body: String(draft?.aboutPageMission || "").trim() },
@@ -494,6 +548,63 @@ const PageDemo = () => {
     ...aboutBlocks,
   );
   const showWriteReview = draft?.testimonialsEnableWriteReview !== false;
+  const contactEmail = String(draft?.email || "").trim();
+  const contactPhone = String(draft?.phone || "").trim();
+  const contactAddress = String(draft?.address || "Panjim-Goa").trim();
+  const footerCompanyName = String(draft?.registeredCompanyName || draft?.companyName || "").trim();
+  const footerCopyrightText = String(draft?.copyrightText || "").trim();
+  const footerAddress = String(draft?.address || "").trim();
+
+  const renderContactCard = () => (
+    <div className="flex h-full min-h-[320px] flex-col bg-white px-6 py-7 shadow-sm md:min-h-[430px] md:px-10 md:py-10">
+      {draft?.companyLogo ? (
+        <img
+          src={draft.companyLogo}
+          alt={draft.companyName || "Company"}
+          className="mx-auto h-14 w-auto object-contain md:h-16"
+        />
+      ) : (
+        <div className="mx-auto h-14 w-full max-w-[220px]" />
+      )}
+
+      <div className="mt-10 space-y-7 text-[15px] leading-7 text-[#111827] md:mt-14 md:text-[16px]">
+        {contactEmail ? (
+          <a
+            href={`mailto:${contactEmail}`}
+            className="grid min-w-0 grid-cols-[48px_1fr] items-center gap-5 transition hover:opacity-80"
+          >
+            <IconCircle>
+              <MailIcon />
+            </IconCircle>
+            <span className="min-w-0 break-words leading-7">{contactEmail}</span>
+          </a>
+        ) : null}
+
+        {contactPhone ? (
+          <a
+            href={`tel:${contactPhone.replace(/[^\d+]/g, "")}`}
+            className="grid min-w-0 grid-cols-[48px_1fr] items-center gap-5 transition hover:opacity-80"
+          >
+            <IconCircle>
+              <PhoneIcon />
+            </IconCircle>
+            <span className="min-w-0 break-words leading-7">{contactPhone}</span>
+          </a>
+        ) : null}
+
+        {contactAddress ? (
+          <div className="grid min-w-0 grid-cols-[48px_1fr] items-start gap-5">
+            <div className="flex items-start justify-center pt-0.5">
+              <IconCircle>
+                <MapIcon />
+              </IconCircle>
+            </div>
+            <span className="min-w-0 break-words pt-0.5 leading-7">{contactAddress}</span>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 
   useEffect(() => {
     if (testimonialPages <= 1) return;
@@ -502,6 +613,12 @@ const PageDemo = () => {
     }, 5000);
     return () => window.clearInterval(timer);
   }, [testimonialPages]);
+
+  useEffect(() => {
+    if (galleryViewerIndex >= galleryItems.length) {
+      setGalleryViewerIndex(0);
+    }
+  }, [galleryItems.length, galleryViewerIndex]);
 
   if (!draft) {
     return (
@@ -534,6 +651,21 @@ const PageDemo = () => {
     setMobileMenuOpen(false);
     setMobileProductsMenuOpen(false);
     navigate(getPreviewRouteForProduct(slug));
+  };
+
+  const openGalleryViewer = (index: number) => {
+    if (!galleryItems.length) return;
+    const nextIndex = Math.max(0, Math.min(index, galleryItems.length - 1));
+    setGalleryViewerIndex(nextIndex);
+    setGalleryViewerOpen(true);
+  };
+
+  const closeGalleryViewer = () => setGalleryViewerOpen(false);
+
+  const goToGalleryIndex = (index: number) => {
+    if (!galleryItems.length) return;
+    const normalizedIndex = ((index % galleryItems.length) + galleryItems.length) % galleryItems.length;
+    setGalleryViewerIndex(normalizedIndex);
   };
 
   const handleHeroNext = () => {
@@ -693,12 +825,12 @@ const PageDemo = () => {
 
   return (
     <div className="min-h-screen bg-[#e9e9e9] text-[#1f1f1f]">
-      <header ref={headerRef} className="sticky top-0 z-30 border-b border-slate-300 bg-[#f4f4f4] shadow-sm">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 md:px-6 md:py-4">
+      <header ref={headerRef} className="sticky top-0 z-30 border-b border-slate-300 bg-[#ffffff] shadow-sm">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-end gap-4 px-4 py-3 md:px-0 md:py-3">
           <button
             type="button"
             onClick={() => goToSection("home")}
-            className="flex h-16 w-24 items-center justify-between overflow-hidden lg:w-36"
+            className="flex h-16 w-24 items-center justify-end overflow-hidden lg:w-36"
             aria-label="Go to home"
           >
             {draft?.companyLogo ? (
@@ -719,7 +851,7 @@ const PageDemo = () => {
               setMobileMenuOpen((prev) => !prev);
               setProductsMenuOpen(false);
             }}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-300 text-slate-700 md:hidden"
+            className="inline-flex h-9 w-9 items-center justify-end rounded-md border border-slate-300 text-slate-700 md:hidden"
             aria-label="Toggle navigation"
             aria-expanded={mobileMenuOpen}
           >
@@ -730,7 +862,7 @@ const PageDemo = () => {
             </span>
           </button>
 
-          <nav className="hidden flex-1 items-center justify-center gap-6 px-1 md:flex">
+          <nav className="ml-autohidden flex-1 items-center justify-end gap-6 px-0 md:flex">
             {navItems.map((item) => {
               const isProducts = resolveSectionFromSlug(item.slug) === "products";
               const isActive = currentSection === resolveSectionFromSlug(item.slug);
@@ -793,24 +925,41 @@ const PageDemo = () => {
                       >
                         All Products
                       </button>
-                      {productPages.map((product: any, idx: number) => (
-                        <button
-                          key={`product-nav-${idx}`}
-                          type="button"
-                          onClick={() => goToProductPage(product?.slug || product?.name || "product")}
-                          className="block w-full rounded px-3 py-2 text-left text-sm hover:bg-slate-100"
-                        >
-                          {product?.name || "Product"}
-                        </button>
-                      ))}
+                     {productPages.map((product: any, idx: number) => {
+                        const productSlug = normalizeSlug(product?.slug || product?.name || "product");
+                        const isCurrentProduct =
+                          currentSection === "products" && currentProductSlug === productSlug;
+
+                        return (
+                          <button
+                            key={`product-nav-${idx}`}
+                            type="button"
+                            onClick={() => goToProductPage(product?.slug || product?.name || "product")}
+                            className={`block w-full rounded px-3 py-2 text-left text-sm hover:bg-slate-100 ${
+                              isCurrentProduct
+                                ? "font-semibold text-slate-900"
+                                : "font-normal text-slate-700"
+                            }`}
+                          >
+                            {product?.name || "Product"}
+                          </button>
+                        );
+                      })}
                     </div>
                   ) : null}
                 </div>
               );
             })}
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="whitespace-nowrap border-b-2 border-transparent px-2 pb-1 text-[13px] font-medium text-[#222] transition hover:border-[#3b82f6] hover:font-semibold hover:text-[#000] md:text-[14px]"
+            >
+              Login
+            </button>
           </nav>
 
-          <div className="hidden min-w-[170px] md:block" />
+          
         </div>
 
         {mobileMenuOpen ? (
@@ -894,10 +1043,73 @@ const PageDemo = () => {
                   </div>
                 );
               })}
+              <button
+                type="button"
+                onClick={() => navigate("/")}
+                className="flex items-center justify-between border-b border-slate-200 px-1 py-3 text-left text-[15px] text-[#222]"
+              >
+                Login
+              </button>
             </div>
           </div>
         ) : null}
       </header>
+
+      {breadcrumbItems.length > 1 ? (
+        <div className="border-b border-slate-200 px-4 py-2 text-[12px] text-slate-600 md:px-6">
+          <div className="mx-auto flex w-full max-w-7xl py-1 items-center gap-3 overflow-x-auto whitespace-nowrap">
+
+            {/* breadcrumbs with back button and current page highlight */}
+            {/* <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-black shadow-sm transition hover:border-slate-300"
+              aria-label="Go back"
+            >
+              <svg
+                viewBox="0 0 20 20"
+                aria-hidden="true"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 15l-5-5 5-5" />
+              </svg>
+            </button> */}
+            <div className="flex items-center gap-2">
+              {breadcrumbItems.map((item, index) => (
+                <div key={`${item.label}-${index}`} className="flex items-center gap-2">
+                  {index > 0 ? <span className="text-slate-400">›</span> : null}
+                  {item.onClick ? (
+                    <button
+                      type="button"
+                      onClick={item.onClick}
+                      aria-current={index === breadcrumbItems.length - 1 ? "page" : undefined}
+                      className={`transition hover:text-black ${
+                        index === breadcrumbItems.length - 1
+                          ? "font-semibold text-black"
+                          : "font-medium text-[#222]"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ) : (
+                    <span
+                      aria-current="page"
+                      className="font-semibold text-black"
+                    >
+                      {item.label}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {currentSection === "home" ? (
         <>
@@ -1017,9 +1229,18 @@ const PageDemo = () => {
               <h2 className={MOBILE_SECTION_HEADING}>{draft?.galleryTitle || "Gallery"}</h2>
               <div className="mt-6 grid grid-cols-1 gap-[8px] sm:grid-cols-2 md:mt-10 md:grid-cols-3">
                 {homeGalleryItems.map((item: string, idx: number) => (
-                  <div key={`gallery-${idx}`} className="overflow-hidden rounded-lg bg-slate-100">
-                    <img src={item} alt={`Gallery ${idx + 1}`} className="h-[190px] w-full object-cover md:h-[256px]" />
-                  </div>
+                  <button
+                    key={`gallery-${idx}`}
+                    type="button"
+                    onClick={() => openGalleryViewer(idx)}
+                    className="overflow-hidden rounded-lg bg-slate-100 text-left"
+                  >
+                    <img
+                      src={item}
+                      alt={`Gallery ${idx + 1}`}
+                      className="h-[190px] w-full object-cover transition duration-300 hover:scale-[1.02] md:h-[256px]"
+                    />
+                  </button>
                 ))}
               </div>
               <div className="mt-6 flex justify-center md:mt-8">
@@ -1126,31 +1347,22 @@ const PageDemo = () => {
           <section id="contact" className={SECTION_BLOCK}>
             <div className={CONTENT_WRAP}>
               <h2 className={MOBILE_SECTION_HEADING}>{draft?.contactTitle || "Contact"}</h2>
-              <div className="mt-6 grid grid-cols-1 gap-4 md:mt-8 md:grid-cols-12">
-                <div className="md:col-span-8">
+            <div className="mt-6 grid grid-cols-1 gap-4 md:mt-8 md:grid-cols-12">
+                <div className="md:col-span-7">
                   {draft?.mapUrl ? (
                     <iframe
                       title="map"
                       src={draft.mapUrl}
-                      className="h-[220px] w-full border-0 md:h-[360px]"
+                      className="h-[220px] w-full border-0 md:h-[420px]"
                       loading="lazy"
                       referrerPolicy="no-referrer-when-downgrade"
                     />
                   ) : (
-                    <div className="h-[220px] w-full bg-slate-300 md:h-[360px]" />
+                    <div className="h-[220px] w-full bg-slate-300 md:h-[420px]" />
                   )}
                 </div>
-                <div className="md:col-span-4">
-                    <div className="min-h-[220px] bg-[#efefef] p-5 shadow-sm md:h-[360px] md:p-8">
-                      {draft?.companyLogo ? (
-                      <img src={draft.companyLogo} alt={draft.companyName || "Company"} className="h-12 w-auto object-contain md:h-14" />
-                      ) : null}
-                    <div className="mt-6 space-y-2 text-sm md:mt-10 md:space-y-4 md:text-base">
-                      {draft?.email ? <p>{draft.email}</p> : null}
-                      {draft?.phone ? <p>{draft.phone}</p> : null}
-                      {draft?.address ? <p>{draft.address}</p> : null}
-                    </div>
-                  </div>
+                <div className="md:col-span-5">
+                  {renderContactCard()}
                 </div>
               </div>
             </div>
@@ -1201,7 +1413,7 @@ const PageDemo = () => {
                   {aboutPageImageCards.map((card: any, idx: number) => (
                     <article key={`about-card-${idx}`} className="overflow-hidden rounded-2xl bg-[#111111] text-white shadow-sm">
                       {card?.image ? (
-                        <img src={card.image} alt={card?.title || `About Card ${idx + 1}`} className="h-[220px] w-full object-cover" />
+                        <img src={card.image} alt={card?.title || `About Card ${idx + 1}`} className="h-[350px] w-full object-cover" />
                       ) : (
                         <div className="h-[220px] w-full bg-slate-200" />
                       )}
@@ -1232,7 +1444,7 @@ const PageDemo = () => {
                     />
                   ) : null}
 
-                  <div className="absolute inset-0 flex items-center justify-center px-4 text-center text-white">
+                  <div className="sticky inset-0 flex items-self-end justify-center px-4 pb-8 text-center text-white">
                     <div>
                       <h1 className="text-[26px] font-bold md:text-4xl">
                         {selectedProductPage?.heroHeading || selectedProductPage?.name || "Product"}
@@ -1401,9 +1613,18 @@ const PageDemo = () => {
             <h2 className={MOBILE_SECTION_HEADING}>{draft?.galleryTitle || "Gallery"}</h2>
               <div className="mt-6 grid grid-cols-1 gap-[8px] sm:grid-cols-2 md:mt-10 md:grid-cols-3">
               {galleryItems.map((item: string, idx: number) => (
-                <div key={`gallery-page-${idx}`} className="overflow-hidden rounded-lg bg-slate-100">
-                  <img src={item} alt={`Gallery ${idx + 1}`} className="h-[190px] w-full object-cover md:h-[256px]" />
-                </div>
+                <button
+                  key={`gallery-page-${idx}`}
+                  type="button"
+                  onClick={() => openGalleryViewer(idx)}
+                  className="overflow-hidden rounded-lg bg-slate-100 text-left"
+                >
+                  <img
+                    src={item}
+                    alt={`Gallery ${idx + 1}`}
+                    className="h-[190px] w-full object-cover transition duration-300 hover:scale-[1.02] md:h-[256px]"
+                  />
+                </button>
               ))}
             </div>
           </div>
@@ -1509,37 +1730,28 @@ const PageDemo = () => {
           <div className={CONTENT_WRAP}>
             <h2 className={MOBILE_SECTION_HEADING}>{draft?.contactTitle || "Contact"}</h2>
             <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-12">
-              <div className="md:col-span-8">
+              <div className="md:col-span-7">
                 {draft?.mapUrl ? (
                   <iframe
                     title="map"
                     src={draft.mapUrl}
-                    className="h-[260px] w-full border-0 md:h-[360px]"
+                    className="h-[260px] w-full border-0 md:h-[420px]"
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
                   />
                 ) : (
-                  <div className="h-[360px] w-full bg-slate-300" />
+                  <div className="h-[260px] w-full bg-slate-300 md:h-[420px]" />
                 )}
               </div>
-              <div className="md:col-span-4">
-                <div className="min-h-[260px] bg-[#efefef] p-6 shadow-sm md:h-[360px] md:p-8">
-                  {draft?.companyLogo ? (
-                    <img src={draft.companyLogo} alt={draft.companyName || "Company"} className="h-12 w-auto object-contain md:h-14" />
-                  ) : null}
-                  <div className="mt-8 space-y-3 text-sm md:mt-10 md:space-y-4 md:text-base">
-                    {draft?.email ? <p>{draft.email}</p> : null}
-                    {draft?.phone ? <p>{draft.phone}</p> : null}
-                    {draft?.address ? <p>{draft.address}</p> : null}
-                  </div>
-                </div>
+              <div className="md:col-span-5">
+                {renderContactCard()}
               </div>
             </div>
           </div>
         </section>
       ) : null}
 
-      <footer className={`mt-8 border-t border-slate-300 bg-[#ececec] ${FOOTER_TEXT}`}>
+      <footer className={`mt-8 border-t border-slate-300 bg-[#ffffff] ${FOOTER_TEXT}`}>
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-6 py-8 text-center md:grid-cols-3 md:text-left">
           <div>
             {draft?.companyLogo ? (
@@ -1549,12 +1761,14 @@ const PageDemo = () => {
                 className="mx-auto h-10 w-auto object-contain md:mx-0 md:h-12"
               />
             ) : null}
-            <p className="mt-2 text-[15px] font-semibold text-[#111827] md:text-[18px]">{draft?.companyName || "Globex"}</p>
-            <p className={FOOTER_BODY_TEXT}>{draft?.address || "Panjim-Goa"}</p>
+            {footerCompanyName ? (
+              <p className="mt-2 text-[15px] font-semibold text-[#111827] md:text-[14px]">{footerCompanyName}</p>
+            ) : null}
+            {footerAddress ? <p className={FOOTER_BODY_TEXT}>{footerAddress}</p> : null}
           </div>
           <div>
-            <h3 className={FOOTER_HEADING}>Quick Links</h3>
-            <div className={FOOTER_BODY_TEXT}>
+            <h3 className={`${FOOTER_HEADING} md:ml-[130px]`}>Quick Links</h3>
+            <div className={`${FOOTER_BODY_TEXT} md:ml-[130px]`}>
               {navItems.map((item) => (
                 <button
                   key={`footer-${item.slug}`}
@@ -1576,7 +1790,7 @@ const PageDemo = () => {
           </div>
         </div>
         <div className="border-t border-slate-300 px-6 py-3 text-center text-sm leading-relaxed text-[#374151]">
-          {draft?.copyrightText || `(c) Copyright 2025-26 ${draft?.registeredCompanyName || draft?.companyName || "Globex"} - All rights reserved. Powered By WoNo`}
+          {footerCopyrightText ? footerCopyrightText : null}
         </div>
       </footer>
 
@@ -1603,7 +1817,7 @@ const PageDemo = () => {
             <form onSubmit={submitReviewForm} className="mt-6 grid grid-cols-1 gap-4">
                 <input
                   type="text"
-                  className="border-b border-slate-300 px-0 py-2 text-sm outline-none placeholder:text-slate-500 md:text-base"
+                  className="border-b border-slate-300 px-3 py-3 text-sm outline-none placeholder:text-slate-500 md:text-base"
                   placeholder="Full Name"
                   value={reviewForm.reviewerName}
                   onChange={(e) => setReviewForm((prev) => ({ ...prev, reviewerName: e.target.value }))}
@@ -1697,7 +1911,7 @@ const PageDemo = () => {
                       {getLeadMetaForProduct(selectedLeadProduct).description}
                     </p>
 
-                    <h4 className="mt-6 text-xl font-bold uppercase text-slate-900">
+                    <h4 className="mt-6 text-xl text-center font-bold uppercase text-slate-900">
                       {getLeadMetaForProduct(selectedLeadProduct).label}
                     </h4>
 
@@ -1724,7 +1938,7 @@ const PageDemo = () => {
                         {leadSubmitError ? (
                           <p className="lg:col-span-2 text-sm text-red-600">{leadSubmitError}</p>
                         ) : null}
-                        <div className="pt-2 lg:col-span-2">
+                        <div className="pt-2 text-center lg:col-span-2">
                           <button
                             type="submit"
                             disabled={leadSubmitPending}
@@ -1748,6 +1962,86 @@ const PageDemo = () => {
             <p className="text-sm font-semibold text-green-700 md:text-base">
               {successPopup.message}
             </p>
+          </div>
+        </div>
+      ) : null}
+
+      {galleryViewerOpen && galleryItems.length ? (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 px-2 py-4 backdrop-blur-sm md:px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Gallery viewer"
+          onClick={closeGalleryViewer}
+        >
+          <div
+            className="relative flex w-full max-w-[1320px] flex-col gap-3 overflow-hidden rounded-[18px] bg-white p-2 shadow-[0_20px_80px_rgba(15,23,42,0.35)] md:max-h-[88vh] md:p-3 lg:flex-row"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={closeGalleryViewer}
+              className="absolute right-4 top-4 z-10 rounded-full bg-white/90 px-3 py-1 text-2xl leading-none text-slate-700 shadow-sm hover:bg-white"
+              aria-label="Close gallery viewer"
+            >
+              ×
+            </button>
+
+            <div className="relative flex min-h-0 flex-1 items-center justify-center rounded-[14px] bg-slate-100 px-2 py-2 md:px-3 md:py-3">
+              {selectedGalleryImage ? (
+                <img
+                  src={selectedGalleryImage}
+                  alt={`Gallery ${galleryViewerIndex + 1}`}
+                  className="h-[70vh] w-full rounded-[12px] object-cover"
+                />
+              ) : null}
+
+              {galleryItems.length > 1 ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => goToGalleryIndex(galleryViewerIndex - 1)}
+                    className="absolute left-6 top-1/2 hidden -translate-y-1/2 rounded-full bg-black/55 px-4 py-2 text-2xl text-white shadow-lg transition hover:bg-black/70 md:block"
+                    aria-label="Previous gallery image"
+                  >
+                    {"<"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => goToGalleryIndex(galleryViewerIndex + 1)}
+                    className="absolute right-6 top-1/2 hidden -translate-y-1/2 rounded-full bg-black/55 px-4 py-2 text-2xl text-white shadow-lg transition hover:bg-black/70 md:block"
+                    aria-label="Next gallery image"
+                  >
+                    {">"}
+                  </button>
+                </>
+              ) : null}
+            </div>
+
+            <div className="w-full shrink-0 lg:w-[240px]">
+              <div className="grid max-h-[24vh] grid-cols-3 gap-2 overflow-y-auto rounded-[14px] bg-white p-1 lg:max-h-[78vh] lg:grid-cols-1">
+                {galleryItems.map((item: string, idx: number) => {
+                  const isActive = idx === galleryViewerIndex;
+                  return (
+                    <button
+                      key={`gallery-thumb-${idx}`}
+                      type="button"
+                      onClick={() => goToGalleryIndex(idx)}
+                      className={`overflow-hidden rounded-[10px] border-2 text-left transition ${
+                        isActive ? "border-blue-600" : "border-transparent hover:border-slate-300"
+                      }`}
+                      aria-label={`Open gallery image ${idx + 1}`}
+                    >
+                      <img
+                        src={item}
+                        alt={`Gallery thumbnail ${idx + 1}`}
+                        className="h-24 w-full object-cover lg:h-28"
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
