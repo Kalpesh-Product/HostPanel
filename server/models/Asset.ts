@@ -11,7 +11,7 @@ const assetSchema = new mongoose.Schema(
 
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
+            ref: "HostUser",
             required: true,
             index: true,
         },
@@ -83,7 +83,7 @@ const assetSchema = new mongoose.Schema(
 
         assignedToUserId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
+            ref: "HostUser",
             default: null,
             index: true,
         },

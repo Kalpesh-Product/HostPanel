@@ -25,6 +25,7 @@ import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import supportTicketRoutes from "./routes/supportTicketRoutes.js";
 import websiteCreditsRoutes from "./routes/websiteCreditsRoutes.js";
 import visitorRoutes from "./routes/visitorRoutes.js";
+import assetRoutes from "./routes/assetRoutes.js";
 
 const app = express();
 dotenv.config();
@@ -66,6 +67,7 @@ app.use("/api/subscription", verifyJwt, subscriptionRoutes);
 app.use("/api/website-credits", verifyJwt, websiteCreditsRoutes);
 app.use("/api/tickets/support-tickets", verifyJwt, supportTicketRoutes);
 app.use("/api/v1/visitors", verifyJwt, visitorRoutes);
+app.use("/api/assets", verifyJwt, assetRoutes);
 
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {

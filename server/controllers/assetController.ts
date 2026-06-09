@@ -1,0 +1,426 @@
+// @ts-nocheck
+import mongoose from "mongoose";
+import { Asset } from "../models/Asset.js";
+
+const getCurrentWorkspaceId = (req) => {
+    return (
+        req.user?.activeWorkspaceId ||
+        req.user?.activeWorkspace ||
+        req.user?.primaryWorkspace ||
+        req.user?.workspaceId ||
+        req.body?.workspaceId
+    );
+};
+
+const generateAssetCode = (assetNumber) => {
+    return `AST-${String(assetNumber).padStart(4, "0")}`;
+};
+
+export const createAsset = async (req, res, next) => {
+    try {
+        const workspaceId = getCurrentWorkspaceId(req);
+
+        if (!workspaceId) {
+            return res.status(400).json({
+                message: "Workspace is required",
+            });
+        }
+
+        const lastAsset = await Asset.findOne({ workspaceId })
+            .sort({ assetNumber: -1 })
+            .select("assetNumber")
+            .lean()
+            .exec();
+
+        const assetNumber = (lastAsset?.assetNumber || 0) + 1;
+        const assetCode = req.body.assetCode || generateAssetCode(assetNumber);
+
+        const asset = await Asset.create({
+            ...req.body,
+            workspaceId,
+            createdBy: req.user?._id,
+            assetNumber,
+            assetCode,
+        });
+
+        return res.status(201).json({
+            message: "Asset created successfully",
+            data: { asset },
+        });
+    } catch (error) {
+        if (error?.code === 11000) {
+            return res.status(409).json({
+                message: "Asset number or asset code already exists in this workspace",
+            });
+        }
+
+        next(error);
+    }
+};
+
+export const getAssets = async (req, res, next) => {
+    try {
+        const workspaceId = getCurrentWorkspaceId(req);
+
+        if (!workspaceId) {
+            return res.status(400).json({
+                message: "Workspace is required",
+            });
+        }
+
+        const {
+            status,
+            category,
+            department,
+            assignedToUserId,
+            assignedToDepartment,
+            vendor,
+            ownershipType,
+            condition,
+            search,
+            page = 1,
+            limit = 20,
+        } = req.query;
+
+        const filter = { workspaceId };
+
+        if (status) filter.status = status;
+        if (category) filter.category = category;
+        if (department) filter.department = department;
+        if (assignedToUserId) filter.assignedToUserId = assignedToUserId;
+        if (assignedToDepartment) filter.assignedToDepartment = assignedToDepartment;
+        if (vendor) filter.vendor = vendor;
+        if (ownershipType) filter.ownershipType = ownershipType;
+        if (condition) filter.condition = condition;
+
+        if (search) {
+            filter.$or = [
+                { assetCode: { $regex: search, $options: "i" } },
+                { name: { $regex: search, $options: "i" } },
+                { serialNumber: { $regex: search, $options: "i" } },
+                { brandModel: { $regex: search, $options: "i" } },
+                { department: { $regex: search, $options: "i" } },
+                { assignedToDepartment: { $regex: search, $options: "i" } },
+                { vendor: { $regex: search, $options: "i" } },
+                { invoiceNumber: { $regex: search, $options: "i" } },
+            ];
+        }
+
+        const pageNumber = Math.max(Number(page) || 1, 1);
+        const limitNumber = Math.max(Number(limit) || 20, 1);
+        const skip = (pageNumber - 1) * limitNumber;
+
+        const [assets, total] = await Promise.all([
+            Asset.find(filter)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limitNumber)
+                .lean()
+                .exec(),
+
+            Asset.countDocuments(filter),
+        ]);
+
+        return res.status(200).json({
+            message: "Assets loaded successfully",
+            data: {
+                assets,
+                pagination: {
+                    total,
+                    page: pageNumber,
+                    limit: limitNumber,
+                    totalPages: Math.ceil(total / limitNumber),
+                },
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getAssetById = async (req, res, next) => {
+    try {
+        const workspaceId = getCurrentWorkspaceId(req);
+        const { assetId } = req.params;
+
+        if (!workspaceId) {
+            return res.status(400).json({
+                message: "Workspace is required",
+            });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(assetId)) {
+            return res.status(400).json({
+                message: "Invalid asset id",
+            });
+        }
+
+        const asset = await Asset.findOne({
+            _id: assetId,
+            workspaceId,
+        })
+            .lean()
+            .exec();
+
+        if (!asset) {
+            return res.status(404).json({
+                message: "Asset not found",
+            });
+        }
+
+        return res.status(200).json({
+            message: "Asset loaded successfully",
+            data: { asset },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const updateAsset = async (req, res, next) => {
+    try {
+        const workspaceId = getCurrentWorkspaceId(req);
+        const { assetId } = req.params;
+
+        if (!workspaceId) {
+            return res.status(400).json({
+                message: "Workspace is required",
+            });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(assetId)) {
+            return res.status(400).json({
+                message: "Invalid asset id",
+            });
+        }
+
+        delete req.body.workspaceId;
+        delete req.body.createdBy;
+        delete req.body.assetNumber;
+
+        const asset = await Asset.findOneAndUpdate(
+            {
+                _id: assetId,
+                workspaceId,
+            },
+            req.body,
+            {
+                new: true,
+                runValidators: true,
+            }
+        )
+            .lean()
+            .exec();
+
+        if (!asset) {
+            return res.status(404).json({
+                message: "Asset not found",
+            });
+        }
+
+        return res.status(200).json({
+            message: "Asset updated successfully",
+            data: { asset },
+        });
+    } catch (error) {
+        if (error?.code === 11000) {
+            return res.status(409).json({
+                message: "Asset code already exists in this workspace",
+            });
+        }
+
+        next(error);
+    }
+};
+
+export const transferAsset = async (req, res, next) => {
+    try {
+        const workspaceId = getCurrentWorkspaceId(req);
+        const { assetId } = req.params;
+
+        const {
+            assignedToUserId = null,
+            assignedToDepartment = "",
+            transferReason = "",
+            transferDate = new Date(),
+        } = req.body;
+
+        if (!workspaceId) {
+            return res.status(400).json({
+                message: "Workspace is required",
+            });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(assetId)) {
+            return res.status(400).json({
+                message: "Invalid asset id",
+            });
+        }
+
+        if (assignedToUserId && !mongoose.Types.ObjectId.isValid(assignedToUserId)) {
+            return res.status(400).json({
+                message: "Invalid assigned user id",
+            });
+        }
+
+        const asset = await Asset.findOneAndUpdate(
+            {
+                _id: assetId,
+                workspaceId,
+            },
+            {
+                assignedToUserId,
+                assignedToDepartment,
+                transferReason,
+                transferDate,
+            },
+            {
+                new: true,
+                runValidators: true,
+            }
+        )
+            .lean()
+            .exec();
+
+        if (!asset) {
+            return res.status(404).json({
+                message: "Asset not found",
+            });
+        }
+
+        return res.status(200).json({
+            message: "Asset transferred successfully",
+            data: { asset },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const deleteAsset = async (req, res, next) => {
+    try {
+        const workspaceId = getCurrentWorkspaceId(req);
+        const { assetId } = req.params;
+
+        if (!workspaceId) {
+            return res.status(400).json({
+                message: "Workspace is required",
+            });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(assetId)) {
+            return res.status(400).json({
+                message: "Invalid asset id",
+            });
+        }
+
+        const asset = await Asset.findOneAndDelete({
+            _id: assetId,
+            workspaceId,
+        })
+            .lean()
+            .exec();
+
+        if (!asset) {
+            return res.status(404).json({
+                message: "Asset not found",
+            });
+        }
+
+        return res.status(200).json({
+            message: "Asset deleted successfully",
+            data: { assetId },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getAssetSummary = async (req, res, next) => {
+    try {
+        const workspaceId = getCurrentWorkspaceId(req);
+
+        if (!workspaceId) {
+            return res.status(400).json({
+                message: "Workspace is required",
+            });
+        }
+
+        const [
+            totalAssets,
+            activeAssets,
+            inactiveAssets,
+            disposedAssets,
+            repairAssets,
+            ownedAssets,
+            rentedAssets,
+            totalValueResult,
+            categorySummary,
+            departmentSummary,
+        ] = await Promise.all([
+            Asset.countDocuments({ workspaceId }),
+
+            Asset.countDocuments({ workspaceId, status: "Active" }),
+
+            Asset.countDocuments({ workspaceId, status: "Inactive" }),
+
+            Asset.countDocuments({ workspaceId, status: "Disposed" }),
+
+            Asset.countDocuments({ workspaceId, status: "Repair" }),
+
+            Asset.countDocuments({ workspaceId, ownershipType: "Owned" }),
+
+            Asset.countDocuments({ workspaceId, ownershipType: "Rented" }),
+
+            Asset.aggregate([
+                { $match: { workspaceId: new mongoose.Types.ObjectId(workspaceId) } },
+                {
+                    $group: {
+                        _id: null,
+                        totalValue: { $sum: "$value" },
+                    },
+                },
+            ]),
+
+            Asset.aggregate([
+                { $match: { workspaceId: new mongoose.Types.ObjectId(workspaceId) } },
+                {
+                    $group: {
+                        _id: "$category",
+                        count: { $sum: 1 },
+                    },
+                },
+                { $sort: { count: -1 } },
+            ]),
+
+            Asset.aggregate([
+                { $match: { workspaceId: new mongoose.Types.ObjectId(workspaceId) } },
+                {
+                    $group: {
+                        _id: "$department",
+                        count: { $sum: 1 },
+                    },
+                },
+                { $sort: { count: -1 } },
+            ]),
+        ]);
+
+        return res.status(200).json({
+            message: "Asset summary loaded successfully",
+            data: {
+                totalAssets,
+                activeAssets,
+                inactiveAssets,
+                disposedAssets,
+                repairAssets,
+                ownedAssets,
+                rentedAssets,
+                totalValue: totalValueResult?.[0]?.totalValue || 0,
+                categorySummary,
+                departmentSummary,
+            },
+        });
+    } catch (error) {
+        next(error);
+    }
+};
