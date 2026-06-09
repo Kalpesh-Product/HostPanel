@@ -38,7 +38,9 @@ const FrontendDashboard = () => {
 
   const navigate = useNavigate();
   const axios = useAxiosPrivate();
-  const isWebsiteTemplate = auth.user.isWebsiteTemplate;
+  const isWebsiteTemplate = Boolean(
+    website?.isWebsiteTemplate || auth?.user?.isWebsiteTemplate,
+  );
 
   useEffect(() => {
     setIsSidebarOpen(true);

@@ -1,14 +1,11 @@
 // @ts-nocheck
 import WorkspaceSubscription from "../models/WorkspaceSubscription.js";
-
-const MONTHLY_BASE_CREDITS = 5;
-
-const getFirstDayOfNextMonthUtc = () => {
-  const now = new Date();
-  return new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0),
-  );
-};
+import {
+  MONTHLY_BASE_CREDITS,
+  findWorkspaceSubscription,
+  getFirstDayOfNextMonthUtc,
+  renewMonthlyCreditsIfNeeded,
+} from "./subscriptionHelpers.js";
 
 export const getSubscription = async (req, res, next) => {
   try {
@@ -26,37 +23,24 @@ export const getSubscription = async (req, res, next) => {
       return res.status(400).json({ error: "companyId or workspaceId is required" });
     }
 
-    const clauses = [];
-    if (routeId) {
-      clauses.push({ companyId: routeId }, { workspaceId: routeId });
-    }
-    if (companyId) clauses.push({ companyId });
-    if (workspaceId) clauses.push({ workspaceId });
-
-    const uniqueClauses = Array.from(
-      new Map(clauses.map((c) => [JSON.stringify(c), c])).values(),
-    );
-
-    let subscription = null;
-    if (uniqueClauses.length) {
-      subscription = await WorkspaceSubscription.findOne({ $or: uniqueClauses })
-        .sort({ addOnCreditsPurchased: -1, updatedAt: -1, createdAt: -1 })
-        .exec();
-    }
+    let subscription = await findWorkspaceSubscription({
+      companyId,
+      workspaceId,
+      routeId,
+    });
 
     if (!subscription) {
       subscription = await WorkspaceSubscription.create({
-        companyId: companyId || workspaceId,
-        workspaceId: workspaceId || companyId,
+        companyId: companyId || workspaceId || routeId || undefined,
+        workspaceId: workspaceId || companyId || routeId || undefined,
         creditsLimit: MONTHLY_BASE_CREDITS,
         creditsUsed: 0,
         addOnCreditsPurchased: 0,
         creditsResetDate: getFirstDayOfNextMonthUtc(),
       });
-    } else if (Number(subscription.creditsLimit || 0) !== MONTHLY_BASE_CREDITS) {
-      subscription.creditsLimit = MONTHLY_BASE_CREDITS;
-      await subscription.save();
     }
+
+    subscription = await renewMonthlyCreditsIfNeeded(subscription);
 
     const doc = subscription.toObject({ virtuals: true });
     return res.status(200).json(doc);
@@ -78,7 +62,7 @@ export const resetCredits = async (req, res, next) => {
       return res.status(403).json({ error: "forbidden" });
     }
 
-    let subscription = await WorkspaceSubscription.findOne({ workspaceId });
+    let subscription = await findWorkspaceSubscription({ workspaceId, routeId: workspaceId });
 
     if (!subscription) {
       subscription = await WorkspaceSubscription.create({
@@ -91,6 +75,7 @@ export const resetCredits = async (req, res, next) => {
     } else {
       subscription.creditsLimit = MONTHLY_BASE_CREDITS;
       subscription.creditsUsed = 0;
+      subscription.creditsResetDate = getFirstDayOfNextMonthUtc();
       await subscription.save();
     }
 
@@ -110,7 +95,7 @@ export const devResetCredits = async (req, res, next) => {
       return res.status(400).json({ error: "workspaceId is required" });
     }
 
-    let subscription = await WorkspaceSubscription.findOne({ workspaceId });
+    let subscription = await findWorkspaceSubscription({ workspaceId, routeId: workspaceId });
 
     if (!subscription) {
       subscription = await WorkspaceSubscription.create({
@@ -123,6 +108,7 @@ export const devResetCredits = async (req, res, next) => {
     } else {
       subscription.creditsLimit = MONTHLY_BASE_CREDITS;
       subscription.creditsUsed = 0;
+      subscription.creditsResetDate = getFirstDayOfNextMonthUtc();
       await subscription.save();
     }
 
