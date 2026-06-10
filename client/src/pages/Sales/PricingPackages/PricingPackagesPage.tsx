@@ -1,0 +1,2163 @@
+// @ts-nocheck
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getResources, updateResource } from '../../../services/resources';
+import { createPricingPackage, deletePricingPackage, getPricingPackages, updatePricingPackage } from '../../../services/pricing-packages';
+import { toast } from 'sonner';
+import { AlertTriangle, Building2, CheckCircle2, Clock, CreditCard, Edit2, Eye, FileDown, FileSpreadsheet, LayoutGrid, Monitor, Plus, Search, Save, Tag, Trash, Users, X, XCircle } from 'lucide-react';
+import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
+import { createReport } from '../../../services/reports';
+import { downloadReportFile } from '../../../utils/report-download';
+
+const resourceStatusOptions = ['Active', 'Under Maintenance', 'Disabled'];
+const packageStatusOptions = ['Active', 'Disabled'];
+const resourceCategoryOptions = [
+  { value: 'open_desk', label: 'Open Desk' },
+  { value: 'cabin_desk', label: 'Cabin Desk' },
+  { value: 'meeting_room', label: 'Meeting Room' },
+  { value: 'conference_room', label: 'Conference Room' },
+  { value: 'virtual_office', label: 'Virtual Office' },
+];
+const inventoryModeOptions = [
+  { value: 'area', label: 'Area Block' },
+  { value: 'single', label: 'Single Desk' },
+];
+const TENANT_PACKAGE_MIN_DURATION_MONTHS = 3;
+const TENANT_PACKAGE_MONTH_DAYS = 30;
+
+function formatCurrency(value = 0) {
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value || 0));
+}
+
+function formatDate(value) {
+  if (!value) return '--';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '--';
+  return new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', month: 'short', day: '2-digit', year: 'numeric' }).format(date);
+}
+
+function durationLabel(months = 0) {
+  const value = Number(months || 0);
+  if (value === 1) return '1 Month';
+  if (value === 3) return '3 Months';
+  if (value === 6) return '6 Months';
+  if (value === 12) return '1 Year';
+  if (value === 24) return '2 Years';
+  return `${value} Months`;
+}
+
+function parseFeatures(text = '') {
+  return String(text || '').split('\n').map((line) => line.trim()).filter(Boolean);
+}
+
+function featuresToText(features = []) {
+  return Array.isArray(features) ? features.join('\n') : '';
+}
+
+function hasMeaningfulValue(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (typeof value === 'number') return Number.isFinite(value) && value !== 0;
+  if (typeof value === 'boolean') return true;
+  if (Array.isArray(value)) return value.some((entry) => hasMeaningfulValue(entry));
+  return true;
+}
+
+function getTenantResourceLocation(resource = {}) {
+  return [String(resource.floor || '').trim(), String(resource.wing || '').trim().toUpperCase()].filter(Boolean).join(' ').trim();
+}
+
+function getTenantResourceSelectionId(resource = {}) {
+  return String(resource.recordId || resource.id || resource.resourceCode || '').trim();
+}
+
+function isTenantAreaBlockResource(resource = {}) {
+  return (resource.resourceCategory === 'open_desk' || resource.resourceCategory === 'cabin_desk') && resource.inventoryMode === 'area';
+}
+
+function getTenantResourceSeatType(resource = {}) {
+  if (resource.resourceCategory === 'open_desk') return 'open';
+  if (resource.resourceCategory === 'cabin_desk') return 'cabin';
+  return 'mixed';
+}
+
+function getTenantPackageScope(locationMappings = []) {
+  const firstMapping = Array.isArray(locationMappings) ? locationMappings.find((mapping) => mapping?.floor || mapping?.wing) : null;
+
+  if (!firstMapping) {
+    return null;
+  }
+
+  return {
+    floor: String(firstMapping.floor || '').trim(),
+    wing: String(firstMapping.wing || '').trim().toUpperCase(),
+  };
+}
+
+function getTenantScopeResources(resources = [], floor = '', wing = '') {
+  return Array.isArray(resources)
+    ? resources.filter((resource) => {
+        const matchesFloor = floor ? resource.floor === floor : true;
+        const matchesWing = wing ? String(resource.wing || '').trim().toUpperCase() === String(wing || '').trim().toUpperCase() : true;
+        return matchesFloor && matchesWing;
+      })
+    : [];
+}
+
+function getTenantSelectedResourceIds(resources = [], locationMappings = []) {
+  const mappings = Array.isArray(locationMappings) ? locationMappings.filter(Boolean) : [];
+  if (mappings.length === 0) {
+    return resources.map((resource) => getTenantResourceSelectionId(resource)).filter(Boolean);
+  }
+
+  const directCodes = new Set(
+    mappings
+      .flatMap((mapping) => [
+        mapping.locationCode,
+        mapping.label,
+        mapping.resourceCode,
+        mapping.id,
+      ])
+      .map((value) => String(value || '').trim().toUpperCase())
+      .filter(Boolean),
+  );
+
+  const matchedResources = resources.filter((resource) => {
+    const resourceId = String(resource.recordId || resource.id || resource.resourceCode || '').trim().toUpperCase();
+    const resourceLabel = String(resource.name || resource.label || '').trim().toUpperCase();
+    const floorWing = String([resource.floor, resource.wing].filter(Boolean).join(' ')).trim().toUpperCase();
+
+    return directCodes.has(resourceId)
+      || directCodes.has(String(resource.resourceCode || '').trim().toUpperCase())
+      || directCodes.has(resourceLabel)
+      || directCodes.has(floorWing);
+  });
+
+  if (matchedResources.length > 0) {
+    return matchedResources.map((resource) => getTenantResourceSelectionId(resource)).filter(Boolean);
+  }
+
+  const seatTypes = new Set(
+    mappings
+      .map((mapping) => String(mapping.seatType || '').trim().toLowerCase())
+      .filter(Boolean),
+  );
+
+  if (seatTypes.has('open') || seatTypes.has('cabin')) {
+    return resources
+      .filter((resource) => {
+        const resourceSeatType = getTenantResourceSeatType(resource);
+        return seatTypes.has(resourceSeatType);
+      })
+      .map((resource) => getTenantResourceSelectionId(resource))
+      .filter(Boolean);
+  }
+
+  return resources.map((resource) => getTenantResourceSelectionId(resource)).filter(Boolean);
+}
+
+function getTenantPresetResourceIds(resources = [], preset = 'all') {
+  const nextPreset = String(preset || 'all').toLowerCase();
+  if (nextPreset === 'open') {
+    return resources.filter((resource) => resource.resourceCategory === 'open_desk').map((resource) => getTenantResourceSelectionId(resource)).filter(Boolean);
+  }
+
+  if (nextPreset === 'cabin') {
+    return resources.filter((resource) => resource.resourceCategory === 'cabin_desk').map((resource) => getTenantResourceSelectionId(resource)).filter(Boolean);
+  }
+
+  if (nextPreset === 'custom') {
+    return [];
+  }
+
+  return resources.map((resource) => getTenantResourceSelectionId(resource)).filter(Boolean);
+}
+
+function deriveTenantSelectionPreset(availableResources = [], selectedResourceIds = []) {
+  const availableIds = availableResources.map((resource) => getTenantResourceSelectionId(resource)).filter(Boolean);
+  const selectedSet = new Set(selectedResourceIds.map((value) => String(value || '').trim()).filter(Boolean));
+
+  if (availableIds.length === 0 || selectedSet.size === 0) {
+    return 'custom';
+  }
+
+  const openResources = availableResources.filter((resource) => resource.resourceCategory === 'open_desk');
+  const cabinResources = availableResources.filter((resource) => resource.resourceCategory === 'cabin_desk');
+  const openIds = openResources.map((resource) => getTenantResourceSelectionId(resource)).filter(Boolean);
+  const cabinIds = cabinResources.map((resource) => getTenantResourceSelectionId(resource)).filter(Boolean);
+
+  const allSelected = availableIds.length === selectedSet.size && availableIds.every((id) => selectedSet.has(id));
+  if (allSelected) {
+    return 'all';
+  }
+
+  const openOnlySelected = openIds.length > 0 && openIds.length === selectedSet.size && openIds.every((id) => selectedSet.has(id));
+  if (openOnlySelected) {
+    return 'open';
+  }
+
+  const cabinOnlySelected = cabinIds.length > 0 && cabinIds.length === selectedSet.size && cabinIds.every((id) => selectedSet.has(id));
+  if (cabinOnlySelected) {
+    return 'cabin';
+  }
+
+  return 'custom';
+}
+
+function getTenantSelectionPresetLabel(value = 'all') {
+  if (value === 'open') return 'Open desks only';
+  if (value === 'cabin') return 'Cabin desks only';
+  if (value === 'custom') return 'Custom selection';
+  return 'All available blocks';
+}
+
+function buildTenantPackageSummary(resources = [], durationMonths = TENANT_PACKAGE_MIN_DURATION_MONTHS, ratePerOpenDesk = 0, ratePerCabinDesk = 0) {
+  const scopeResources = Array.isArray(resources) ? resources.filter(Boolean) : [];
+  const totalSeats = scopeResources.reduce((sum, resource) => sum + Math.max(0, Number(resource.capacity || 0)), 0);
+  const openDesks = scopeResources
+    .filter((resource) => resource.resourceCategory === 'open_desk')
+    .reduce((sum, resource) => sum + Math.max(0, Number(resource.capacity || 0)), 0);
+  const cabinDesks = scopeResources
+    .filter((resource) => resource.resourceCategory === 'cabin_desk')
+    .reduce((sum, resource) => sum + Math.max(0, Number(resource.capacity || 0)), 0);
+  const monthlyCredits = scopeResources.reduce(
+    (sum, resource) => sum + (Math.max(0, Number(resource.capacity || 0)) * Math.max(0, Number(resource.credits || 0))),
+    0,
+  );
+  const creditsPerSeat = totalSeats > 0 ? Math.round(monthlyCredits / totalSeats) : 0;
+  const fallbackOpenDeskRate = scopeResources
+    .filter((resource) => resource.resourceCategory === 'open_desk')
+    .reduce((sum, resource, _index, list) => sum + Math.max(0, Number(resource.pricePerDay || 0)), 0);
+  const fallbackCabinDeskRate = scopeResources
+    .filter((resource) => resource.resourceCategory === 'cabin_desk')
+    .reduce((sum, resource) => sum + Math.max(0, Number(resource.pricePerDay || 0)), 0);
+  const resolvedRatePerOpenDesk = Math.max(0, Number(ratePerOpenDesk || 0)) || (openDesks > 0 ? Math.round(fallbackOpenDeskRate / Math.max(1, scopeResources.filter((resource) => resource.resourceCategory === 'open_desk').length)) : 0);
+  const resolvedRatePerCabinDesk = Math.max(0, Number(ratePerCabinDesk || 0)) || (cabinDesks > 0 ? Math.round(fallbackCabinDeskRate / Math.max(1, scopeResources.filter((resource) => resource.resourceCategory === 'cabin_desk').length)) : 0);
+  const dailyRateTotal = (openDesks * resolvedRatePerOpenDesk) + (cabinDesks * resolvedRatePerCabinDesk);
+  const monthlyRate = dailyRateTotal * TENANT_PACKAGE_MONTH_DAYS;
+  const contractMonths = Math.max(TENANT_PACKAGE_MIN_DURATION_MONTHS, Number(durationMonths || 0) || TENANT_PACKAGE_MIN_DURATION_MONTHS);
+  const totalContractValue = monthlyRate * contractMonths;
+  const locationMappings = scopeResources.map((resource) => ({
+    floor: String(resource.floor || '').trim(),
+    wing: String(resource.wing || '').trim().toUpperCase(),
+    locationCode: String(resource.resourceCode || resource.id || resource.recordId || '').trim().toUpperCase().replace(/[\s_-]+/g, ''),
+    label: getTenantResourceLocation(resource),
+    seatType: getTenantResourceSeatType(resource),
+    seatsAllocated: Math.max(0, Number(resource.capacity || 0)),
+  }));
+
+  return {
+    totalSeats,
+    openDesks,
+    cabinDesks,
+    monthlyCredits,
+    creditsPerSeat,
+    ratePerOpenDesk: resolvedRatePerOpenDesk,
+    ratePerCabinDesk: resolvedRatePerCabinDesk,
+    dailyRateTotal,
+    monthlyRate,
+    totalContractValue,
+    locationMappings,
+    scopeLabels: Array.from(new Set(scopeResources.map((resource) => getTenantResourceLocation(resource)).filter(Boolean))),
+  };
+}
+
+function normalizeResource(resource = {}) {
+  const floor = String(resource.floor || '501').trim() || '501';
+  const wing = String(resource.wing || '').trim().toUpperCase();
+  return {
+    ...resource,
+    recordId: resource.recordId || resource._id || resource.id || resource.resourceCode,
+    name: resource.name || '',
+    type: resource.type || 'Meeting Room',
+    resourceCode: resource.resourceCode || resource.id || '',
+    resourceCategory: resource.resourceCategory || '',
+    inventoryMode: resource.inventoryMode || 'area',
+    floor,
+    wing,
+    locationLabel: [floor, wing].filter(Boolean).join(' ').trim(),
+    capacity: Number(resource.capacity || 1),
+    pricePerHour: Number(resource.pricePerHour || 0),
+    pricePerDay: Number(resource.pricePerDay || 0),
+    credits: Number(resource.credits || 1),
+    pricing: resource.pricing || '',
+    pricingUpdatedAt: resource.pricingUpdatedAt || null,
+    status: resource.status || 'Active',
+  };
+}
+
+function isDeskCategory(category = '') {
+  return category === 'open_desk' || category === 'cabin_desk' || category === 'virtual_office';
+}
+
+function getResourceCategoryLabel(value = '') {
+  return resourceCategoryOptions.find((option) => option.value === value)?.label || 'Unassigned';
+}
+
+function getInventoryModeLabel(value = '') {
+  return inventoryModeOptions.find((option) => option.value === value)?.label || 'Area Block';
+}
+
+function getResourceCreditModeLabel(resourceCategory = '', inventoryMode = 'area') {
+  if (isDeskCategory(resourceCategory)) {
+    return inventoryMode === 'single' ? 'Credit per desk' : 'Credit per seat';
+  }
+
+  return 'Hourly credit rate';
+}
+
+function getResourceCreditValue(resource = {}) {
+  const capacity = Math.max(1, Number(resource.capacity || 1));
+  const credits = Math.max(1, Number(resource.credits || 1));
+
+  if (isDeskCategory(resource.resourceCategory) && resource.inventoryMode === 'area') {
+    return capacity * credits;
+  }
+
+  return credits;
+}
+
+function getResourceCreditSummary(resource = {}) {
+  const capacity = Math.max(1, Number(resource.capacity || 1));
+  const credits = Math.max(1, Number(resource.credits || 1));
+
+  if (isDeskCategory(resource.resourceCategory)) {
+    if (resource.inventoryMode === 'single') {
+      return `${credits} credit${credits === 1 ? '' : 's'} for 1 fixed desk`;
+    }
+
+    const totalCredits = capacity * credits;
+    return `${capacity} seats x ${credits} credit${credits === 1 ? '' : 's'} = ${totalCredits} credits`;
+  }
+
+  return `${credits} credit${credits === 1 ? '' : 's'} / hr`;
+}
+
+function normalizePackage(entry = {}) {
+  const packageDetails = entry.packageDetails || {};
+  const openDesks = Number(entry.openDesks || 0);
+  const cabinDesks = Number(entry.cabinDesks || 0);
+  const breakdownSeats = openDesks + cabinDesks;
+  const totalSeats = breakdownSeats > 0 ? breakdownSeats : Number(entry.totalSeats || entry.seatsIncluded || 0);
+  const creditsPerSeat = Math.round(Number(entry.creditsPerSeat || 0));
+  const monthlyCredits = Math.round(Number(entry.monthlyCredits || entry.creditsIncluded || (totalSeats > 0 && creditsPerSeat > 0 ? totalSeats * creditsPerSeat : 0)));
+  const ratePerOpenDesk = Number(entry.ratePerOpenDesk || packageDetails.ratePerOpenDesk || 0);
+  const ratePerCabinDesk = Number(entry.ratePerCabinDesk || packageDetails.ratePerCabinDesk || 0);
+  const dailyRateTotal = Number(entry.dailyRateTotal || packageDetails.dailyRateTotal || ((openDesks * ratePerOpenDesk) + (cabinDesks * ratePerCabinDesk)) || 0);
+  const durationMonths = Number(entry.durationMonths || packageDetails.durationMonths || 1) || 1;
+  const monthlyRent = Number(
+    entry.monthlyRent
+      || packageDetails.monthlyRent
+      || (dailyRateTotal > 0 ? dailyRateTotal * TENANT_PACKAGE_MONTH_DAYS : 0)
+      || (Number(entry.price || packageDetails.totalContractValue || packageDetails.price || 0) > 0 && durationMonths > 0
+        ? Number(entry.price || packageDetails.totalContractValue || packageDetails.price || 0) / durationMonths
+        : 0),
+  );
+  const totalContractValue = Number(
+    entry.totalContractValue
+      || entry.price
+      || packageDetails.totalContractValue
+      || packageDetails.price
+      || (monthlyRent > 0 && durationMonths > 0 ? monthlyRent * durationMonths : 0),
+  );
+  const status = entry.isCustom && entry.category === 'Tenant'
+    ? 'Active'
+    : (entry.status || 'Active');
+  return {
+    ...entry,
+    recordId: entry.recordId || entry._id || entry.id || entry.packageCode,
+    name: entry.name || '',
+    category: entry.category || 'Membership',
+    creditsIncluded: Number(entry.creditsIncluded || 0),
+    totalSeats,
+    openDesks,
+    cabinDesks,
+    ratePerOpenDesk,
+    ratePerCabinDesk,
+    dailyRateTotal,
+    monthlyRate: monthlyRent,
+    monthlyRent,
+    creditsPerSeat,
+    monthlyCredits,
+    price: totalContractValue,
+    totalContractValue,
+    durationMonths,
+    seatsIncluded: Number(entry.seatsIncluded || 0),
+    description: entry.description || '',
+    features: Array.isArray(entry.features) ? entry.features : [],
+    featuresText: featuresToText(entry.features),
+    isRecommended: Boolean(entry.isRecommended),
+    isCustom: Boolean(entry.isCustom),
+    assignedTenantCompanyId: entry.assignedTenantCompanyId || null,
+    assignedTenantCompanyName: entry.assignedTenantCompanyName || '',
+    assignedAt: entry.assignedAt || null,
+    locationMappings: Array.isArray(entry.locationMappings) ? entry.locationMappings : [],
+    packageDetails: {
+      ...packageDetails,
+      ratePerOpenDesk,
+      ratePerCabinDesk,
+      dailyRateTotal,
+      monthlyRent,
+      totalContractValue,
+      durationMonths,
+    },
+    status,
+  };
+}
+
+function buildResourceExportRows(resource = {}) {
+  return [
+    { label: 'Resource Name', value: resource.name || '-' },
+    { label: 'Resource Code', value: resource.resourceCode || resource.recordId || resource.id || '-' },
+    { label: 'Category', value: getResourceCategoryLabel(resource.resourceCategory) },
+    { label: 'Inventory Mode', value: isDeskCategory(resource.resourceCategory) ? getInventoryModeLabel(resource.inventoryMode) : 'Not applicable' },
+    { label: 'Floor', value: resource.floor || '--' },
+    { label: 'Wing', value: resource.wing || '--' },
+    { label: 'Capacity', value: String(resource.capacity || 0) },
+    { label: 'Price Per Hour', value: resource.pricePerHour ? formatCurrency(resource.pricePerHour) : '--' },
+    { label: 'Price Per Day', value: resource.pricePerDay ? formatCurrency(resource.pricePerDay) : '--' },
+    { label: 'Credits', value: String(getResourceCreditValue(resource)) },
+    { label: 'Credit Summary', value: getResourceCreditSummary(resource) },
+    { label: 'Status', value: resource.status || 'Active' },
+    { label: 'Last Updated', value: formatDate(resource.pricingUpdatedAt || resource.updatedAt) },
+  ];
+}
+
+function buildPackageExportRows(pkg = {}) {
+  const isTenantPackage = pkg.category === 'Tenant';
+  const locationMappings = Array.isArray(pkg.locationMappings) ? pkg.locationMappings : [];
+  const locationLabels = Array.from(new Set(locationMappings.map((mapping) => getTenantResourceLocation(mapping)).filter(Boolean)));
+
+  const rows = [
+    { label: 'Package Name', value: pkg.name || '-' },
+    { label: 'Category', value: pkg.category || '-' },
+    { label: 'Package Code', value: pkg.packageCode || pkg.recordId || pkg.id || '-' },
+    { label: 'Status', value: pkg.status || 'Active' },
+    { label: 'Description', value: pkg.description || '--' },
+    { label: 'Recommended', value: pkg.isRecommended ? 'Yes' : 'No' },
+    { label: 'Duration', value: durationLabel(pkg.durationMonths) },
+    { label: 'Contract Value', value: formatCurrency(pkg.price || pkg.totalContractValue || 0) },
+    { label: 'Monthly Credits', value: String(pkg.monthlyCredits || pkg.creditsIncluded || 0) },
+  ];
+
+  if (isTenantPackage) {
+    rows.push(
+      { label: 'Floor', value: pkg.floor || '--' },
+      { label: 'Wing', value: pkg.wing || '--' },
+      { label: 'Open Desks', value: String(pkg.openDesks || 0) },
+      { label: 'Cabin Desks', value: String(pkg.cabinDesks || 0) },
+      { label: 'Total Seats', value: String(pkg.totalSeats || pkg.seatsIncluded || 0) },
+      { label: 'Credits Per Seat', value: String(pkg.creditsPerSeat || 0) },
+      { label: 'Open Desk Rate / Day', value: pkg.ratePerOpenDesk ? formatCurrency(pkg.ratePerOpenDesk) : '--' },
+      { label: 'Cabin Desk Rate / Day', value: pkg.ratePerCabinDesk ? formatCurrency(pkg.ratePerCabinDesk) : '--' },
+      { label: 'Monthly Rent', value: formatCurrency(pkg.monthlyRate || pkg.monthlyRent || 0) },
+      { label: 'Total Contract Value', value: formatCurrency(pkg.totalContractValue || pkg.price || 0) },
+      { label: 'Selected Blocks', value: locationLabels.length > 0 ? locationLabels.join(', ') : 'Unassigned' },
+      { label: 'Assigned Tenant Company', value: pkg.assignedTenantCompanyName || 'Unassigned' },
+    );
+  }
+
+  const features = Array.isArray(pkg.features) && pkg.features.length > 0 ? pkg.features : parseFeatures(pkg.featuresText);
+  features.slice(0, 20).forEach((feature, index) => {
+    rows.push({
+      label: `Feature ${index + 1}`,
+      value: feature,
+    });
+  });
+
+  return rows;
+}
+
+function buildPackagesExportRows(items = [], scopeLabel = 'Packages', filters = {}) {
+  const rows = [
+    { label: 'Total Items', value: String(items.length || 0) },
+    { label: 'Scope', value: scopeLabel },
+    { label: 'Search Filter', value: filters.searchQuery || 'All' },
+  ];
+
+  items.forEach((item, index) => {
+    rows.push({
+      label: `${index + 1}. ${item.name || 'Package'}`,
+      value: [
+        item.category ? `Category: ${item.category}` : '',
+        item.status ? `Status: ${item.status}` : '',
+        item.durationMonths ? `Duration: ${durationLabel(item.durationMonths)}` : '',
+        item.category === 'Tenant' ? `Contract: ${formatCurrency(item.price || 0)}` : `Price: ${formatCurrency(item.price || 0)}`,
+        item.category === 'Tenant' ? `Monthly Credits: ${item.monthlyCredits || item.creditsIncluded || 0}` : `Credits: ${item.creditsIncluded || 0}`,
+      ].filter(Boolean).join(' | '),
+    });
+  });
+
+  return rows;
+}
+
+function buildResourcesExportRows(items = [], scopeLabel = 'Resources', filters = {}) {
+  const rows = [
+    { label: 'Total Items', value: String(items.length || 0) },
+    { label: 'Scope', value: scopeLabel },
+    { label: 'Search Filter', value: filters.searchQuery || 'All' },
+  ];
+
+  items.forEach((item, index) => {
+    rows.push({
+      label: `${index + 1}. ${item.name || 'Resource'}`,
+      value: [
+        item.resourceCode ? `Code: ${item.resourceCode}` : '',
+        item.resourceCategory ? `Category: ${getResourceCategoryLabel(item.resourceCategory)}` : '',
+        item.inventoryMode && isDeskCategory(item.resourceCategory) ? `Inventory: ${getInventoryModeLabel(item.inventoryMode)}` : '',
+        item.floor ? `Floor: ${item.floor}` : '',
+        item.wing ? `Wing: ${item.wing}` : '',
+        item.pricePerHour > 0 ? `Hourly: ${formatCurrency(item.pricePerHour)}` : '',
+        item.pricePerDay > 0 ? `Daily: ${formatCurrency(item.pricePerDay)}` : '',
+        `Credits: ${getResourceCreditValue(item)}`,
+      ].filter(Boolean).join(' | '),
+    });
+  });
+
+  return rows;
+}
+
+function statusBadge(status) {
+  if (status === 'Active') return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-md text-[10px] font-black uppercase tracking-wider"><CheckCircle2 size={12}/> Active</span>;
+  if (status === 'Under Maintenance') return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[10px] font-black uppercase tracking-wider"><AlertTriangle size={12}/> Maintenance</span>;
+  return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-md text-[10px] font-black uppercase tracking-wider"><XCircle size={12}/> Disabled</span>;
+}
+
+const RESOURCE_FULL_DAY_HOURS = 24;
+
+function formatAutoPriceValue(value) {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return '0';
+  }
+
+  const rounded = Math.round(numeric * 100) / 100;
+  return Number.isInteger(rounded) ? String(Math.trunc(rounded)) : String(rounded);
+}
+
+export default function PricingPackagesPage() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isExportingReport, setIsExportingReport] = useState('');
+  const [activeTab, setActiveTab] = useState('resource');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [resourceCategoryFilter, setResourceCategoryFilter] = useState('All Categories');
+  const [resourceFloorFilter, setResourceFloorFilter] = useState('All Floors');
+  const [resourceWingFilter, setResourceWingFilter] = useState('All Wings');
+  const [resourceStatusFilter, setResourceStatusFilter] = useState('All Status');
+  const [resources, setResources] = useState([]);
+  const [packages, setPackages] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalKind, setModalKind] = useState('package');
+  const [modalMode, setModalMode] = useState('add');
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [resourceForm, setResourceForm] = useState({ pricePerHour: '', pricePerDay: '', credits: '', status: 'Active' });
+  const [packageForm, setPackageForm] = useState({
+    category: 'Membership',
+    name: '',
+    creditsIncluded: '',
+    price: '',
+    durationMonths: '12',
+    floor: '',
+    wing: '',
+    selectedResourceIds: [],
+    seatsIncluded: '0',
+    totalSeats: '0',
+    openDesks: '0',
+    cabinDesks: '0',
+    ratePerOpenDesk: '',
+    ratePerCabinDesk: '',
+    creditsPerSeat: '0',
+    monthlyCredits: '0',
+    description: '',
+    featuresText: '',
+    isRecommended: false,
+    status: 'Active',
+  });
+  const currentUser = useFreshCurrentUser();
+  const navigate = useNavigate();
+
+  const currentUserName = useMemo(
+    () => currentUser?.fullName || currentUser?.name || currentUser?.displayName || 'Sales Manager',
+    [currentUser],
+  );
+
+  useEffect(() => {
+    let mounted = true;
+
+    Promise.all([getResources(), getPricingPackages()])
+      .then(([resourceResponse, packageResponse]) => {
+        if (!mounted) return;
+        setResources((resourceResponse?.data?.resources || []).map(normalizeResource));
+        setPackages((packageResponse?.data?.packages || []).map(normalizePackage));
+      })
+      .catch((error) => {
+        if (mounted) {
+          toast.error(error.message || 'Unable to load pricing data.');
+          setResources([]);
+          setPackages([]);
+        }
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const membershipPackages = useMemo(() => packages.filter((entry) => entry.category === 'Membership'), [packages]);
+  const tenantPackages = useMemo(() => packages.filter((entry) => entry.category === 'Tenant'), [packages]);
+  const activePackages = activeTab === 'membership' ? membershipPackages : tenantPackages;
+  const isViewingPackage = modalKind === 'package' && modalMode === 'view';
+  const availableResourceFloors = useMemo(() => {
+    const floors = Array.from(new Set(resources.map((item) => String(item.floor || '').trim()).filter(Boolean)));
+    return floors.sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
+  }, [resources]);
+  const availableResourceWings = useMemo(() => {
+    const wings = Array.from(new Set(resources.map((item) => String(item.wing || '').trim().toUpperCase()).filter(Boolean)));
+    return wings.sort();
+  }, [resources]);
+  const filteredResources = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return resources.filter((item) => {
+      const locationLabel = item.locationLabel || [item.floor, item.wing].filter(Boolean).join(' ').trim();
+      const matchesQuery = !query || [
+        item.name,
+        item.type,
+        item.resourceCode,
+        item.resourceCategory,
+        item.inventoryMode,
+        item.floor,
+        item.wing,
+        locationLabel,
+      ].filter(Boolean).some((value) => value.toLowerCase().includes(query));
+      const matchesCategory = resourceCategoryFilter === 'All Categories' || item.resourceCategory === resourceCategoryFilter;
+      const matchesFloor = resourceFloorFilter === 'All Floors' || String(item.floor || '').trim() === resourceFloorFilter;
+      const matchesWing = resourceWingFilter === 'All Wings' || String(item.wing || '').trim().toUpperCase() === resourceWingFilter;
+      const matchesStatus = resourceStatusFilter === 'All Status' || item.status === resourceStatusFilter;
+
+      return matchesQuery && matchesCategory && matchesFloor && matchesWing && matchesStatus;
+    });
+  }, [resources, searchQuery, resourceCategoryFilter, resourceFloorFilter, resourceWingFilter, resourceStatusFilter]);
+  const filteredPackages = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return activePackages.filter((item) => {
+      if (!query) return true;
+      return [item.name, item.description, item.packageCode].filter(Boolean).some((value) => value.toLowerCase().includes(query));
+    });
+  }, [activePackages, searchQuery]);
+
+  const tenantAreaResources = useMemo(
+    () => {
+      return resources.filter((resource) => {
+        const isAreaBlock = isTenantAreaBlockResource(resource);
+        const isUnassigned = !resource.assignedTenantCompanyId && !resource.assignedDepartmentId;
+        return isAreaBlock && isUnassigned;
+      });
+    },
+    [resources],
+  );
+
+  const tenantFloorOptions = useMemo(() => {
+    const floors = Array.from(new Set(tenantAreaResources.map((resource) => resource.floor).filter(Boolean)));
+    return floors.length > 0 ? floors.sort((left, right) => left.localeCompare(right, undefined, { numeric: true })) : ['501', '601', '701'];
+  }, [tenantAreaResources]);
+
+  const tenantWingOptions = useMemo(() => {
+    const wings = Array.from(new Set(
+      tenantAreaResources
+        .filter((resource) => !packageForm.floor || resource.floor === packageForm.floor)
+        .map((resource) => String(resource.wing || '').trim().toUpperCase())
+        .filter(Boolean),
+    ));
+    return wings.length > 0 ? wings.sort() : ['A', 'B'];
+  }, [packageForm.floor, tenantAreaResources]);
+
+  const tenantPackageScopeResources = useMemo(() => {
+    if (packageForm.category !== 'Tenant') {
+      return [];
+    }
+
+    return getTenantScopeResources(tenantAreaResources, packageForm.floor, packageForm.wing);
+  }, [packageForm.category, packageForm.floor, packageForm.wing, tenantAreaResources]);
+
+  const tenantOpenDeskResources = useMemo(
+    () => tenantPackageScopeResources.filter((resource) => resource.resourceCategory === 'open_desk'),
+    [tenantPackageScopeResources],
+  );
+
+  const tenantCabinDeskResources = useMemo(
+    () => tenantPackageScopeResources.filter((resource) => resource.resourceCategory === 'cabin_desk'),
+    [tenantPackageScopeResources],
+  );
+
+  const tenantPackageSelectedResources = useMemo(() => {
+    if (packageForm.category !== 'Tenant') {
+      return [];
+    }
+
+    const selectedIds = new Set((packageForm.selectedResourceIds || []).map((value) => String(value || '').trim()).filter(Boolean));
+    return tenantPackageScopeResources.filter((resource) => selectedIds.has(getTenantResourceSelectionId(resource)));
+  }, [packageForm.category, packageForm.selectedResourceIds, tenantPackageScopeResources]);
+
+  const tenantSelectionPreset = useMemo(
+    () => deriveTenantSelectionPreset(tenantPackageScopeResources, packageForm.selectedResourceIds || []),
+    [packageForm.selectedResourceIds, tenantPackageScopeResources],
+  );
+
+  const tenantPackageSummary = useMemo(
+    () => buildTenantPackageSummary(tenantPackageSelectedResources, packageForm.durationMonths, packageForm.ratePerOpenDesk, packageForm.ratePerCabinDesk),
+    [packageForm.durationMonths, packageForm.ratePerOpenDesk, packageForm.ratePerCabinDesk, tenantPackageSelectedResources],
+  );
+
+  const computedMonthlyCredits = useMemo(() => {
+    if (packageForm.category !== 'Tenant') {
+      return Number(packageForm.creditsIncluded || 0);
+    }
+
+    return tenantPackageSummary.monthlyCredits;
+  }, [packageForm.category, packageForm.creditsIncluded, tenantPackageSummary.monthlyCredits]);
+
+  const computedTotalSeats = useMemo(() => {
+    if (packageForm.category === 'Tenant') {
+      return tenantPackageSummary.totalSeats;
+    }
+
+    const breakdownTotal = Number(packageForm.openDesks || 0) + Number(packageForm.cabinDesks || 0);
+    const explicit = Number(packageForm.totalSeats || 0);
+    if (explicit > 0) return explicit;
+    return breakdownTotal;
+  }, [packageForm.category, packageForm.totalSeats, packageForm.openDesks, packageForm.cabinDesks, tenantPackageSummary.totalSeats]);
+
+  const selectedPackage = selectedItem || {};
+  const selectedPackageSnapshot = selectedPackage.pricingPackageSnapshot || {};
+  const selectedPackageCompanyDetails = selectedPackage.companyDetails || {};
+  const selectedPackageBillingDetails = selectedPackage.billingDetails || {};
+  const viewPackageCategory = selectedPackage.category || packageForm.category;
+  const isTenantPackageRateEdit = modalKind === 'package' && modalMode === 'edit' && packageForm.category === 'Tenant';
+  const viewPackageDurationMonths = Math.max(
+    viewPackageCategory === 'Tenant' ? TENANT_PACKAGE_MIN_DURATION_MONTHS : 1,
+    Number(selectedPackage.durationMonths || selectedPackage.packageDetails?.durationMonths || packageForm.durationMonths || 0) || (viewPackageCategory === 'Tenant' ? TENANT_PACKAGE_MIN_DURATION_MONTHS : 1),
+  );
+  const viewPackageRatePerOpenDesk = Number(selectedPackageSnapshot.ratePerOpenDesk || selectedPackageCompanyDetails.ratePerOpenDesk || selectedPackage.ratePerOpenDesk || selectedPackage.packageDetails?.ratePerOpenDesk || packageForm.ratePerOpenDesk || 0);
+  const viewPackageRatePerCabinDesk = Number(selectedPackageSnapshot.ratePerCabinDesk || selectedPackageCompanyDetails.ratePerCabinDesk || selectedPackage.ratePerCabinDesk || selectedPackage.packageDetails?.ratePerCabinDesk || packageForm.ratePerCabinDesk || 0);
+  const viewPackagePrice = Number(selectedPackage.price || packageForm.price || 0);
+  const viewPackageDailyRateTotal = viewPackageCategory === 'Tenant'
+    ? (Number(selectedPackage.dailyRateTotal || 0)
+      || ((Number(selectedPackageSnapshot.openDesks || selectedPackageCompanyDetails.openDesks || selectedPackage.openDesks || selectedPackage.packageDetails?.openDesks || 0) * viewPackageRatePerOpenDesk)
+      + (Number(selectedPackageSnapshot.cabinDesks || selectedPackageCompanyDetails.cabinDesks || selectedPackage.cabinDesks || selectedPackage.packageDetails?.cabinDesks || 0) * viewPackageRatePerCabinDesk)))
+    : Number(selectedPackage.dailyRateTotal || 0);
+  const viewPackageMonthlyRate = viewPackageCategory === 'Tenant'
+    ? (viewPackagePrice > 0 && viewPackageDurationMonths > 0
+      ? Math.round(viewPackagePrice / viewPackageDurationMonths)
+      : Number(selectedPackageBillingDetails.monthlyRent || selectedPackageSnapshot.monthlyRent || selectedPackage.monthlyRate || selectedPackage.monthlyRent || 0)
+        || (viewPackageDailyRateTotal * TENANT_PACKAGE_MONTH_DAYS))
+    : (Number(selectedPackageBillingDetails.monthlyRent || selectedPackage.monthlyRate || selectedPackage.monthlyRent || 0));
+  const viewPackageTotalContractValue = Number(selectedPackageBillingDetails.totalContractAmount || selectedPackageSnapshot.totalContractValue || selectedPackage.totalContractValue || selectedPackage.price || selectedPackage.packageDetails?.totalContractValue || 0)
+    || (viewPackageCategory === 'Tenant' && viewPackageMonthlyRate > 0 && viewPackageDurationMonths > 0
+      ? viewPackageMonthlyRate * viewPackageDurationMonths
+      : 0);
+  const viewPackageTotalSeats = Number(selectedPackageSnapshot.openDesks || selectedPackageSnapshot.cabinDesks)
+    ? Number(selectedPackageSnapshot.openDesks || 0) + Number(selectedPackageSnapshot.cabinDesks || 0)
+    : Number(selectedPackage.totalSeats || selectedPackage.packageDetails?.totalSeats || selectedPackage.seatsIncluded || computedTotalSeats || 0);
+  const viewPackageOpenDesks = Number(selectedPackageSnapshot.openDesks || selectedPackageCompanyDetails.openDesks || selectedPackage.openDesks || selectedPackage.packageDetails?.openDesks || 0);
+  const viewPackageCabinDesks = Number(selectedPackageSnapshot.cabinDesks || selectedPackageCompanyDetails.cabinDesks || selectedPackage.cabinDesks || selectedPackage.packageDetails?.cabinDesks || 0);
+  const viewPackageCreditsPerSeat = Number(selectedPackage.creditsPerSeat || selectedPackage.packageDetails?.creditsPerSeat || 0);
+  const viewPackageMonthlyCredits = Number(selectedPackage.monthlyCredits || selectedPackage.packageDetails?.monthlyTotalCredits || selectedPackage.creditsIncluded || 0);
+  const viewPackageLocationMappings = Array.isArray(selectedPackage.locationMappings) && selectedPackage.locationMappings.length > 0
+    ? selectedPackage.locationMappings
+    : Array.isArray(selectedPackage.packageDetails?.locationMappings)
+      ? selectedPackage.packageDetails.locationMappings
+      : [];
+  const viewPackageFeatures = Array.isArray(selectedPackage.features) ? selectedPackage.features : parseFeatures(selectedPackage.featuresText);
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedItem(null);
+    setModalKind('package');
+    setModalMode('add');
+  };
+
+  const openResourceModal = (resource) => {
+    setModalKind('resource');
+    setModalMode('edit');
+    setSelectedItem(resource);
+    setResourceForm({
+      pricePerHour: String(resource.pricePerHour || ''),
+      pricePerDay: String(resource.pricePerDay || ''),
+      credits: String(resource.credits || 1),
+      status: resource.status || 'Active',
+    });
+    setIsModalOpen(true);
+  };
+
+  const openPackageModal = (category, item = null, mode = 'edit') => {
+    if (mode !== 'view' && item?.category === 'Tenant' && item?.assignedTenantCompanyId && category !== 'Tenant') {
+      toast.error('This tenant package is locked to a company and cannot be edited.');
+      return;
+    }
+
+    setModalKind('package');
+    setModalMode(item ? mode : 'add');
+    setSelectedItem(item);
+    const nextOpenDesks = String(item?.openDesks ?? item?.packageDetails?.openDesks ?? '');
+    const nextCabinDesks = String(item?.cabinDesks ?? item?.packageDetails?.cabinDesks ?? '');
+    const existingOpenDesks = Number(item?.openDesks ?? item?.packageDetails?.openDesks ?? 0);
+    const existingCabinDesks = Number(item?.cabinDesks ?? item?.packageDetails?.cabinDesks ?? 0);
+    const nextTotalSeats = String((category === 'Tenant' && (existingOpenDesks + existingCabinDesks) > 0)
+      ? existingOpenDesks + existingCabinDesks
+      : (item?.totalSeats ?? item?.packageDetails?.totalSeats ?? item?.seatsIncluded ?? ''));
+    const nextCreditsPerSeat = String(item?.creditsPerSeat ?? item?.packageDetails?.creditsPerSeat ?? '');
+    const nextMonthlyCredits = String(item?.monthlyCredits ?? item?.packageDetails?.monthlyTotalCredits ?? item?.creditsIncluded ?? '');
+    const fallbackDeskRate = category === 'Tenant' && item
+      ? Math.round(Number(item?.price || 0) / Math.max(1, Number(item?.durationMonths || TENANT_PACKAGE_MIN_DURATION_MONTHS) * TENANT_PACKAGE_MONTH_DAYS * Math.max(1, Number(item?.totalSeats || item?.seatsIncluded || 1))))
+      : 0;
+    const nextTenantScope = category === 'Tenant'
+      ? getTenantPackageScope(item?.locationMappings || item?.packageDetails?.locationMappings) || (() => {
+          const firstScopeResource = tenantAreaResources[0] || null;
+          return firstScopeResource ? { floor: firstScopeResource.floor, wing: firstScopeResource.wing } : { floor: tenantFloorOptions[0] || '501', wing: tenantWingOptions[0] || 'A' };
+        })()
+      : { floor: '', wing: '' };
+    const nextTenantScopeResources = category === 'Tenant'
+      ? getTenantScopeResources(resources, nextTenantScope.floor, nextTenantScope.wing)
+      : [];
+    const nextSelectedResourceIds = category === 'Tenant'
+      ? ((item?.locationMappings?.length > 0 || item?.packageDetails?.locationMappings?.length > 0)
+          ? getTenantSelectedResourceIds(nextTenantScopeResources, item.locationMappings?.length > 0 ? item.locationMappings : item.packageDetails.locationMappings)
+          : getTenantPresetResourceIds(nextTenantScopeResources, 'all'))
+      : [];
+
+    setPackageForm({
+      category,
+      name: item?.name || '',
+      creditsIncluded: String(category === 'Tenant' ? (item?.monthlyCredits ?? item?.packageDetails?.monthlyTotalCredits ?? item?.creditsIncluded ?? '') : (item?.creditsIncluded || '')),
+      price: String(item?.price || item?.packageDetails?.totalContractValue || item?.packageDetails?.price || ''),
+      durationMonths: String(item?.durationMonths || item?.packageDetails?.durationMonths || (category === 'Tenant' ? TENANT_PACKAGE_MIN_DURATION_MONTHS : 1)),
+      floor: nextTenantScope.floor || '',
+      wing: nextTenantScope.wing || '',
+      selectedResourceIds: nextSelectedResourceIds,
+      seatsIncluded: String(category === 'Tenant' ? (item?.totalSeats ?? item?.packageDetails?.totalSeats ?? item?.seatsIncluded ?? 0) : (item?.seatsIncluded || 0)),
+      totalSeats: nextTotalSeats,
+      openDesks: String(item?.openDesks ?? item?.packageDetails?.openDesks ?? ''),
+      cabinDesks: nextCabinDesks,
+      ratePerOpenDesk: String(item?.ratePerOpenDesk ?? item?.packageDetails?.ratePerOpenDesk ?? (category === 'Tenant' ? fallbackDeskRate : '')),
+      ratePerCabinDesk: String(item?.ratePerCabinDesk ?? item?.packageDetails?.ratePerCabinDesk ?? (category === 'Tenant' ? fallbackDeskRate : '')),
+      creditsPerSeat: nextCreditsPerSeat,
+      monthlyCredits: nextMonthlyCredits,
+      description: item?.description || '',
+      featuresText: item ? featuresToText(item.features) : '',
+      isRecommended: Boolean(item?.isRecommended),
+      status: item?.status || 'Active',
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async (event) => {
+    event.preventDefault();
+
+    try {
+      if (modalKind === 'package' && modalMode === 'view') {
+        closeModal();
+        return;
+      }
+
+      if (modalKind === 'resource' && selectedItem) {
+        const response = await updateResource(selectedItem.recordId, {
+          pricePerHour: Number(resourceForm.pricePerHour || 0),
+          pricePerDay: Number(resourceForm.pricePerDay || 0),
+          credits: Number(resourceForm.credits || 1),
+          status: resourceForm.status,
+        });
+        const saved = normalizeResource(response?.data?.resource);
+        setResources((current) => current.map((item) => (item.recordId === saved.recordId ? saved : item)));
+        toast.success('Resource pricing and credits updated successfully.');
+        closeModal();
+        return;
+      }
+
+      if (modalKind === 'package') {
+        const isTenantPackage = packageForm.category === 'Tenant';
+        const isTenantPackageRateOnlyEdit = isTenantPackageRateEdit && selectedItem?.assignedTenantCompanyId;
+        if (isTenantPackageRateOnlyEdit) {
+          const ratePerOpenDesk = Number(packageForm.ratePerOpenDesk || 0);
+          const ratePerCabinDesk = Number(packageForm.ratePerCabinDesk || 0);
+          if (ratePerOpenDesk <= 0 || ratePerCabinDesk <= 0) {
+            throw new Error('Set both open desk and cabin desk rates before saving.');
+          }
+
+          const response = await updatePricingPackage(selectedItem.recordId, {
+            ratePerOpenDesk,
+            ratePerCabinDesk,
+          });
+          const saved = normalizePackage(response?.data?.package);
+          setPackages((current) => current.map((item) => (item.recordId === saved.recordId ? saved : item)));
+          toast.success('Desk prices updated successfully.');
+          closeModal();
+          return;
+        }
+
+        const monthlyCredits = isTenantPackage ? tenantPackageSummary.monthlyCredits : Number(packageForm.creditsIncluded || 0);
+        const totalSeats = isTenantPackage ? tenantPackageSummary.totalSeats : Number(packageForm.seatsIncluded || 0);
+        const durationMonths = isTenantPackage
+          ? Math.max(TENANT_PACKAGE_MIN_DURATION_MONTHS, Number(packageForm.durationMonths || TENANT_PACKAGE_MIN_DURATION_MONTHS))
+          : Number(packageForm.durationMonths || 1);
+        if (isTenantPackage && tenantPackageScopeResources.length === 0) {
+          throw new Error('Select a floor and wing that contains open desk or cabin desk area blocks.');
+        }
+        if (isTenantPackage && (!packageForm.floor || !packageForm.wing)) {
+          throw new Error('Choose both a floor and a wing for the tenant package.');
+        }
+        if (isTenantPackage && tenantPackageSelectedResources.length === 0) {
+          throw new Error('Select at least one open desk or cabin desk block for the package.');
+        }
+        if (isTenantPackage && tenantPackageSummary.totalSeats <= 0) {
+          throw new Error('The selected tenant package scope must include seats.');
+        }
+        if (isTenantPackage && tenantPackageSummary.dailyRateTotal <= 0) {
+          throw new Error('Set tenant package rates for open and cabin desks before creating the package.');
+        }
+        const payload = isTenantPackageRateEdit && selectedItem?.assignedTenantCompanyId
+          ? {
+              ratePerOpenDesk: Number(packageForm.ratePerOpenDesk || 0),
+              ratePerCabinDesk: Number(packageForm.ratePerCabinDesk || 0),
+            }
+          : {
+              category: packageForm.category,
+              name: packageForm.name.trim(),
+              creditsIncluded: monthlyCredits,
+              price: isTenantPackage ? tenantPackageSummary.totalContractValue : Number(packageForm.price || 0),
+              durationMonths,
+              seatsIncluded: totalSeats,
+              totalSeats,
+              openDesks: isTenantPackage ? tenantPackageSummary.openDesks : 0,
+              cabinDesks: isTenantPackage ? tenantPackageSummary.cabinDesks : 0,
+              ratePerOpenDesk: isTenantPackage ? Number(tenantPackageSummary.ratePerOpenDesk || 0) : 0,
+              ratePerCabinDesk: isTenantPackage ? Number(tenantPackageSummary.ratePerCabinDesk || 0) : 0,
+              creditsPerSeat: isTenantPackage ? tenantPackageSummary.creditsPerSeat : 0,
+              monthlyCredits: isTenantPackage ? monthlyCredits : Number(packageForm.creditsIncluded || 0),
+              locationMappings: isTenantPackage ? tenantPackageSummary.locationMappings : [],
+              description: packageForm.description.trim(),
+              features: parseFeatures(packageForm.featuresText),
+              isRecommended: Boolean(packageForm.isRecommended),
+              status: packageForm.status,
+            };
+        const response = modalMode === 'add'
+          ? await createPricingPackage(payload)
+          : await updatePricingPackage(selectedItem.recordId, payload);
+        const saved = normalizePackage(response?.data?.package);
+        setPackages((current) => (modalMode === 'add' ? [saved, ...current] : current.map((item) => (item.recordId === saved.recordId ? saved : item))));
+        toast.success(modalMode === 'add' ? 'Package created successfully.' : 'Package updated successfully.');
+        closeModal();
+      }
+    } catch (error) {
+      toast.error(error.message || 'Unable to save pricing configuration.');
+    }
+  };
+
+  const handleDeletePackage = async (item) => {
+    const confirmed = window.confirm(`Delete ${item.name}? This cannot be undone.`);
+    if (!confirmed) return;
+    try {
+      await deletePricingPackage(item.recordId);
+      setPackages((current) => current.filter((entry) => entry.recordId !== item.recordId));
+      toast.success('Package deleted successfully.');
+    } catch (error) {
+      toast.error(error.message || 'Unable to delete package.');
+    }
+  };
+
+  const updateTenantScopeSelection = (nextFloor, nextWing) => {
+    const scopedResources = getTenantScopeResources(resources, nextFloor, nextWing);
+    const nextSelectedResourceIds = getTenantPresetResourceIds(scopedResources, 'all');
+
+    setPackageForm((current) => ({
+      ...current,
+      floor: nextFloor,
+      wing: nextWing,
+      selectedResourceIds: nextSelectedResourceIds,
+    }));
+  };
+
+  const handleTenantSelectionPresetChange = (preset) => {
+    const nextSelectedResourceIds = getTenantPresetResourceIds(tenantPackageScopeResources, preset);
+    setPackageForm((current) => ({
+      ...current,
+      selectedResourceIds: nextSelectedResourceIds,
+    }));
+  };
+
+  const clearResourceFilters = () => {
+    setResourceCategoryFilter('All Categories');
+    setResourceFloorFilter('All Floors');
+    setResourceWingFilter('All Wings');
+    setResourceStatusFilter('All Status');
+  };
+
+  const handleExportPackagesReport = async (format = 'PDF') => {
+    const reportFormat = String(format).toLowerCase() === 'excel' ? 'Excel' : 'PDF';
+    const sourceItems = activeTab === 'resource' ? filteredResources : filteredPackages;
+
+    if (sourceItems.length === 0) {
+      toast.error(activeTab === 'resource' ? 'There are no resources to export.' : 'There are no packages to export.');
+      return;
+    }
+
+    setIsExportingReport(reportFormat);
+
+    try {
+      const scopeLabel = activeTab === 'resource'
+        ? 'Resource Pricing'
+        : activeTab === 'membership'
+          ? 'Membership Packages'
+          : 'Tenant Packages';
+      const reportRows = activeTab === 'resource'
+        ? buildResourcesExportRows(sourceItems, scopeLabel, {
+            searchQuery,
+            categoryFilter: resourceCategoryFilter,
+            floorFilter: resourceFloorFilter,
+            wingFilter: resourceWingFilter,
+            statusFilter: resourceStatusFilter,
+          })
+        : buildPackagesExportRows(sourceItems, scopeLabel, { searchQuery });
+
+      const response = await createReport({
+        title: `Sales ${scopeLabel}`,
+        department: 'Sales & CRM',
+        category: 'Other',
+        dataWindow: 'Custom',
+        reportMonth: new Date().toISOString().slice(0, 7),
+        period: scopeLabel,
+        generatedBy: currentUserName,
+        format: reportFormat,
+        description: `Sales ${scopeLabel.toLowerCase()} export for the current filtered view.`,
+        sourceType: 'department-roster',
+        sourceRef: `sales-pricing-${activeTab}`,
+        reportRows,
+        monthlyData: [],
+      });
+
+      if (reportFormat === 'PDF') {
+        await downloadReportFile(response?.data?.download, { openInNewTab: false });
+      }
+
+      const createdReportId = response?.data?.report?.recordId;
+      window.dispatchEvent(new Event('reports:refresh'));
+      toast.success(reportFormat === 'PDF' ? 'Pricing report saved to Reports.' : 'Pricing report saved to Reports. Preview it before downloading.');
+      navigate(createdReportId ? `/dashboard/sales-crm/report?reportId=${createdReportId}` : '/dashboard/sales-crm/report');
+    } catch (error) {
+      toast.error(error?.message || 'Unable to export pricing report.');
+    } finally {
+      setIsExportingReport('');
+    }
+  };
+
+  const handleExportPackageReport = async (item, format = 'PDF') => {
+    if (!item) return;
+
+    const reportFormat = String(format).toLowerCase() === 'excel' ? 'Excel' : 'PDF';
+    setIsExportingReport(reportFormat);
+
+    try {
+      const response = await createReport({
+        title: `${item.name || 'Package'} Report`,
+        department: 'Sales & CRM',
+        category: 'Other',
+        dataWindow: 'Custom',
+        reportMonth: new Date().toISOString().slice(0, 7),
+        period: item.category === 'Tenant' ? 'Tenant Package Profile' : 'Membership Package Profile',
+        generatedBy: currentUserName,
+        format: reportFormat,
+        description: `${item.name || 'Package'} pricing and configuration summary.`,
+        sourceType: 'custom',
+        sourceRef: String(item.recordId || item.id || item.packageCode || item.name || '').trim(),
+        reportRows: buildPackageExportRows(item),
+        monthlyData: [],
+      });
+
+      if (reportFormat === 'PDF') {
+        await downloadReportFile(response?.data?.download, { openInNewTab: false });
+      }
+
+      const createdReportId = response?.data?.report?.recordId;
+      window.dispatchEvent(new Event('reports:refresh'));
+      toast.success(reportFormat === 'PDF' ? 'Package report saved to Reports.' : 'Package report saved to Reports. Preview it before downloading.');
+      navigate(createdReportId ? `/dashboard/sales-crm/report?reportId=${createdReportId}` : '/dashboard/sales-crm/report');
+    } catch (error) {
+      toast.error(error?.message || 'Unable to export package report.');
+    } finally {
+      setIsExportingReport('');
+    }
+  };
+
+  const toggleTenantResourceSelection = (resourceId) => {
+    const normalizedId = String(resourceId || '').trim();
+    if (!normalizedId) return;
+
+    setPackageForm((current) => {
+      const currentIds = Array.isArray(current.selectedResourceIds) ? current.selectedResourceIds.map((value) => String(value || '').trim()).filter(Boolean) : [];
+      const selected = currentIds.includes(normalizedId)
+        ? currentIds.filter((value) => value !== normalizedId)
+        : [...currentIds, normalizedId];
+
+      return {
+        ...current,
+        selectedResourceIds: selected,
+      };
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-full items-center justify-center bg-[#F8FAFC]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#2563EB] border-t-transparent" />
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Loading pricing data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+      <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        <div>
+          <h1 className="text-base lg:text-lg font-black text-[#0F172A]">Plans & Pricing</h1>
+          <p className="text-[10px] font-bold text-[#2563EB] uppercase tracking-widest mt-0.5">Sales & CRM Core &bull; Resources and packages</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => handleExportPackagesReport('PDF')}
+            disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'}
+            className="px-4 py-2.5 bg-white text-[#e01313] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <FileDown size={15} /> 
+          </button>
+          <button
+            type="button"
+            onClick={() => handleExportPackagesReport('Excel')}
+            disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'}
+            className="px-4 py-2.5 bg-[#ffffff] text-[#1fd628] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <FileSpreadsheet size={15} /> 
+          </button>
+          {activeTab !== 'resource' ? (
+            <button onClick={() => openPackageModal(activeTab === 'membership' ? 'Membership' : 'Tenant')} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
+              <Plus size={16} /> ADD NEW PACKAGE
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-4">
+        <button type="button" onClick={() => setActiveTab('resource')} className={`bg-white p-2.5 rounded-[2rem] border shadow-sm flex justify-between items-center transition-all hover:shadow-md ${activeTab === 'resource' ? 'border-[#2563EB]' : 'border-slate-100'}`}>
+          <div><div className="flex items-center gap-2"><div className={`w-8 h-8 rounded-2xl flex items-center justify-center ${activeTab === 'resource' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600'}`}><Monitor size={16} /></div><p className="text-[15px] font-black text-slate-900">{resources.length}</p></div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Resources priced</p></div>
+        </button>
+        <button type="button" onClick={() => setActiveTab('membership')} className={`bg-white p-2.5 rounded-[2rem] border shadow-sm flex justify-between items-center transition-all hover:shadow-md ${activeTab === 'membership' ? 'border-[#2563EB]' : 'border-slate-100'}`}>
+          <div><div className="flex items-center gap-2"><div className={`w-8 h-8 rounded-2xl flex items-center justify-center ${activeTab === 'membership' ? 'bg-blue-600 text-white' : 'bg-indigo-50 text-indigo-600'}`}><CreditCard size={16} /></div><p className="text-[15px] font-black text-slate-900">{membershipPackages.length}</p></div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Membership packages</p></div>
+        </button>
+        <button type="button" onClick={() => setActiveTab('tenant')} className={`bg-white p-2.5 rounded-[2rem] border shadow-sm flex justify-between items-center transition-all hover:shadow-md ${activeTab === 'tenant' ? 'border-[#2563EB]' : 'border-slate-100'}`}>
+          <div><div className="flex items-center gap-2"><div className={`w-8 h-8 rounded-2xl flex items-center justify-center ${activeTab === 'tenant' ? 'bg-blue-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}><Building2 size={16} /></div><p className="text-[15px] font-black text-slate-900">{tenantPackages.length}</p></div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tenant packages</p></div>
+        </button>
+        <div className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
+          <div><div className="flex items-center gap-2"><div className="w-8 h-8 rounded-2xl flex items-center justify-center bg-amber-50 text-amber-600"><Tag size={16} /></div><p className="text-[15px] font-black text-slate-900">{packages.filter((item) => item.isRecommended).length}</p></div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Recommended packages</p></div>
+        </div>
+      </div>
+
+      <div className="flex min-h-110 flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-slate-100 bg-slate-50/50 p-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="flex items-center gap-2 text-base font-black text-slate-900">
+              {activeTab === 'resource' && <><Monitor size={18} className="text-blue-600" /> Resource Pricing</>}
+              {activeTab === 'membership' && <><CreditCard size={18} className="text-indigo-600" /> Credit Memberships</>}
+              {activeTab === 'tenant' && <><Building2 size={18} className="text-emerald-600" /> Tenant Packages</>}
+            </h2>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-0.5">
+              {activeTab === 'resource' && 'Update rates and credits by category, area block, floor, and wing.'}
+              {activeTab === 'membership' && 'Create credit plans for recurring users.'}
+              {activeTab === 'tenant' && 'Create contract bundles used by tenant companies.'}
+            </p>
+          </div>
+          <div className="relative w-full lg:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input type="text" placeholder={`Search ${activeTab === 'resource' ? 'resources' : 'packages'}...`} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+          </div>
+        </div>
+
+        {activeTab === 'resource' ? (
+          <div className="border-b border-slate-100 bg-white p-3">
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Filters</p>
+                <p className="mt-1 text-sm font-semibold text-slate-600">Narrow resources by category, floor, wing, and status.</p>
+              </div>
+              <button
+                type="button"
+                onClick={clearResourceFilters}
+                className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 shadow-sm transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+              >
+                <X size={14} /> Reset Filters
+              </button>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div>
+                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Category</label>
+                <select
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                  value={resourceCategoryFilter}
+                  onChange={(event) => setResourceCategoryFilter(event.target.value)}
+                >
+                  <option>All Categories</option>
+                  {resourceCategoryOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Floor</label>
+                <select
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                  value={resourceFloorFilter}
+                  onChange={(event) => setResourceFloorFilter(event.target.value)}
+                >
+                  <option>All Floors</option>
+                  {availableResourceFloors.map((floor) => (
+                    <option key={floor} value={floor}>{floor}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Wing</label>
+                <select
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                  value={resourceWingFilter}
+                  onChange={(event) => setResourceWingFilter(event.target.value)}
+                >
+                  <option>All Wings</option>
+                  {availableResourceWings.map((wing) => (
+                    <option key={wing} value={wing}>{wing}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Status</label>
+                <select
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                  value={resourceStatusFilter}
+                  onChange={(event) => setResourceStatusFilter(event.target.value)}
+                >
+                  <option>All Status</option>
+                  {resourceStatusOptions.map((status) => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="flex-1 overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 bg-white">
+              {activeTab === 'resource' ? (
+                <tr><th className="px-3.5 py-2">Resource</th><th className="px-3.5 py-2">Category</th><th className="px-3.5 py-2">Inventory</th><th className="px-3.5 py-2">Floor</th><th className="px-3.5 py-2">Wing</th><th className="px-3.5 py-2">Capacity</th><th className="px-3.5 py-2">Hourly</th><th className="px-3.5 py-2">Daily</th><th className="px-3.5 py-2">Credits</th><th className="px-3.5 py-2">Last Updated</th><th className="px-3.5 py-2 text-center">Status</th><th className="px-3.5 py-2 text-center">Actions</th></tr>
+              ) : activeTab === 'membership' ? (
+                <tr><th className="px-3.5 py-2">Plan Name</th><th className="px-3.5 py-2">Credits</th><th className="px-3.5 py-2">Duration</th><th className="px-3.5 py-2">Price</th><th className="px-3.5 py-2 text-center">Status</th><th className="px-3.5 py-2 text-center">Actions</th></tr>
+              ) : (
+                <tr><th className="px-3.5 py-2">Package Name</th><th className="px-3.5 py-2">Coverage</th><th className="px-3.5 py-2">Monthly Credits</th><th className="px-3.5 py-2">Duration</th><th className="px-3.5 py-2">Contract Value</th><th className="px-3.5 py-2 text-center">Status</th><th className="px-3.5 py-2 text-center">Actions</th></tr>
+              )}
+            </thead>
+
+            <tbody className="divide-y divide-slate-50">
+              {activeTab === 'resource' ? filteredResources.map((item) => (
+                <tr key={item.recordId} className="transition-all hover:bg-blue-50/30">
+                  <td className="px-3.5 py-2"><div className="flex items-center gap-3"><div className="flex w-8 h-8 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600"><LayoutGrid size={16} /></div><div><p className="text-[12px] font-bold text-slate-900">{item.name}</p><p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{item.type} &bull; {item.resourceCode}</p></div></div></td>
+                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{getResourceCategoryLabel(item.resourceCategory)}</td>
+                  <td className="px-3.5 py-2">
+                    {isDeskCategory(item.resourceCategory) ? (
+                      <div>
+                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
+                          item.inventoryMode === 'area'
+                            ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                            : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        }`}>
+                          {getInventoryModeLabel(item.inventoryMode)}
+                        </span>
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                          {item.inventoryMode === 'area' ? 'Tenant area allocation' : 'Single desk allocation'}
+                        </p>
+                      </div>
+                    ) : (
+                      <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        Not applicable
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.floor || '--'}</td>
+                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.wing || '--'}</td>
+                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.capacity} Pax</td>
+                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.pricePerHour > 0 ? `${formatCurrency(item.pricePerHour)} / hr` : item.pricing || '--'}</td>
+                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.pricePerDay > 0 ? `${formatCurrency(item.pricePerDay)} / day` : item.pricing || '--'}</td>
+                  <td className="px-3.5 py-2">
+                    <div className="text-[12px] font-bold text-slate-900">{getResourceCreditValue(item)}</div>
+                    <div className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                      {getResourceCreditSummary(item)}
+                    </div>
+                  </td>
+                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700 flex items-center gap-1.5"><Clock size={12} /> {formatDate(item.pricingUpdatedAt || item.updatedAt)}</td>
+                  <td className="px-3.5 py-2 text-center">{statusBadge(item.status)}</td>
+                  <td className="px-3.5 py-2 text-center"><button type="button" onClick={() => openResourceModal(item)} className="mx-auto rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"><Edit2 size={14} /></button></td>
+                </tr>
+              )) : filteredPackages.map((item) => (
+                <tr key={item.recordId} className={`transition-all hover:bg-indigo-50/30 ${item.status === 'Disabled' ? 'opacity-60' : ''}`}>
+                  <td className="px-3.5 py-2">
+                    <p className="text-[12px] font-bold text-slate-900">{item.name}</p>
+                    <p className="mt-0.5 max-w-65 truncate text-[10px] font-bold text-slate-500" title={item.description}>{item.description || 'No description added.'}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {item.isRecommended ? <span className="inline-flex rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-amber-700">Recommended</span> : null}
+                      {item.isCustom ? <span className="inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">Custom</span> : null}
+                      {item.assignedTenantCompanyId ? (
+                        <span className="inline-flex rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-rose-700">
+                          Locked to {item.assignedTenantCompanyName || 'tenant'}
+                        </span>
+                      ) : null}
+                    </div>
+                  </td>
+                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">
+                    {item.category === 'Tenant' ? (
+                      <div className="space-y-1">
+                        <p>{Array.from(new Set((item.locationMappings || []).map((mapping) => getTenantResourceLocation(mapping)).filter(Boolean))).join(', ') || 'Unassigned'}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                          {Number(item.openDesks || 0)} open / {Number(item.cabinDesks || 0)} cabin / {Number(item.totalSeats || item.seatsIncluded || 0)} seats
+                        </p>
+                      </div>
+                    ) : 'N/A'}
+                  </td>
+                  <td className="px-3.5 py-2">
+                    {item.category === 'Tenant' ? (
+                      <div className="flex flex-col gap-1">
+                        <span className="inline-flex items-center gap-1 rounded border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-[10px] font-black uppercase text-indigo-700">
+                          <Tag size={10} /> {Number(item.monthlyCredits || item.creditsIncluded || 0)} Monthly Credits
+                        </span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                          {Math.round(Number(item.creditsPerSeat || 0))} / seat, expires monthly
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-[10px] font-black uppercase text-indigo-700"><Tag size={10} /> {item.creditsIncluded} Credits</span>
+                    )}
+                  </td>
+                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{durationLabel(item.durationMonths)}</td>
+                  <td className="px-3.5 py-2 text-[12px] font-bold text-emerald-600">
+                    <div>{formatCurrency(item.price)}</div>
+                    <div className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                      {item.category === 'Tenant' && item.durationMonths > 0
+                        ? `${formatCurrency(item.price / item.durationMonths)} / month`
+                        : 'Total price'}
+                    </div>
+                  </td>
+                  <td className="px-3.5 py-2 text-center">{statusBadge(item.status)}</td>
+                  <td className="px-3.5 py-2">
+                    <div className="flex justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openPackageModal(item.category, item, 'view')}
+                          className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
+                          title="View Details"
+                        >
+                          <Eye size={14} />
+                        </button>
+                        {!item.assignedTenantCompanyId ? (
+                          <button
+                            type="button"
+                            onClick={() => openPackageModal(item.category, item)}
+                            className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
+                            title="Edit Package"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePackage(item)}
+                          disabled={Boolean(item.assignedTenantCompanyId)}
+                        className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-600"
+                      >
+                        <Trash size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+
+              {((activeTab === 'resource' && filteredResources.length === 0) || (activeTab !== 'resource' && filteredPackages.length === 0)) ? (
+                <tr>
+                  <td colSpan={activeTab === 'resource' ? 12 : activeTab === 'membership' ? 6 : 7} className="bg-slate-50/50 py-20 text-center text-slate-400">
+                    <div className="mx-auto max-w-md">
+                      <p className="text-sm font-bold">{activeTab === 'resource' ? 'No resources found.' : 'No packages found yet.'}</p>
+                      <p className="mt-2 text-xs font-medium leading-relaxed">
+                        {activeTab === 'resource' ? 'Add resources from Resource Management first, then price them here.' : 'Create a package to make it available for tenant companies.'}
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {isModalOpen ? (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
+          <div className={`flex max-h-[95vh] w-full flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70 ${modalKind === 'package' && (isViewingPackage ? viewPackageCategory === 'Tenant' : packageForm.category === 'Tenant') ? 'max-w-5xl' : 'max-w-2xl'}`}>
+            <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 p-4 sm:p-5">
+              <div>
+                <h2 className="flex items-center gap-2 text-base font-black text-white">
+                  {modalKind === 'resource' ? <Monitor size={20} /> : isViewingPackage ? <Eye size={20} /> : <Plus size={20} />}
+                  {modalKind === 'resource' ? 'Edit Resource Pricing & Credits' : isViewingPackage ? 'View Package Details' : `${modalMode === 'add' ? 'Add New' : 'Edit'} Package`}
+                </h2>
+                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  {modalKind === 'resource' ? 'Pricing and credit changes sync back to Resource Management.' : isViewingPackage ? 'Viewing tenant package details in read-only mode.' : 'Package changes drive tenant company onboarding.'}
+                </p>
+              </div>
+              <button type="button" onClick={closeModal} className="flex w-8 h-8 items-center justify-center rounded-xl bg-white/10 text-slate-300 transition-all hover:bg-red-500 hover:text-white"><X size={18} /></button>
+            </div>
+
+            <form onSubmit={handleSave} className="flex-1 overflow-y-auto bg-white p-4 sm:p-5">
+              {modalKind === 'resource' ? (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-blue-500">Resource</p>
+                    <p className="mt-1 text-base font-black text-blue-900">{selectedItem?.name}</p>
+                    <p className="text-[12px] font-semibold text-blue-700">{selectedItem?.type}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
+                        {getResourceCategoryLabel(selectedItem?.resourceCategory)}
+                      </span>
+                      <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
+                        {isDeskCategory(selectedItem?.resourceCategory) ? getInventoryModeLabel(selectedItem?.inventoryMode) : 'Not applicable'}
+                      </span>
+                      <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
+                        Floor {selectedItem?.floor || '--'}
+                      </span>
+                      <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
+                        Wing {selectedItem?.wing || '--'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-1"><label className="text-[11px] font-bold text-slate-400">Price Per Hour (₹)</label><input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={resourceForm.pricePerHour} onChange={(e) => setResourceForm((current) => {
+                      const nextHour = e.target.value;
+                      if (nextHour === '') {
+                        return { ...current, pricePerHour: '' };
+                      }
+                      const hourly = Number(nextHour);
+                      if (!Number.isFinite(hourly) || hourly < 0) {
+                        return { ...current, pricePerHour: nextHour };
+                      }
+                      return {
+                        ...current,
+                        pricePerHour: nextHour,
+                        pricePerDay: formatAutoPriceValue(hourly * RESOURCE_FULL_DAY_HOURS),
+                      };
+                    })} /></div>
+                    <div className="space-y-1"><label className="text-[11px] font-bold text-slate-400">Price Per Day (₹)</label><input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={resourceForm.pricePerDay} onChange={(e) => setResourceForm((current) => {
+                      const nextDay = e.target.value;
+                      if (nextDay === '') {
+                        return { ...current, pricePerDay: '' };
+                      }
+                      const daily = Number(nextDay);
+                      if (!Number.isFinite(daily) || daily < 0) {
+                        return { ...current, pricePerDay: nextDay };
+                      }
+                      return {
+                        ...current,
+                        pricePerDay: nextDay,
+                        pricePerHour: formatAutoPriceValue(daily / RESOURCE_FULL_DAY_HOURS),
+                      };
+                    })} /></div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400">
+                      {getResourceCreditModeLabel(selectedItem?.resourceCategory, selectedItem?.inventoryMode)}
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      className="w-full px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                      value={resourceForm.credits}
+                      onChange={(e) => setResourceForm((current) => ({ ...current, credits: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-1"><label className="text-[11px] font-bold text-slate-400">Status</label><select className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={resourceForm.status} onChange={(e) => setResourceForm((current) => ({ ...current, status: e.target.value }))}>{resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Preview</p>
+                    <p className="mt-1 text-sm font-bold text-slate-800">
+                      {resourceForm.pricePerHour ? `${formatCurrency(resourceForm.pricePerHour)} / hr` : 'Hourly rate not set'} &bull; {resourceForm.pricePerDay ? `${formatCurrency(resourceForm.pricePerDay)} / day` : 'Daily rate not set'}
+                    </p>
+                    <p className="mt-1 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                      {getResourceCreditSummary({
+                        ...selectedItem,
+                        credits: Number(resourceForm.credits || selectedItem?.credits || 1),
+                      })}
+                    </p>
+                  </div>
+                </div>
+              ) : isViewingPackage ? (
+                <div className="space-y-6">
+                  <div className="rounded-3xl border border-slate-200 bg-linear-to-br from-slate-50 to-white p-5">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Package Details</p>
+                        <h3 className="mt-1 text-2xl font-black text-slate-900">{selectedPackage.name || '--'}</h3>
+                        <p className="mt-1 text-sm font-bold text-slate-600">{viewPackageCategory} Package</p>
+                        {selectedPackage.assignedTenantCompanyName ? (
+                          <p className="mt-1 text-xs font-bold text-slate-500">Assigned to {selectedPackage.assignedTenantCompanyName}</p>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {statusBadge(selectedPackage.status || packageForm.status)}
+                        {(selectedPackage.isRecommended ?? packageForm.isRecommended) ? (
+                          <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-amber-700">
+                            Recommended
+                          </span>
+                        ) : null}
+                        {hasMeaningfulValue(selectedPackage.packageCode) ? (
+                          <span className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-700">
+                            Code {selectedPackage.packageCode}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+
+                  {viewPackageCategory === 'Tenant' ? (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        {hasMeaningfulValue(viewPackageDurationMonths) ? (
+                          <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">Contract Duration</p>
+                            <p className="mt-2 text-2xl font-black text-blue-900">{viewPackageDurationMonths} months</p>
+                          </div>
+                        ) : null}
+                        {(hasMeaningfulValue(viewPackageRatePerOpenDesk) || hasMeaningfulValue(viewPackageRatePerCabinDesk)) ? (
+                          <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Desk Rates</p>
+                            <p className="mt-2 text-sm font-black text-amber-900">
+                              {hasMeaningfulValue(viewPackageRatePerOpenDesk) ? `${formatCurrency(viewPackageRatePerOpenDesk)} open` : null}
+                              {hasMeaningfulValue(viewPackageRatePerOpenDesk) && hasMeaningfulValue(viewPackageRatePerCabinDesk) ? ' • ' : null}
+                              {hasMeaningfulValue(viewPackageRatePerCabinDesk) ? `${formatCurrency(viewPackageRatePerCabinDesk)} cabin` : null}
+                            </p>
+                          </div>
+                        ) : null}
+                        {hasMeaningfulValue(viewPackageMonthlyRate) ? (
+                          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Monthly Rent</p>
+                            <p className="mt-2 text-2xl font-black text-emerald-700">{formatCurrency(viewPackageMonthlyRate)}</p>
+                            <p className="mt-1 text-xs font-medium text-emerald-700">{hasMeaningfulValue(viewPackageDailyRateTotal) ? `${formatCurrency(viewPackageDailyRateTotal)} / day` : ''}</p>
+                          </div>
+                        ) : null}
+                        {hasMeaningfulValue(viewPackageTotalContractValue) ? (
+                          <div className="rounded-2xl border-2 border-purple-200 bg-purple-50 p-4">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-purple-600">Total Contract Value</p>
+                            <p className="mt-2 text-2xl font-black text-purple-700">{formatCurrency(viewPackageTotalContractValue)}</p>
+                            <p className="mt-1 text-xs font-medium text-purple-600">Monthly rent x duration</p>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Scope</p>
+                          <dl className="mt-4 space-y-4">
+                            {hasMeaningfulValue(getTenantPackageScope(viewPackageLocationMappings)?.floor || selectedPackage.floor || packageForm.floor) ? (
+                              <div>
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Floor</dt>
+                                <dd className="mt-1 text-sm font-bold text-slate-900">{getTenantPackageScope(viewPackageLocationMappings)?.floor || selectedPackage.floor || packageForm.floor}</dd>
+                              </div>
+                            ) : null}
+                            {hasMeaningfulValue(getTenantPackageScope(viewPackageLocationMappings)?.wing || selectedPackage.wing || packageForm.wing) ? (
+                              <div>
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Wing</dt>
+                                <dd className="mt-1 text-sm font-bold text-slate-900">{getTenantPackageScope(viewPackageLocationMappings)?.wing || selectedPackage.wing || packageForm.wing}</dd>
+                              </div>
+                            ) : null}
+                            {hasMeaningfulValue(viewPackageLocationMappings.length) ? (
+                              <div>
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Selected Blocks</dt>
+                                <dd className="mt-1 text-sm font-bold text-slate-900">{viewPackageLocationMappings.length}</dd>
+                              </div>
+                            ) : null}
+                            {hasMeaningfulValue(selectedPackage.locationLabel) ? (
+                              <div>
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Location Label</dt>
+                                <dd className="mt-1 text-sm font-bold text-slate-900">{selectedPackage.locationLabel}</dd>
+                              </div>
+                            ) : null}
+                          </dl>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Allocation</p>
+                          <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            {hasMeaningfulValue(viewPackageOpenDesks) ? (
+                              <div>
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Open Desks</dt>
+                                <dd className="mt-1 text-sm font-bold text-slate-900">{viewPackageOpenDesks}</dd>
+                              </div>
+                            ) : null}
+                            {hasMeaningfulValue(viewPackageCabinDesks) ? (
+                              <div>
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cabin Desks</dt>
+                                <dd className="mt-1 text-sm font-bold text-slate-900">{viewPackageCabinDesks}</dd>
+                              </div>
+                            ) : null}
+                            {hasMeaningfulValue(viewPackageTotalSeats) ? (
+                              <div>
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Seats</dt>
+                                <dd className="mt-1 text-sm font-bold text-slate-900">{viewPackageTotalSeats}</dd>
+                              </div>
+                            ) : null}
+                            {hasMeaningfulValue(viewPackageCreditsPerSeat) ? (
+                              <div>
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Credits / Seat</dt>
+                                <dd className="mt-1 text-sm font-bold text-slate-900">{viewPackageCreditsPerSeat}</dd>
+                              </div>
+                            ) : null}
+                            {hasMeaningfulValue(viewPackageMonthlyCredits) ? (
+                              <div>
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Monthly Credits</dt>
+                                <dd className="mt-1 text-sm font-bold text-slate-900">{viewPackageMonthlyCredits}</dd>
+                              </div>
+                            ) : null}
+                            {hasMeaningfulValue(selectedPackage.assignedTenantCompanyName) ? (
+                              <div className="sm:col-span-2">
+                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Assigned Company</dt>
+                                <dd className="mt-1 text-sm font-bold text-slate-900">{selectedPackage.assignedTenantCompanyName}</dd>
+                              </div>
+                            ) : null}
+                          </dl>
+                        </div>
+                      </div>
+
+                      {viewPackageLocationMappings.length > 0 ? (
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Included Blocks</p>
+                          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            {viewPackageLocationMappings.map((mapping) => (
+                              <div key={`${mapping.locationCode || mapping.label || 'block'}-${mapping.floor || ''}-${mapping.wing || ''}`} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                                <p className="text-sm font-black text-slate-900">{mapping.label || '--'}</p>
+                                <p className="mt-1 text-xs font-medium text-slate-500">
+                                  {hasMeaningfulValue(mapping.floor) ? `Floor ${mapping.floor}` : null}
+                                  {hasMeaningfulValue(mapping.floor) && hasMeaningfulValue(mapping.wing) ? ' • ' : ''}
+                                  {hasMeaningfulValue(mapping.wing) ? `Wing ${mapping.wing}` : null}
+                                </p>
+                                <p className="mt-1 text-xs font-bold text-slate-500">
+                                  {hasMeaningfulValue(mapping.seatType) ? `${mapping.seatType} desk` : 'Desk'}{hasMeaningfulValue(mapping.seatsAllocated) ? ` • ${mapping.seatsAllocated} seats` : ''}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {hasMeaningfulValue(selectedPackage.description) ? (
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Description</p>
+                          <p className="mt-2 text-sm leading-relaxed text-slate-700">{selectedPackage.description}</p>
+                        </div>
+                      ) : null}
+
+                      {viewPackageFeatures.length > 0 ? (
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Feature Bullets</p>
+                          <ul className="mt-3 space-y-2">
+                            {viewPackageFeatures.map((feature) => (
+                              <li key={feature} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
+                                {feature}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        {hasMeaningfulValue(selectedPackage.creditsIncluded) ? (
+                          <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Credits Included</p>
+                            <p className="mt-2 text-2xl font-black text-indigo-900">{selectedPackage.creditsIncluded}</p>
+                          </div>
+                        ) : null}
+                        {hasMeaningfulValue(viewPackagePrice) ? (
+                          <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Price</p>
+                            <p className="mt-2 text-2xl font-black text-slate-900">{formatCurrency(viewPackagePrice)}</p>
+                          </div>
+                        ) : null}
+                        {hasMeaningfulValue(viewPackageDurationMonths) ? (
+                          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Duration</p>
+                            <p className="mt-2 text-2xl font-black text-emerald-700">{viewPackageDurationMonths} months</p>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Summary</p>
+                        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          {hasMeaningfulValue(viewPackageTotalSeats) ? (
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Seats Included</p>
+                              <p className="mt-1 text-sm font-bold text-slate-700">{viewPackageTotalSeats}</p>
+                            </div>
+                          ) : null}
+                          {hasMeaningfulValue(viewPackageMonthlyCredits) ? (
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Monthly Credits</p>
+                              <p className="mt-1 text-sm font-bold text-slate-700">{viewPackageMonthlyCredits}</p>
+                            </div>
+                          ) : null}
+                          {(selectedPackage.isRecommended ?? packageForm.isRecommended) ? (
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Recommended</p>
+                              <p className="mt-1 text-sm font-bold text-slate-700">Yes</p>
+                            </div>
+                          ) : null}
+                          {hasMeaningfulValue(selectedPackage.assignedTenantCompanyName) ? (
+                            <div className="sm:col-span-2">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Assigned Company</p>
+                              <p className="mt-1 text-sm font-bold text-slate-700">{selectedPackage.assignedTenantCompanyName}</p>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {hasMeaningfulValue(selectedPackage.description) ? (
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Description</p>
+                          <p className="mt-2 text-sm leading-relaxed text-slate-700">{selectedPackage.description}</p>
+                        </div>
+                      ) : null}
+
+                      {viewPackageFeatures.length > 0 ? (
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Feature Bullets</p>
+                          <ul className="mt-3 space-y-2">
+                            {viewPackageFeatures.map((feature) => (
+                              <li key={feature} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
+                                {feature}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400">Package Name *</label>
+                      <input
+                        required
+                        type="text"
+                        disabled={isTenantPackageRateEdit}
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                      value={packageForm.name}
+                      onChange={(e) => setPackageForm((current) => ({ ...current, name: e.target.value }))}
+                    />
+                  </div>
+
+                  {packageForm.category === 'Tenant' ? (
+                    <div className="space-y-4">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+                        <div className="mb-3 flex items-center gap-2">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white"><Building2 size={14} /></div>
+                          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-700">Location Scope</p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-slate-400">Floor *</label>
+                              <select
+                              required
+                              disabled={isTenantPackageRateEdit}
+                              className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                              value={packageForm.floor}
+                              onChange={(e) => {
+                                const nextFloor = e.target.value;
+                                const nextWingOptions = Array.from(new Set(
+                                  getTenantScopeResources(tenantAreaResources, nextFloor, '')
+                                    .map((resource) => String(resource.wing || '').trim().toUpperCase())
+                                    .filter(Boolean),
+                                ));
+                                updateTenantScopeSelection(nextFloor, nextWingOptions[0] || '');
+                              }}
+                            >
+                              <option value="">Select floor</option>
+                              {tenantFloorOptions.map((floor) => <option key={floor} value={floor}>{floor}</option>)}
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-slate-400">Wing *</label>
+                              <select
+                              required
+                              disabled={isTenantPackageRateEdit}
+                              className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                              value={packageForm.wing}
+                              onChange={(e) => updateTenantScopeSelection(packageForm.floor, e.target.value.toUpperCase())}
+                            >
+                              <option value="">Select wing</option>
+                              {tenantWingOptions.map((wing) => <option key={wing} value={wing}>{wing}</option>)}
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-slate-400">Block Mix</label>
+                            <select
+                              disabled={isTenantPackageRateEdit}
+                              className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                              value={tenantSelectionPreset}
+                              onChange={(e) => handleTenantSelectionPresetChange(e.target.value)}
+                            >
+                              <option value="all">{getTenantSelectionPresetLabel('all')}</option>
+                              <option value="open">{getTenantSelectionPresetLabel('open')}</option>
+                              <option value="cabin">{getTenantSelectionPresetLabel('cabin')}</option>
+                              <option value="custom">{getTenantSelectionPresetLabel('custom')}</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      {tenantPackageScopeResources.length > 0 ? (
+                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                          <div className="rounded-2xl border border-emerald-200 bg-white p-3">
+                            <div className="mb-2 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-100 text-emerald-700"><LayoutGrid size={12} /></div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Open Desk Blocks</p>
+                              </div>
+                              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">
+                                {tenantOpenDeskResources.filter((resource) => packageForm.selectedResourceIds.includes(getTenantResourceSelectionId(resource))).length}/{tenantOpenDeskResources.length}
+                              </span>
+                            </div>
+                            <div className="max-h-52 space-y-1.5 overflow-y-auto pr-1">
+                              {tenantOpenDeskResources.length > 0 ? tenantOpenDeskResources.map((resource) => {
+                                const selected = packageForm.selectedResourceIds.includes(getTenantResourceSelectionId(resource));
+                                return (
+                                  <label key={resource.recordId} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 transition-all ${selected ? 'border-emerald-300 bg-emerald-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-emerald-200'}`}>
+                                    <input type="checkbox" disabled={isTenantPackageRateEdit} className="h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" checked={selected} onChange={() => toggleTenantResourceSelection(resource.recordId)} />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate text-[12px] font-bold text-slate-900">{resource.name}</p>
+                                      <p className="text-[10px] font-bold text-slate-400">{resource.capacity} seats &bull; {formatCurrency(resource.pricePerDay)}/day &bull; {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
+                                      {Array.isArray(resource.seatLabels) && resource.seatLabels.length > 0 && (
+                                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                          {resource.seatLabels.map((seatLabel) => (
+                                            <span key={`${resource.recordId}-${seatLabel}`} className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">
+                                              {seatLabel}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </label>
+                                );
+                              }) : (
+                                <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/50 px-3 py-4 text-center text-xs font-medium text-emerald-700">No open desk blocks in this scope.</div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-blue-200 bg-white p-3">
+                            <div className="mb-2 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 text-blue-700"><LayoutGrid size={12} /></div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Cabin Desk Blocks</p>
+                              </div>
+                              <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">
+                                {tenantCabinDeskResources.filter((resource) => packageForm.selectedResourceIds.includes(getTenantResourceSelectionId(resource))).length}/{tenantCabinDeskResources.length}
+                              </span>
+                            </div>
+                            <div className="max-h-52 space-y-1.5 overflow-y-auto pr-1">
+                              {tenantCabinDeskResources.length > 0 ? tenantCabinDeskResources.map((resource) => {
+                                const selected = packageForm.selectedResourceIds.includes(getTenantResourceSelectionId(resource));
+                                return (
+                                  <label key={resource.recordId} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 transition-all ${selected ? 'border-blue-300 bg-blue-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-blue-200'}`}>
+                                    <input type="checkbox" disabled={isTenantPackageRateEdit} className="h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked={selected} onChange={() => toggleTenantResourceSelection(resource.recordId)} />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate text-[12px] font-bold text-slate-900">{resource.name}</p>
+                                      <p className="text-[10px] font-bold text-slate-400">{resource.capacity} seats &bull; {formatCurrency(resource.pricePerDay)}/day &bull; {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
+                                      {Array.isArray(resource.seatLabels) && resource.seatLabels.length > 0 && (
+                                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                          {resource.seatLabels.map((seatLabel) => (
+                                            <span key={`${resource.recordId}-${seatLabel}`} className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">
+                                              {seatLabel}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </label>
+                                );
+                              }) : (
+                                <div className="rounded-xl border border-dashed border-blue-200 bg-blue-50/50 px-3 py-4 text-center text-xs font-medium text-blue-700">No cabin desk blocks in this scope.</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
+                          <LayoutGrid size={24} className="mx-auto mb-2 text-slate-300" />
+                          <p className="text-[12px] font-bold text-slate-500">No area blocks found</p>
+                          <p className="mt-1 text-[10px] font-medium text-slate-400">Add open desk and cabin desk area blocks in Resource Management first.</p>
+                        </div>
+                      )}
+
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+                        <div className="mb-3 flex items-center gap-2">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500 text-white">
+                            <Tag size={14} />
+                          </div>
+                          <p className="text-[11px] font-bold uppercase tracking-widest text-amber-800">Tenant Package Rates</p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-amber-800">Open Desk Rate / Day *</label>
+                            <input
+                              required
+                              type="number"
+                              min="0"
+                              className="w-full px-3 py-2.5 bg-white border border-amber-300 rounded-xl text-[12px] font-medium focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 outline-none transition-all"
+                              value={packageForm.ratePerOpenDesk}
+                              onChange={(e) => setPackageForm((current) => ({ ...current, ratePerOpenDesk: e.target.value }))}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-amber-800">Cabin Desk Rate / Day *</label>
+                            <input
+                              required
+                              type="number"
+                              min="0"
+                              className="w-full px-3 py-2.5 bg-white border border-amber-300 rounded-xl text-[12px] font-medium focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 outline-none transition-all"
+                              value={packageForm.ratePerCabinDesk}
+                              onChange={(e) => setPackageForm((current) => ({ ...current, ratePerCabinDesk: e.target.value }))}
+                            />
+                          </div>
+                        </div>
+                        <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+                          <div className="rounded-xl border border-white/70 bg-white p-2.5">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Daily Rent</p>
+                            <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.dailyRateTotal)}</p>
+                          </div>
+                          <div className="rounded-xl border border-white/70 bg-white p-2.5">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Monthly Rent</p>
+                            <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.monthlyRate)}</p>
+                          </div>
+                          <div className="rounded-xl border border-white/70 bg-white p-2.5">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Contract Value</p>
+                            <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.totalContractValue)}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-linear-to-br from-slate-50 to-white p-4">
+                        <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-slate-500">Package Summary</p>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                          <div className="rounded-xl border border-emerald-100 bg-white p-2.5 text-center shadow-sm">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Seats</p>
+                            <p className="mt-1 text-base font-black text-slate-900">{tenantPackageSummary.totalSeats}</p>
+                            <p className="text-[9px] font-bold text-slate-400">{tenantPackageSummary.openDesks} open / {tenantPackageSummary.cabinDesks} cabin</p>
+                          </div>
+                          <div className="rounded-xl border border-indigo-100 bg-white p-2.5 text-center shadow-sm">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Credits / Seat</p>
+                        <p className="mt-1 text-base font-black text-slate-900">{tenantPackageSummary.creditsPerSeat}</p>
+                            <p className="text-[9px] font-bold text-slate-400">per month</p>
+                          </div>
+                          <div className="rounded-xl border-2 border-purple-300 bg-purple-50/70 p-2.5 text-center shadow-sm">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-purple-600">Total Monthly Credits</p>
+                            <p className="mt-1 text-base font-black text-purple-700">{tenantPackageSummary.monthlyCredits}</p>
+                            <p className="text-[9px] font-bold text-purple-600">auto-renews</p>
+                          </div>
+                          <div className="rounded-xl border border-blue-100 bg-white p-2.5 text-center shadow-sm">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Monthly Rate</p>
+                            <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.monthlyRate)}</p>
+                            <p className="text-[9px] font-bold text-slate-400">{formatCurrency(tenantPackageSummary.dailyRateTotal)} / day</p>
+                          </div>
+                          <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50/70 p-2.5 text-center shadow-sm">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Contract Value</p>
+                            <p className="mt-1 text-sm font-black text-emerald-700">{formatCurrency(tenantPackageSummary.totalContractValue)}</p>
+                            <p className="text-[9px] font-bold text-emerald-600">{Math.max(TENANT_PACKAGE_MIN_DURATION_MONTHS, Number(packageForm.durationMonths || 0) || TENANT_PACKAGE_MIN_DURATION_MONTHS)} months</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-slate-400">Credits Included *</label>
+                          <input
+                            required
+                            type="number"
+                            min="0"
+                            disabled={isTenantPackageRateEdit}
+                            className="w-full px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                          value={packageForm.creditsIncluded}
+                          onChange={(e) => setPackageForm((current) => ({ ...current, creditsIncluded: e.target.value }))}
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-slate-400">Price (₹) *</label>
+                          <input
+                            required
+                            type="number"
+                            min="0"
+                            disabled={isTenantPackageRateEdit}
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                          value={packageForm.price}
+                          onChange={(e) => setPackageForm((current) => ({ ...current, price: e.target.value }))}
+                        />
+                      </div>
+
+                      </div>
+
+                  )}
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-400">Duration (months)</label>
+                      <input
+                        required
+                        type="number"
+                        min={packageForm.category === 'Tenant' ? TENANT_PACKAGE_MIN_DURATION_MONTHS : 1}
+                        disabled={isTenantPackageRateEdit}
+                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                        value={packageForm.durationMonths}
+                        onChange={(e) => setPackageForm((current) => ({ ...current, durationMonths: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-400">
+                        {packageForm.category === 'Tenant' ? 'Seats Included (auto-calculated)' : 'Seats Included (optional)'}
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        readOnly={packageForm.category === 'Tenant'}
+                        disabled={isTenantPackageRateEdit}
+                        className={`w-full px-3 py-2.5 border rounded-xl text-[12px] font-medium outline-none transition-all ${
+                          packageForm.category === 'Tenant'
+                            ? 'cursor-not-allowed border-dashed border-emerald-200 bg-emerald-50 text-emerald-900'
+                            : 'bg-slate-50 border-slate-200 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10'
+                        }`}
+                        value={packageForm.category === 'Tenant' ? computedTotalSeats : packageForm.seatsIncluded}
+                        onChange={(e) => setPackageForm((current) => ({ ...current, seatsIncluded: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400">Description</label>
+                    <textarea
+                      rows={3}
+                      disabled={isTenantPackageRateEdit}
+                      className="w-full resize-none px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                      value={packageForm.description}
+                      onChange={(e) => setPackageForm((current) => ({ ...current, description: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400">Feature Bullets</label>
+                    <textarea
+                      rows={4}
+                      placeholder="One feature per line"
+                      disabled={isTenantPackageRateEdit}
+                      className="w-full resize-none px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                      value={packageForm.featuresText}
+                      onChange={(e) => setPackageForm((current) => ({ ...current, featuresText: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-400">Status</label>
+                      <select
+                        disabled={isTenantPackageRateEdit}
+                        className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                        value={packageForm.status}
+                        onChange={(e) => setPackageForm((current) => ({ ...current, status: e.target.value }))}
+                      >
+                        {packageStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                      </select>
+                    </div>
+                    <label className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
+                      <input
+                        type="checkbox"
+                        disabled={isTenantPackageRateEdit}
+                        checked={packageForm.isRecommended}
+                        onChange={(e) => setPackageForm((current) => ({ ...current, isRecommended: e.target.checked }))}
+                      />
+                      <span className="text-[12px] font-semibold text-slate-700">Mark as recommended</span>
+                    </label>
+                  </div>
+
+                  {packageForm.category === 'Tenant' ? (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Tenant package note</p>
+                      <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-600">
+                        Tenant packages should reflect the number of open desks and private cabins granted to the company. Monthly credits are derived from total seats multiplied by credits per seat and automatically renew each month.
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
+              <div className="sticky bottom-0 bg-white border-t border-slate-100 p-3 sm:p-4">
+                <div className="flex flex-col gap-2 sm:flex-row">
+                {isViewingPackage ? (
+                  <div className="flex flex-1 flex-col gap-2 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={() => handleExportPackageReport(selectedPackage, 'PDF')}
+                      disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'}
+                      className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-[11px] font-bold uppercase tracking-widest text-slate-700 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <span className="inline-flex items-center justify-center gap-2">
+                        <FileDown size={14} /> Download PDF
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleExportPackageReport(selectedPackage, 'Excel')}
+                      disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'}
+                      className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-[11px] font-bold uppercase tracking-widest text-slate-700 transition-all hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <span className="inline-flex items-center justify-center gap-2">
+                        <FileSpreadsheet size={14} /> Download Excel
+                      </span>
+                    </button>
+                  </div>
+                ) : null}
+                <button type="button" onClick={closeModal} className="flex-1 rounded-xl bg-slate-100 py-2.5 text-[11px] font-bold text-slate-700 transition-all hover:bg-slate-200">{isViewingPackage ? 'CLOSE DETAILS' : 'CANCEL'}</button>
+                {!isViewingPackage ? (
+                  <button type="submit" className="flex-2 flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-2.5 text-[11px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
+                    <Save size={14} />
+                    {isTenantPackageRateEdit ? 'SAVE DESK PRICES' : 'SAVE CONFIGURATION'}
+                  </button>
+                ) : null}
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}

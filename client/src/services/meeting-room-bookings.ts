@@ -21,3 +21,8 @@ export const updateMeetingRoomBooking = async (bookingId: string, payload: Recor
   const response = await axiosPrivate.patch(`/api/meeting-room-bookings/${bookingId}`, payload);
   return unwrap(response);
 };
+
+export const respondToMeetingRoomInvite = async (bookingId: string, payload: Record<string, any>) => {
+  const response = await axiosPrivate.post(`/api/meeting-room-bookings/${bookingId}/respond`, payload);
+  return unwrap(response);
+};
