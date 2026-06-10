@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { MeetingRoomBooking } from "../models/MeeringRoomBooking.js";
+import { MeetingRoomBooking } from "../models/MeetingRoomBooking.js";
 import { MeetingRoom } from "../models/MeetingRoom.js";
 import mongoose from "mongoose";
 
