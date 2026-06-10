@@ -1,8 +1,17 @@
 // @ts-nocheck
 import { Router } from "express";
-import { createAsset, deleteAsset, getAssetById, getAssetSummary, getAssets, transferAsset, updateAsset } from "../controllers/assetController.js";
+import {
+    createAsset,
+    deleteAsset,
+    getAssetById,
+    getAssetSummary,
+    getAssets,
+    transferAsset,
+    updateAsset
+} from "../controllers/assetController.js";
 
 const router = Router();
+
 router.get("/summary", getAssetSummary);
 router.get("/", getAssets);
 router.post("/", createAsset);

@@ -130,6 +130,12 @@ const assetSchema = new mongoose.Schema(
             index: true,
         },
 
+        location: { type: String, trim: true, maxlength: 120 },
+
+        isDeleted: { type: Boolean, default: false, index: true },
+
+        deletedAt: { type: Date, default: null },
+
         rentDurationMonths: {
             type: Number,
             default: null,
