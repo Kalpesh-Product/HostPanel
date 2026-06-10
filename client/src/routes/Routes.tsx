@@ -25,6 +25,7 @@ import TicketSettingsnew from "../pages/Tickets/TicketSettingsnew";
 import TestPage from "../pages/Test/TestPage";
 import TicketLayout from "../pages/Tickets/TicketLayout";
 import DashboardLayout from "../pages/Dashboard/DashboardLayout";
+import Attendance from "../pages/Dashboard/Attendance/Attendance";
 import FrontendDashboard from "../pages/Dashboard/FrontendDashboard/FrontendDashboard";
 import MeetingLayout from "../pages/Meetings/MeetingLayout";
 import MeetingDashboard from "../pages/Meetings/MeetingDashboard";
@@ -35,6 +36,7 @@ import Reviews from "../pages/Meetings/Reviews";
 import MeetingCalendar from "../pages/Meetings/Calendar";
 import MeetingReports from "../pages/Meetings/MeetingReports";
 import MeetingFormLayout from "../pages/Meetings/MeetingFormLayout";
+import { MeetingRoomsPage } from "../pages/Meetings/MeetingRoomsPage";
 import FrontendLayout from "../pages/Dashboard/FrontendDashboard/FrontendLayout";
 import FrontendData from "../pages/Dashboard/FrontendDashboard/Data/FrontendData";
 import FrontendLeads from "../pages/Dashboard/FrontendDashboard/Data/FrontendLeads";
@@ -165,6 +167,10 @@ import OrganizationPage from "../pages/Organization/OrganizationPage";
 import WorkspaceSettingsPage from "../pages/WorkspaceSettings/WorkspaceSettingsPage";
 import WorkspaceManagementPage from "../pages/WorkspaceSettings/WorkspaceManagementPage";
 import CustomerSupportPage from "../pages/CustomerSupport/CustomerSupportPage";
+import TenantCompaniesPage from "../pages/Sales/TenantCompanies/TenantCompaniesPage";
+import PricingPackagesPage from "../pages/Sales/PricingPackages/PricingPackagesPage";
+import LeadsManagementPage from "../pages/Sales/LeadsManagement/LeadsManagementPage";
+import SalesArchitecturePage from "../pages/Sales/SalesArchitecture/SalesArchitecturePage";
 
 function VerticalPickerRoute() {
   const location = useLocation();
@@ -260,6 +266,10 @@ export const routes = createBrowserRouter([
                   {
                     index: true, // login lands here
                     element: <CompanySettingsDashboard />,
+                  },
+                  {
+                    path: "attendance",
+                    element: <Attendance />,
                   },
                   {
                     path: "nomad-listings",
@@ -729,6 +739,10 @@ export const routes = createBrowserRouter([
                     path: "reviews",
                     element: <Reviews />,
                   },
+                  {
+                    path: "meeting-rooms",
+                    element: <MeetingRoomsPage />,
+                  },
                 ],
               },
               {
@@ -1016,6 +1030,27 @@ export const routes = createBrowserRouter([
                         element: <VisitorBulkUpload />,
                       },
                     ],
+                  },
+                ],
+              },
+              {
+                path: "sales-crm",
+                children: [
+                  {
+                    path: "tenant-companies",
+                    element: <TenantCompaniesPage />,
+                  },
+                  {
+                    path: "plans-pricing",
+                    element: <PricingPackagesPage />,
+                  },
+                  {
+                    path: "leads-management",
+                    element: <LeadsManagementPage />,
+                  },
+                  {
+                    path: "sales-architecture",
+                    element: <SalesArchitecturePage />,
                   },
                 ],
               },

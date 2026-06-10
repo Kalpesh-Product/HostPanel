@@ -1053,7 +1053,6 @@ export function OrganizationPage() {
             setShowTeamMemberModal(true);
           }}>
           <div className="absolute -right-5 -top-5 h-16 w-16 rounded-full bg-white/15 blur-[1px]" />
-          <div className="absolute -left-4 -bottom-5 h-14 w-14 rounded-full bg-black/10" />
            <div>
               <p className="text-[10px] font-black text-blue-100/90 uppercase tracking-widest mb-1">Quick Action</p>
              <p className="text-[13px] font-black text-white group-hover:scale-105 transition-transform origin-left flex items-center gap-1.5">

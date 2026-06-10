@@ -169,11 +169,11 @@ const companySettingsData: NavNode[] = [
 ];
 
 const keyAppsData: NavNode[] = [
-  { id: "attendance", label: "Attendance", icon: Clock, disabled: true },
+  { id: "attendance", label: "Attendance", icon: Clock, route: "/dashboard/attendance" },
   { id: "tasks", label: "Tasks", icon: ListChecks, disabled: true },
   { id: "tickets", label: "Tickets", icon: Ticket, disabled: true },
   { id: "leave-requests", label: "Leave Requests", icon: CalendarClock, disabled: true },
-  { id: "meeting-room-system", label: "Meeting Room System", icon: Presentation, disabled: true },
+  { id: "meeting-room-system", label: "Meeting Room System", icon: Presentation, route:"/meetings/meeting-rooms", disabled: false },
   {
     id: "visitor-management",
     label: "Visitor Management",
@@ -230,10 +230,10 @@ const departmentModules: NavNode[] = [
     icon: BriefcaseBusiness,
     defaultOpen: false,
     children: [
-      { id: "leads-management", label: "Leads Management", icon: Magnet, disabled: true },
-      { id: "tenant-companies-sales", label: "Tenant Companies", icon: Building2, disabled: true },
-      { id: "plans-pricing", label: "Plans & Pricing", icon: Tag, disabled: true },
-      { id: "sales-architecture", label: "Sales Architecture", icon: ShoppingCart, disabled: true },
+      { id: "leads-management", label: "Leads Management", icon: Magnet, route: "/sales-crm/leads-management", disabled: false },
+      { id: "tenant-companies-sales", label: "Tenant Companies", icon: Building2, route: "/sales-crm/tenant-companies", disabled: false },
+      { id: "plans-pricing", label: "Plans & Pricing", icon: Tag, route: "/sales-crm/plans-pricing", disabled: false },
+      { id: "sales-architecture", label: "Sales Architecture", icon: ShoppingCart, route: "/sales-crm/sales-architecture", disabled: false },
     ],
   },
   {
@@ -288,6 +288,7 @@ const SECTION_ABBR: Record<string, string> = {
 
 const ROUTE_BY_ID: Record<string, string> = {
   dashboard: "/dashboard",
+  attendance: "/dashboard/attendance",
   "customer-support": "/company-settings/customer-support",
   "website-builder": "/company-settings/website-builder",
   "wono-nomad": "/company-settings/wono-nomad",
@@ -298,6 +299,11 @@ const ROUTE_BY_ID: Record<string, string> = {
   "workspace-management": "/company-settings/workspace-management",
   "visitor-management": "/visitors/visitor-management",
   "visitors-management": "/visitors/visitor-management",
+  "tenant-companies-sales": "/sales-crm/tenant-companies",
+  "plans-pricing": "/sales-crm/plans-pricing",
+  "leads-management": "/sales-crm/leads-management",
+  "sales-architecture": "/sales-crm/sales-architecture",
+  "meeting-room-system": "/meetings/meeting-rooms",
   profile: "/profile/company-profile",
 };
 
@@ -919,9 +925,13 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
       return String(raw || "").trim();
     };
 
-    const enabledRaw = (workspaceAccessMap?.enabledModuleIds || workspaceSetup.enabledModuleIds || [])
+    const planDefaults = getEnabledModuleIdsForPlan(planLabel, workspaceCount);
+    const enabledRaw = [
+      ...planDefaults,
+      ...(workspaceAccessMap?.enabledModuleIds || workspaceSetup.enabledModuleIds || []),
+    ]
       .map((item) => String(item || "").trim())
-      .filter(Boolean);
+      .filter((item, index, arr) => arr.indexOf(item) === index);
     const enabledNormalized = new Set(enabledRaw.map((item) => normalizeModuleToken(item)));
     const hasAnyOrgChildEnabled = Array.from(ORG_CHILD_KEYS).some((key) => enabledNormalized.has(key));
     if (hasAnyOrgChildEnabled) {
@@ -937,7 +947,11 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   }, [
     workspaceAccessMap?.enabledModuleIds,
     workspaceAccessMap?.moduleMap?.sections,
+    workspaceAccessMap?.selectedPlan,
     workspaceSetup.enabledModuleIds,
+    workspaceSetup.selectedPlan,
+    planLabel,
+    workspaceCount,
   ]);
 
   const mappedSections: Array<{ key: string; title: string; items: NavNode[] }> = (
@@ -980,19 +994,21 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
       const basicPlanLocked = planLabel === "basic" && BASIC_PLAN_HARD_LOCK_IDS.has(itemId);
       const workspaceUnlocked = workspaceEnabledCanonicalIds.has(itemId);
       const roleUnlocked = roleAllowedModuleIds.has(itemId);
+      const isMeetingRoom = itemId === "meeting-room-system";
       return {
         id: itemId,
         label: String(item?.label || itemId),
         icon: ICON_BY_ID[itemId] || Boxes,
         route: itemRoute,
-        disabled: basicPlanLocked || !(workspaceUnlocked && roleUnlocked),
-        upgradeLocked: basicPlanLocked || !workspaceUnlocked,
-        disabledTitle:
-          basicPlanLocked || !workspaceUnlocked
+        disabled: isMeetingRoom ? false : (basicPlanLocked || !(workspaceUnlocked && roleUnlocked)),
+        upgradeLocked: isMeetingRoom ? false : (basicPlanLocked || !workspaceUnlocked),
+        disabledTitle: isMeetingRoom
+          ? undefined
+          : (basicPlanLocked || !workspaceUnlocked
             ? "Upgrade plan to unlock this"
             : !roleUnlocked
               ? "You do not have access to this module"
-              : undefined,
+              : undefined),
       };
     }).filter(Boolean);
     const sectionKey = String(section?.sectionId || section?.sectionLabel || "section");
