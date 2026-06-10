@@ -11,6 +11,7 @@ import { useFreshCurrentUser } from "../../../hooks/useFreshCurrentUser";
 import { createReport } from "../../../services/reports";
 import { getSalesTourLeads } from "../../../services/sales-leads";
 import { downloadReportFile } from "../../../utils/report-download";
+import PageFrame from "../../../components/Pages/PageFrame";
 
 const STAGES = ["New", "Contacted", "Qualified", "Converted", "Lost"];
 
@@ -209,13 +210,15 @@ export default function LeadsManagementPage() {
   if (isLoading) return <TablePageSkeleton rows={6} columns={6} />;
 
   return (
-    <div className="p-2 lg:p-2.5 min-h-full text-[12px]">
-
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+      <PageFrame>
       <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-base lg:text-lg font-black text-slate-900">Leads Management</h1>
-          <p className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-blue-600">
-            Sales Synced from Visitor Management and Website Builder
+          <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+            Leads Management
+          </h2>
+          <p className="text-xs font-medium text-slate-500 mt-1">
+            Sales synced from Visitor Management and Website Builder.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -493,6 +496,7 @@ export default function LeadsManagementPage() {
         </div>
       )}
 
+      </PageFrame>
     </div>
   );
 }
