@@ -503,6 +503,7 @@ const CreateWebsite = () => {
   const { auth } = useAuth();
   const [hostCompanyIdentity, setHostCompanyIdentity] = useState(null);
   const [workspaceBusinessName, setWorkspaceBusinessName] = useState("");
+  const [hasExistingWebsite, setHasExistingWebsite] = useState(false);
   const [isCheckingExistingWebsite, setIsCheckingExistingWebsite] = useState(true);
   const [creditsUsed, setCreditsUsed] = useState(0);
   const [creditsLimit, setCreditsLimit] = useState(5);
@@ -607,6 +608,7 @@ const CreateWebsite = () => {
     ? "/company-settings/website-builder"
     : "/dashboard/website-builder";
   const createOrEditRoute = `${builderBasePath}/dynamic/create-website`;
+  const effectiveEditMode = isEditMode || hasExistingWebsite;
   const workspaceId =
     selectedCompany?.workspaceId ||
     auth?.user?.primaryWorkspace ||
@@ -815,40 +817,51 @@ const CreateWebsite = () => {
           ) || null;
 
         if (found) {
+          setHasExistingWebsite(true);
+          if (found?.isPublished === true || found?.deployedUrl || found?.publishedProjectUrl) {
+            setPublishedWebsiteUrl(
+              String(found?.deployedUrl || found?.publishedProjectUrl || "").trim(),
+            );
+          }
           const websiteSlug = found.searchKey || found.companyName || "";
           const canResumeDraft =
             (found?.isDraft === true && found?.isPublished !== true) ||
             Boolean(found?.draftData);
+          const draftData =
+            found?.draftData && typeof found.draftData === "object"
+              ? found.draftData
+              : found;
+          const resolvedSearchKey = String(websiteSlug || found?.searchKey || "").trim();
+          const editRoute = resolvedSearchKey
+            ? `${builderBasePath}/edit-website/${encodeURIComponent(resolvedSearchKey)}`
+            : createOrEditRoute;
 
-          if (canResumeDraft || isEditMode && canResumeDraft) {
-            const draftData =
-              found?.draftData && typeof found.draftData === "object"
-                ? found.draftData
-                : found;
-            reset({
-              ...getValues(),
-              companyId: String(draftData?.companyId || prefillCompanyId || "").trim(),
-              companyName: String(draftData?.companyName || prefillCompanyName || "").trim(),
-              companyLogo: found?.companyLogo || null,
-              heroImages: Array.isArray(found?.heroImages) ? found.heroImages : [],
-              title: String(draftData?.title || "").trim(),
-              subTitle: String(draftData?.subTitle || "").trim(),
-              CTAButtonText: String(draftData?.CTAButtonText || "").trim(),
-              about:
-                Array.isArray(draftData?.about) && draftData.about.length
-                  ? draftData.about.map((item: any) => ({
-                      text: String(item?.text || "").trim(),
-                    }))
+          reset({
+            ...getValues(),
+            companyId: String(draftData?.companyId || prefillCompanyId || found?.companyId || "").trim(),
+            companyName: String(draftData?.companyName || prefillCompanyName || found?.companyName || "").trim(),
+            companyLogo: found?.companyLogo || null,
+            heroImages: Array.isArray(found?.heroImages) ? found.heroImages : [],
+            title: String(draftData?.title || found?.title || "").trim(),
+            subTitle: String(draftData?.subTitle || found?.subTitle || "").trim(),
+            CTAButtonText: String(draftData?.CTAButtonText || found?.CTAButtonText || "").trim(),
+            about:
+              Array.isArray(draftData?.about) && draftData.about.length
+                ? draftData.about.map((item: any) => ({
+                    text: String(item?.text || "").trim(),
+                  }))
+                : Array.isArray(found?.about) && found.about.length
+                  ? found.about.map((item: any) => ({ text: String(item || "").trim() }))
                   : [{ text: "" }],
-              productTitle: String(draftData?.productTitle || "").trim(),
-              products:
-                Array.isArray(draftData?.products) && draftData.products.length
-                  ? draftData.products.map((item: any, index: number) => {
-                      const persisted =
-                        Array.isArray(found?.products) && found.products[index]
-                          ? found.products[index]
-                          : null;
-                      return ({
+            productTitle: String(draftData?.productTitle || found?.productTitle || "").trim(),
+            products:
+              Array.isArray(draftData?.products) && draftData.products.length
+                ? draftData.products.map((item: any, index: number) => {
+                    const persisted =
+                      Array.isArray(found?.products) && found.products[index]
+                        ? found.products[index]
+                        : null;
+                    return ({
                       ...defaultProduct,
                       type: String(item?.type || "").trim(),
                       name: String(item?.name || "").trim(),
@@ -858,46 +871,65 @@ const CreateWebsite = () => {
                       images: Array.isArray(persisted?.images) ? persisted.images : [],
                       files: Array.isArray(persisted?.images) ? persisted.images : [],
                     });
-                    })
+                  })
+                : Array.isArray(found?.products) && found.products.length
+                  ? found.products.map((item: any) => ({
+                      ...defaultProduct,
+                      type: String(item?.type || "").trim(),
+                      name: String(item?.name || "").trim(),
+                      subtitle: String(item?.subtitle || "").trim(),
+                      cost: String(item?.cost || "").trim(),
+                      description: String(item?.description || "").trim(),
+                      images: Array.isArray(item?.images) ? item.images : [],
+                      files: Array.isArray(item?.images) ? item.images : [],
+                    }))
                   : [defaultProduct],
-              menuItems: Array.isArray(found?.menuItems)
-                ? found.menuItems
-                : Array.isArray(draftData?.menuItems)
-                  ? draftData.menuItems
-                  : [],
-              rooms: Array.isArray(found?.rooms)
-                ? found.rooms
-                : Array.isArray(draftData?.rooms)
-                  ? draftData.rooms
-                  : [],
-              meetingRooms: Array.isArray(found?.meetingRooms)
-                ? found.meetingRooms
-                : Array.isArray(draftData?.meetingRooms)
-                  ? draftData.meetingRooms
-                  : Array.isArray(found?.rooms)
-                    ? found.rooms
-                    : Array.isArray(draftData?.rooms)
-                      ? draftData.rooms
-                      : [],
-              coLivingRooms: Array.isArray(draftData?.coLivingRooms)
-                ? draftData.coLivingRooms
+            menuItems: Array.isArray(found?.menuItems)
+              ? found.menuItems
+              : Array.isArray(draftData?.menuItems)
+                ? draftData.menuItems
                 : [],
-              packages: Array.isArray(found?.packages)
-                ? found.packages
-                : Array.isArray(draftData?.packages)
-                  ? draftData.packages
-                  : [],
-              dorms: Array.isArray(found?.dorms)
-                ? found.dorms
-                : Array.isArray(draftData?.dorms)
-                  ? draftData.dorms
-                  : [],
-              galleryTitle: String(draftData?.galleryTitle || "").trim(),
-              gallery: Array.isArray(found?.gallery) ? found.gallery : [],
-              testimonialTitle: String(draftData?.testimonialTitle || "").trim(),
-              testimonials:
-                Array.isArray(draftData?.testimonials) && draftData.testimonials.length
-                  ? draftData.testimonials.map((item: any) => ({
+            rooms: Array.isArray(found?.rooms)
+              ? found.rooms
+              : Array.isArray(draftData?.rooms)
+                ? draftData.rooms
+                : [],
+            meetingRooms: Array.isArray(found?.meetingRooms)
+              ? found.meetingRooms
+              : Array.isArray(draftData?.meetingRooms)
+                ? draftData.meetingRooms
+                : Array.isArray(found?.rooms)
+                  ? found.rooms
+                  : Array.isArray(draftData?.rooms)
+                    ? draftData.rooms
+                    : [],
+            coLivingRooms: Array.isArray(draftData?.coLivingRooms)
+              ? draftData.coLivingRooms
+              : [],
+            packages: Array.isArray(found?.packages)
+              ? found.packages
+              : Array.isArray(draftData?.packages)
+                ? draftData.packages
+                : [],
+            dorms: Array.isArray(found?.dorms)
+              ? found.dorms
+              : Array.isArray(draftData?.dorms)
+                ? draftData.dorms
+                : [],
+            galleryTitle: String(draftData?.galleryTitle || found?.galleryTitle || "").trim(),
+            gallery: Array.isArray(found?.gallery) ? found.gallery : [],
+            testimonialTitle: String(draftData?.testimonialTitle || found?.testimonialTitle || "").trim(),
+            testimonials:
+              Array.isArray(draftData?.testimonials) && draftData.testimonials.length
+                ? draftData.testimonials.map((item: any) => ({
+                    ...defaultTestimonial,
+                    name: String(item?.name || "").trim(),
+                    jobPosition: String(item?.jobPosition || "").trim(),
+                    testimony: String(item?.testimony || "").trim(),
+                    rating: Number(item?.rating || 5),
+                  }))
+                : Array.isArray(found?.testimonials) && found.testimonials.length
+                  ? found.testimonials.map((item: any) => ({
                       ...defaultTestimonial,
                       name: String(item?.name || "").trim(),
                       jobPosition: String(item?.jobPosition || "").trim(),
@@ -905,121 +937,184 @@ const CreateWebsite = () => {
                       rating: Number(item?.rating || 5),
                     }))
                   : [defaultTestimonial],
-              contactTitle: String(draftData?.contactTitle || "").trim(),
-              mapUrl: String(draftData?.mapUrl || "").trim(),
-              websiteEmail: String(draftData?.websiteEmail || "").trim(),
-              phone: String(draftData?.phone || "").trim(),
-              address: String(draftData?.address || "").trim(),
-              registeredCompanyName: String(
-                draftData?.registeredCompanyName || "",
-              ).trim(),
-              copyrightText: String(draftData?.copyrightText || "").trim(),
-              pageNavItems:
-                Array.isArray(draftData?.pageNavItems) && draftData.pageNavItems.length
-                  ? draftData.pageNavItems
+            contactTitle: String(draftData?.contactTitle || found?.contactTitle || "").trim(),
+            mapUrl: String(draftData?.mapUrl || found?.mapUrl || "").trim(),
+            websiteEmail: String(draftData?.websiteEmail || found?.email || "").trim(),
+            phone: String(draftData?.phone || found?.phone || "").trim(),
+            address: String(draftData?.address || found?.address || "").trim(),
+            registeredCompanyName: String(
+              draftData?.registeredCompanyName || found?.registeredCompanyName || "",
+            ).trim(),
+            copyrightText: String(draftData?.copyrightText || found?.copyrightText || "").trim(),
+            pageNavItems:
+              Array.isArray(draftData?.pageNavItems) && draftData.pageNavItems.length
+                ? draftData.pageNavItems
+                : Array.isArray(found?.pageNavItems) && found.pageNavItems.length
+                  ? found.pageNavItems
                   : DEFAULT_PAGE_NAV_ITEMS.map((name) => ({
                       name,
                       slug: String(name).toLowerCase().replace(/\s+/g, "-"),
                       enabled: true,
                     })),
-              productDropdownPages: Array.isArray(draftData?.productDropdownPages)
-                ? draftData.productDropdownPages.map((item: any, index: number) => {
-                    const persistedPage =
-                      Array.isArray(found?.productDropdownPages) &&
-                      found.productDropdownPages[index]
-                        ? found.productDropdownPages[index]
-                        : null;
-                    return {
-                      ...item,
-                      heroImage: persistedPage?.heroImage || null,
-                      heroImages: Array.isArray(persistedPage?.heroImages)
-                        ? persistedPage.heroImages
-                        : [],
-                      homeCardImage: persistedPage?.homeCardImage || null,
-                    };
-                  })
+            productDropdownPages: Array.isArray(draftData?.productDropdownPages)
+              ? draftData.productDropdownPages.map((item: any, index: number) => {
+                  const persistedPage =
+                    Array.isArray(found?.productDropdownPages) &&
+                    found.productDropdownPages[index]
+                      ? found.productDropdownPages[index]
+                      : null;
+                  return {
+                    ...item,
+                    heroImage: persistedPage?.heroImage || null,
+                    heroImages: Array.isArray(persistedPage?.heroImages)
+                      ? persistedPage.heroImages
+                      : [],
+                    homeCardImage: persistedPage?.homeCardImage || null,
+                  };
+                })
+              : Array.isArray(found?.productDropdownPages)
+                ? found.productDropdownPages.map((item: any) => ({
+                    ...item,
+                    heroImage: item?.heroImage || null,
+                    heroImages: Array.isArray(item?.heroImages) ? item.heroImages : [],
+                    homeCardImage: item?.homeCardImage || null,
+                  }))
                 : [],
-              aboutPageIntro: String(draftData?.aboutPageIntro || "").trim(),
-              aboutPageOverview: String(draftData?.aboutPageOverview || "").trim(),
-              aboutPageStory: String(draftData?.aboutPageStory || "").trim(),
-              aboutPageMission: String(draftData?.aboutPageMission || "").trim(),
-              aboutPageVision: String(draftData?.aboutPageVision || "").trim(),
-              aboutPageValues: String(draftData?.aboutPageValues || "").trim(),
-              aboutPageTeamHeading: String(
-                draftData?.aboutPageTeamHeading || "",
-              ).trim(),
-              aboutPageImageCards:
-                Array.isArray(draftData?.aboutPageImageCards) &&
-                draftData.aboutPageImageCards.length
-                  ? draftData.aboutPageImageCards.map((item: any, index: number) => ({
+            aboutPageIntro: String(draftData?.aboutPageIntro || found?.aboutPageIntro || "").trim(),
+            aboutPageOverview: String(draftData?.aboutPageOverview || found?.aboutPageOverview || "").trim(),
+            aboutPageStory: String(draftData?.aboutPageStory || found?.aboutPageStory || "").trim(),
+            aboutPageMission: String(draftData?.aboutPageMission || found?.aboutPageMission || "").trim(),
+            aboutPageVision: String(draftData?.aboutPageVision || found?.aboutPageVision || "").trim(),
+            aboutPageValues: String(draftData?.aboutPageValues || found?.aboutPageValues || "").trim(),
+            aboutPageTeamHeading: String(
+              draftData?.aboutPageTeamHeading || found?.aboutPageTeamHeading || "",
+            ).trim(),
+            aboutPageImageCards:
+              Array.isArray(draftData?.aboutPageImageCards) && draftData.aboutPageImageCards.length
+                ? draftData.aboutPageImageCards.map((item: any, index: number) => ({
+                    title: String(item?.title || "").trim(),
+                    description: String(item?.description || "").trim(),
+                    image:
+                      Array.isArray(found?.aboutPageImageCards) &&
+                      found.aboutPageImageCards[index]
+                        ? found.aboutPageImageCards[index]?.image || null
+                        : null,
+                  }))
+                : Array.isArray(found?.aboutPageImageCards) && found.aboutPageImageCards.length
+                  ? found.aboutPageImageCards.map((item: any) => ({
                       title: String(item?.title || "").trim(),
                       description: String(item?.description || "").trim(),
-                      image:
-                        Array.isArray(found?.aboutPageImageCards) &&
-                        found.aboutPageImageCards[index]
-                          ? found.aboutPageImageCards[index]?.image || null
-                          : null,
+                      image: item?.image || null,
                     }))
                   : [{ title: "", description: "", image: null }],
-              aboutPageImages: Array.isArray(found?.aboutPageImages)
-                ? found.aboutPageImages
-                : [],
-              galleryPageHeading: String(
-                draftData?.galleryPageHeading || "",
-              ).trim(),
-              testimonialsPageHeading: String(
-                draftData?.testimonialsPageHeading || "",
-              ).trim(),
-              testimonialsPageIntro: String(
-                draftData?.testimonialsPageIntro || "",
-              ).trim(),
-              testimonialsHomePreviewCount: Number(
-                draftData?.testimonialsHomePreviewCount || 3,
-              ),
-              testimonialsEnableWriteReview:
-                draftData?.testimonialsEnableWriteReview !== false,
-              testimonialsSuccessMessage: String(
-                draftData?.testimonialsSuccessMessage ||
-                  "Thank you. Your review has been submitted for approval.",
-              ).trim(),
-              contactPageHeading: String(draftData?.contactPageHeading || "").trim(),
-              contactPageIntro: String(draftData?.contactPageIntro || "").trim(),
-              contactEnableInquiryForm: draftData?.contactEnableInquiryForm !== false,
-              contactInquirySuccessMessage: String(
-                draftData?.contactInquirySuccessMessage ||
-                  "Thank you. Your inquiry has been submitted successfully.",
-              ).trim(),
-              contactBusinessHours: String(
-                draftData?.contactBusinessHours || "",
-              ).trim(),
-              contactPersonName: String(draftData?.contactPersonName || "").trim(),
-              contactPersonRole: String(draftData?.contactPersonRole || "").trim(),
-              contactPersonEmail: String(
-                draftData?.contactPersonEmail || "",
-              ).trim(),
-              contactPersonPhone: String(
-                draftData?.contactPersonPhone || "",
-              ).trim(),
-            });
-            setDraftTemplateId(String(found?._id || ""));
-            setDraftUpdatedAt(found?.draftUpdatedAt || null);
-            setDraftStatus("saved");
-            setHasRestoredDraft(true);
-            lastDraftSnapshotRef.current = JSON.stringify(
-              buildDraftFormDataFromValues(draftData, {
-                companyId: draftData?.companyId || prefillCompanyId,
-                companyName: draftData?.companyName || prefillCompanyName,
-              }),
-            );
-            draftHydrationReadyRef.current = true;
-          } else {
-            navigate(createOrEditRoute, {
+            aboutPageImages: Array.isArray(found?.aboutPageImages)
+              ? found.aboutPageImages
+              : [],
+            galleryPageHeading: String(
+              draftData?.galleryPageHeading || found?.galleryPageHeading || "",
+            ).trim(),
+            testimonialsPageHeading: String(
+              draftData?.testimonialsPageHeading || found?.testimonialsPageHeading || "",
+            ).trim(),
+            testimonialsPageIntro: String(
+              draftData?.testimonialsPageIntro || found?.testimonialsPageIntro || "",
+            ).trim(),
+            testimonialsHomePreviewCount: Number(
+              draftData?.testimonialsHomePreviewCount || found?.testimonialsHomePreviewCount || 3,
+            ),
+            testimonialsEnableWriteReview:
+              draftData?.testimonialsEnableWriteReview !== false &&
+              found?.testimonialsEnableWriteReview !== false,
+            testimonialsSuccessMessage: String(
+              draftData?.testimonialsSuccessMessage ||
+                found?.testimonialsSuccessMessage ||
+                "Thank you. Your review has been submitted for approval.",
+            ).trim(),
+            contactPageHeading: String(
+              draftData?.contactPageHeading || found?.contactPageHeading || "",
+            ).trim(),
+            contactPageIntro: String(
+              draftData?.contactPageIntro || found?.contactPageIntro || "",
+            ).trim(),
+            contactEnableInquiryForm:
+              draftData?.contactEnableInquiryForm !== false &&
+              found?.contactEnableInquiryForm !== false,
+            contactInquirySuccessMessage: String(
+              draftData?.contactInquirySuccessMessage ||
+                found?.contactInquirySuccessMessage ||
+                "Thank you. Your inquiry has been submitted successfully.",
+            ).trim(),
+            contactBusinessHours: String(
+              draftData?.contactBusinessHours || found?.contactBusinessHours || "",
+            ).trim(),
+            contactPersonName: String(
+              draftData?.contactPersonName || found?.contactPersonName || "",
+            ).trim(),
+            contactPersonRole: String(
+              draftData?.contactPersonRole || found?.contactPersonRole || "",
+            ).trim(),
+            contactPersonEmail: String(
+              draftData?.contactPersonEmail || found?.contactPersonEmail || "",
+            ).trim(),
+            contactPersonPhone: String(
+              draftData?.contactPersonPhone || found?.contactPersonPhone || "",
+            ).trim(),
+          });
+          setDraftTemplateId(String(found?._id || ""));
+          setDraftUpdatedAt(found?.draftUpdatedAt || null);
+          setDraftStatus(found?.isPublished ? "saved" : "saved");
+          setHasRestoredDraft(Boolean(found?.draftData));
+          lastDraftSnapshotRef.current = JSON.stringify(
+            buildDraftFormDataFromValues(draftData, {
+              companyId: draftData?.companyId || prefillCompanyId,
+              companyName: draftData?.companyName || prefillCompanyName,
+            }),
+          );
+          draftHydrationReadyRef.current = true;
+          if (!isEditMode && resolvedSearchKey) {
+            navigate(editRoute, {
               replace: true,
-              state: { searchKey: websiteSlug },
+              state: { searchKey: resolvedSearchKey },
             });
             return;
           }
-        } else if (isEditMode) {
+        }
+
+        const subscriptionId = String(prefillCompanyId || workspaceId || "").trim();
+        if (subscriptionId) {
+          try {
+            const subscriptionRes = await axios.get(`/api/subscription/${subscriptionId}`, {
+              params: {
+                companyId: String(prefillCompanyId || "").trim(),
+                workspaceId: String(workspaceId || "").trim(),
+              },
+            });
+            const subscription = subscriptionRes?.data || {};
+            const hasPublishedProject =
+              Boolean(String(subscription?.publishedProjectId || "").trim()) ||
+              Boolean(String(subscription?.publishedProjectUrl || "").trim());
+
+            setCreditsUsed(Number(subscription?.creditsUsed ?? 0));
+            setCreditsLimit(Number(subscription?.monthlyCreditsLimit ?? subscription?.creditsLimit ?? 5));
+            setCreditsRemaining(
+              Number(subscription?.creditsRemaining ?? subscription?.monthlyCreditsRemaining ?? 5),
+            );
+            setCreditsResetDate(subscription?.creditsResetDate || null);
+
+            if (hasPublishedProject) {
+              setHasExistingWebsite(true);
+              setPublishedWebsiteUrl(String(subscription?.publishedProjectUrl || "").trim());
+              draftHydrationReadyRef.current = true;
+              setIsCheckingExistingWebsite(false);
+              return;
+            }
+          } catch (subscriptionError) {
+            // Fall through to the create flow if subscription lookup fails.
+          }
+        }
+
+        if (isEditMode) {
+          setHasExistingWebsite(false);
           navigate(createOrEditRoute, { replace: true });
           return;
         }
@@ -1152,6 +1247,11 @@ const CreateWebsite = () => {
 
     const formEl = e?.target || formRef.current;
     const fd = new FormData(formEl);
+    const appendFileIfPresent = (fieldName: string, value: unknown) => {
+      if (value instanceof File) {
+        fd.append(fieldName, value);
+      }
+    };
 
     // Replace structured arrays with JSON
     const productsMeta = (values.products || [])
@@ -1190,13 +1290,13 @@ const CreateWebsite = () => {
     }
 
     fd.set("about", JSON.stringify(values.about.map((p) => p.text)));
-    fd.append("companyLogo", values.companyLogo);
+    appendFileIfPresent("companyLogo", values.companyLogo);
 
     fd.delete("heroImages");
-    (values.heroImages || []).forEach((file) => fd.append("heroImages", file));
+    (values.heroImages || []).forEach((file) => appendFileIfPresent("heroImages", file));
 
     fd.delete("gallery");
-    (values.gallery || []).forEach((file) => fd.append("gallery", file));
+    (values.gallery || []).forEach((file) => appendFileIfPresent("gallery", file));
 
     fd.delete("productImages");
     (values.menuItems || []).forEach((item, i) => {
@@ -1237,7 +1337,7 @@ const CreateWebsite = () => {
 
     fd.delete("testimonialImages");
     (values.testimonials || []).forEach((t, i) => {
-      if (t?.file) fd.append(`testimonialImages_${i}`, t.file);
+      if (t?.file instanceof File) fd.append(`testimonialImages_${i}`, t.file);
     });
 
     // ✅ Add companyId here
@@ -1250,15 +1350,11 @@ const CreateWebsite = () => {
       JSON.stringify(values.productDropdownPages || []),
     );
     (values.productDropdownPages || []).forEach((item, index) => {
-      if (item?.heroImage) {
-        fd.append(`productPageHeroImage_${index}`, item.heroImage);
-      }
+      appendFileIfPresent(`productPageHeroImage_${index}`, item?.heroImage);
       (item?.heroImages || []).forEach((file) => {
-        fd.append(`productPageHeroImages_${index}`, file);
+        appendFileIfPresent(`productPageHeroImages_${index}`, file);
       });
-      if (item?.homeCardImage) {
-        fd.append(`productPageHomeCardImage_${index}`, item.homeCardImage);
-      }
+      appendFileIfPresent(`productPageHomeCardImage_${index}`, item?.homeCardImage);
     });
     fd.set("aboutPageIntro", values.aboutPageIntro || "");
     fd.set("aboutPageOverview", values.aboutPageOverview || "");
@@ -1301,7 +1397,10 @@ const CreateWebsite = () => {
     //   JSON.stringify((values.aboutPageExtraParagraphs || []).map((item) => item?.text || "")),
     // );
     fd.delete("aboutPageImages");
-    (values.aboutPageImages || []).forEach((file) => fd.append("aboutPageImages", file));
+    (values.aboutPageImages || []).forEach((file) => appendFileIfPresent("aboutPageImages", file));
+    (values.aboutPageImageCards || []).forEach((card) => {
+      appendFileIfPresent("aboutPageImages", card?.image);
+    });
     fd.set(
       "aboutPageImageCards",
       JSON.stringify(
@@ -1312,9 +1411,7 @@ const CreateWebsite = () => {
       ),
     );
     (values.aboutPageImageCards || []).forEach((card, index) => {
-      if (card?.image) {
-        fd.append(`aboutPageImageCardImage_${index}`, card.image);
-      }
+      appendFileIfPresent(`aboutPageImageCardImage_${index}`, card?.image);
     });
     fd.set("mapUrl", normalizeMapUrl(values.mapUrl));
     if (!String(values.registeredCompanyName || "").trim()) {
@@ -1326,7 +1423,7 @@ const CreateWebsite = () => {
     // values.mapUrl = srcUrl;
     // console.log("src", srcUrl);
 
-    if (isEditMode) {
+    if (effectiveEditMode) {
       updateWebsite(fd);
       return;
     }
@@ -1612,6 +1709,9 @@ const CreateWebsite = () => {
       (values?.aboutPageImageCards || []).forEach((card: any, index: number) =>
         appendDraftFileOnce(`aboutPageImageCardImage_${index}`, card?.image as File | null),
       );
+      (values?.aboutPageImageCards || []).forEach((card: any) =>
+        appendDraftFileOnce("aboutPageImages", card?.image as File | null),
+      );
       (values?.productDropdownPages || []).forEach((page: any, index: number) => {
         appendDraftFileOnce(`productPageHeroImage_${index}`, page?.heroImage as File | null);
         appendDraftFileOnce(
@@ -1738,6 +1838,21 @@ const CreateWebsite = () => {
           );
           return;
         }
+
+        const duplicateKey = err?.response?.data?.duplicateKey;
+        const duplicateSearchKey = String(
+          duplicateKey?.searchKey || err?.response?.data?.template?.searchKey || "",
+        ).trim();
+        if (duplicateSearchKey) {
+          setHasExistingWebsite(true);
+          toast.info("Template already exists. Opening Edit Website.");
+          navigate(
+            `${builderBasePath}/edit-website/${encodeURIComponent(duplicateSearchKey)}`,
+            { state: { searchKey: duplicateSearchKey } },
+          );
+          return;
+        }
+
         toast.error(err?.response?.data?.message || "Failed to create website");
         console.log(err?.response?.data?.message || err.message);
       },
@@ -1807,7 +1922,7 @@ const CreateWebsite = () => {
       },
     });
 
-  const isWebsiteSubmitting = isEditMode
+  const isWebsiteSubmitting = effectiveEditMode
     ? isUpdateWebsiteLoading
     : isCreateWebsiteLoading;
 
@@ -1924,7 +2039,7 @@ const CreateWebsite = () => {
           <div className="flex flex-col gap-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-title font-pmedium text-primary uppercase">
-                Create Website
+                {effectiveEditMode ? "Edit Website" : "Create Website"}
               </h2>
               <div className="flex flex-col items-end gap-1">
                 <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
@@ -4003,16 +4118,15 @@ const CreateWebsite = () => {
           ) : null}
 
               {/* Publish / Preview / Reset */}
-              {/* Credit widget intentionally hidden for current dynamic-pages demo pass. */}
-              {/* <div className="flex justify-center mb-3">
+              <div className="flex justify-center mb-3">
                 {workspaceId || companyId ? (
                   <CreditsIndicator workspaceId={workspaceId} companyId={companyId} />
                 ) : null}
-              </div> */}
+              </div>
               <div className="flex items-center justify-center gap-4">
                 <PrimaryButton
                   type="button"
-                  title={isEditMode ? "Submit" : "Publish"}
+                  title={effectiveEditMode ? "Submit" : "Publish"}
                   onClick={() => setShowConfirmPopup(true)}
                   isLoading={isWebsiteSubmitting}
                   disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
@@ -4059,22 +4173,30 @@ const CreateWebsite = () => {
               <DialogTitle sx={{ pb: 1 }}>
                 <div className="flex items-center justify-between">
                   <span className="text-lg font-semibold text-slate-900">
-                    Confirm Website Publish
+                    {effectiveEditMode ? "Confirm Website Update" : "Confirm Website Publish"}
                   </span>
-                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-                    First Time Free
-                  </span>
+                  {effectiveEditMode ? (
+                    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                      1 Credit Deducted
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                      First Time Free
+                    </span>
+                  )}
                 </div>
               </DialogTitle>
               <DialogContent>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-sm font-medium text-slate-700">
-                    Your website will be created with page-style navigation (Home, About, Products,
-                    Gallery, Testimonials, Contact). Do you want to continue?
+                    {effectiveEditMode
+                      ? "Your existing published website will be updated and the changes will be published again. This action will deduct 1 credit from your monthly balance."
+                      : "Your website will be created with page-style navigation (Home, About, Products, Gallery, Testimonials, Contact). Do you want to continue?"}
                   </p>
                   <p className="mt-2 text-xs text-slate-600">
-                    This is a frontend-first demo pass. Backend page contracts will be aligned after
-                    finalizing the UI flow.
+                    {effectiveEditMode
+                      ? "The published website will keep its existing URL and reflect the latest submitted data after a successful save."
+                      : "This is a frontend-first demo pass. Backend page contracts will be aligned after finalizing the UI flow."}
                   </p>
                 </div>
               </DialogContent>
@@ -4118,11 +4240,11 @@ const CreateWebsite = () => {
                     })();
                   }}
                 >
-                  {isWebsiteSubmitting
-                    ? isEditMode
+                {isWebsiteSubmitting
+                    ? effectiveEditMode
                       ? "Submitting..."
                       : "Publishing..."
-                    : isEditMode
+                    : effectiveEditMode
                       ? "Confirm & Submit"
                       : "Confirm & Publish"}
                 </Button>

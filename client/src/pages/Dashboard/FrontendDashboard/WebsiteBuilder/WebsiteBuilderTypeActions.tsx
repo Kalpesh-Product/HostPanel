@@ -137,7 +137,52 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
               businessName,
             }),
           ) || null;
-        setExistingWebsite(found);
+
+        if (found) {
+          setExistingWebsite(found);
+          return;
+        }
+
+        const subscriptionId = companyId || workspaceId;
+        if (subscriptionId) {
+          try {
+            const subscriptionResponse = await axios.get(`/api/subscription/${subscriptionId}`, {
+              params: {
+                companyId,
+                workspaceId,
+              },
+            });
+            const subscription = subscriptionResponse?.data || {};
+            const publishedUrl = String(subscription?.publishedProjectUrl || "").trim();
+            const publishedSearchKey = publishedUrl
+              ? publishedUrl
+                  .replace(/^https?:\/\//i, "")
+                  .split(".")[0]
+                  .trim()
+              : "";
+
+            if (
+              String(subscription?.publishedProjectId || "").trim() ||
+              publishedUrl
+            ) {
+              setExistingWebsite({
+                _id: subscription?.publishedProjectId || subscriptionId,
+                searchKey: publishedSearchKey || businessName.toLowerCase().replace(/\s+/g, "-"),
+                companyId: companyId || undefined,
+                workspaceId: workspaceId || undefined,
+                companyName: businessName,
+                isPublished: true,
+                deployedUrl: publishedUrl,
+                publishedProjectUrl: publishedUrl,
+              });
+              return;
+            }
+          } catch (subscriptionError) {
+            // Keep the fallback conservative; no published state if subscription lookup fails.
+          }
+        }
+
+        setExistingWebsite(null);
       } catch (error) {
         setExistingWebsite(null);
       } finally {
@@ -178,12 +223,12 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
   const createOrEditRoute = `${builderBasePath}/dynamic/create-website`;
   const leadsRoute = `${builderBasePath}/dynamic/leads`;
   const reviewsRoute = `${builderBasePath}/dynamic/reviews`;
+  const hasExistingWebsite = Boolean(existingWebsite);
   const hasResumableDraft =
     existingWebsite?.isDraft === true &&
     existingWebsite?.isPublished !== true &&
     Boolean(String(existingWebsite?.searchKey || "").trim());
-  const canEditExistingWebsite =
-    hasResumableDraft || Boolean(existingWebsite?.draftData);
+  const canEditExistingWebsite = hasExistingWebsite || hasResumableDraft;
   const createOrEditLabel = canEditExistingWebsite ? "Edit Website" : "Create Website";
   // const normalizedPlan = workspacePlan.toLowerCase();
   // Dynamic-only mode: keep plan lock logic disabled for now.

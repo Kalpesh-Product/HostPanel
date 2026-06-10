@@ -1238,9 +1238,7 @@ export const createTemplate = async (req, res, next) => {
           message: "Template for this company already exists",
           duplicateKey: {
             searchKey,
-            vertical,
             existingTemplateId: String(template?._id || ""),
-            existingVertical: template?.vertical || "",
           },
         });
     }
@@ -1600,6 +1598,11 @@ export const createTemplate = async (req, res, next) => {
     }
     if (normalizedAboutCards.length) {
       template.aboutPageImageCards = normalizedAboutCards;
+      if (!Array.isArray(template.aboutPageImages) || template.aboutPageImages.length === 0) {
+        template.aboutPageImages = normalizedAboutCards
+          .map((card) => card.image)
+          .filter(Boolean);
+      }
     }
 
     const normalizedProductPages = normalizeProductDropdownPages(productDropdownPages);
@@ -2582,6 +2585,11 @@ export const editTemplate = async (req, res, next) => {
         }
       }
       template.aboutPageImageCards = normalizedCards;
+      if (!Array.isArray(template.aboutPageImages) || template.aboutPageImages.length === 0) {
+        template.aboutPageImages = normalizedCards
+          .map((card) => card.image)
+          .filter(Boolean);
+      }
     }
 
     if (productDropdownPages !== null) {

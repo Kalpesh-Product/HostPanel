@@ -4,6 +4,9 @@ import { api } from "../../../../utils/axios";
 
 const LIVE_PREVIEW_DRAFT_STORAGE_KEY = "website_builder_live_preview_draft";
 
+// This file is the runtime renderer for the saved website template.
+// Keep the section order and field lookups aligned with CreateWebsite.tsx
+// and the server serializer so local preview and hosted rendering match.
 const normalizeSlug = (value: string) =>
   String(value || "")
     .trim()
@@ -333,6 +336,8 @@ const PageDemo = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [productsMenuOpen]);
 
+  // All visible page data comes from the saved draft shape.
+  // When this shape changes, hosted rendering should be updated here too.
   const navItems = useMemo(() => {
     const sourceNavItems = Array.isArray(draft?.pageNavItems)
       ? draft.pageNavItems
@@ -377,6 +382,8 @@ const PageDemo = () => {
     [draft?.menuItems],
   );
 
+  // Route-based section selection keeps the preview URL and the section
+  // currently shown on screen in sync with the hosted version.
   const { currentSection, currentProductSlug } = useMemo(() => {
     const relative = String(location.pathname || "").replace(/^\/website-preview\/?/, "");
     const rawParts = relative.split("/").filter(Boolean);
@@ -417,6 +424,7 @@ const PageDemo = () => {
     return items;
   }, [currentSection, navigate, selectedProductPage]);
 
+  // Home-page images are reused as the top-level hero background.
   const heroImages = Array.isArray(draft?.heroImages) ? draft.heroImages : [];
 
   useEffect(() => {
@@ -1111,8 +1119,10 @@ const PageDemo = () => {
         </div>
       ) : null}
 
+      {/* Home page: hero, about summary, product cards, gallery preview, testimonials, and contact summary. */}
       {currentSection === "home" ? (
         <>
+          {/* Hero section: uses draft.title, draft.subTitle, and heroImages from the saved template. */}
           <section id="home" className="relative h-[62svh] min-h-[420px] md:h-[84vh] md:min-h-[640px]">
             <div className="absolute inset-0 overflow-hidden bg-[#242424]">
               {showHeroCarousel ? (
@@ -1169,6 +1179,7 @@ const PageDemo = () => {
             ) : null}
           </section>
 
+          {/* About summary section: compact intro pulled from about text fields. */}
           <section id="about" className="bg-black px-4 py-12 text-white md:px-6 md:py-20">
             <div className={`${CONTENT_WRAP} text-center`}>
               <h2 className="text-[24px] font-semibold text-[#f7e53f] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[32px]">
@@ -1191,6 +1202,7 @@ const PageDemo = () => {
             </div>
           </section>
 
+          {/* Products section: home-page product cards that link into product detail routes. */}
           <section id="products" className={SECTION_BLOCK}>
             <div className={CONTENT_WRAP}>
               <h2 className={MOBILE_SECTION_HEADING}>Our Products</h2>
@@ -1224,6 +1236,7 @@ const PageDemo = () => {
             </div>
           </section>
 
+          {/* Gallery preview section: first six images on home, full gallery on the gallery page. */}
           <section id="gallery" className={SECTION_BLOCK}>
             <div className={CONTENT_WRAP}>
               <h2 className={MOBILE_SECTION_HEADING}>{draft?.galleryTitle || "Gallery"}</h2>
@@ -1255,6 +1268,7 @@ const PageDemo = () => {
             </div>
           </section>
 
+          {/* Testimonials preview section: merged draft testimonials and approved public reviews. */}
           <section id="testimonials" className={SECTION_BLOCK}>
             <div className={CONTENT_WRAP}>
               <h2 className={MOBILE_SECTION_HEADING}>{draft?.testimonialTitle || "Testimonials"}</h2>
@@ -1344,6 +1358,7 @@ const PageDemo = () => {
             </div>
           </section>
 
+          {/* Contact summary section: map iframe and shared contact card. */}
           <section id="contact" className={SECTION_BLOCK}>
             <div className={CONTENT_WRAP}>
               <h2 className={MOBILE_SECTION_HEADING}>{draft?.contactTitle || "Contact"}</h2>
@@ -1370,6 +1385,7 @@ const PageDemo = () => {
         </>
       ) : null}
 
+      {/* About page: full narrative blocks and image cards. */}
       {currentSection === "about" ? (
         <section className="bg-black px-4 py-12 text-white md:px-6 md:py-24">
           <div className={`${CONTENT_WRAP} text-center`}>
@@ -1430,6 +1446,7 @@ const PageDemo = () => {
         </section>
       ) : null}
 
+      {/* Products page: category detail view or menu-style rendering based on the selected product slug. */}
       {currentSection === "products" ? (
         <section className={SECTION_BLOCK}>
           <div className={CONTENT_WRAP}>
@@ -1441,7 +1458,7 @@ const PageDemo = () => {
                       src={selectedProductHeroImage}
                       alt={selectedProductPage?.name || "Product Hero"}
                       className="h-full w-full object-cover opacity-60"
-                    />
+                    /> 
                   ) : null}
 
                   <div className="sticky inset-0 flex items-self-end justify-center px-4 pb-8 text-center text-white">
@@ -1607,6 +1624,7 @@ const PageDemo = () => {
         </section>
       ) : null}
 
+      {/* Gallery page: full gallery grid for browsing every uploaded image. */}
       {currentSection === "gallery" ? (
         <section className={SECTION_BLOCK}>
           <div className={CONTENT_WRAP}>
@@ -1631,6 +1649,7 @@ const PageDemo = () => {
         </section>
       ) : null}
 
+      {/* Testimonials page: full approved + draft testimonial list with pagination. */}
       {currentSection === "testimonials" ? (
         <section className={SECTION_BLOCK}>
           <div className={CONTENT_WRAP}>
@@ -1725,6 +1744,7 @@ const PageDemo = () => {
         </section>
       ) : null}
 
+      {/* Contact page: embedded map and the detailed contact card. */}
       {currentSection === "contact" ? (
         <section className="px-4 py-10 md:px-6 md:py-12">
           <div className={CONTENT_WRAP}>
@@ -1751,6 +1771,7 @@ const PageDemo = () => {
         </section>
       ) : null}
 
+      {/* Shared footer: shown on every section so hosted and local preview stay consistent. */}
       <footer className={`mt-8 border-t border-slate-300 bg-[#ffffff] ${FOOTER_TEXT}`}>
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-6 py-8 text-center md:grid-cols-3 md:text-left">
           <div>
@@ -1794,6 +1815,7 @@ const PageDemo = () => {
         </div>
       </footer>
 
+      {/* Shared overlays: review form, lead form, success toast, and gallery viewer. */}
       {reviewModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
           <div className="w-full max-w-xl rounded-[24px] bg-white p-5 shadow-xl md:p-6">
