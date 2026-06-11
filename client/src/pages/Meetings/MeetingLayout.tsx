@@ -6,25 +6,40 @@ import { toast } from "sonner";
 import { useDispatch } from "react-redux";
 import { setMeetings } from "../../redux/slices/meetingSlice";
 import { CircularProgress } from "@mui/material";
+import { getStoredUser } from "../../lib/auth-session";
 
 const MeetingLayout = () => {
   const axios = useAxiosPrivate();
   const dispatch = useDispatch();
 
+  // Get workspaceId from stored user (same method as MeetingRoomsPage)
+  const user = getStoredUser();
+  const workspaceId =
+    user?.workspaceMembership?.workspaceId ||
+    user?.workspace?.id ||
+    user?.workspaceId ||
+    user?.workspace?.workspaceId ||
+    user?.primaryWorkspace ||
+    null;
+
   const {
     data: meetings = [],
     isPending: isMeetingsPending,
   } = useQuery({
-    queryKey: ["meetings"],
+    queryKey: ["meetings", workspaceId],
     queryFn: async () => {
       try {
-        const response = await axios.get("/api/meeting-rooms/workspace/6a279c98f8ac45ca5d5180bb");
-        return response.data;
+        if (!workspaceId) {
+          return [];
+        }
+        const response = await axios.get(`/api/meeting-rooms/workspace/${workspaceId}`);
+        return response.data?.data?.rooms || response.data || [];
       } catch (error) {
         toast.error("Failed to fetch meetings");
         throw error;
       }
     },
+    enabled: !!workspaceId,
   });
 
   useEffect(() => {

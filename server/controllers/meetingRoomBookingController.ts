@@ -2,13 +2,14 @@ import { Request, Response, NextFunction } from "express";
 import { MeetingRoomBooking } from "../models/MeetingRoomBooking.js";
 import { MeetingRoom } from "../models/MeetingRoom.js";
 import mongoose from "mongoose";
+import HostUser from "../models/HostUser.js";
 
 interface AuthenticatedRequest extends Request {
-    user?: {
-        id: string;
-        name?: string;
-        email?: string;
-        activeWorkspaceId?: string;
+    user?: string; // userId string from verifyJwt
+    workspaceMembership?: {
+        workspace: string;
+        role: string;
+        isPrimary: boolean;
     };
 }
 
@@ -68,6 +69,21 @@ export const createBooking = async (
         const bookingNumber = lastBooking ? lastBooking.bookingNumber + 1 : 1001;
         const bookingCode = `MRB-${Date.now().toString().slice(-6)}-${bookingNumber}`;
 
+        // Look up user name/email from DB
+        let bookedByName = req.body.bookedByName || "";
+        let bookedByEmail = req.body.bookedByEmail || "";
+        if (req.user && (!bookedByName || !bookedByEmail)) {
+            try {
+                const hostUser = await HostUser.findById(req.user).lean().exec();
+                if (hostUser) {
+                    if (!bookedByName) bookedByName = hostUser.name || "";
+                    if (!bookedByEmail) bookedByEmail = hostUser.email || "";
+                }
+            } catch (e) {
+                // HostUser model may not exist — continue without name/email
+            }
+        }
+
         const booking = await MeetingRoomBooking.create({
             ...req.body,
             workspaceId,
@@ -77,10 +93,10 @@ export const createBooking = async (
             bookingCode,
             start: new Date(start),
             end: new Date(end),
-            ownerId: req.user?.id,
-            bookedByUserId: req.user?.id,
-            bookedByName: req.user?.name || req.body.bookedByName,
-            bookedByEmail: req.user?.email || req.body.bookedByEmail,
+            ownerId: req.user,
+            bookedByUserId: req.user,
+            bookedByName,
+            bookedByEmail,
             status: "confirmed",
         });
 
@@ -93,14 +109,31 @@ export const createBooking = async (
     }
 };
 
-// Get All Bookings (Workspace level)
+// Helper: format Date to "HH:mm" string
+const formatTime = (date: Date): string => {
+    const d = new Date(date);
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    return `${hours}:${minutes}`;
+};
+
+// Helper: format Date to "YYYY-MM-DD" string
+const formatDate = (date: Date): string => {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+};
+
+// Get All Bookings (Workspace level) — also returns roomDetails
 export const getBookings = async (
     req: AuthenticatedRequest,
     res: Response,
     next: NextFunction
 ) => {
     try {
-        const workspaceId = req.params.workspaceId || req.user?.activeWorkspaceId;
+        const workspaceId = req.params.workspaceId || req.workspaceMembership?.workspace;
 
         if (!workspaceId) {
             return res.status(400).json({ message: "Workspace ID is required" });
@@ -119,17 +152,62 @@ export const getBookings = async (
 
         if (status) query.status = status;
 
-        const bookings = await MeetingRoomBooking.find(query)
-            .populate("roomId", "name type capacity")
-            .populate("ownerId", "name email")
-            .sort({ start: -1 })
-            .lean()
-            .exec();
+        // Fetch bookings and rooms in parallel
+        const [bookings, rooms] = await Promise.all([
+            MeetingRoomBooking.find(query)
+                .populate("roomId", "name type capacity floor")
+                .populate("ownerId", "name email")
+                .sort({ start: -1 })
+                .lean()
+                .exec(),
+            MeetingRoom.find({ workspaceId, isActive: true })
+                .sort({ sortOrder: 1, name: 1 })
+                .lean()
+                .exec(),
+        ]);
+
+        // Get current user ID for isMe flag
+        const currentUserId = req.user || null;
+
+        // Transform bookings for frontend compatibility
+        const transformedBookings = bookings.map((booking: any) => {
+            const room = booking.roomId as any;
+            const owner = booking.ownerId as any;
+            return {
+                ...booking,
+                // Frontend expects separate date/startTime/endTime
+                date: booking.start ? formatDate(booking.start) : "",
+                startTime: booking.start ? formatTime(booking.start) : "",
+                endTime: booking.end ? formatTime(booking.end) : "",
+                // Flatten room info
+                roomName: booking.roomName || room?.name || "",
+                floor: room?.floor || booking.roomName || "",
+                roomType: room?.type || "Meeting Room",
+                roomCapacity: room?.capacity || 0,
+                // Flatten owner info
+                bookedByName: booking.bookedByName || owner?.name || "",
+                bookedByRole: owner?.workspaceMembership?.role || "",
+                // isMe flag for frontend filtering
+                isMe: String(booking.ownerId?._id || booking.ownerId) === String(currentUserId),
+            };
+        });
+
+        // Transform rooms for frontend compatibility
+        const transformedRooms = rooms.map((room: any) => ({
+            ...room,
+            credits: room.creditsPerHour || 0,
+            pricePerHour: room.creditsPerHour || 0,
+            pricePerDay: 0,
+            activationReady: room.isActive && room.status === "Active",
+        }));
 
         return res.status(200).json({
             message: "Bookings fetched successfully",
-            count: bookings.length,
-            data: { bookings },
+            count: transformedBookings.length,
+            data: {
+                roomDetails: transformedRooms,
+                bookings: transformedBookings,
+            },
         });
     } catch (error: any) {
         next(error);
@@ -143,12 +221,12 @@ export const getMyBookings = async (
     next: NextFunction
 ) => {
     try {
-        if (!req.user?.id) {
+        if (!req.user) {
             return res.status(401).json({ message: "User not authenticated" });
         }
 
         const bookings = await MeetingRoomBooking.find({
-            ownerId: req.user.id,
+            ownerId: req.user,
         })
             .populate("roomId", "name type")
             .sort({ start: -1 })
