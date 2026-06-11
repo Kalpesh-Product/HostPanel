@@ -80,12 +80,12 @@ const meetingRoomBookingSchema = new Schema<IMeetingRoomBooking>(
 
         ownerId: {
             type: Schema.Types.ObjectId,
-            ref: "User",
+            ref: "HostUser",
             required: true,
         },
         bookedByUserId: {
             type: Schema.Types.ObjectId,
-            ref: "User",
+            ref: "HostUser",
         },
 
         roomName: { type: String, required: true },
@@ -130,7 +130,7 @@ const meetingRoomBookingSchema = new Schema<IMeetingRoomBooking>(
 
         invites: [
             {
-                invitedUserId: { type: Schema.Types.ObjectId, ref: "User" },
+                invitedUserId: { type: Schema.Types.ObjectId, ref: "HostUser" },
                 invitedName: { type: String, required: true },
                 invitedEmail: { type: String, lowercase: true, trim: true },
                 status: {
@@ -171,7 +171,6 @@ const meetingRoomBookingSchema = new Schema<IMeetingRoomBooking>(
 
 // Important Indexes
 meetingRoomBookingSchema.index({ workspaceId: 1, bookingNumber: 1 }, { unique: true });
-meetingRoomBookingSchema.index({ bookingCode: 1 }, { unique: true });
 meetingRoomBookingSchema.index({ roomId: 1, start: 1, end: 1 });           // Overlap detection
 meetingRoomBookingSchema.index({ workspaceId: 1, start: 1, status: 1 });
 meetingRoomBookingSchema.index({ workspaceId: 1, ownerId: 1, start: -1 });

@@ -25,7 +25,7 @@ const departmentSchema = new Schema<IDepartment>(
         },
         headUserId: {
             type: Schema.Types.ObjectId,
-            ref: "User",
+            ref: "HostUser",
             default: null,
         },
         isActive: {
