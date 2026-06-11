@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { 
-  Search, ChevronDown, Clock, Users, Building, 
+import {
+  Search, ChevronDown, Clock, Users, Building,
   Eye, Plus, X, CheckCircle2, AlertCircle, CalendarClock, XCircle, ChevronLeft, ChevronRight, Calendar as CalIcon, Building2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,14 +21,15 @@ import {
   getStoredActingManagerContext,
   getStoredUser,
 } from '../../lib/auth-session';
-// Frontend-only mode: backend meeting-room APIs are intentionally disabled for now.
-// import { getWorkspaceMembers } from '../../services/auth';
-// import {
-//   createMeetingRoomBooking,
-//   getMeetingRoomBookings,
-//   respondToMeetingRoomInvite,
-//   updateMeetingRoomBooking,
-// } from '../../services/meeting-room-bookings';
+import { getWorkspaceMembers } from '../../services/auth';
+import {
+  createMeetingRoomBooking,
+  getMeetingRoomBookings,
+  getMyBookings,
+  respondToMeetingRoomInvite,
+  updateMeetingRoomBooking,
+  cancelBooking,
+} from '../../services/meeting-room-bookings';
 
 
 interface StoredUser {
@@ -220,7 +221,7 @@ function resolveBookingRoomName(booking: any) {
 }
 
 export function MeetingRoomsPage() {
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const storedUser = getStoredUser();
   const actingContext = getStoredActingManagerContext(storedUser);
@@ -280,7 +281,7 @@ export function MeetingRoomsPage() {
           storedUser?.department ||
           storedUser?.workspace?.department ||
           'Executive'
-      )),
+        )),
   };
   const departmentScopeNames = useMemo(() => {
     if (actingContext?.departmentName) {
@@ -293,20 +294,20 @@ export function MeetingRoomsPage() {
 
     const departments = isAdminProfile
       ? [
-          ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
-          storedUser?.workspaceMembership?.department,
-          storedUser?.department,
-          storedUser?.workspace?.department,
-        ]
+        ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
+        storedUser?.workspaceMembership?.department,
+        storedUser?.department,
+        storedUser?.workspace?.department,
+      ]
       : [
-          ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
-          storedUser?.workspaceMembership?.department,
-          storedUser?.department,
-          storedUser?.workspace?.department,
-          ...(Array.isArray(storedUser?.workspace?.organizationDepartments)
-            ? storedUser.workspace.organizationDepartments.map((department: any) => department?.name).filter(Boolean)
-            : []),
-        ];
+        ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
+        storedUser?.workspaceMembership?.department,
+        storedUser?.department,
+        storedUser?.workspace?.department,
+        ...(Array.isArray(storedUser?.workspace?.organizationDepartments)
+          ? storedUser.workspace.organizationDepartments.map((department: any) => department?.name).filter(Boolean)
+          : []),
+      ];
 
     const filteredDepartments = departments.filter(Boolean);
 
@@ -422,7 +423,7 @@ export function MeetingRoomsPage() {
       setStatusFilter('pending');
     }
   }, [location.search, isEmployeeProfile, isAssignedDeptProfile]);
-  
+
   // Modal States
   const [showBookingDialog, setShowBookingDialog] = useState<boolean>(false);
   const [showRescheduleDialog, setShowRescheduleDialog] = useState<boolean>(false);
@@ -539,10 +540,10 @@ export function MeetingRoomsPage() {
 
       return [
         singleDepartment?.name ||
-          singleDepartment?.label ||
-          singleDepartment?.department ||
-          singleDepartment?.value ||
-          '',
+        singleDepartment?.label ||
+        singleDepartment?.department ||
+        singleDepartment?.value ||
+        '',
       ].filter(Boolean);
     }
 
@@ -972,9 +973,9 @@ export function MeetingRoomsPage() {
     const roomName = resolveBookingRoomName(booking);
     const invites = Array.isArray(booking.invites)
       ? booking.invites.map((invite: any) => ({
-          ...invite,
-          invitedUserId: invite?.invitedUserId ? String(invite.invitedUserId) : '',
-        }))
+        ...invite,
+        invitedUserId: invite?.invitedUserId ? String(invite.invitedUserId) : '',
+      }))
       : [];
     const currentInvite = invites.find((invite: any) => invite.invitedUserId === String(currentUserId)) || null;
     const liveStatus = booking.liveStatus || booking.bookingStatus || deriveLiveMeetingStatus(booking);
@@ -1353,30 +1354,81 @@ export function MeetingRoomsPage() {
       .slice(0, 3);
   }
 
+  const [workspaceId, setWorkspaceId] = useState<string>('');
   // --- FRONTEND PREVIEW MODE: Backend API calls are temporarily commented out ---
-  // The backend integration will be added later. For now, just resolve loading immediately.
-  // TODO: Uncomment when backend is ready
-  // useEffect(() => {
-  //   async function loadMembers() {
-  //     try {
-  //       const response = await getWorkspaceMembers();
-  //       const members = Array.isArray(response?.data?.members) ? response.data.members : Array.isArray(response?.members) ? response.members : [];
-  //       const canonicalMembers = new Map();
-  //       members.forEach((member: any) => {
-  //         const userId = resolveMemberUserId(member);
-  //         const email = String(member?.email || member?.user?.email || '').trim().toLowerCase();
-  //         const fullName = resolveMemberName(member) || member?.fullName || member?.name || 'Employee';
-  //         const key = userId || `${normalizeIdentity(fullName)}::${email}`;
-  //         if (!key) return;
-  //         const existing = canonicalMembers.get(key);
-  //         if (existing && existing.userId) return;
-  //         canonicalMembers.set(key, { ...member, id: member?.id || key, userId, email: member?.email || member?.user?.email || '', fullName, role: resolveMemberRole(member), departments: resolveMemberDepartments(member) });
-  //       });
-  //       setWorkspaceMembers(Array.from(canonicalMembers.values()).filter((m) => m.userId));
-  //     } catch { setWorkspaceMembers([]); }
-  //   }
-  //   loadMembers();
-  // }, []);
+  // Load initial data from backend
+  // Load initial data from backend
+  useEffect(() => {
+    const user = getStoredUser();
+
+    // Better workspaceId extraction
+    let wsId = user?.workspaceMembership?.workspaceId ||
+      user?.workspace?.id ||
+      user?.workspaceId ||
+      user?.workspace?.workspaceId;
+
+    if (!wsId) {
+      console.warn("⚠️ No workspaceId found in user object");
+      setErrorMessage("No workspace found. Please check login or user data.");
+      setIsLoading(false);
+      return;
+    }
+
+    setWorkspaceId(wsId);
+    console.log("✅ Using workspaceId:", wsId);
+
+    async function loadData() {
+      setIsLoading(true);
+      setErrorMessage('');
+
+      try {
+        const response = await getMeetingRoomBookings(wsId!);
+        console.log("📡 API Response:", response);
+
+        const rawData = response?.data?.data || response?.data || response || {};
+
+        const details = (rawData.roomDetails || rawData.rooms || []).map((room: any) =>
+          normalizeRoomEntry(room)
+        );
+
+        const bookingsData = rawData.bookings || rawData.data?.bookings || rawData || [];
+
+        setRoomDetails(details);
+
+        const activeRoomNames = details
+          .filter((room: any) => isActiveRoom(room) && isMeetingCalendarRoom(room))
+          .map((room: any) => room.name);
+
+        if (activeRoomNames.length > 0) {
+          setAvailableRooms(activeRoomNames);
+          setCalendarRoomFilter(activeRoomNames[0]);
+        }
+
+        setAllBookings(bookingsData.map((b: any) => normalizeBooking(b)));
+
+        // Load workspace members - NO ARGUMENT
+        try {
+          const membersResponse = await getWorkspaceMembers();   // ← No (wsId) here
+          setWorkspaceMembers(
+            membersResponse?.data?.members ||
+            membersResponse?.members ||
+            membersResponse ||
+            []
+          );
+        } catch (mErr) {
+          console.warn("Failed to load workspace members:", mErr);
+        }
+
+      } catch (err: any) {
+        console.error("Failed to load meeting rooms/bookings:", err);
+        setErrorMessage(`Failed to load data: ${err.response?.data?.message || err.message}`);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadData();
+  }, []);
 
   // TODO: Uncomment background polling when backend is ready
   // useEffect(() => {
@@ -1506,7 +1558,7 @@ export function MeetingRoomsPage() {
   const getDayColor = (day: number) => {
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const bookingsOnDay = allBookings.filter(b => b.roomName === calendarRoomFilter && b.date === dateStr && b.status !== 'cancelled');
-    
+
     if (bookingsOnDay.length === 0) return 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200';
     if (bookingsOnDay.length < 3) return 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200';
     return 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200';
@@ -1749,7 +1801,7 @@ export function MeetingRoomsPage() {
       const nextType = prev.roomType || '';
       const nextRoomName =
         prev.roomName &&
-        roomCatalog.some((room) => room.name === prev.roomName && room.floor === nextFloor && (!nextWing || normalizeBookingWing(room.wing) === nextWing) && room.type === nextType)
+          roomCatalog.some((room) => room.name === prev.roomName && room.floor === nextFloor && (!nextWing || normalizeBookingWing(room.wing) === nextWing) && room.type === nextType)
           ? prev.roomName
           : '';
       if (prev.floor === nextFloor && prev.wing === nextWing && prev.roomType === nextType && prev.roomName === nextRoomName) {
@@ -1968,217 +2020,275 @@ export function MeetingRoomsPage() {
       <PageFrame>
         {isInitialLoading && <CardsGridSkeleton count={6} cardHeight="h-32" />}
         {!isInitialLoading && (
-        <div className="flex flex-col gap-4 text-slate-700 font-sans">
-          
-          {/* 1. HEADER */}
-          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
-            <div>
-              <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                
-                Meeting Rooms
-              </h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">
-                Reserve campus workspaces and monitor department availability.
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                setNewBooking((prev) => ({
-                  ...prev,
-                  floor: '',
-                  wing: '',
-                  roomType: '',
-                  roomName: '',
-                }));
-                setShowBookingDialog(true);
-              }} 
-              className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
-            >
-              <Plus size={14} strokeWidth={3} /> BOOK A ROOM
-            </button>
-          </div>
+          <div className="flex flex-col gap-4 text-slate-700 font-sans">
 
-          {errorMessage ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-600">
-              {errorMessage}
-            </div>
-          ) : null}
+            {/* 1. HEADER */}
+            <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+              <div>
+                <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
 
-          {/* 2. LIVE STATS */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
-            {[
-              { label: 'Upcoming', val: scopedBookings.filter(b => getBookingDisplayStatus(b) === 'booked').length, color: 'text-primary', bg: 'bg-blue-50', icon: <CalendarClock size={16}/> },
-              { label: 'In Progress', val: scopedBookings.filter(b => getBookingDisplayStatus(b) === 'in progress').length, color: 'text-amber-500', bg: 'bg-amber-50', icon: <Clock size={16} className="animate-spin-slow"/> },
-              { label: 'Completed', val: scopedBookings.filter(b => getBookingDisplayStatus(b) === 'completed').length, color: 'text-emerald-600', bg: 'bg-emerald-50', icon: <CheckCircle2 size={16}/> },
-              { label: 'Cancelled', val: scopedBookings.filter(b => getBookingDisplayStatus(b) === 'cancelled').length, color: 'text-red-500', bg: 'bg-red-50', icon: <XCircle size={16}/> },
-              { label: 'Rescheduled', val: scopedBookings.filter((b) => isRescheduledBooking(b)).length, color: 'text-purple-600', bg: 'bg-purple-50', icon: <Clock size={16}/> },
-            ].map((stat, i) => (
-              <div key={i} className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
-                 <div className="min-w-0">
-                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 truncate">{stat.label}</p>
-                   <p className={`text-[15px] font-black ${stat.color}`}>{stat.val}</p>
-                 </div>
-                 <div className={`p-2 rounded-2xl ${stat.bg} ${stat.color} shrink-0`}>{stat.icon}</div>
+                  Meeting Rooms
+                </h2>
+                <p className="text-xs font-medium text-slate-500 mt-1">
+                  Reserve campus workspaces and monitor department availability.
+                </p>
               </div>
-            ))}
-          </div>
-
-        <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
-          
-          {/* 3. MAIN DATA TABLE (LEFT: 2/3) */}
-          <div className="lg:col-span-2 flex flex-col bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden min-h-[500px]">
-            
-            {/* Tabs & Filters */}
-            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-              <div className="flex bg-slate-100/50 p-1 rounded-xl w-full xl:w-auto relative border border-slate-200/50 overflow-x-auto">
-                {isEmployeeProfile ? (
-                  <>
-                    <button
-                      onClick={() => { setActiveTab('my_bookings'); setStatusFilter('all'); }}
-                      className={`flex-1 min-w-0 sm:min-w-[100px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${
-                        activeTab === 'my_bookings' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      {activeTab === 'my_bookings' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
-                      MY BOOKINGS
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('invites'); setStatusFilter('all'); }}
-                      className={`flex-1 min-w-0 sm:min-w-[90px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${
-                        activeTab === 'invites' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      {activeTab === 'invites' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
-                      INVITES
-                      {receivedInvites.filter(i => i.status === 'pending').length > 0 && (
-                        <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[9px] font-bold rounded-full shadow-sm shadow-red-200 animate-pulse">
-                          {receivedInvites.filter(i => i.status === 'pending').length}
-                        </span>
-                      )}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    {/* First tab: Company / Dept / Assigned - role-based */}
-                    <button
-                      onClick={() => {
-                        const tab = isAdminProfile
-                          ? 'assigned_dept_bookings'
-                          : (isOwnerProfile || isSuperAdminProfile)
-                            ? 'company_bookings'
-                            : 'dept_bookings';
-                        setActiveTab(tab);
-                        setStatusFilter('all');
-                      }}
-                    className={`flex-[2.2] min-w-[210px] sm:min-w-[250px] lg:min-w-[300px] py-2 px-3 sm:px-4 rounded-lg text-[11px] sm:text-[12px] lg:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap text-center ${
-                        (activeTab === 'assigned_dept_bookings' || activeTab === 'company_bookings' || activeTab === 'dept_bookings') ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      {(activeTab === 'assigned_dept_bookings' || activeTab === 'company_bookings' || activeTab === 'dept_bookings') && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
-                      {isAdminProfile ? 'Assigned meetings' : (isDepartmentManagerProfile ? 'Department meetings' : 'Company')}
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('my_bookings'); setStatusFilter('all'); }}
-                      className={`flex-1 min-w-0 sm:min-w-[100px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${
-                        activeTab === 'my_bookings' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      {activeTab === 'my_bookings' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
-                      MY BOOKINGS
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('invites'); setStatusFilter('all'); }}
-                      className={`flex-1 min-w-0 sm:min-w-[90px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${
-                        activeTab === 'invites' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      {activeTab === 'invites' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
-                      INVITES
-                      {receivedInvites.filter(i => i.status === 'pending').length > 0 && (
-                        <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[9px] font-bold rounded-full shadow-sm shadow-red-200 animate-pulse">
-                          {receivedInvites.filter(i => i.status === 'pending').length}
-                        </span>
-                      )}
-                    </button>
-                  </>
-                )}
-              </div>
-
-
-              <div className="relative w-full xl:w-auto">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input 
-                  type="text" 
-                  placeholder="Search rooms or hosts..." 
-                  className="w-full xl:w-64 pl-10 pr-4 py-2 bg-white border border-slate-200/60 rounded-xl text-[13px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400 shadow-sm"
-                  onChange={(e) => setSearchQuery(e.target.value)} 
-                />
-              </div>
+              <button
+                onClick={() => {
+                  setNewBooking((prev) => ({
+                    ...prev,
+                    floor: '',
+                    wing: '',
+                    roomType: '',
+                    roomName: '',
+                  }));
+                  setShowBookingDialog(true);
+                }}
+                className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
+              >
+                <Plus size={14} strokeWidth={3} /> BOOK A ROOM
+              </button>
             </div>
 
-            {/* Status Sub-Tabs */}
-            <div className="px-3 sm:px-4 lg:px-5 py-2 border-b border-slate-100/40 bg-white flex items-center gap-1.5 overflow-x-auto">
-              {(activeTab !== 'invites'
-                ? activeTab === 'assigned_dept_bookings'
-                  ? [
-                      { key: 'all', label: 'All' },
-                      { key: 'booked', label: 'Booked' },
-                      { key: 'in progress', label: 'In Progress' },
-                      { key: 'completed', label: 'Completed' },
-                      { key: 'cancelled', label: 'Cancelled' },
-                      { key: 'rescheduled', label: 'Rescheduled' },
-                      { key: 'rejected', label: 'Rejected' },
-                    ]
-                  : [
-                      { key: 'all', label: 'All' },
-                      { key: 'booked', label: 'Booked' },
-                      { key: 'in progress', label: 'In Progress' },
-                      { key: 'completed', label: 'Completed' },
-                      { key: 'cancelled', label: 'Cancelled' },
-                      { key: 'rescheduled', label: 'Rescheduled' },
-                    ]
-                : isEmployeeProfile
-                  ? [
-                      { key: 'all', label: 'All' },
-                      { key: 'pending', label: 'Pending' },
-                      { key: 'rejected', label: 'Rejected' },
-                    ]
-                  : [
-                      { key: 'all', label: 'All' },
-                      { key: 'pending', label: 'Pending' },
-                      { key: 'accepted', label: 'Accepted' },
-                      { key: 'rejected', label: 'Rejected' },
-                    ]
-              ).map((pill) => (
-                <button
-                  key={pill.key}
-                  onClick={() => setStatusFilter(pill.key)}
-                  className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
-                    statusFilter === pill.key
-                      ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
-                      : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
-                  }`}
-                >
-                  {pill.label}
-                </button>
+            {errorMessage ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-600">
+                {errorMessage}
+              </div>
+            ) : null}
+
+            {/* 2. LIVE STATS */}
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
+              {[
+                { label: 'Upcoming', val: scopedBookings.filter(b => getBookingDisplayStatus(b) === 'booked').length, color: 'text-primary', bg: 'bg-blue-50', icon: <CalendarClock size={16} /> },
+                { label: 'In Progress', val: scopedBookings.filter(b => getBookingDisplayStatus(b) === 'in progress').length, color: 'text-amber-500', bg: 'bg-amber-50', icon: <Clock size={16} className="animate-spin-slow" /> },
+                { label: 'Completed', val: scopedBookings.filter(b => getBookingDisplayStatus(b) === 'completed').length, color: 'text-emerald-600', bg: 'bg-emerald-50', icon: <CheckCircle2 size={16} /> },
+                { label: 'Cancelled', val: scopedBookings.filter(b => getBookingDisplayStatus(b) === 'cancelled').length, color: 'text-red-500', bg: 'bg-red-50', icon: <XCircle size={16} /> },
+                { label: 'Rescheduled', val: scopedBookings.filter((b) => isRescheduledBooking(b)).length, color: 'text-purple-600', bg: 'bg-purple-50', icon: <Clock size={16} /> },
+              ].map((stat, i) => (
+                <div key={i} className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 truncate">{stat.label}</p>
+                    <p className={`text-[15px] font-black ${stat.color}`}>{stat.val}</p>
+                  </div>
+                  <div className={`p-2 rounded-2xl ${stat.bg} ${stat.color} shrink-0`}>{stat.icon}</div>
+                </div>
               ))}
             </div>
 
-            {/* Desktop Table */}
-            {activeTab !== 'invites' ? (
-              <>
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
-                      <tr>
-                        <th className="px-5 py-4">Meeting Room</th>
-                        <th className="px-5 py-4">Host</th>
-                        <th className="px-5 py-4">Schedule</th>
-                        <th className="px-5 py-4 text-center">Status</th>
-                        <th className="px-5 py-4 text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100/60">
+            <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
+
+              {/* 3. MAIN DATA TABLE (LEFT: 2/3) */}
+              <div className="lg:col-span-2 flex flex-col bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden min-h-[500px]">
+
+                {/* Tabs & Filters */}
+                <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+                  <div className="flex bg-slate-100/50 p-1 rounded-xl w-full xl:w-auto relative border border-slate-200/50 overflow-x-auto">
+                    {isEmployeeProfile ? (
+                      <>
+                        <button
+                          onClick={() => { setActiveTab('my_bookings'); setStatusFilter('all'); }}
+                          className={`flex-1 min-w-0 sm:min-w-[100px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'my_bookings' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                        >
+                          {activeTab === 'my_bookings' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
+                          MY BOOKINGS
+                        </button>
+                        <button
+                          onClick={() => { setActiveTab('invites'); setStatusFilter('all'); }}
+                          className={`flex-1 min-w-0 sm:min-w-[90px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'invites' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                        >
+                          {activeTab === 'invites' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
+                          INVITES
+                          {receivedInvites.filter(i => i.status === 'pending').length > 0 && (
+                            <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[9px] font-bold rounded-full shadow-sm shadow-red-200 animate-pulse">
+                              {receivedInvites.filter(i => i.status === 'pending').length}
+                            </span>
+                          )}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {/* First tab: Company / Dept / Assigned - role-based */}
+                        <button
+                          onClick={() => {
+                            const tab = isAdminProfile
+                              ? 'assigned_dept_bookings'
+                              : (isOwnerProfile || isSuperAdminProfile)
+                                ? 'company_bookings'
+                                : 'dept_bookings';
+                            setActiveTab(tab);
+                            setStatusFilter('all');
+                          }}
+                          className={`flex-[2.2] min-w-[210px] sm:min-w-[250px] lg:min-w-[300px] py-2 px-3 sm:px-4 rounded-lg text-[11px] sm:text-[12px] lg:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap text-center ${(activeTab === 'assigned_dept_bookings' || activeTab === 'company_bookings' || activeTab === 'dept_bookings') ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                        >
+                          {(activeTab === 'assigned_dept_bookings' || activeTab === 'company_bookings' || activeTab === 'dept_bookings') && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
+                          {isAdminProfile ? 'Assigned meetings' : (isDepartmentManagerProfile ? 'Department meetings' : 'Company')}
+                        </button>
+                        <button
+                          onClick={() => { setActiveTab('my_bookings'); setStatusFilter('all'); }}
+                          className={`flex-1 min-w-0 sm:min-w-[100px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'my_bookings' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                        >
+                          {activeTab === 'my_bookings' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
+                          MY BOOKINGS
+                        </button>
+                        <button
+                          onClick={() => { setActiveTab('invites'); setStatusFilter('all'); }}
+                          className={`flex-1 min-w-0 sm:min-w-[90px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'invites' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                        >
+                          {activeTab === 'invites' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
+                          INVITES
+                          {receivedInvites.filter(i => i.status === 'pending').length > 0 && (
+                            <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[9px] font-bold rounded-full shadow-sm shadow-red-200 animate-pulse">
+                              {receivedInvites.filter(i => i.status === 'pending').length}
+                            </span>
+                          )}
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+
+                  <div className="relative w-full xl:w-auto">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      type="text"
+                      placeholder="Search rooms or hosts..."
+                      className="w-full xl:w-64 pl-10 pr-4 py-2 bg-white border border-slate-200/60 rounded-xl text-[13px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Status Sub-Tabs */}
+                <div className="px-3 sm:px-4 lg:px-5 py-2 border-b border-slate-100/40 bg-white flex items-center gap-1.5 overflow-x-auto">
+                  {(activeTab !== 'invites'
+                    ? activeTab === 'assigned_dept_bookings'
+                      ? [
+                        { key: 'all', label: 'All' },
+                        { key: 'booked', label: 'Booked' },
+                        { key: 'in progress', label: 'In Progress' },
+                        { key: 'completed', label: 'Completed' },
+                        { key: 'cancelled', label: 'Cancelled' },
+                        { key: 'rescheduled', label: 'Rescheduled' },
+                        { key: 'rejected', label: 'Rejected' },
+                      ]
+                      : [
+                        { key: 'all', label: 'All' },
+                        { key: 'booked', label: 'Booked' },
+                        { key: 'in progress', label: 'In Progress' },
+                        { key: 'completed', label: 'Completed' },
+                        { key: 'cancelled', label: 'Cancelled' },
+                        { key: 'rescheduled', label: 'Rescheduled' },
+                      ]
+                    : isEmployeeProfile
+                      ? [
+                        { key: 'all', label: 'All' },
+                        { key: 'pending', label: 'Pending' },
+                        { key: 'rejected', label: 'Rejected' },
+                      ]
+                      : [
+                        { key: 'all', label: 'All' },
+                        { key: 'pending', label: 'Pending' },
+                        { key: 'accepted', label: 'Accepted' },
+                        { key: 'rejected', label: 'Rejected' },
+                      ]
+                  ).map((pill) => (
+                    <button
+                      key={pill.key}
+                      onClick={() => setStatusFilter(pill.key)}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${statusFilter === pill.key
+                        ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                        : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                        }`}
+                    >
+                      {pill.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Desktop Table */}
+                {activeTab !== 'invites' ? (
+                  <>
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                          <tr>
+                            <th className="px-5 py-4">Meeting Room</th>
+                            <th className="px-5 py-4">Host</th>
+                            <th className="px-5 py-4">Schedule</th>
+                            <th className="px-5 py-4 text-center">Status</th>
+                            <th className="px-5 py-4 text-center">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100/60">
+                          {displayedBookings.map((b) => {
+                            const displayStatus = getBookingDisplayStatus(b);
+                            const canManageBooking = isMyBooking(b) && !b.isInvitedMeeting && canManageOwnBooking(b);
+                            const canRescheduleBooking = canManageBooking && canRescheduleOwnBooking(b);
+                            const canExtendBooking = canManageBooking && canExtendOwnBooking(b);
+
+                            return (
+                              <tr key={b.recordId || b.id} className="hover:bg-slate-50/50 transition-colors group">
+                                <td className="px-5 py-4">
+                                  <div className="flex items-center gap-2.5 min-w-[180px]">
+                                    <Building size={16} className="text-primary" />
+                                    <div className="min-w-0">
+                                      <p className="font-bold text-[#0F172A] text-[13px] whitespace-nowrap">{b.roomName}</p>
+                                      <p className="text-[11px] font-semibold text-slate-400">{getBookingDisplayCount()} Booking{b.roomCapacity ? ` - ${b.roomCapacity} seats` : ''}</p>
+                                      <span className={`mt-1 inline-flex px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wider ${getBookingTagBadge(b)}`}>
+                                        {getBookingTagLabel(b)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-5 py-4">
+                                  <p className="text-[13px] font-bold text-[#0F172A]">
+                                    {b.bookedByName}
+                                    {getInviteMeetingLabel(b) ? ` (${getInviteMeetingLabel(b)})` : ''}
+                                  </p>
+                                  <p className="text-[11px] font-semibold text-slate-400">{b.department}</p>
+                                </td>
+                                <td className="px-5 py-4">
+                                  {renderScheduleSummary(b)}
+                                  {(Number(b.totalAmount || 0) > 0 || Number(b.extensionAmount || 0) > 0) && (
+                                    <p className="mt-1 text-[11px] font-bold text-slate-500">Total: {formatCurrency(b.totalAmount || 0)}</p>
+                                  )}
+                                </td>
+                                <td className="px-5 py-4 text-center">
+                                  <span className={`px-2.5 py-1 flex items-center justify-center gap-1.5 rounded-md text-[10px] font-black uppercase tracking-wider ${getStatusStyle(displayStatus)} border`}>
+                                    {displayStatus}
+                                  </span>
+                                </td>
+                                <td className="px-5 py-4 text-center">
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button onClick={() => setViewingBooking(b)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-primary/10 hover:text-primary rounded-lg transition-all" title="View Details"><Eye size={15} strokeWidth={2.5} /></button>
+                                    {canRescheduleBooking && (
+                                      <>
+                                        <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setShowRescheduleDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-purple-100 hover:text-purple-700 rounded-lg transition-all" title="Reschedule"><CalendarClock size={15} strokeWidth={2.5} /></button>
+                                        <button onClick={() => { setBookingToCancel(b); setShowCancelDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600 rounded-lg transition-all" title="Cancel Booking"><XCircle size={15} strokeWidth={2.5} /></button>
+                                      </>
+                                    )}
+                                    {canExtendBooking && (
+                                      <button onClick={() => { setExtendBooking(b); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all" title="Extend Booking"><Clock size={15} strokeWidth={2.5} /></button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {displayedBookings.length === 0 && (
+                            <tr><td colSpan={5} className="px-6 py-16 text-center text-sm font-semibold text-slate-400 bg-slate-50/30">No bookings found matching your criteria.</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile Cards */}
+                    <div className="md:hidden flex flex-col p-4 gap-4 bg-slate-50/30">
                       {displayedBookings.map((b) => {
                         const displayStatus = getBookingDisplayStatus(b);
                         const canManageBooking = isMyBooking(b) && !b.isInvitedMeeting && canManageOwnBooking(b);
@@ -2186,436 +2296,371 @@ export function MeetingRoomsPage() {
                         const canExtendBooking = canManageBooking && canExtendOwnBooking(b);
 
                         return (
-                          <tr key={b.recordId || b.id} className="hover:bg-slate-50/50 transition-colors group">
-                            <td className="px-5 py-4">
-                              <div className="flex items-center gap-2.5 min-w-[180px]">
-                                <Building size={16} className="text-primary"/>
+                          <div key={b.recordId || b.id} className="bg-white border border-slate-200/60 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+                            <div className="flex justify-between items-start">
+                              <div className="flex items-center gap-2 min-w-[180px]">
+                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary"><Building size={14} strokeWidth={2.5} /></div>
                                 <div className="min-w-0">
-                                  <p className="font-bold text-[#0F172A] text-[13px] whitespace-nowrap">{b.roomName}</p>
-                                  <p className="text-[11px] font-semibold text-slate-400">{getBookingDisplayCount()} Booking{b.roomCapacity ? ` - ${b.roomCapacity} seats` : ''}</p>
-                                  <span className={`mt-1 inline-flex px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wider ${getBookingTagBadge(b)}`}>
-                                    {getBookingTagLabel(b)}
-                                  </span>
+                                  <p className="font-bold text-[#0F172A] text-sm leading-tight whitespace-nowrap">{b.roomName}</p>
+                                  <p className="text-[11px] font-semibold text-slate-500">
+                                    {b.bookedByName}
+                                    {getInviteMeetingLabel(b) ? ` (${getInviteMeetingLabel(b)})` : ''}
+                                  </p>
                                 </div>
                               </div>
-                            </td>
-                            <td className="px-5 py-4">
-                              <p className="text-[13px] font-bold text-[#0F172A]">
-                                {b.bookedByName}
-                                {getInviteMeetingLabel(b) ? ` (${getInviteMeetingLabel(b)})` : ''}
-                              </p>
-                              <p className="text-[11px] font-semibold text-slate-400">{b.department}</p>
-                            </td>
-                            <td className="px-5 py-4">
-                              {renderScheduleSummary(b)}
-                              {(Number(b.totalAmount || 0) > 0 || Number(b.extensionAmount || 0) > 0) && (
-                                <p className="mt-1 text-[11px] font-bold text-slate-500">Total: {formatCurrency(b.totalAmount || 0)}</p>
-                              )}
-                            </td>
-                            <td className="px-5 py-4 text-center">
-                              <span className={`px-2.5 py-1 flex items-center justify-center gap-1.5 rounded-md text-[10px] font-black uppercase tracking-wider ${getStatusStyle(displayStatus)} border`}>
-                                 {displayStatus}
+                              <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${getStatusStyle(displayStatus)} border`}>
+                                {displayStatus}
                               </span>
-                            </td>
-                            <td className="px-5 py-4 text-center">
-                              <div className="flex items-center justify-center gap-1.5">
-                                <button onClick={() => setViewingBooking(b)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-primary/10 hover:text-primary rounded-lg transition-all" title="View Details"><Eye size={15} strokeWidth={2.5}/></button>
-                                {canRescheduleBooking && (
-                                  <>
-                                    <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setShowRescheduleDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-purple-100 hover:text-purple-700 rounded-lg transition-all" title="Reschedule"><CalendarClock size={15} strokeWidth={2.5}/></button>
-                                    <button onClick={() => { setBookingToCancel(b); setShowCancelDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600 rounded-lg transition-all" title="Cancel Booking"><XCircle size={15} strokeWidth={2.5}/></button>
-                                  </>
-                                )}
-                                {canExtendBooking && (
-                                  <button onClick={() => { setExtendBooking(b); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all" title="Extend Booking"><Clock size={15} strokeWidth={2.5}/></button>
-                                )}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs font-semibold text-slate-600">
+                              <div>
+                                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Date</span>
+                                {b.date}
                               </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {displayedBookings.length === 0 && (
-                        <tr><td colSpan={5} className="px-6 py-16 text-center text-sm font-semibold text-slate-400 bg-slate-50/30">No bookings found matching your criteria.</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                              <div>
+                                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Time</span>
+                                {b.checkIn} - {b.checkOut}
+                              </div>
+                              {(Number(b.totalAmount || 0) > 0 || Number(b.extensionAmount || 0) > 0) && (
+                                <div className="col-span-2">
+                                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Amount</span>
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="font-black text-[#0F172A]">{formatCurrency(b.totalAmount || 0)}</span>
+                                    {Number(b.extensionAmount || 0) > 0 && (
+                                      <span className="text-[10px] font-bold text-slate-500">Extension: {formatCurrency(b.extensionAmount)}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
 
-                {/* Mobile Cards */}
-                <div className="md:hidden flex flex-col p-4 gap-4 bg-slate-50/30">
-                  {displayedBookings.map((b) => {
-                    const displayStatus = getBookingDisplayStatus(b);
-                    const canManageBooking = isMyBooking(b) && !b.isInvitedMeeting && canManageOwnBooking(b);
-                    const canRescheduleBooking = canManageBooking && canRescheduleOwnBooking(b);
-                    const canExtendBooking = canManageBooking && canExtendOwnBooking(b);
-
-                    return (
-                    <div key={b.recordId || b.id} className="bg-white border border-slate-200/60 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-2 min-w-[180px]">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary"><Building size={14} strokeWidth={2.5}/></div>
-                          <div className="min-w-0">
-                            <p className="font-bold text-[#0F172A] text-sm leading-tight whitespace-nowrap">{b.roomName}</p>
-                            <p className="text-[11px] font-semibold text-slate-500">
-                              {b.bookedByName}
-                              {getInviteMeetingLabel(b) ? ` (${getInviteMeetingLabel(b)})` : ''}
-                            </p>
-                          </div>
-                        </div>
-                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${getStatusStyle(displayStatus)} border`}>
-                           {displayStatus}
-                        </span>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-2 bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs font-semibold text-slate-600">
-                        <div>
-                          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Date</span>
-                          {b.date}
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Time</span>
-                          {b.checkIn} - {b.checkOut}
-                        </div>
-                        {(Number(b.totalAmount || 0) > 0 || Number(b.extensionAmount || 0) > 0) && (
-                          <div className="col-span-2">
-                            <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Amount</span>
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-black text-[#0F172A]">{formatCurrency(b.totalAmount || 0)}</span>
-                              {Number(b.extensionAmount || 0) > 0 && (
-                                <span className="text-[10px] font-bold text-slate-500">Extension: {formatCurrency(b.extensionAmount)}</span>
+                            <div className="flex justify-end gap-2 pt-1 border-t border-slate-100">
+                              <button onClick={() => setViewingBooking(b)} className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl shadow-sm">Details</button>
+                              {canRescheduleBooking && (
+                                <>
+                                  <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setShowRescheduleDialog(true); }} className="flex-1 py-2 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs rounded-xl shadow-sm">Reschedule</button>
+                                  <button onClick={() => { setBookingToCancel(b); setShowCancelDialog(true); }} className="flex-1 py-2 bg-red-50 border border-red-200 text-red-600 font-bold text-xs rounded-xl shadow-sm">Cancel</button>
+                                </>
+                              )}
+                              {canExtendBooking && (
+                                <button onClick={() => { setExtendBooking(b); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="flex-1 py-2 bg-amber-50 border border-amber-200 text-amber-700 font-bold text-xs rounded-xl shadow-sm">Extend</button>
                               )}
                             </div>
                           </div>
-                        )}
-                      </div>
-
-                      <div className="flex justify-end gap-2 pt-1 border-t border-slate-100">
-                        <button onClick={() => setViewingBooking(b)} className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl shadow-sm">Details</button>
-                        {canRescheduleBooking && (
-                          <>
-                            <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setShowRescheduleDialog(true); }} className="flex-1 py-2 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs rounded-xl shadow-sm">Reschedule</button>
-                            <button onClick={() => { setBookingToCancel(b); setShowCancelDialog(true); }} className="flex-1 py-2 bg-red-50 border border-red-200 text-red-600 font-bold text-xs rounded-xl shadow-sm">Cancel</button>
-                          </>
-                        )}
-                        {canExtendBooking && (
-                          <button onClick={() => { setExtendBooking(b); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="flex-1 py-2 bg-amber-50 border border-amber-200 text-amber-700 font-bold text-xs rounded-xl shadow-sm">Extend</button>
-                        )}
-                      </div>
+                        );
+                      })}
+                      {displayedBookings.length === 0 && (
+                        <div className="py-12 text-center text-sm font-semibold text-slate-400">No bookings found.</div>
+                      )}
                     </div>
-                    );
-                  })}
-                  {displayedBookings.length === 0 && (
-                    <div className="py-12 text-center text-sm font-semibold text-slate-400">No bookings found.</div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
-                      <tr>
-                        <th className="px-5 py-4">Meeting Room</th>
-                        <th className="px-5 py-4">Invited By</th>
-                        <th className="px-5 py-4">Schedule</th>
-                        <th className="px-5 py-4 text-center">Status</th>
-                        <th className="px-5 py-4 text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100/60">
+                  </>
+                ) : (
+                  <>
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                          <tr>
+                            <th className="px-5 py-4">Meeting Room</th>
+                            <th className="px-5 py-4">Invited By</th>
+                            <th className="px-5 py-4">Schedule</th>
+                            <th className="px-5 py-4 text-center">Status</th>
+                            <th className="px-5 py-4 text-center">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100/60">
+                          {displayedInvites.map((invite) => (
+                            (() => {
+                              const inviteLinkedBooking = allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null;
+                              const canRespond = isInviteResponseOpen(inviteLinkedBooking) && invite.status === 'pending';
+                              const inviteName = resolveInviteDisplayName(invite);
+
+                              return (
+                                <tr key={`${invite.bookingId}-${invite.invitedUserId}`} className="hover:bg-slate-50/50 transition-colors group">
+                                  <td className="px-5 py-4">
+                                    <div className="flex items-center gap-2.5 min-w-[180px]">
+                                      <Building size={16} className="text-primary" />
+                                      <div className="min-w-0">
+                                        <p className="font-bold text-[#0F172A] text-[13px] whitespace-nowrap">{invite.roomName}</p>
+                                        <p className="text-[11px] font-semibold text-slate-400">{invite.department}</p>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="px-5 py-4">
+                                    <p className="text-[13px] font-bold text-[#0F172A]">{invite.bookedByName}</p>
+                                    <p className="text-[11px] font-semibold text-slate-400">{inviteName}</p>
+                                  </td>
+                                  <td className="px-5 py-4">
+                                    <div className="text-[12px] font-semibold text-slate-600 flex flex-col gap-0.5">
+                                      <span className="font-bold text-[#0F172A]">{invite.date}</span>
+                                      <span className="whitespace-nowrap">{formatTimeSlot(invite.startTime, invite.endTime)}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-5 py-4 text-center">
+                                    <span className={`px-2.5 py-1 flex items-center justify-center gap-1.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${statusBadge(invite.status)}`}>
+                                      {statusLabel(invite.status)}
+                                    </span>
+                                  </td>
+                                  <td className="px-5 py-4">
+                                    <div className="flex justify-center gap-1.5 transition-opacity">
+                                      <button onClick={() => setViewingBooking(allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-primary/10 hover:text-primary rounded-lg transition-all" title="View Details"><Eye size={15} strokeWidth={2.5} /></button>
+                                      {invite.status === 'pending' && canRespond && (
+                                        <>
+                                          <button onClick={() => handleInviteResponse(invite, 'accepted')} className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition-all" title="Accept"><CheckCircle2 size={15} strokeWidth={2.5} /></button>
+                                          <button onClick={() => handleInviteResponse(invite, 'rejected')} className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all" title="Reject"><XCircle size={15} strokeWidth={2.5} /></button>
+                                        </>
+                                      )}
+                                      {invite.status === 'pending' && !canRespond && (
+                                        <span className="px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider bg-slate-100 text-slate-500 border border-slate-200">Expired</span>
+                                      )}
+                                      {invite.status === 'rejected' && invite.responseReason && (
+                                        <button onClick={() => setViewingBooking(allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null)} className="p-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg transition-all" title="View Reject Reason">Reason</button>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })()
+                          ))}
+                          {displayedInvites.length === 0 && (
+                            <tr><td colSpan={5} className="px-6 py-16 text-center text-sm font-semibold text-slate-400 bg-slate-50/30">No meeting invites found.</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="md:hidden flex flex-col p-4 gap-4 bg-slate-50/30">
                       {displayedInvites.map((invite) => (
                         (() => {
                           const inviteLinkedBooking = allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null;
                           const canRespond = isInviteResponseOpen(inviteLinkedBooking) && invite.status === 'pending';
-                          const inviteName = resolveInviteDisplayName(invite);
 
                           return (
-                        <tr key={`${invite.bookingId}-${invite.invitedUserId}`} className="hover:bg-slate-50/50 transition-colors group">
-                          <td className="px-5 py-4">
-                            <div className="flex items-center gap-2.5 min-w-[180px]">
-                              <Building size={16} className="text-primary"/>
-                              <div className="min-w-0">
-                                <p className="font-bold text-[#0F172A] text-[13px] whitespace-nowrap">{invite.roomName}</p>
-                                <p className="text-[11px] font-semibold text-slate-400">{invite.department}</p>
+                            <div key={`${invite.bookingId}-${invite.invitedUserId}`} className="bg-white border border-slate-200/60 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+                              <div className="flex justify-between items-start gap-3">
+                                <div className="min-w-0">
+                                  <p className="font-bold text-[#0F172A] text-sm leading-tight whitespace-nowrap">{invite.roomName}</p>
+                                  <p className="text-[11px] font-semibold text-slate-500">{invite.bookedByName}</p>
+                                </div>
+                                <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${statusBadge(invite.status)
+                                  } border`}>
+                                  {statusLabel(invite.status)}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs font-semibold text-slate-600">
+                                <div>
+                                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Date</span>
+                                  {invite.date}
+                                </div>
+                                <div>
+                                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Time</span>
+                                  <span className="whitespace-nowrap">{formatTimeSlot(invite.startTime, invite.endTime)}</span>
+                                </div>
+                              </div>
+                              <div className="flex justify-end gap-2 pt-1 border-t border-slate-100">
+                                <button onClick={() => setViewingBooking(allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null)} className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl shadow-sm">Details</button>
+                                {invite.status === 'pending' && canRespond && (
+                                  <>
+                                    <button onClick={() => handleInviteResponse(invite, 'accepted')} className="flex-1 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-xs rounded-xl shadow-sm">Accept</button>
+                                    <button onClick={() => handleInviteResponse(invite, 'rejected')} className="flex-1 py-2 bg-red-50 border border-red-200 text-red-600 font-bold text-xs rounded-xl shadow-sm">Reject</button>
+                                  </>
+                                )}
+                                {invite.status === 'pending' && !canRespond && (
+                                  <div className="flex-1 py-2 text-center bg-slate-50 border border-slate-200 text-slate-500 font-bold text-xs rounded-xl shadow-sm">Expired</div>
+                                )}
+                                {invite.status === 'rejected' && invite.responseReason && (
+                                  <button onClick={() => setViewingBooking(allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null)} className="flex-1 py-2 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs rounded-xl shadow-sm">Reason</button>
+                                )}
                               </div>
                             </div>
-                          </td>
-                          <td className="px-5 py-4">
-                            <p className="text-[13px] font-bold text-[#0F172A]">{invite.bookedByName}</p>
-                            <p className="text-[11px] font-semibold text-slate-400">{inviteName}</p>
-                          </td>
-                          <td className="px-5 py-4">
-                            <div className="text-[12px] font-semibold text-slate-600 flex flex-col gap-0.5">
-                              <span className="font-bold text-[#0F172A]">{invite.date}</span>
-                              <span className="whitespace-nowrap">{formatTimeSlot(invite.startTime, invite.endTime)}</span>
-                            </div>
-                          </td>
-                          <td className="px-5 py-4 text-center">
-                            <span className={`px-2.5 py-1 flex items-center justify-center gap-1.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${statusBadge(invite.status)}`}>
-                               {statusLabel(invite.status)}
-                            </span>
-                          </td>
-                          <td className="px-5 py-4">
-                            <div className="flex justify-center gap-1.5 transition-opacity">
-                              <button onClick={() => setViewingBooking(allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-primary/10 hover:text-primary rounded-lg transition-all" title="View Details"><Eye size={15} strokeWidth={2.5}/></button>
-                              {invite.status === 'pending' && canRespond && (
-                                <>
-                                  <button onClick={() => handleInviteResponse(invite, 'accepted')} className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition-all" title="Accept"><CheckCircle2 size={15} strokeWidth={2.5}/></button>
-                                  <button onClick={() => handleInviteResponse(invite, 'rejected')} className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all" title="Reject"><XCircle size={15} strokeWidth={2.5}/></button>
-                                </>
-                              )}
-                              {invite.status === 'pending' && !canRespond && (
-                                <span className="px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider bg-slate-100 text-slate-500 border border-slate-200">Expired</span>
-                              )}
-                              {invite.status === 'rejected' && invite.responseReason && (
-                                <button onClick={() => setViewingBooking(allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null)} className="p-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg transition-all" title="View Reject Reason">Reason</button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
                           );
                         })()
                       ))}
                       {displayedInvites.length === 0 && (
-                        <tr><td colSpan={5} className="px-6 py-16 text-center text-sm font-semibold text-slate-400 bg-slate-50/30">No meeting invites found.</td></tr>
+                        <div className="py-12 text-center text-sm font-semibold text-slate-400">No meeting invites found.</div>
                       )}
-                    </tbody>
-                  </table>
-                </div>
+                    </div>
+                  </>
+                )}
+              </div>
 
-                <div className="md:hidden flex flex-col p-4 gap-4 bg-slate-50/30">
-                  {displayedInvites.map((invite) => (
-                    (() => {
-                      const inviteLinkedBooking = allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null;
-                      const canRespond = isInviteResponseOpen(inviteLinkedBooking) && invite.status === 'pending';
+              {/* 4. DASHBOARD WIDGETS (RIGHT: 1/3) */}
+              <div className="flex flex-col gap-6 lg:gap-8 min-h-full">
 
+                {/* Calendar Widget */}
+                <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5 flex-grow-0">
+                  <div className="mb-5">
+                    <h3 className="font-bold text-[14px] text-[#0F172A] mb-3">Room Availability</h3>
+                    <div className="relative">
+                      <select
+                        className="w-full pl-4 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[12px] text-primary focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none appearance-none cursor-pointer transition-all shadow-sm"
+                        value={calendarRoomFilter}
+                        onChange={(e) => setCalendarRoomFilter(e.target.value)}
+                      >
+                        {availableRooms.map((roomName) => (
+                          <option key={roomName} value={roomName} disabled={isRoomOptionDisabled(roomName)}>
+                            {getRoomOptionLabel(roomName)}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center mb-5">
+                    <button onClick={handlePrevMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"><ChevronLeft size={16} /></button>
+                    <span className="font-bold text-[12px] text-[#0F172A] tracking-wide">{monthNames[currentMonth]} {currentYear}</span>
+                    <button onClick={handleNextMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"><ChevronRight size={16} /></button>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1.5 mb-1.5 text-center text-[10px] font-black text-slate-400 tracking-widest">
+                    {['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'].map((d, idx) => <div key={`day-${idx}`}>{d}</div>)}
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {[...Array(firstDayOfMonth)].map((_, i) => <div key={`empty-${i}`} className="aspect-square rounded-xl border border-dashed border-slate-200 bg-slate-50" />)}
+                    {[...Array(daysInMonth)].map((_, i) => {
+                      const day = i + 1;
+                      const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                      const dayBookings = allBookings.filter((booking) => booking.roomName === calendarRoomFilter && booking.date === dateStr && booking.status !== 'cancelled');
+                      const isSelected = selectedCalendarDateKey === dateStr;
+                      const dayStyle = dayBookings.length === 0
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : dayBookings.length < 3
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-red-50 text-red-700 border-red-200';
                       return (
-                    <div key={`${invite.bookingId}-${invite.invitedUserId}`} className="bg-white border border-slate-200/60 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
-                      <div className="flex justify-between items-start gap-3">
-                        <div className="min-w-0">
-                          <p className="font-bold text-[#0F172A] text-sm leading-tight whitespace-nowrap">{invite.roomName}</p>
-                          <p className="text-[11px] font-semibold text-slate-500">{invite.bookedByName}</p>
-                        </div>
-                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${
-                          statusBadge(invite.status)
-                        } border`}>
-                           {statusLabel(invite.status)}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs font-semibold text-slate-600">
-                        <div>
-                          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Date</span>
-                          {invite.date}
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Time</span>
-                          <span className="whitespace-nowrap">{formatTimeSlot(invite.startTime, invite.endTime)}</span>
-                        </div>
-                      </div>
-                      <div className="flex justify-end gap-2 pt-1 border-t border-slate-100">
-                        <button onClick={() => setViewingBooking(allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null)} className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl shadow-sm">Details</button>
-                        {invite.status === 'pending' && canRespond && (
-                          <>
-                            <button onClick={() => handleInviteResponse(invite, 'accepted')} className="flex-1 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-xs rounded-xl shadow-sm">Accept</button>
-                            <button onClick={() => handleInviteResponse(invite, 'rejected')} className="flex-1 py-2 bg-red-50 border border-red-200 text-red-600 font-bold text-xs rounded-xl shadow-sm">Reject</button>
-                          </>
-                        )}
-                        {invite.status === 'pending' && !canRespond && (
-                          <div className="flex-1 py-2 text-center bg-slate-50 border border-slate-200 text-slate-500 font-bold text-xs rounded-xl shadow-sm">Expired</div>
-                        )}
-                        {invite.status === 'rejected' && invite.responseReason && (
-                          <button onClick={() => setViewingBooking(allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null)} className="flex-1 py-2 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs rounded-xl shadow-sm">Reason</button>
-                        )}
-                      </div>
-                    </div>
+                        <button
+                          key={dateStr}
+                          type="button"
+                          title={`Bookings: ${dayBookings.length}`}
+                          onClick={() => setSelectedCalendarDateKey(dateStr)}
+                          className={`aspect-square rounded-[10px] sm:rounded-xl border-2 p-1.5 sm:p-2 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm flex flex-col justify-between ${dayStyle} ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-white' : ''}`}
+                        >
+                          <div className="flex justify-between items-start gap-1">
+                            <span className="font-black text-[11px] sm:text-[13px] leading-none">{day}</span>
+                            <span className="text-[9px] font-black uppercase tracking-widest opacity-70">{dayBookings.length}</span>
+                          </div>
+                        </button>
                       );
-                    })()
-                  ))}
-                  {displayedInvites.length === 0 && (
-                    <div className="py-12 text-center text-sm font-semibold text-slate-400">No meeting invites found.</div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* 4. DASHBOARD WIDGETS (RIGHT: 1/3) */}
-          <div className="flex flex-col gap-6 lg:gap-8 min-h-full">
-            
-            {/* Calendar Widget */}
-            <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5 flex-grow-0">
-              <div className="mb-5">
-                <h3 className="font-bold text-[14px] text-[#0F172A] mb-3">Room Availability</h3>
-                <div className="relative">
-                  <select 
-                    className="w-full pl-4 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[12px] text-primary focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none appearance-none cursor-pointer transition-all shadow-sm"
-                    value={calendarRoomFilter}
-                    onChange={(e) => setCalendarRoomFilter(e.target.value)}
-                  >
-                    {availableRooms.map((roomName) => (
-                      <option key={roomName} value={roomName} disabled={isRoomOptionDisabled(roomName)}>
-                        {getRoomOptionLabel(roomName)}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center mb-5">
-                <button onClick={handlePrevMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"><ChevronLeft size={16}/></button>
-                <span className="font-bold text-[12px] text-[#0F172A] tracking-wide">{monthNames[currentMonth]} {currentYear}</span>
-                <button onClick={handleNextMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"><ChevronRight size={16}/></button>
-              </div>
-
-              <div className="grid grid-cols-7 gap-1.5 mb-1.5 text-center text-[10px] font-black text-slate-400 tracking-widest">
-                {['SU','MO','TU','WE','TH','FR','SA'].map((d, idx) => <div key={`day-${idx}`}>{d}</div>)}
-              </div>
-              
-              <div className="grid grid-cols-7 gap-1.5">
-                {[...Array(firstDayOfMonth)].map((_, i) => <div key={`empty-${i}`} className="aspect-square rounded-xl border border-dashed border-slate-200 bg-slate-50" />)}
-                {[...Array(daysInMonth)].map((_, i) => {
-                  const day = i + 1;
-                  const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                  const dayBookings = allBookings.filter((booking) => booking.roomName === calendarRoomFilter && booking.date === dateStr && booking.status !== 'cancelled');
-                  const isSelected = selectedCalendarDateKey === dateStr;
-                  const dayStyle = dayBookings.length === 0
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : dayBookings.length < 3
-                      ? 'bg-amber-50 text-amber-700 border-amber-200'
-                      : 'bg-red-50 text-red-700 border-red-200';
-                  return (
-                    <button
-                      key={dateStr}
-                      type="button"
-                      title={`Bookings: ${dayBookings.length}`}
-                      onClick={() => setSelectedCalendarDateKey(dateStr)}
-                      className={`aspect-square rounded-[10px] sm:rounded-xl border-2 p-1.5 sm:p-2 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm flex flex-col justify-between ${dayStyle} ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-white' : ''}`}
-                    >
-                      <div className="flex justify-between items-start gap-1">
-                        <span className="font-black text-[11px] sm:text-[13px] leading-none">{day}</span>
-                        <span className="text-[9px] font-black uppercase tracking-widest opacity-70">{dayBookings.length}</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selected day</p>
-                    <p className="mt-1 text-sm font-black text-slate-950">{selectedCalendarDateLabel}</p>
+                    })}
                   </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bookings</p>
-                    <p className="mt-1 text-lg font-black text-primary">{selectedCalendarBookings.length}</p>
-                  </div>
-                </div>
 
-                <div className="mt-4 space-y-3 max-h-56 overflow-y-auto pr-1">
-                  {selectedCalendarBookings.length > 0 ? (
-                    canSeeCalendarBookingDetails && !selectedCalendarHasExternalBookings ? (
-                      selectedCalendarBookings.map((booking) => (
-                        <div key={`${booking.recordId || booking.id}-${booking.startTime}-${booking.endTime}`} className="rounded-2xl bg-white border border-slate-200 p-3 shadow-sm">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-sm font-black text-slate-950 break-words leading-snug">{booking.bookedByName || booking.roomName}</p>
-                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5 whitespace-nowrap">{booking.roomName}</p>
-                            </div>
-                            <span className={`inline-flex shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${statusBadge(booking.status)}`}>{statusLabel(booking.status)}</span>
-                          </div>
-                          <div className="mt-2">{renderScheduleSummary(booking, { showDate: false })}</div>
-                          <p className="mt-1 text-[10px] font-medium text-slate-500">{booking.purpose || booking.notes || ''}</p>
-                          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] font-semibold text-slate-600">
-                            <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Date</p>
-                              <p className="mt-1 leading-snug break-words">{booking.date || selectedCalendarDateKey}</p>
-                            </div>
-                            <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Room</p>
-                              <p className="mt-1 leading-snug whitespace-nowrap">{booking.roomName || "Meeting Room"}</p>
-                            </div>
-                            <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Type</p>
-                              <p className="mt-1 leading-snug break-words">{booking.bookingType || "Booking"}</p>
-                            </div>
-                            <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Status</p>
-                              <p className="mt-1 leading-snug break-words">{statusLabel(booking.status)}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="rounded-2xl bg-white border border-slate-200 p-5 text-center">
-                        <p className="text-[12px] font-bold text-slate-900">Booked on this date</p>
-                        <p className="mt-1 text-[28px] font-black text-primary leading-none">{selectedCalendarBookings.length}</p>
-                        <p className="mt-2 text-[10px] font-semibold text-slate-500">
-                          {selectedCalendarHasExternalBookings
-                            ? 'External booking details are hidden for Internal company employees.'
-                            : 'Booking details are visible to the administration manager only.'}
-                        </p>
+                  <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selected day</p>
+                        <p className="mt-1 text-sm font-black text-slate-950">{selectedCalendarDateLabel}</p>
                       </div>
-                    )
-                  ) : (
-                    <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-5 text-center">
-                      <p className="text-[12px] font-bold text-slate-500">No bookings for this date.</p>
-                      <p className="mt-1 text-[10px] font-semibold text-slate-400">Pick another day or room to inspect the calendar.</p>
+                      <div className="text-right">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bookings</p>
+                        <p className="mt-1 text-lg font-black text-primary">{selectedCalendarBookings.length}</p>
+                      </div>
                     </div>
-                  )}
+
+                    <div className="mt-4 space-y-3 max-h-56 overflow-y-auto pr-1">
+                      {selectedCalendarBookings.length > 0 ? (
+                        canSeeCalendarBookingDetails && !selectedCalendarHasExternalBookings ? (
+                          selectedCalendarBookings.map((booking) => (
+                            <div key={`${booking.recordId || booking.id}-${booking.startTime}-${booking.endTime}`} className="rounded-2xl bg-white border border-slate-200 p-3 shadow-sm">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-black text-slate-950 break-words leading-snug">{booking.bookedByName || booking.roomName}</p>
+                                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5 whitespace-nowrap">{booking.roomName}</p>
+                                </div>
+                                <span className={`inline-flex shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${statusBadge(booking.status)}`}>{statusLabel(booking.status)}</span>
+                              </div>
+                              <div className="mt-2">{renderScheduleSummary(booking, { showDate: false })}</div>
+                              <p className="mt-1 text-[10px] font-medium text-slate-500">{booking.purpose || booking.notes || ''}</p>
+                              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] font-semibold text-slate-600">
+                                <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Date</p>
+                                  <p className="mt-1 leading-snug break-words">{booking.date || selectedCalendarDateKey}</p>
+                                </div>
+                                <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Room</p>
+                                  <p className="mt-1 leading-snug whitespace-nowrap">{booking.roomName || "Meeting Room"}</p>
+                                </div>
+                                <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Type</p>
+                                  <p className="mt-1 leading-snug break-words">{booking.bookingType || "Booking"}</p>
+                                </div>
+                                <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Status</p>
+                                  <p className="mt-1 leading-snug break-words">{statusLabel(booking.status)}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="rounded-2xl bg-white border border-slate-200 p-5 text-center">
+                            <p className="text-[12px] font-bold text-slate-900">Booked on this date</p>
+                            <p className="mt-1 text-[28px] font-black text-primary leading-none">{selectedCalendarBookings.length}</p>
+                            <p className="mt-2 text-[10px] font-semibold text-slate-500">
+                              {selectedCalendarHasExternalBookings
+                                ? 'External booking details are hidden for Internal company employees.'
+                                : 'Booking details are visible to the administration manager only.'}
+                            </p>
+                          </div>
+                        )
+                      ) : (
+                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-5 text-center">
+                          <p className="text-[12px] font-bold text-slate-500">No bookings for this date.</p>
+                          <p className="mt-1 text-[10px] font-semibold text-slate-400">Pick another day or room to inspect the calendar.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contextual Upcoming Widget */}
+                <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5 flex-grow">
+                  <h3 className="font-bold text-[14px] text-[#0F172A] mb-1">Upcoming</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-5">
+                    {activeTab === 'my_bookings'
+                      ? 'Your Schedule'
+                      : isEmployeeProfile && activeTab === 'invites'
+                        ? 'Your Invitations'
+                        : activeTab === 'assigned_dept_bookings'
+                          ? 'Assigned Dept Schedule'
+                          : activeTab === 'company_bookings'
+                            ? 'Company Schedule'
+                            : isDepartmentManagerProfile
+                              ? 'Department Schedule'
+                              : 'Company Schedule'}
+                  </p>
+
+                  <div className="space-y-3 sm:space-y-4">
+                    {upcomingReservations.length > 0 ? upcomingReservations.map(b => (
+                      <div key={b.recordId || b.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-stretch gap-3.5 hover:shadow-md transition-all group">
+                        {/* Timeline Marker */}
+                        <div className="flex flex-col items-center">
+                          <div className={`w-2.5 h-2.5 rounded-full ring-4 ring-white shadow-sm ${b.date === todayStr ? 'bg-amber-500' : 'bg-primary'}`}></div>
+                          <div className={`w-[2px] flex-grow mt-1 rounded-full ${b.date === todayStr ? 'bg-amber-100' : 'bg-slate-200'}`}></div>
+                        </div>
+                        <div className="flex-1 pb-1">
+                          <div className="flex justify-between items-start mb-0.5">
+                            {renderScheduleSummary(b, { showDate: false })}
+                            {b.date === todayStr && <span className="text-[9px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md uppercase tracking-wider border border-amber-200">Today</span>}
+                          </div>
+                          <p className="text-[11px] font-bold text-slate-500 mt-1 whitespace-nowrap">{b.roomName}</p>
+                          <p className="text-[10px] font-bold text-slate-400 mt-1">{b.date}</p>
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="text-center p-8 bg-slate-50 rounded-2xl border border-dashed border-slate-300 flex flex-col items-center justify-center">
+                        <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100 mb-3">
+                          <CalIcon size={20} className="text-slate-300" />
+                        </div>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">No scheduled meetings</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Contextual Upcoming Widget */}
-            <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5 flex-grow">
-                <h3 className="font-bold text-[14px] text-[#0F172A] mb-1">Upcoming</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-5">
-                  {activeTab === 'my_bookings'
-                    ? 'Your Schedule'
-                    : isEmployeeProfile && activeTab === 'invites'
-                      ? 'Your Invitations'
-                    : activeTab === 'assigned_dept_bookings'
-                      ? 'Assigned Dept Schedule'
-                    : activeTab === 'company_bookings'
-                      ? 'Company Schedule'
-                    : isDepartmentManagerProfile
-                      ? 'Department Schedule'
-                      : 'Company Schedule'}
-                 </p>
-
-               <div className="space-y-3 sm:space-y-4">
-                 {upcomingReservations.length > 0 ? upcomingReservations.map(b => (
-                   <div key={b.recordId || b.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-stretch gap-3.5 hover:shadow-md transition-all group">
-                     {/* Timeline Marker */}
-                     <div className="flex flex-col items-center">
-                        <div className={`w-2.5 h-2.5 rounded-full ring-4 ring-white shadow-sm ${b.date === todayStr ? 'bg-amber-500' : 'bg-primary'}`}></div>
-                        <div className={`w-[2px] flex-grow mt-1 rounded-full ${b.date === todayStr ? 'bg-amber-100' : 'bg-slate-200'}`}></div>
-                     </div>
-                     <div className="flex-1 pb-1">
-                       <div className="flex justify-between items-start mb-0.5">
-                       {renderScheduleSummary(b, { showDate: false })}
-                         {b.date === todayStr && <span className="text-[9px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md uppercase tracking-wider border border-amber-200">Today</span>}
-                       </div>
-                       <p className="text-[11px] font-bold text-slate-500 mt-1 whitespace-nowrap">{b.roomName}</p>
-                       <p className="text-[10px] font-bold text-slate-400 mt-1">{b.date}</p>
-                     </div>
-                   </div>
-                 )) : (
-                   <div className="text-center p-8 bg-slate-50 rounded-2xl border border-dashed border-slate-300 flex flex-col items-center justify-center">
-                     <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100 mb-3">
-                       <CalIcon size={20} className="text-slate-300" />
-                     </div>
-                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">No scheduled meetings</p>
-                   </div>
-                 )}
-               </div>
-            </div>
           </div>
-        </div>
-
-        </div>
         )}
 
       </PageFrame>
@@ -2644,7 +2689,7 @@ export function MeetingRoomsPage() {
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Host: {managerProfile.name}</p>
                 </div>
                 <button onClick={() => setShowBookingDialog(false)} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
-                  <X size={20} strokeWidth={2.5}/>
+                  <X size={20} strokeWidth={2.5} />
                 </button>
               </div>
 
@@ -2754,112 +2799,112 @@ export function MeetingRoomsPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                   <div className="space-y-2">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</label>
-                     <input type="date" min={todayStr} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => setNewBooking({...newBooking, date: e.target.value})} />
-                   </div>
-                   <div className="grid grid-cols-2 md:grid-cols-2 gap-4 col-span-1 md:col-span-2">
-                     <div className="space-y-2">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Start Time</label>
-                       <select value={newBooking.startTime || ''} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => {
-                         const nextStartTime = e.target.value;
-                         const minimumEndTime = minutesToTimeString((timeToMinutes(nextStartTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
-                         const currentEndMinutes = timeToMinutes(newBooking.endTime);
-                         const minimumEndMinutes = timeToMinutes(minimumEndTime);
-                         setNewBooking({
-                           ...newBooking,
-                           startTime: nextStartTime,
-                           endTime: !newBooking.endTime || currentEndMinutes === null || (minimumEndMinutes !== null && currentEndMinutes < minimumEndMinutes) ? minimumEndTime : newBooking.endTime,
-                         });
-                       }}>
-                         <option value="">Select start time</option>
-                         {createStartTimeOptions.map((timeValue) => (
-                           <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
-                         ))}
-                       </select>
-                     </div>
-                     <div className="space-y-2">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">End Time</label>
-                       <select value={newBooking.endTime || ''} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => setNewBooking({...newBooking, endTime: e.target.value})}>
-                         <option value="">Select end time</option>
-                         {createEndTimeOptions.map((timeValue) => (
-                           <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
-                         ))}
-                       </select>
-                     </div>
-                   </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</label>
+                    <input type="date" min={todayStr} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => setNewBooking({ ...newBooking, date: e.target.value })} />
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-2 gap-4 col-span-1 md:col-span-2">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Start Time</label>
+                      <select value={newBooking.startTime || ''} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => {
+                        const nextStartTime = e.target.value;
+                        const minimumEndTime = minutesToTimeString((timeToMinutes(nextStartTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
+                        const currentEndMinutes = timeToMinutes(newBooking.endTime);
+                        const minimumEndMinutes = timeToMinutes(minimumEndTime);
+                        setNewBooking({
+                          ...newBooking,
+                          startTime: nextStartTime,
+                          endTime: !newBooking.endTime || currentEndMinutes === null || (minimumEndMinutes !== null && currentEndMinutes < minimumEndMinutes) ? minimumEndTime : newBooking.endTime,
+                        });
+                      }}>
+                        <option value="">Select start time</option>
+                        {createStartTimeOptions.map((timeValue) => (
+                          <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">End Time</label>
+                      <select value={newBooking.endTime || ''} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => setNewBooking({ ...newBooking, endTime: e.target.value })}>
+                        <option value="">Select end time</option>
+                        {createEndTimeOptions.map((timeValue) => (
+                          <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 </div>
 
                 {!bookingTimeValidation.valid && (
                   <div className="p-4 bg-red-50 rounded-2xl flex items-start sm:items-center gap-3 border border-red-100">
-                     <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20}/>
-                     <p className="text-[13px] text-red-800 font-bold">{bookingTimeValidation.reason}</p>
+                    <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
+                    <p className="text-[13px] text-red-800 font-bold">{bookingTimeValidation.reason}</p>
                   </div>
                 )}
                 {bookingTimeValidation.valid && roomDayStatus === 'available' && !newBooking.startTime && !newBooking.endTime && (
                   <div className="p-4 bg-emerald-50 rounded-2xl flex items-start sm:items-center gap-3 border border-emerald-100">
-                     <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5 sm:mt-0" size={20}/>
-                     <p className="text-[13px] text-emerald-800 font-bold">Meeting room is available for this date. Choose a slot.</p>
+                    <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
+                    <p className="text-[13px] text-emerald-800 font-bold">Meeting room is available for this date. Choose a slot.</p>
                   </div>
                 )}
                 {bookingTimeValidation.valid && roomDayStatus === 'partial' && !newBooking.startTime && !newBooking.endTime && (
                   <div className="p-4 bg-amber-50 rounded-2xl flex items-start sm:items-center gap-3 border border-amber-100">
-                     <AlertCircle className="text-amber-500 shrink-0 mt-0.5 sm:mt-0" size={20}/>
-                     <p className="text-[13px] text-amber-800 font-bold">This room already has some bookings on that date. Choose an open time slot.</p>
+                    <AlertCircle className="text-amber-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
+                    <p className="text-[13px] text-amber-800 font-bold">This room already has some bookings on that date. Choose an open time slot.</p>
                   </div>
                 )}
                 {bookingTimeValidation.valid && roomDayStatus === 'full' && !newBooking.startTime && !newBooking.endTime && (
                   <div className="p-4 bg-red-50 rounded-2xl flex items-start sm:items-center gap-3 border border-red-100">
-                     <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20}/>
-                     <p className="text-[13px] text-red-800 font-bold">Bookings are full for this room on the selected date. Choose another date.</p>
+                    <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
+                    <p className="text-[13px] text-red-800 font-bold">Bookings are full for this room on the selected date. Choose another date.</p>
                   </div>
                 )}
                 {bookingTimeValidation.valid && bookingStatus === 'available' && (
                   <div className="p-4 bg-emerald-50 rounded-2xl flex items-start sm:items-center gap-3 border border-emerald-100">
-                     <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5 sm:mt-0" size={20}/>
-                     <p className="text-[13px] text-emerald-800 font-bold">Meeting room available for the selected slot.</p>
+                    <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
+                    <p className="text-[13px] text-emerald-800 font-bold">Meeting room available for the selected slot.</p>
                   </div>
                 )}
                 {bookingTimeValidation.valid && bookingStatus === 'capacity' && (
                   <div className="p-4 bg-amber-50 rounded-2xl flex items-start sm:items-center gap-3 border border-amber-100">
-                     <AlertCircle className="text-amber-500 shrink-0 mt-0.5 sm:mt-0" size={20}/>
-                     <p className="text-[13px] text-amber-800 font-bold">Room capacity is not enough for this booking. Pick a bigger room.</p>
+                    <AlertCircle className="text-amber-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
+                    <p className="text-[13px] text-amber-800 font-bold">Room capacity is not enough for this booking. Pick a bigger room.</p>
                   </div>
                 )}
                 {bookingTimeValidation.valid && bookingStatus === 'full' && (
                   <div className="p-4 bg-red-50 rounded-2xl flex items-start sm:items-center gap-3 border border-red-100">
-                     <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20}/>
-                     <p className="text-[13px] text-red-800 font-bold">Bookings are full for this room on the selected date. Choose another date.</p>
+                    <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
+                    <p className="text-[13px] text-red-800 font-bold">Bookings are full for this room on the selected date. Choose another date.</p>
                   </div>
                 )}
                 {bookingTimeValidation.valid && bookingStatus === 'conflict' && (
                   <div className="p-4 bg-red-50 rounded-2xl flex items-start sm:items-center gap-3 border border-red-100">
-                     <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20}/>
-                     <div className="space-y-2">
-                       <p className="text-[13px] text-red-800 font-bold">Time conflict detected. Try another slot or room.</p>
-                       {bookingSuggestions.length > 0 && (
-                         <div className="flex flex-wrap gap-2">
-                           {bookingSuggestions.map((slot: any) => (
-                             <button
-                               key={`${slot.start}-${slot.end}`}
-                               type="button"
-                               onClick={() => setNewBooking((prev) => ({ ...prev, startTime: slot.start, endTime: slot.end }))}
-                               className="px-3 py-1.5 rounded-full bg-white border border-red-200 text-[11px] font-bold text-red-700 hover:bg-red-100 transition-colors"
-                             >
-                               {slot.start} - {slot.end}
-                             </button>
-                           ))}
-                         </div>
-                       )}
-                     </div>
+                    <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
+                    <div className="space-y-2">
+                      <p className="text-[13px] text-red-800 font-bold">Time conflict detected. Try another slot or room.</p>
+                      {bookingSuggestions.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {bookingSuggestions.map((slot: any) => (
+                            <button
+                              key={`${slot.start}-${slot.end}`}
+                              type="button"
+                              onClick={() => setNewBooking((prev) => ({ ...prev, startTime: slot.start, endTime: slot.end }))}
+                              className="px-3 py-1.5 rounded-full bg-white border border-red-200 text-[11px] font-bold text-red-700 hover:bg-red-100 transition-colors"
+                            >
+                              {slot.start} - {slot.end}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
                 <div className="grid grid-cols-1 gap-5">
-                   <div className="space-y-2">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Purpose / Agenda</label>
-                     <input type="text" required placeholder="e.g. Q3 Roadmap Review..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" onChange={(e) => setNewBooking({...newBooking, purpose: e.target.value})} />
-                   </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Purpose / Agenda</label>
+                    <input type="text" required placeholder="e.g. Q3 Roadmap Review..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" onChange={(e) => setNewBooking({ ...newBooking, purpose: e.target.value })} />
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -2940,149 +2985,148 @@ export function MeetingRoomsPage() {
               <div className="px-6 py-4 md:p-8 flex justify-between items-center border-b border-slate-100/60 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
                 <h2 className="text-xl md:text-2xl font-black text-[#0F172A] tracking-tight">Meeting Details</h2>
                 <button onClick={() => setViewingBooking(null)} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
-                  <X size={20} strokeWidth={2.5}/>
+                  <X size={20} strokeWidth={2.5} />
                 </button>
               </div>
 
               <div className="p-6 md:p-8 space-y-5">
-                 {isAdministrationManagerProfile && normalize(viewingBooking.bookingType) === 'external' ? (
-                   <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-5 text-center">
-                     <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">External booking</p>
-                     <p className="mt-2 text-lg font-black text-slate-950">Details hidden for administration manager.</p>
-                     <p className="mt-2 text-sm font-semibold text-slate-500">This shared module keeps external booking details private in this view.</p>
-                   </div>
-                 ) : (
-                   <>
-                     <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Location</span>
-                        <span className="font-bold text-[#2563EB] text-[13px] flex items-center gap-1.5"><Building size={14}/> {viewingBooking.roomName}</span>
-                     </div>
-                     <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Host / Dept</span>
-                        <div className="text-right">
-                          <p className="font-bold text-[#0F172A] text-[13px]">{viewingBooking.bookedByName}</p>
-                          <p className="font-semibold text-slate-400 text-[11px]">{viewingBooking.department}</p>
-                          <span className={`mt-2 inline-flex px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${getBookingTagBadge(viewingBooking)}`}>
-                            {getBookingTagLabel(viewingBooking)}
+                {isAdministrationManagerProfile && normalize(viewingBooking.bookingType) === 'external' ? (
+                  <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-5 text-center">
+                    <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">External booking</p>
+                    <p className="mt-2 text-lg font-black text-slate-950">Details hidden for administration manager.</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-500">This shared module keeps external booking details private in this view.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Location</span>
+                      <span className="font-bold text-[#2563EB] text-[13px] flex items-center gap-1.5"><Building size={14} /> {viewingBooking.roomName}</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Host / Dept</span>
+                      <div className="text-right">
+                        <p className="font-bold text-[#0F172A] text-[13px]">{viewingBooking.bookedByName}</p>
+                        <p className="font-semibold text-slate-400 text-[11px]">{viewingBooking.department}</p>
+                        <span className={`mt-2 inline-flex px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${getBookingTagBadge(viewingBooking)}`}>
+                          {getBookingTagLabel(viewingBooking)}
+                        </span>
+                      </div>
+                    </div>
+                    {viewingBooking.isInvitedMeeting && (
+                      <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meeting Type</span>
+                        <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${viewingBooking.currentInviteStatus === 'accepted'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : viewingBooking.currentInviteStatus === 'rejected'
+                            ? 'bg-red-50 text-red-700 border-red-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}>
+                          {getInviteMeetingLabel(viewingBooking)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Timing</span>
+                      <div className="text-right">
+                        {renderScheduleSummary(viewingBooking)}
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Attendees</span>
+                      <span className="font-bold text-[#0F172A] text-[13px] flex items-center gap-1.5"><Users size={14} className="text-slate-400" /> {getBookingDisplayCount()} Booking</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider ${getStatusStyle(viewingBooking.liveStatus || viewingBooking.status || '')} border`}>
+                          {viewingBooking.liveStatus || viewingBooking.status}
+                        </span>
+                        {isRescheduledBooking(viewingBooking) && (
+                          <span className="inline-flex px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200">
+                            Rescheduled
                           </span>
-                        </div>
-                     </div>
-                     {viewingBooking.isInvitedMeeting && (
-                       <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meeting Type</span>
-                         <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${
-                           viewingBooking.currentInviteStatus === 'accepted'
-                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                             : viewingBooking.currentInviteStatus === 'rejected'
-                               ? 'bg-red-50 text-red-700 border-red-200'
-                               : 'bg-amber-50 text-amber-700 border-amber-200'
-                         }`}>
-                           {getInviteMeetingLabel(viewingBooking)}
-                         </span>
-                       </div>
-                     )}
-                     <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Timing</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {(Number(viewingBooking.totalAmount || 0) > 0 || Number(viewingBooking.extensionAmount || 0) > 0) && (
+                      <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</span>
                         <div className="text-right">
-                           {renderScheduleSummary(viewingBooking)}
-                        </div>
-                     </div>
-                     <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Attendees</span>
-                        <span className="font-bold text-[#0F172A] text-[13px] flex items-center gap-1.5"><Users size={14} className="text-slate-400"/> {getBookingDisplayCount()} Booking</span>
-                     </div>
-                     <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</span>
-                        <div className="flex flex-col items-end gap-1">
-                          <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider ${getStatusStyle(viewingBooking.liveStatus || viewingBooking.status || '')} border`}>
-                             {viewingBooking.liveStatus || viewingBooking.status}
-                          </span>
-                          {isRescheduledBooking(viewingBooking) && (
-                            <span className="inline-flex px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200">
-                              Rescheduled
-                            </span>
+                          <p className="font-black text-[#0F172A] text-[13px]">{formatCurrency(viewingBooking.totalAmount || 0)}</p>
+                          {Number(viewingBooking.extensionAmount || 0) > 0 && (
+                            <p className="text-[10px] font-bold text-slate-500">Extension: {formatCurrency(viewingBooking.extensionAmount)}</p>
                           )}
                         </div>
-                     </div>
+                      </div>
+                    )}
 
-                     {(Number(viewingBooking.totalAmount || 0) > 0 || Number(viewingBooking.extensionAmount || 0) > 0) && (
-                       <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</span>
-                         <div className="text-right">
-                           <p className="font-black text-[#0F172A] text-[13px]">{formatCurrency(viewingBooking.totalAmount || 0)}</p>
-                           {Number(viewingBooking.extensionAmount || 0) > 0 && (
-                             <p className="text-[10px] font-bold text-slate-500">Extension: {formatCurrency(viewingBooking.extensionAmount)}</p>
-                           )}
-                         </div>
-                       </div>
-                     )}
+                    {viewingBooking.currentInviteStatus && (
+                      <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Your Invite</span>
+                        <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${statusBadge(viewingBooking.currentInviteStatus)}`}>
+                          {statusLabel(viewingBooking.currentInviteStatus)}
+                        </span>
+                      </div>
+                    )}
 
-                     {viewingBooking.currentInviteStatus && (
-                       <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Your Invite</span>
-                         <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${statusBadge(viewingBooking.currentInviteStatus)}`}>
-                           {statusLabel(viewingBooking.currentInviteStatus)}
-                         </span>
-                       </div>
-                     )}
+                    {Array.isArray(viewingBooking.invites) && viewingBooking.invites.length > 0 && (
+                      <div className="space-y-3 pt-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Users size={12} /> Invited Members</span>
+                        <div className="space-y-2">
+                          {viewingBooking.invites.map((invite: any) => {
+                            const inviteName = resolveInviteDisplayName(invite);
+                            const inviteRole = resolveInviteDisplayRole(invite);
 
-                     {Array.isArray(viewingBooking.invites) && viewingBooking.invites.length > 0 && (
-                       <div className="space-y-3 pt-2">
-                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Users size={12}/> Invited Members</span>
-                         <div className="space-y-2">
-                           {viewingBooking.invites.map((invite: any) => {
-                             const inviteName = resolveInviteDisplayName(invite);
-                             const inviteRole = resolveInviteDisplayRole(invite);
-
-                             return (
-                               <div key={`${invite.invitedUserId}-${inviteName}`} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                                 <div>
-                                   <p className="text-[13px] font-bold text-[#0F172A]">{inviteName}</p>
-                                   <p className="text-[11px] font-semibold text-slate-400">{formatInviteGroupLabel(inviteRole)}</p>
-                                 </div>
-                                 <div className="text-right">
+                            return (
+                              <div key={`${invite.invitedUserId}-${inviteName}`} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                                <div>
+                                  <p className="text-[13px] font-bold text-[#0F172A]">{inviteName}</p>
+                                  <p className="text-[11px] font-semibold text-slate-400">{formatInviteGroupLabel(inviteRole)}</p>
+                                </div>
+                                <div className="text-right">
                                   <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${statusBadge(invite.status)}`}>
                                     {statusLabel(invite.status)}
-                                   </span>
-                                   {invite.responseReason ? (
-                                     <p className="mt-1 text-[10px] font-semibold text-slate-500 max-w-[180px]">{invite.responseReason}</p>
-                                   ) : null}
-                                 </div>
-                               </div>
-                             );
-                           })}
-                         </div>
-                       </div>
-                     )}
+                                  </span>
+                                  {invite.responseReason ? (
+                                    <p className="mt-1 text-[10px] font-semibold text-slate-500 max-w-[180px]">{invite.responseReason}</p>
+                                  ) : null}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
-                     {viewingBooking.status === 'cancelled' && viewingBooking.cancelReason && (
-                       <div className="space-y-2 pt-2">
-                          <span className="text-[10px] font-black text-red-400 uppercase tracking-widest flex items-center gap-1.5"><AlertCircle size={12}/> Cancellation Reason</span>
-                          <div className="p-4 bg-red-50/50 border border-red-100 rounded-2xl font-semibold text-red-900 text-[13px] leading-relaxed">"{viewingBooking.cancelReason}"</div>
-                       </div>
-                     )}
+                    {viewingBooking.status === 'cancelled' && viewingBooking.cancelReason && (
+                      <div className="space-y-2 pt-2">
+                        <span className="text-[10px] font-black text-red-400 uppercase tracking-widest flex items-center gap-1.5"><AlertCircle size={12} /> Cancellation Reason</span>
+                        <div className="p-4 bg-red-50/50 border border-red-100 rounded-2xl font-semibold text-red-900 text-[13px] leading-relaxed">"{viewingBooking.cancelReason}"</div>
+                      </div>
+                    )}
 
-                     <div className="space-y-2 pt-2">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Eye size={12}/> Purpose</span>
-                        <div className="p-4 bg-slate-50 border border-slate-100/60 rounded-2xl italic font-semibold text-slate-700 text-[13px] leading-relaxed">"{viewingBooking.purpose}"</div>
-                     </div>
+                    <div className="space-y-2 pt-2">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Eye size={12} /> Purpose</span>
+                      <div className="p-4 bg-slate-50 border border-slate-100/60 rounded-2xl italic font-semibold text-slate-700 text-[13px] leading-relaxed">"{viewingBooking.purpose}"</div>
+                    </div>
 
-                     {isMyBooking(viewingBooking) && !viewingBooking.isInvitedMeeting && canManageOwnBooking(viewingBooking) && (
-                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                         {canRescheduleOwnBooking(viewingBooking) && (
-                           <>
-                             <button onClick={() => { setRescheduleData({ ...viewingBooking, startTime: viewingBooking.startTime, endTime: viewingBooking.endTime }); setShowRescheduleDialog(true); }} className="w-full py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-2"><CalendarClock size={16} /> Reschedule</button>
-                             <button onClick={() => { setBookingToCancel(viewingBooking); setShowCancelDialog(true); }} className="w-full py-3.5 bg-red-50 border border-red-200 rounded-xl font-bold text-[13px] text-red-700 hover:bg-red-100 transition-all shadow-sm flex items-center justify-center gap-2"><XCircle size={16} /> Cancel</button>
-                           </>
-                         )}
-                         {canExtendOwnBooking(viewingBooking) && (
-                           <button onClick={() => { setExtendBooking(viewingBooking); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="w-full py-3.5 bg-amber-50 border border-amber-200 rounded-xl font-bold text-[13px] text-amber-700 hover:bg-amber-100 transition-all shadow-sm flex items-center justify-center gap-2 sm:col-span-2"><Clock size={16} /> Extend Booking</button>
-                         )}
-                       </div>
-                     )}
-                   </>
-                 )}
-               </div>
+                    {isMyBooking(viewingBooking) && !viewingBooking.isInvitedMeeting && canManageOwnBooking(viewingBooking) && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        {canRescheduleOwnBooking(viewingBooking) && (
+                          <>
+                            <button onClick={() => { setRescheduleData({ ...viewingBooking, startTime: viewingBooking.startTime, endTime: viewingBooking.endTime }); setShowRescheduleDialog(true); }} className="w-full py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-2"><CalendarClock size={16} /> Reschedule</button>
+                            <button onClick={() => { setBookingToCancel(viewingBooking); setShowCancelDialog(true); }} className="w-full py-3.5 bg-red-50 border border-red-200 rounded-xl font-bold text-[13px] text-red-700 hover:bg-red-100 transition-all shadow-sm flex items-center justify-center gap-2"><XCircle size={16} /> Cancel</button>
+                          </>
+                        )}
+                        {canExtendOwnBooking(viewingBooking) && (
+                          <button onClick={() => { setExtendBooking(viewingBooking); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="w-full py-3.5 bg-amber-50 border border-amber-200 rounded-xl font-bold text-[13px] text-amber-700 hover:bg-amber-100 transition-all shadow-sm flex items-center justify-center gap-2 sm:col-span-2"><Clock size={16} /> Extend Booking</button>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </motion.div>
           </div>
         )}
@@ -3110,7 +3154,7 @@ export function MeetingRoomsPage() {
                   <p className="text-[11px] font-bold text-amber-600 uppercase tracking-widest mt-1">Meeting is in progress</p>
                 </div>
                 <button onClick={closeExtendDialog} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
-                  <X size={20} strokeWidth={2.5}/>
+                  <X size={20} strokeWidth={2.5} />
                 </button>
               </div>
 
@@ -3188,45 +3232,45 @@ export function MeetingRoomsPage() {
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               className="bg-white rounded-t-[32px] md:rounded-[32px] w-full md:max-w-md shadow-2xl relative z-[90] flex flex-col overflow-hidden"
             >
-               <div className="p-6 md:p-8 bg-red-50/50 border-b border-red-100/60 flex justify-between items-center sm:hidden">
-                  <div className="w-12 h-1.5 bg-red-200 rounded-full mx-auto"></div>
-               </div>
+              <div className="p-6 md:p-8 bg-red-50/50 border-b border-red-100/60 flex justify-between items-center sm:hidden">
+                <div className="w-12 h-1.5 bg-red-200 rounded-full mx-auto"></div>
+              </div>
 
-               <div className="p-6 md:p-8 bg-red-50/50 border-b border-red-100/60 flex justify-between items-start">
-                  <div className="flex gap-4">
-                     <div className="p-3 bg-red-100 text-red-600 rounded-2xl shadow-sm border border-red-200/50 hidden sm:flex items-center justify-center"><XCircle size={24}/></div>
-                     <div>
-                       <h2 className="text-xl md:text-2xl font-black text-red-900 tracking-tight">Reject Meeting Invite</h2>
-                       <p className="text-[11px] font-bold text-red-600 uppercase tracking-widest mt-1.5">{inviteToReject.roomName}</p>
-                     </div>
+              <div className="p-6 md:p-8 bg-red-50/50 border-b border-red-100/60 flex justify-between items-start">
+                <div className="flex gap-4">
+                  <div className="p-3 bg-red-100 text-red-600 rounded-2xl shadow-sm border border-red-200/50 hidden sm:flex items-center justify-center"><XCircle size={24} /></div>
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-black text-red-900 tracking-tight">Reject Meeting Invite</h2>
+                    <p className="text-[11px] font-bold text-red-600 uppercase tracking-widest mt-1.5">{inviteToReject.roomName}</p>
                   </div>
-                  <button onClick={closeRejectInviteDialog} className="w-10 h-10 bg-white hover:bg-red-100 text-red-400 hover:text-red-600 rounded-full flex items-center justify-center transition-colors shadow-sm"><X size={18} strokeWidth={2.5}/></button>
-               </div>
+                </div>
+                <button onClick={closeRejectInviteDialog} className="w-10 h-10 bg-white hover:bg-red-100 text-red-400 hover:text-red-600 rounded-full flex items-center justify-center transition-colors shadow-sm"><X size={18} strokeWidth={2.5} /></button>
+              </div>
 
-               <div className="p-6 md:p-8 space-y-6">
-                  <div className="p-4 bg-white border border-slate-200/60 rounded-2xl text-[13px] font-medium text-slate-600 shadow-sm space-y-1.5">
-                     <p>
-                       You are rejecting the meeting invite on <span className="font-bold text-[#0F172A]">{inviteToReject.date}</span> at <span className="font-bold text-[#0F172A] whitespace-nowrap">{formatTimeSlot(inviteToReject.startTime, inviteToReject.endTime)}</span>.
-                     </p>
-                     <p className="text-slate-500">
-                       This will notify <span className="font-bold text-[#0F172A]">{inviteToReject.bookedByName}</span> with your reason.
-                     </p>
-                  </div>
-                  <div className="space-y-2">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reason for Rejection</label>
-                     <textarea
-                        className="w-full p-4 bg-white border border-slate-200 rounded-2xl font-semibold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none resize-none transition-all shadow-sm"
-                        rows={3}
-                        placeholder="Please share why you cannot attend this meeting..."
-                        value={inviteRejectReason}
-                        onChange={(e) => setInviteRejectReason(e.target.value)}
-                     />
-                  </div>
-               </div>
-               <div className="p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 flex gap-3">
-                  <button disabled={isSavingBooking} onClick={closeRejectInviteDialog} className="flex-1 py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-600 hover:text-[#0F172A] hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50">Keep It</button>
-                  <button disabled={!inviteRejectReason.trim() || isSavingBooking} onClick={handleRejectInviteSubmit} className="flex-1 py-3.5 bg-red-600 text-white rounded-xl font-bold text-[13px] shadow-lg shadow-red-500/30 disabled:bg-slate-200 disabled:shadow-none hover:bg-red-700 transition-all active:scale-[0.98]">{isSavingBooking ? 'Saving...' : 'Reject Invite'}</button>
-               </div>
+              <div className="p-6 md:p-8 space-y-6">
+                <div className="p-4 bg-white border border-slate-200/60 rounded-2xl text-[13px] font-medium text-slate-600 shadow-sm space-y-1.5">
+                  <p>
+                    You are rejecting the meeting invite on <span className="font-bold text-[#0F172A]">{inviteToReject.date}</span> at <span className="font-bold text-[#0F172A] whitespace-nowrap">{formatTimeSlot(inviteToReject.startTime, inviteToReject.endTime)}</span>.
+                  </p>
+                  <p className="text-slate-500">
+                    This will notify <span className="font-bold text-[#0F172A]">{inviteToReject.bookedByName}</span> with your reason.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reason for Rejection</label>
+                  <textarea
+                    className="w-full p-4 bg-white border border-slate-200 rounded-2xl font-semibold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none resize-none transition-all shadow-sm"
+                    rows={3}
+                    placeholder="Please share why you cannot attend this meeting..."
+                    value={inviteRejectReason}
+                    onChange={(e) => setInviteRejectReason(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 flex gap-3">
+                <button disabled={isSavingBooking} onClick={closeRejectInviteDialog} className="flex-1 py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-600 hover:text-[#0F172A] hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50">Keep It</button>
+                <button disabled={!inviteRejectReason.trim() || isSavingBooking} onClick={handleRejectInviteSubmit} className="flex-1 py-3.5 bg-red-600 text-white rounded-xl font-bold text-[13px] shadow-lg shadow-red-500/30 disabled:bg-slate-200 disabled:shadow-none hover:bg-red-700 transition-all active:scale-[0.98]">{isSavingBooking ? 'Saving...' : 'Reject Invite'}</button>
+              </div>
             </motion.div>
           </div>
         )}
@@ -3244,40 +3288,40 @@ export function MeetingRoomsPage() {
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               className="bg-white rounded-t-[32px] md:rounded-[32px] w-full md:max-w-md shadow-2xl relative z-[90] flex flex-col overflow-hidden"
             >
-               <div className="p-6 md:p-8 bg-red-50/50 border-b border-red-100/60 flex justify-between items-center sm:hidden">
-                  <div className="w-12 h-1.5 bg-red-200 rounded-full mx-auto"></div>
-               </div>
+              <div className="p-6 md:p-8 bg-red-50/50 border-b border-red-100/60 flex justify-between items-center sm:hidden">
+                <div className="w-12 h-1.5 bg-red-200 rounded-full mx-auto"></div>
+              </div>
 
-               <div className="p-6 md:p-8 bg-red-50/50 border-b border-red-100/60 flex justify-between items-start">
-                  <div className="flex gap-4">
-                     <div className="p-3 bg-red-100 text-red-600 rounded-2xl shadow-sm border border-red-200/50 hidden sm:flex items-center justify-center"><XCircle size={24}/></div>
-                     <div>
-                       <h2 className="text-xl md:text-2xl font-black text-red-900 tracking-tight">Cancel Meeting</h2>
-                       <p className="text-[11px] font-bold text-red-600 uppercase tracking-widest mt-1.5">{bookingToCancel.roomName}</p>
-                     </div>
+              <div className="p-6 md:p-8 bg-red-50/50 border-b border-red-100/60 flex justify-between items-start">
+                <div className="flex gap-4">
+                  <div className="p-3 bg-red-100 text-red-600 rounded-2xl shadow-sm border border-red-200/50 hidden sm:flex items-center justify-center"><XCircle size={24} /></div>
+                  <div>
+                    <h2 className="text-xl md:text-2xl font-black text-red-900 tracking-tight">Cancel Meeting</h2>
+                    <p className="text-[11px] font-bold text-red-600 uppercase tracking-widest mt-1.5">{bookingToCancel.roomName}</p>
                   </div>
-                  <button onClick={() => setShowCancelDialog(false)} className="w-10 h-10 bg-white hover:bg-red-100 text-red-400 hover:text-red-600 rounded-full flex items-center justify-center transition-colors shadow-sm"><X size={18} strokeWidth={2.5}/></button>
-               </div>
+                </div>
+                <button onClick={() => setShowCancelDialog(false)} className="w-10 h-10 bg-white hover:bg-red-100 text-red-400 hover:text-red-600 rounded-full flex items-center justify-center transition-colors shadow-sm"><X size={18} strokeWidth={2.5} /></button>
+              </div>
 
-               <div className="p-6 md:p-8 space-y-6">
-                  <div className="p-4 bg-white border border-slate-200/60 rounded-2xl text-[13px] font-medium text-slate-600 shadow-sm">
-                     You are cancelling the meeting on <span className="font-bold text-[#0F172A]">{bookingToCancel.date}</span> at <span className="font-bold text-[#0F172A]">{bookingToCancel.checkIn}</span>. This action cannot be undone.
-                  </div>
-                  <div className="space-y-2">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reason for Cancellation</label>
-                     <textarea
-                        className="w-full p-4 bg-white border border-slate-200 rounded-2xl font-semibold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none resize-none transition-all shadow-sm"
-                        rows={3}
-                        placeholder="Please inform attendees why this is cancelled..."
-                        value={cancelReason}
-                        onChange={(e) => setCancelReason(e.target.value)}
-                     />
-                  </div>
-               </div>
-               <div className="p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 flex gap-3">
-                  <button disabled={isSavingBooking} onClick={() => setShowCancelDialog(false)} className="flex-1 py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-600 hover:text-[#0F172A] hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50">Keep It</button>
-                  <button disabled={!cancelReason.trim() || isSavingBooking} onClick={handleCancelBooking} className="flex-1 py-3.5 bg-red-600 text-white rounded-xl font-bold text-[13px] shadow-lg shadow-red-500/30 disabled:bg-slate-200 disabled:shadow-none hover:bg-red-700 transition-all active:scale-[0.98]">{isSavingBooking ? 'Saving...' : 'Cancel Meeting'}</button>
-               </div>
+              <div className="p-6 md:p-8 space-y-6">
+                <div className="p-4 bg-white border border-slate-200/60 rounded-2xl text-[13px] font-medium text-slate-600 shadow-sm">
+                  You are cancelling the meeting on <span className="font-bold text-[#0F172A]">{bookingToCancel.date}</span> at <span className="font-bold text-[#0F172A]">{bookingToCancel.checkIn}</span>. This action cannot be undone.
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reason for Cancellation</label>
+                  <textarea
+                    className="w-full p-4 bg-white border border-slate-200 rounded-2xl font-semibold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none resize-none transition-all shadow-sm"
+                    rows={3}
+                    placeholder="Please inform attendees why this is cancelled..."
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 flex gap-3">
+                <button disabled={isSavingBooking} onClick={() => setShowCancelDialog(false)} className="flex-1 py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-600 hover:text-[#0F172A] hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50">Keep It</button>
+                <button disabled={!cancelReason.trim() || isSavingBooking} onClick={handleCancelBooking} className="flex-1 py-3.5 bg-red-600 text-white rounded-xl font-bold text-[13px] shadow-lg shadow-red-500/30 disabled:bg-slate-200 disabled:shadow-none hover:bg-red-700 transition-all active:scale-[0.98]">{isSavingBooking ? 'Saving...' : 'Cancel Meeting'}</button>
+              </div>
             </motion.div>
           </div>
         )}
@@ -3305,7 +3349,7 @@ export function MeetingRoomsPage() {
                   <p className="text-[11px] font-bold text-[#2563EB] uppercase tracking-widest mt-1">Refining Schedule</p>
                 </div>
                 <button onClick={() => setShowRescheduleDialog(false)} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
-                  <X size={20} strokeWidth={2.5}/>
+                  <X size={20} strokeWidth={2.5} />
                 </button>
               </div>
 
@@ -3313,7 +3357,7 @@ export function MeetingRoomsPage() {
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Update Location (Optional)</label>
                   <div className="relative">
-                    <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={rescheduleData.roomName || ''} onChange={(e) => setRescheduleData({...rescheduleData, roomName: e.target.value})}>
+                    <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={rescheduleData.roomName || ''} onChange={(e) => setRescheduleData({ ...rescheduleData, roomName: e.target.value })}>
                       {availableRooms.map((roomName) => (
                         <option key={roomName} value={roomName} disabled={isRoomOptionDisabled(roomName)}>
                           {getRoomOptionLabel(roomName)}
@@ -3325,56 +3369,56 @@ export function MeetingRoomsPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                   <div className="space-y-2 md:col-span-2">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">New Date</label>
-                     <input type="date" min={todayStr} value={rescheduleData.date || ''} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => setRescheduleData({...rescheduleData, date: e.target.value})} />
-                   </div>
-                   <div className="space-y-2">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">New Check In</label>
-                     <select value={rescheduleData.startTime || ''} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => {
-                       const nextStartTime = e.target.value;
-                       const minimumEndTime = minutesToTimeString((timeToMinutes(nextStartTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
-                       const currentEndMinutes = timeToMinutes(rescheduleData.endTime);
-                       const minimumEndMinutes = timeToMinutes(minimumEndTime);
-                       setRescheduleData({
-                         ...rescheduleData,
-                         startTime: nextStartTime,
-                         endTime: !rescheduleData.endTime || currentEndMinutes === null || (minimumEndMinutes !== null && currentEndMinutes < minimumEndMinutes) ? minimumEndTime : rescheduleData.endTime,
-                       });
-                     }}>
-                       <option value="">Select start time</option>
-                       {rescheduleStartTimeOptions.map((timeValue) => (
-                         <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
-                       ))}
-                     </select>
-                   </div>
-                   <div className="space-y-2">
-                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">New Check Out</label>
-                     <select value={rescheduleData.endTime || ''} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => setRescheduleData({...rescheduleData, endTime: e.target.value})}>
-                       <option value="">Select end time</option>
-                       {rescheduleEndTimeOptions.map((timeValue) => (
-                         <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
-                       ))}
-                     </select>
-                   </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">New Date</label>
+                    <input type="date" min={todayStr} value={rescheduleData.date || ''} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => setRescheduleData({ ...rescheduleData, date: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">New Check In</label>
+                    <select value={rescheduleData.startTime || ''} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => {
+                      const nextStartTime = e.target.value;
+                      const minimumEndTime = minutesToTimeString((timeToMinutes(nextStartTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
+                      const currentEndMinutes = timeToMinutes(rescheduleData.endTime);
+                      const minimumEndMinutes = timeToMinutes(minimumEndTime);
+                      setRescheduleData({
+                        ...rescheduleData,
+                        startTime: nextStartTime,
+                        endTime: !rescheduleData.endTime || currentEndMinutes === null || (minimumEndMinutes !== null && currentEndMinutes < minimumEndMinutes) ? minimumEndTime : rescheduleData.endTime,
+                      });
+                    }}>
+                      <option value="">Select start time</option>
+                      {rescheduleStartTimeOptions.map((timeValue) => (
+                        <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">New Check Out</label>
+                    <select value={rescheduleData.endTime || ''} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => setRescheduleData({ ...rescheduleData, endTime: e.target.value })}>
+                      <option value="">Select end time</option>
+                      {rescheduleEndTimeOptions.map((timeValue) => (
+                        <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 {!rescheduleTimeValidation.valid && (
                   <div className="p-4 bg-red-50 rounded-2xl flex items-start sm:items-center gap-3 border border-red-100 mt-2">
-                     <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20}/>
-                     <p className="text-[13px] text-red-800 font-bold">{rescheduleTimeValidation.reason}</p>
+                    <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
+                    <p className="text-[13px] text-red-800 font-bold">{rescheduleTimeValidation.reason}</p>
                   </div>
                 )}
                 {rescheduleTimeValidation.valid && rescheduleStatus === 'available' && (
                   <div className="p-4 bg-emerald-50 rounded-2xl flex items-start sm:items-center gap-3 border border-emerald-100 mt-2">
-                     <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5 sm:mt-0" size={20}/>
-                     <p className="text-[13px] text-emerald-800 font-bold">Slot is available!</p>
+                    <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
+                    <p className="text-[13px] text-emerald-800 font-bold">Slot is available!</p>
                   </div>
                 )}
                 {rescheduleTimeValidation.valid && rescheduleStatus === 'conflict' && (
                   <div className="p-4 bg-red-50 rounded-2xl flex items-start sm:items-center gap-3 border border-red-100 mt-2">
-                     <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20}/>
-                     <p className="text-[13px] text-red-800 font-bold">Slot conflict detected. Please adjust time.</p>
+                    <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
+                    <p className="text-[13px] text-red-800 font-bold">Slot conflict detected. Please adjust time.</p>
                   </div>
                 )}
               </div>
