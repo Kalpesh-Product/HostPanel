@@ -57,6 +57,8 @@ interface ActingContext {
 }
 
 interface RoomDetails {
+  _id?: string;
+  id?: string;
   name: string;
   type: string;
   floor: string;
@@ -211,9 +213,7 @@ function isMeetingCalendarRoom(room: any) {
 
 function isActiveRoom(room: any) {
   const status = String(room.status || '').toLowerCase();
-  const hasPricing = Number(room.pricePerHour || 0) > 0 || Number(room.pricePerDay || 0) > 0;
-  const hasCredits = Number(room.credits || 0) > 0;
-  return status !== 'under maintenance' && status !== 'disabled' && room.activationReady !== false && room.isActive !== false && hasPricing && hasCredits;
+  return status !== 'under maintenance' && status !== 'disabled' && room.activationReady !== false && room.isActive !== false;
 }
 
 function resolveBookingRoomName(booking: any) {
@@ -982,8 +982,8 @@ export function MeetingRoomsPage() {
 
     return {
       ...booking,
-      recordId: booking.recordId,
-      id: booking.id,
+      recordId: String(booking.recordId || booking._id || booking.id || ''),
+      id: String(booking.id || booking._id || booking.recordId || ''),
       checkIn: booking.checkIn || booking.startTime,
       checkOut: booking.checkOut || booking.endTime,
       previousDate: booking.previousDate || '',
@@ -1355,17 +1355,18 @@ export function MeetingRoomsPage() {
   }
 
   const [workspaceId, setWorkspaceId] = useState<string>('');
-  // --- FRONTEND PREVIEW MODE: Backend API calls are temporarily commented out ---
-  // Load initial data from backend
-  // Load initial data from backend
+  // Load initial room and booking data from the backend.
   useEffect(() => {
     const user = getStoredUser();
 
     // Better workspaceId extraction
     let wsId = user?.workspaceMembership?.workspaceId ||
+      user?.workspaceMembership?.workspace ||
+      user?.primaryWorkspace ||
       user?.workspace?.id ||
       user?.workspaceId ||
-      user?.workspace?.workspaceId;
+      user?.workspace?.workspaceId ||
+      user?.accessibleWorkspaces?.[0]?.id;
 
     if (!wsId) {
       console.warn("⚠️ No workspaceId found in user object");
@@ -1399,12 +1400,11 @@ export function MeetingRoomsPage() {
           .filter((room: any) => isActiveRoom(room) && isMeetingCalendarRoom(room))
           .map((room: any) => room.name);
 
-        if (activeRoomNames.length > 0) {
-          setAvailableRooms(activeRoomNames);
-          setCalendarRoomFilter(activeRoomNames[0]);
-        }
+        setAvailableRooms(activeRoomNames);
+        setCalendarRoomFilter((current) => activeRoomNames.includes(current) ? current : (activeRoomNames[0] || ''));
 
         setAllBookings(bookingsData.map((b: any) => normalizeBooking(b)));
+        setReceivedInvites(rawData.receivedInvites || []);
 
         // Load workspace members - NO ARGUMENT
         try {
@@ -1872,8 +1872,21 @@ export function MeetingRoomsPage() {
   }, [inviteCandidates]);
 
   // --- ACTION HANDLERS ---
-  // --- FRONTEND PREVIEW MODE: Action handlers are stubbed (no API calls) ---
-  // TODO: Uncomment API calls when backend is ready
+  const buildBookingDateTime = (date: string = '', time: string = '') => `${date}T${time}:00+05:30`;
+  const selectedRoom = (roomName: string = '') => roomCatalog.find((room: any) => room.name === roomName);
+  const reloadBookings = async () => {
+    if (!workspaceId) return;
+    const response = await getMeetingRoomBookings(workspaceId);
+    const data = response?.data?.data || response?.data || response || {};
+    const details = (data.roomDetails || data.rooms || []).map((room: any) => normalizeRoomEntry(room));
+    const bookings = data.bookings || data.data?.bookings || [];
+    setRoomDetails(details);
+    setAllBookings(bookings.map((booking: any) => normalizeBooking(booking)));
+    setReceivedInvites(data.receivedInvites || []);
+    const roomNames = details.filter((room: any) => isActiveRoom(room) && isMeetingCalendarRoom(room)).map((room: any) => room.name);
+    setAvailableRooms(roomNames);
+    setCalendarRoomFilter((current) => roomNames.includes(current) ? current : (roomNames[0] || ''));
+  };
 
   const handleCreateBooking = async () => {
     if (!newBooking.roomType) { setErrorMessage('Select a room type to continue.'); return; }
@@ -1886,8 +1899,25 @@ export function MeetingRoomsPage() {
     setIsSavingBooking(true);
     setErrorMessage('');
 
-    // TODO: await createMeetingRoomBooking({ ... });
-    await new Promise((r) => setTimeout(r, 600)); // simulate network delay
+    try {
+      const room = selectedRoom(newBooking.roomName);
+      const roomId = String(room?._id || room?.id || '');
+      if (!roomId) throw new Error('The selected room is missing its ID. Refresh and try again.');
+      await createMeetingRoomBooking({
+        roomId,
+        start: buildBookingDateTime(newBooking.date, newBooking.startTime),
+        end: buildBookingDateTime(newBooking.date, newBooking.endTime),
+        purpose: newBooking.purpose.trim(),
+        attendees: getBookingAttendeeCount(newBooking),
+        inviteeUserIds: newBooking.inviteeUserIds,
+        department: managerProfile.department,
+      });
+      await reloadBookings();
+    } catch (error: any) {
+      setErrorMessage(error?.response?.data?.message || error?.message || 'Failed to create booking.');
+      setIsSavingBooking(false);
+      return;
+    }
 
     setNewBooking({ roomName: '', floor: '', wing: '', roomType: '', date: '', startTime: '', endTime: '', purpose: '', inviteeUserIds: [] });
     setShowBookingDialog(false);
@@ -1900,10 +1930,14 @@ export function MeetingRoomsPage() {
     setIsSavingBooking(true);
     setErrorMessage('');
 
-    // TODO: await updateMeetingRoomBooking(bookingToCancel.recordId, { status: 'cancelled', cancelReason });
-    await new Promise((r) => setTimeout(r, 600));
-
-    setAllBookings((prev) => prev.map((b) => b.recordId === bookingToCancel.recordId ? { ...b, status: 'cancelled', cancelReason } : b));
+    try {
+      await cancelBooking(bookingToCancel.recordId, cancelReason.trim());
+      await reloadBookings();
+    } catch (error: any) {
+      setErrorMessage(error?.response?.data?.message || error?.message || 'Failed to cancel booking.');
+      setIsSavingBooking(false);
+      return;
+    }
     setShowCancelDialog(false);
     setBookingToCancel(null);
     setCancelReason('');
@@ -1917,10 +1951,18 @@ export function MeetingRoomsPage() {
     setIsSavingBooking(true);
     setErrorMessage('');
 
-    // TODO: await updateMeetingRoomBooking(rescheduleData.recordId, { ... });
-    await new Promise((r) => setTimeout(r, 600));
-
-    setAllBookings((prev) => prev.map((b) => b.recordId === rescheduleData.recordId ? { ...b, ...rescheduleData, status: 'rescheduled' } : b));
+    try {
+      await updateMeetingRoomBooking(rescheduleData.recordId, {
+        start: buildBookingDateTime(rescheduleData.date, rescheduleData.startTime),
+        end: buildBookingDateTime(rescheduleData.date, rescheduleData.endTime),
+        scheduleChangeType: 'rescheduled',
+      });
+      await reloadBookings();
+    } catch (error: any) {
+      setErrorMessage(error?.response?.data?.message || error?.message || 'Failed to reschedule booking.');
+      setIsSavingBooking(false);
+      return;
+    }
     setShowRescheduleDialog(false);
     setRescheduleData({});
     setIsSavingBooking(false);
@@ -1942,10 +1984,19 @@ export function MeetingRoomsPage() {
     setIsSavingBooking(true);
     setErrorMessage('');
 
-    // TODO: await updateMeetingRoomBooking(extendBooking.recordId, { endTime: extendBookingPreview.nextEndTime, ... });
-    await new Promise((r) => setTimeout(r, 600));
-
-    setAllBookings((prev) => prev.map((b) => b.recordId === extendBooking.recordId ? { ...b, endTime: extendBookingPreview.nextEndTime ?? b.endTime, status: 'in progress' } as Booking : b));
+    try {
+      await updateMeetingRoomBooking(extendBooking.recordId, {
+        end: buildBookingDateTime(extendBooking.date, extendBookingPreview.nextEndTime),
+        extensionAmount: extendBookingPreview.extensionAmount,
+        totalAmount: extendBookingPreview.nextTotalAmount,
+        scheduleChangeType: 'extended',
+      });
+      await reloadBookings();
+    } catch (error: any) {
+      setErrorMessage(error?.response?.data?.message || error?.message || 'Failed to extend booking.');
+      setIsSavingBooking(false);
+      return;
+    }
     closeExtendDialog();
     setIsSavingBooking(false);
   };
@@ -1969,10 +2020,15 @@ export function MeetingRoomsPage() {
     setIsSavingBooking(true);
     setErrorMessage('');
 
-    // TODO: await respondToMeetingRoomInvite(invite.bookingId, { status, reason });
-    await new Promise((r) => setTimeout(r, 600));
-
-    setReceivedInvites((prev) => prev.map((i) => String(i.bookingId) === String(invite.bookingId) ? { ...i, status } : i));
+    try {
+      await respondToMeetingRoomInvite(invite.bookingId, { status, reason });
+      await reloadBookings();
+      setReceivedInvites((prev) => prev.map((i) => String(i.bookingId) === String(invite.bookingId) ? { ...i, status, responseReason: reason } : i));
+    } catch (error: any) {
+      setErrorMessage(error?.response?.data?.message || error?.message || 'Failed to respond to invite.');
+      setIsSavingBooking(false);
+      return;
+    }
     if (status === 'rejected') closeRejectInviteDialog();
     setIsSavingBooking(false);
   };

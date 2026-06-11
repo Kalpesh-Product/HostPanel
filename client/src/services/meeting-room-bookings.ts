@@ -40,8 +40,8 @@ export const updateMeetingRoomBooking = async (bookingId: string, payload: Recor
   return unwrap(response);
 };
 
-export const cancelBooking = async (bookingId: string) => {
-  const response = await axiosPrivate.patch(`${BASE}/bookings/${bookingId}/cancel`);
+export const cancelBooking = async (bookingId: string, cancelReason?: string) => {
+  const response = await axiosPrivate.patch(`${BASE}/bookings/${bookingId}/cancel`, { cancelReason });
   return unwrap(response);
 };
 

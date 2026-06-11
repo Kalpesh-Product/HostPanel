@@ -6,6 +6,7 @@ export interface IMeetingRoom extends Document {
     capacity: number;
     type: "Desk" | "Meeting Room" | "Conference Room" | "Cabin" | "Other";
     floor?: string;
+    wing?: string;
     location?: string;
     description?: string;
     amenities: string[];
@@ -46,6 +47,11 @@ const meetingRoomSchema = new Schema<IMeetingRoom>(
             default: "Meeting Room",
         },
         floor: {
+            type: String,
+            trim: true,
+            maxlength: 60,
+        },
+        wing: {
             type: String,
             trim: true,
             maxlength: 60,

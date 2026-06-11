@@ -30,6 +30,7 @@ export interface IMeetingRoomBooking extends Document {
         invitedEmail?: string;
         status: "pending" | "accepted" | "rejected" | "cancelled";
         respondedAt?: Date;
+        responseReason?: string;
     }>;
 
     baseAmount: number;
@@ -43,6 +44,9 @@ export interface IMeetingRoomBooking extends Document {
     status: "pending" | "confirmed" | "in-progress" | "completed" | "cancelled" | "rescheduled";
     cancelReason?: string;
     bookingNotes?: string;
+
+    scheduleChangeType?: string;
+    extensionAmount?: number;
 
     // For recurring bookings (future extension)
     isRecurring?: boolean;
@@ -135,6 +139,7 @@ const meetingRoomBookingSchema = new Schema<IMeetingRoomBooking>(
                     default: "pending",
                 },
                 respondedAt: Date,
+                responseReason: { type: String, maxlength: 1000 },
             },
         ],
 
@@ -155,6 +160,8 @@ const meetingRoomBookingSchema = new Schema<IMeetingRoomBooking>(
 
         cancelReason: { type: String, maxlength: 1000 },
         bookingNotes: { type: String, maxlength: 1000 },
+        scheduleChangeType: { type: String, enum: ["rescheduled", "extended"] },
+        extensionAmount: { type: Number, default: 0, min: 0 },
 
         isRecurring: { type: Boolean, default: false },
         recurrenceRule: String,

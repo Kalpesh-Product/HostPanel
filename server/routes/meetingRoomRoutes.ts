@@ -13,6 +13,8 @@ import {
     getMyBookings,
     getBookingById,
     cancelBooking,
+    updateBooking,
+    respondToInvite,
 } from "../controllers/meetingRoomBookingController.js";
 
 const router = express.Router();
@@ -37,6 +39,8 @@ router.post("/bookings", createBooking);                    // Create booking
 router.get("/bookings/workspace/:workspaceId", getBookings); // All bookings in workspace
 router.get("/bookings/my", getMyBookings);                  // Current user's bookings
 router.get("/bookings/:id", getBookingById);                // Single booking details
-router.patch("/bookings/:id/cancel", cancelBooking);        // Cancel booking
+router.patch("/bookings/:id", updateBooking);                  // Reschedule or extend booking
+router.patch("/bookings/:id/cancel", cancelBooking);           // Cancel booking
+router.post("/bookings/:id/respond", respondToInvite);         // Accept or reject invite
 
 export default router;
