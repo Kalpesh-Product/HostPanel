@@ -18,7 +18,7 @@ const MeetingLayout = () => {
     queryKey: ["meetings"],
     queryFn: async () => {
       try {
-        const response = await axios.get("/api/meetings/get-meetings");
+        const response = await axios.get("/api/meeting-rooms/workspace/6a279c98f8ac45ca5d5180bb");
         return response.data;
       } catch (error) {
         toast.error("Failed to fetch meetings");

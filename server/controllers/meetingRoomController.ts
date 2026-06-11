@@ -186,3 +186,41 @@ export const deleteMeetingRoom = async (
         next(error);
     }
 };
+
+// export const getClients = async (req: Request, res: Response) => {
+//     try {
+//         // TODO: Add your logic to fetch and return clients
+//         const clients = []; // Replace with actual DB query
+//         res.status(200).json({ success: true, data: clients });
+//     } catch (error) {
+//         res.status(500).json({ success: false, message: "Server Error" });
+//     }
+// };
+
+export const respondToInvite = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body; // e.g., 'accepted', 'declined'
+
+        // TODO: Add logic to update the booking status in the DB
+        // const booking = await MeetingRoomBooking.findByIdAndUpdate(id, { status }, { new: true });
+
+        res.status(200).json({ success: true, message: "Response recorded" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Server Error" });
+    }
+};
+
+export const updateBooking = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const updateData = req.body;
+
+        // TODO: Add logic to update booking details in the DB
+        // const booking = await MeetingRoomBooking.findByIdAndUpdate(id, updateData, { new: true });
+
+        res.status(200).json({ success: true, message: "Booking updated" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Server Error" });
+    }
+};
