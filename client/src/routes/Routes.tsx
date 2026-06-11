@@ -171,6 +171,7 @@ import TenantCompaniesPage from "../pages/Sales/TenantCompanies/TenantCompaniesP
 import PricingPackagesPage from "../pages/Sales/PricingPackages/PricingPackagesPage";
 import LeadsManagementPage from "../pages/Sales/LeadsManagement/LeadsManagementPage";
 import SalesArchitecturePage from "../pages/Sales/SalesArchitecture/SalesArchitecturePage";
+import { TicketsPage } from "../pages/Tickets/TicketsPage";
 
 function VerticalPickerRoute() {
   const location = useLocation();
@@ -744,6 +745,10 @@ export const routes = createBrowserRouter([
                     element: <MeetingRoomsPage />,
                   },
                 ],
+              },
+              {
+                path: "tickets-center",
+                element: <TicketsPage />,
               },
               {
                 path: "assets", // Parent path

@@ -21,13 +21,14 @@ import {
   getStoredActingManagerContext,
   getStoredUser,
 } from '../../lib/auth-session';
-import { getWorkspaceMembers } from '../../services/auth';
-import {
-  createMeetingRoomBooking,
-  getMeetingRoomBookings,
-  respondToMeetingRoomInvite,
-  updateMeetingRoomBooking,
-} from '../../services/meeting-room-bookings';
+// Frontend-only mode: backend meeting-room APIs are intentionally disabled for now.
+// import { getWorkspaceMembers } from '../../services/auth';
+// import {
+//   createMeetingRoomBooking,
+//   getMeetingRoomBookings,
+//   respondToMeetingRoomInvite,
+//   updateMeetingRoomBooking,
+// } from '../../services/meeting-room-bookings';
 
 
 interface StoredUser {
@@ -1973,7 +1974,7 @@ export function MeetingRoomsPage() {
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                <CalendarClock className="text-primary" size={18}/> 
+                
                 Meeting Rooms
               </h2>
               <p className="text-xs font-medium text-slate-500 mt-1">

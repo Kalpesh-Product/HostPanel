@@ -14,6 +14,7 @@ import { getTenantCompanies } from "../../../services/tenant-companies";
 import { getOrganizationOverview } from "../../../services/organization";
 import { downloadReportFile } from "../../../utils/report-download";
 import { toast } from "sonner";
+import PageFrame from "../../../components/Pages/PageFrame";
 
 const getStoredUser = () => {
   try {
@@ -474,12 +475,14 @@ export default function SalesArchitecturePage() {
   const utilizationPct = floorStats.total > 0 ? Math.round((floorStats.assigned / floorStats.total) * 100) : 0;
 
   return (
-    <div className="p-2 lg:p-2.5 min-h-full text-[12px]">
-
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+      <PageFrame>
       <div className="mb-3 flex flex-col md:flex-row md:items-end justify-between gap-3 shrink-0">
         <div>
-          <h1 className="text-base lg:text-lg font-black text-[#0F172A]">Workspace Architecture</h1>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600 mt-0.5">Live Map Tenant & Department Allocations</p>
+          <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+            Workspace Architecture
+          </h2>
+          <p className="text-xs font-medium text-slate-500 mt-1">Live map of tenant and department space allocations.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
                   <button
@@ -846,6 +849,7 @@ export default function SalesArchitecturePage() {
         </div>
       )}
 
+      </PageFrame>
     </div>
   );
 }

@@ -171,7 +171,7 @@ const companySettingsData: NavNode[] = [
 const keyAppsData: NavNode[] = [
   { id: "attendance", label: "Attendance", icon: Clock, route: "/dashboard/attendance" },
   { id: "tasks", label: "Tasks", icon: ListChecks, disabled: true },
-  { id: "tickets", label: "Tickets", icon: Ticket, disabled: true },
+  { id: "tickets", label: "Tickets", icon: Ticket, route: "/tickets-center", disabled: false },
   { id: "leave-requests", label: "Leave Requests", icon: CalendarClock, disabled: true },
   { id: "meeting-room-system", label: "Meeting Room System", icon: Presentation, route:"/meetings/meeting-rooms", disabled: false },
   {
@@ -304,6 +304,7 @@ const ROUTE_BY_ID: Record<string, string> = {
   "leads-management": "/sales-crm/leads-management",
   "sales-architecture": "/sales-crm/sales-architecture",
   "meeting-room-system": "/meetings/meeting-rooms",
+  tickets: "/tickets-center",
   profile: "/profile/company-profile",
 };
 

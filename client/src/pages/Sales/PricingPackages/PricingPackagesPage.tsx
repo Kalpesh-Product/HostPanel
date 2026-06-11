@@ -8,6 +8,7 @@ import { AlertTriangle, Building2, CheckCircle2, Clock, CreditCard, Edit2, Eye, 
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
 import { createReport } from '../../../services/reports';
 import { downloadReportFile } from '../../../utils/report-download';
+import PageFrame from '../../../components/Pages/PageFrame';
 
 const resourceStatusOptions = ['Active', 'Under Maintenance', 'Disabled'];
 const packageStatusOptions = ['Active', 'Disabled'];
@@ -1120,10 +1121,13 @@ export default function PricingPackagesPage() {
 
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+      <PageFrame>
       <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
-          <h1 className="text-base lg:text-lg font-black text-[#0F172A]">Plans & Pricing</h1>
-          <p className="text-[10px] font-bold text-[#2563EB] uppercase tracking-widest mt-0.5">Sales & CRM Core &bull; Resources and packages</p>
+          <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+            Plans &amp; Pricing
+          </h2>
+          <p className="text-xs font-medium text-slate-500 mt-1">Manage workspace resources and membership packages.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -2158,6 +2162,7 @@ export default function PricingPackagesPage() {
           </div>
         </div>
       ) : null}
+      </PageFrame>
     </div>
   );
 }

@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
 import { createReport } from '../../../services/reports';
 import { downloadReportFile } from '../../../utils/report-download';
+import PageFrame from '../../../components/Pages/PageFrame';
 
 const tenantLocationOptions = [
   { floor: '501', wing: 'A', locationCode: '501A', label: '501 A' },
@@ -2467,12 +2468,14 @@ export default function TenantCompaniesPage() {
 
   return (
     <>
-      <div className="p-2 lg:p-2.5 min-h-full text-[#1E293B] font-sans text-[12px]">
-        
+      <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+        <PageFrame>
         <div className="mb-3 flex flex-col md:flex-row md:items-end justify-between gap-3 shrink-0">
           <div>
-            <h1 className="text-base lg:text-lg font-black text-[#0F172A]">Sales Tenant Companies</h1>
-            <p className="text-[10px] font-bold text-[#2563EB] uppercase tracking-widest mt-0.5">Sales & CRM Core • Manage client contracts & allocations</p>
+            <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+              Sales Tenant Companies
+            </h2>
+            <p className="text-xs font-medium text-slate-500 mt-1">Manage client contracts, allocations and company profiles.</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
@@ -4299,6 +4302,7 @@ export default function TenantCompaniesPage() {
           </div>
         )}
 
+        </PageFrame>
       </div>
     </>
   );
