@@ -76,7 +76,7 @@ const MODULE_GROUPS = [
           { id: "visitors-management", label: "Visitors Management", route: "/visitors/visitor-management", implemented: true },
           { id: "resource-management", label: "Resource Management", implemented: false },
           { id: "house-keeping", label: "House Keeping", implemented: false },
-          { id: "workspace-layout", label: "Workspace Layout", implemented: false },
+          
         ],
       },
       {

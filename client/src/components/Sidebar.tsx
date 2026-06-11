@@ -171,7 +171,7 @@ const companySettingsData: NavNode[] = [
 const keyAppsData: NavNode[] = [
   { id: "attendance", label: "Attendance", icon: Clock, route: "/dashboard/attendance" },
   { id: "tasks", label: "Tasks", icon: ListChecks, disabled: true },
-  { id: "tickets", label: "Tickets", icon: Ticket, route: "/tickets-center", disabled: false },
+  { id: "tickets", label: "Tickets", icon: Ticket, route: "/tickets", disabled: false },
   { id: "leave-requests", label: "Leave Requests", icon: CalendarClock, disabled: true },
   { id: "meeting-room-system", label: "Meeting Room System", icon: Presentation, route:"/meetings/meeting-rooms", disabled: false },
   {
@@ -210,8 +210,8 @@ const departmentModules: NavNode[] = [
     icon: Building2,
     defaultOpen: false,
     children: [
-      { id: "tenant-companies-admin", label: "Tenant Companies", icon: Building2, disabled: true },
-      { id: "bookings", label: "Bookings", icon: Bed, disabled: true },
+      { id: "tenant-companies-admin", label: "Tenant Companies", icon: Building2, route: "/administration/tenant-companies", disabled: false },
+      { id: "bookings", label: "Bookings", icon: Bed, route: "/administration/bookings", disabled: false },
       {
         id: "visitors-management",
         label: "Visitors Management",
@@ -219,9 +219,8 @@ const departmentModules: NavNode[] = [
         route: "/visitors/visitor-management",
         disabled: false,
       },
-      { id: "resource-management", label: "Resource Management", icon: HandCoins, disabled: true },
-      { id: "house-keeping", label: "House Keeping", icon: Wrench, disabled: true },
-      { id: "workspace-layout", label: "Workspace Layout", icon: LayoutDashboard, disabled: true },
+      { id: "resource-management", label: "Resource Management", icon: HandCoins, route: "/administration/resource-management", disabled: false },
+      { id: "house-keeping", label: "House Keeping", icon: Wrench, route: "/administration/house-keeping", disabled: false },
     ],
   },
   {
@@ -230,10 +229,10 @@ const departmentModules: NavNode[] = [
     icon: BriefcaseBusiness,
     defaultOpen: false,
     children: [
-      { id: "leads-management", label: "Leads Management", icon: Magnet, route: "/sales-crm/leads-management", disabled: false },
-      { id: "tenant-companies-sales", label: "Tenant Companies", icon: Building2, route: "/sales-crm/tenant-companies", disabled: false },
-      { id: "plans-pricing", label: "Plans & Pricing", icon: Tag, route: "/sales-crm/plans-pricing", disabled: false },
-      { id: "sales-architecture", label: "Sales Architecture", icon: ShoppingCart, route: "/sales-crm/sales-architecture", disabled: false },
+      { id: "leads-management", label: "Leads Management", icon: Magnet, route: "/sales/leads-management", disabled: false },
+      { id: "tenant-companies-sales", label: "Tenant Companies", icon: Building2, route: "/sales/tenant-companies", disabled: false },
+      { id: "plans-pricing", label: "Plans & Pricing", icon: Tag, route: "/sales/plans-pricing", disabled: false },
+      { id: "sales-architecture", label: "Sales Architecture", icon: ShoppingCart, route: "/sales/sales-architecture", disabled: false },
     ],
   },
   {
@@ -303,8 +302,12 @@ const ROUTE_BY_ID: Record<string, string> = {
   "plans-pricing": "/sales-crm/plans-pricing",
   "leads-management": "/sales-crm/leads-management",
   "sales-architecture": "/sales-crm/sales-architecture",
+  "tenant-companies-admin": "/administration/tenant-companies",
+  bookings: "/administration/bookings",
+  "resource-management": "/administration/resource-management",
+  "house-keeping": "/administration/house-keeping",
   "meeting-room-system": "/meetings/meeting-rooms",
-  tickets: "/tickets-center",
+  tickets: "/tickets",
   profile: "/profile/company-profile",
 };
 
@@ -958,6 +961,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const mappedSections: Array<{ key: string; title: string; items: NavNode[] }> = (
     workspaceAccessMap?.moduleMap?.sections || []
   ).map((section) => {
+    const sectionKey = String(section?.sectionId || section?.sectionLabel || "section");
     const mappedItems: NavNode[] = (section?.items || []).map((item) => {
       const itemId = String(item?.id || "").trim();
       const itemRoute = item?.route || ROUTE_BY_ID[itemId];
@@ -967,7 +971,9 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
           .map((tab) => {
             const tabId = String(tab?.id || "").trim();
             const tabRoute = tab?.route || ROUTE_BY_ID[tabId];
-            const workspaceUnlocked = workspaceEnabledCanonicalIds.has(tabId);
+            const workspaceUnlocked =
+              workspaceEnabledCanonicalIds.has(tabId) ||
+              (sectionKey === "common-modules" && enabledIds.has(tabId));
             const roleUnlocked = roleAllowedModuleIds.has(tabId);
             const unlocked = workspaceUnlocked && roleUnlocked;
             return {
@@ -993,7 +999,9 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
         };
       }
       const basicPlanLocked = planLabel === "basic" && BASIC_PLAN_HARD_LOCK_IDS.has(itemId);
-      const workspaceUnlocked = workspaceEnabledCanonicalIds.has(itemId);
+      const workspaceUnlocked =
+        workspaceEnabledCanonicalIds.has(itemId) ||
+        (sectionKey === "common-modules" && enabledIds.has(itemId));
       const roleUnlocked = roleAllowedModuleIds.has(itemId);
       const isMeetingRoom = itemId === "meeting-room-system";
       return {
@@ -1009,10 +1017,9 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
             ? "Upgrade plan to unlock this"
             : !roleUnlocked
               ? "You do not have access to this module"
-              : undefined),
+          : undefined),
       };
     }).filter(Boolean);
-    const sectionKey = String(section?.sectionId || section?.sectionLabel || "section");
     let sortedItems = sortEnabledFirst(mappedItems);
     if (sectionKey === "department-accesses") {
       // Prioritize departments with more granted+enabled tabs.
@@ -1073,22 +1080,26 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     }
   };
 
-  const onNavigate = (item: NavNode) => {
-    if (item.id === "logout") {
-      void logout();
-      if (onCloseDrawer) onCloseDrawer();
-      return;
-    }
-    if (item.disabled) {
-      if (item.upgradeLocked && upgradePlanCards.length > 0) {
-        setIsUpgradeModalOpen(true);
-      }
-      return;
-    }
-    if (!item.route) return;
-    navigate(item.route);
+  const navigateFromSidebar = (route: string) => {
+  navigate(route, { flushSync: true });
+  if (onCloseDrawer) onCloseDrawer();
+};
+
+const onNavigate = (item: NavNode) => {
+  if (item.id === "logout") {
+    void logout();
     if (onCloseDrawer) onCloseDrawer();
-  };
+    return;
+  }
+  if (item.disabled) {
+    if (item.upgradeLocked && upgradePlanCards.length > 0) {
+      setIsUpgradeModalOpen(true);
+    }
+    return;
+  }
+  if (!item.route) return;
+  navigateFromSidebar(item.route);
+};
 
   return (
     <div

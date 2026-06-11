@@ -21,30 +21,30 @@ const MainLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isSidebarOpen } = useSidebar();
-  const [permissionChecked, setPermissionChecked] = useState(false);
-
   useEffect(() => {
     const pathname = location.pathname;
     const rawPermissions: string[] = auth?.user?.permissions?.permissions || [];
 
     const guardedRoutes = Object.values(PERMISSIONS).filter((perm) => perm.route);
-    const currentRoutePermission = guardedRoutes.find((perm) =>
-      pathname.includes(perm.route),
-    );
+    const currentRoutePermission = guardedRoutes.find((perm) => {
+      const route = perm.route;
+      if (route.startsWith("/")) {
+        return pathname === route || pathname.startsWith(route + "/");
+      }
+      return pathname.includes(route);
+    });
 
     if (currentRoutePermission) {
       const userHasPermission = rawPermissions.includes(currentRoutePermission.value);
 
       if (!userHasPermission) {
         navigate("/unauthorized");
-        return;
       }
     }
-
-    setPermissionChecked(true);
   }, [location.pathname, auth, navigate]);
 
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const outletKey = `${location.pathname}${location.search}`;
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -111,7 +111,9 @@ const MainLayout = () => {
               className="bg-white h-[80vh] overflow-y-auto flex flex-col justify-between"
             >
               <ScrollToTop />
-              {permissionChecked ? <Outlet /> : null}
+              <div key={outletKey} className="w-full">
+                <Outlet />
+              </div>
 
               <div ref={dummyRef} className="h-1 w-1 bg-red-500 text-red-500" />
             </div>

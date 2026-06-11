@@ -49,6 +49,13 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/tickets",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
+      { label: "Tickets" },
+    ],
+  },
+  {
     pattern: "/company-settings/customer-support",
     crumbs: [
       { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },

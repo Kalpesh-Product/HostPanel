@@ -1155,24 +1155,48 @@ export default function PricingPackagesPage() {
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-4">
-        <button type="button" onClick={() => setActiveTab('resource')} className={`bg-white p-2.5 rounded-[2rem] border shadow-sm flex justify-between items-center transition-all hover:shadow-md ${activeTab === 'resource' ? 'border-[#2563EB]' : 'border-slate-100'}`}>
-          <div><div className="flex items-center gap-2"><div className={`w-8 h-8 rounded-2xl flex items-center justify-center ${activeTab === 'resource' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600'}`}><Monitor size={16} /></div><p className="text-[15px] font-black text-slate-900">{resources.length}</p></div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Resources priced</p></div>
+        <button type="button" onClick={() => setActiveTab('resource')} className={`bg-white p-2.5 rounded-[2rem] border text-left shadow-sm transition-all hover:shadow-md ${activeTab === 'resource' ? 'border-[#2563EB]' : 'border-slate-100'}`}>
+          <div className="flex h-full flex-col items-start gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Resources priced</p>
+            <div className="flex items-center gap-2">
+              <div className={`w-8 h-8 rounded-2xl flex items-center justify-center ${activeTab === 'resource' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600'}`}><Monitor size={16} /></div>
+              <p className="text-[15px] font-black text-slate-900">{resources.length}</p>
+            </div>
+          </div>
         </button>
-        <button type="button" onClick={() => setActiveTab('membership')} className={`bg-white p-2.5 rounded-[2rem] border shadow-sm flex justify-between items-center transition-all hover:shadow-md ${activeTab === 'membership' ? 'border-[#2563EB]' : 'border-slate-100'}`}>
-          <div><div className="flex items-center gap-2"><div className={`w-8 h-8 rounded-2xl flex items-center justify-center ${activeTab === 'membership' ? 'bg-blue-600 text-white' : 'bg-indigo-50 text-indigo-600'}`}><CreditCard size={16} /></div><p className="text-[15px] font-black text-slate-900">{membershipPackages.length}</p></div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Membership packages</p></div>
+        <button type="button" onClick={() => setActiveTab('membership')} className={`bg-white p-2.5 rounded-[2rem] border text-left shadow-sm transition-all hover:shadow-md ${activeTab === 'membership' ? 'border-[#2563EB]' : 'border-slate-100'}`}>
+          <div className="flex h-full flex-col items-start gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Membership packages</p>
+            <div className="flex items-center gap-2">
+              <div className={`w-8 h-8 rounded-2xl flex items-center justify-center ${activeTab === 'membership' ? 'bg-blue-600 text-white' : 'bg-indigo-50 text-indigo-600'}`}><CreditCard size={16} /></div>
+              <p className="text-[15px] font-black text-slate-900">{membershipPackages.length}</p>
+            </div>
+          </div>
         </button>
-        <button type="button" onClick={() => setActiveTab('tenant')} className={`bg-white p-2.5 rounded-[2rem] border shadow-sm flex justify-between items-center transition-all hover:shadow-md ${activeTab === 'tenant' ? 'border-[#2563EB]' : 'border-slate-100'}`}>
-          <div><div className="flex items-center gap-2"><div className={`w-8 h-8 rounded-2xl flex items-center justify-center ${activeTab === 'tenant' ? 'bg-blue-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}><Building2 size={16} /></div><p className="text-[15px] font-black text-slate-900">{tenantPackages.length}</p></div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tenant packages</p></div>
+        <button type="button" onClick={() => setActiveTab('tenant')} className={`bg-white p-2.5 rounded-[2rem] border text-left shadow-sm transition-all hover:shadow-md ${activeTab === 'tenant' ? 'border-[#2563EB]' : 'border-slate-100'}`}>
+          <div className="flex h-full flex-col items-start gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Tenant packages</p>
+            <div className="flex items-center gap-2">
+              <div className={`w-8 h-8 rounded-2xl flex items-center justify-center ${activeTab === 'tenant' ? 'bg-blue-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}><Building2 size={16} /></div>
+              <p className="text-[15px] font-black text-slate-900">{tenantPackages.length}</p>
+            </div>
+          </div>
         </button>
-        <div className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
-          <div><div className="flex items-center gap-2"><div className="w-8 h-8 rounded-2xl flex items-center justify-center bg-amber-50 text-amber-600"><Tag size={16} /></div><p className="text-[15px] font-black text-slate-900">{packages.filter((item) => item.isRecommended).length}</p></div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Recommended packages</p></div>
+        <div className="bg-white p-2.5 rounded-[2rem] border border-slate-100 text-left shadow-sm transition-all hover:shadow-md">
+          <div className="flex h-full flex-col items-start gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Recommended packages</p>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-2xl flex items-center justify-center bg-amber-50 text-amber-600"><Tag size={16} /></div>
+              <p className="text-[15px] font-black text-slate-900">{packages.filter((item) => item.isRecommended).length}</p>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="flex min-h-110 flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
         <div className="flex flex-col gap-4 border-b border-slate-100 bg-slate-50/50 p-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="flex items-center gap-2 text-base font-black text-slate-900">
+            <h2 className="flex items-center gap-2 text-[15px] font- font-black text-slate-900">
               {activeTab === 'resource' && <><Monitor size={18} className="text-blue-600" /> Resource Pricing</>}
               {activeTab === 'membership' && <><CreditCard size={18} className="text-indigo-600" /> Credit Memberships</>}
               {activeTab === 'tenant' && <><Building2 size={18} className="text-emerald-600" /> Tenant Packages</>}
@@ -1185,7 +1209,7 @@ export default function PricingPackagesPage() {
           </div>
           <div className="relative w-full lg:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input type="text" placeholder={`Search ${activeTab === 'resource' ? 'resources' : 'packages'}...`} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            <input type="text" placeholder={`Search ${activeTab === 'resource' ? 'resources' : 'packages'}...`} className="w-full px-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
         </div>
 

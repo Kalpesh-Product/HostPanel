@@ -1606,7 +1606,7 @@ export default function TenantCompaniesPage() {
           value: formatInteger(creditRequestSummary.total),
           label: 'Total Requests',
           tone: 'blue',
-           cardClass: 'bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md',
+           cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md',
            iconClass: 'bg-blue-50 text-blue-600',
          },
          {
@@ -1615,7 +1615,7 @@ export default function TenantCompaniesPage() {
            value: formatInteger(creditRequestSummary.pending),
            label: 'Pending',
            tone: 'amber',
-           cardClass: 'bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500',
+           cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500',
            iconClass: 'bg-amber-50 text-amber-600',
          },
          {
@@ -1624,7 +1624,7 @@ export default function TenantCompaniesPage() {
            value: formatInteger(creditRequestSummary.sentToFinance),
            label: 'Sent to Finance',
            tone: 'blue',
-           cardClass: 'bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500',
+           cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500',
            iconClass: 'bg-blue-50 text-blue-600',
          },
          {
@@ -1633,7 +1633,7 @@ export default function TenantCompaniesPage() {
            value: formatInteger(creditRequestSummary.paid),
            label: 'Paid',
            tone: 'emerald',
-           cardClass: 'bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500',
+           cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500',
           iconClass: 'bg-emerald-50 text-emerald-600',
         },
       ];
@@ -1646,7 +1646,7 @@ export default function TenantCompaniesPage() {
          value: formatInteger(tenants.length),
          label: 'Total Tenants',
          tone: 'blue',
-         cardClass: 'bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md',
+         cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md',
          iconClass: 'bg-blue-50 text-blue-600',
        },
        {
@@ -1655,7 +1655,7 @@ export default function TenantCompaniesPage() {
          value: formatInteger(tenants.filter((tenant) => tenant.status === 'Active').length),
          label: 'Active Contracts',
          tone: 'green',
-         cardClass: 'bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-green-500',
+         cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-green-500',
          iconClass: 'bg-green-50 text-green-600',
        },
        {
@@ -1664,7 +1664,7 @@ export default function TenantCompaniesPage() {
          value: formatInteger(tenants.filter((tenant) => tenant.status === 'Expiring Soon').length),
          label: 'Expiring Soon (30d)',
          tone: 'amber',
-         cardClass: 'bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500',
+         cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500',
          iconClass: 'bg-amber-50 text-amber-600',
        },
        {
@@ -1673,7 +1673,7 @@ export default function TenantCompaniesPage() {
          value: formatInteger(tenants.filter((tenant) => tenant.status === 'Expired').length),
          label: 'Expired Contracts',
          tone: 'red',
-         cardClass: 'bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-red-500',
+         cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-red-500',
          iconClass: 'bg-red-50 text-red-600',
        },
      ];

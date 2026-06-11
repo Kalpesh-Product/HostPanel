@@ -123,6 +123,13 @@ const SECTION_TITLES: Record<SectionType, string> = {
   "department-accesses": "Department Accesses",
 };
 
+const DEFAULT_SECTION_ROUTES: Record<string, string> = {
+  dashboard: "/dashboard",
+  tickets: "/tickets",
+  "meeting-room-system": "/meetings/meeting-rooms",
+  "customer-support": "/company-settings/customer-support",
+};
+
 const ICON_BY_ID: Record<string, ElementType> = {
   dashboard: LayoutDashboard,
   "customer-support": MessageSquareCode,
@@ -188,9 +195,9 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
       { id: "customer-support", label: "Customer Support", route: "/company-settings/customer-support", implemented: true, unlockedInWorkspace: true },
       { id: "attendance", label: "Attendance", implemented: false, unlockedInWorkspace: false },
       { id: "tasks", label: "Tasks", implemented: false, unlockedInWorkspace: false },
-      { id: "tickets", label: "Tickets", implemented: false, unlockedInWorkspace: false },
+      { id: "tickets", label: "Tickets", route: "/tickets", implemented: true, unlockedInWorkspace: true },
       { id: "leave-requests", label: "Leave Requests", implemented: false, unlockedInWorkspace: false },
-      { id: "meeting-room-system", label: "Meeting Room Booking", implemented: false, unlockedInWorkspace: false },
+      { id: "meeting-room-system", label: "Meeting Room Booking", route: "/meetings/meeting-rooms", implemented: true, unlockedInWorkspace: true },
       { id: "chat-bot", label: "Calendar", implemented: false, unlockedInWorkspace: false },
     ],
   },
@@ -673,6 +680,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
         const itemLabel = String(item?.label || itemId).trim();
         const Icon = ICON_BY_ID[itemId];
         const iconNode = Icon ? <Icon size={26} /> : undefined;
+        const routedItem = String(item?.route || DEFAULT_SECTION_ROUTES[itemId] || "").trim() || undefined;
 
         if (sectionId === "department-accesses") {
           const tabs = Array.isArray(item?.tabs) ? item.tabs : [];
@@ -689,10 +697,10 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
           return {
             id: itemId,
             title: itemLabel,
-            route: String(firstRoutedUnlockedChild?.route || item?.route || "").trim() || undefined,
+            route: String(firstRoutedUnlockedChild?.route || routedItem || "").trim() || undefined,
             icon: iconNode,
             isEnabled: hasUnlockedChildren,
-            isInteractive: Boolean(firstRoutedUnlockedChild?.route || item?.route),
+            isInteractive: Boolean(firstRoutedUnlockedChild?.route || routedItem),
             upgradeLocked: !hasUnlockedChildren,
             disabledTitle: !hasUnlockedChildren ? "Upgrade plan to unlock this" : undefined,
             helperText:
@@ -704,7 +712,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
 
         const basicPlanLocked = planLabel === "basic" && BASIC_PLAN_HARD_LOCK_IDS.has(itemId);
         const workspaceUnlocked = isUsingWorkspaceSection
-          ? workspaceEnabledCanonicalIds.has(itemId)
+          ? (workspaceEnabledCanonicalIds.has(itemId) || (sectionId === "common-modules" && enabledIds.has(itemId)))
           : workspaceEnabledCanonicalIds.has(itemId) || enabledIds.has(itemId);
         const roleUnlocked = roleAllowedModuleIds.has(itemId);
         const isEnabled = Boolean(workspaceUnlocked && roleUnlocked && !basicPlanLocked);
@@ -712,10 +720,10 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
         return {
           id: itemId,
           title: itemLabel,
-          route: item?.route,
+          route: routedItem,
           icon: iconNode,
           isEnabled,
-          isInteractive: Boolean(item?.route),
+          isInteractive: Boolean(routedItem),
           upgradeLocked,
           disabledTitle:
             upgradeLocked
