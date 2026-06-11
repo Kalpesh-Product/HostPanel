@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { createBrowserRouter, useLocation } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet, useLocation } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import AuthLayout from "../layouts/AuthLayout";
 import LoginPage from "../pages/LoginPage/LoginPage";
@@ -13,29 +13,11 @@ import AccessProfile from "../pages/Access/AccessProfile";
 import Notifications from "../pages/Notifications";
 import Chat from "../pages/Chat";
 
-// Import tickets pages
-import TicketDashboard from "../pages/Tickets/TicketDashboard";
-import ManageTickets from "../pages/Tickets/ManageTickets";
-import TeamMembers from "../pages/Tickets/TeamMembers";
-import TicketReports from "../pages/Tickets/TicketReports";
-import RaiseTicket from "../pages/Tickets/RaiseTicket";
-import TicketSettingsnew from "../pages/Tickets/TicketSettingsnew";
-
 // Test page
 import TestPage from "../pages/Test/TestPage";
-import TicketLayout from "../pages/Tickets/TicketLayout";
 import DashboardLayout from "../pages/Dashboard/DashboardLayout";
 import Attendance from "../pages/Dashboard/Attendance/Attendance";
 import FrontendDashboard from "../pages/Dashboard/FrontendDashboard/FrontendDashboard";
-import MeetingLayout from "../pages/Meetings/MeetingLayout";
-import MeetingDashboard from "../pages/Meetings/MeetingDashboard";
-import BookMeetings from "../pages/Meetings/BookMeetings";
-import ManageMeetings from "../pages/Meetings/ManageMeetings";
-import MeetingSettings from "../pages/Meetings/MeetingSettings";
-import Reviews from "../pages/Meetings/Reviews";
-import MeetingCalendar from "../pages/Meetings/Calendar";
-import MeetingReports from "../pages/Meetings/MeetingReports";
-import MeetingFormLayout from "../pages/Meetings/MeetingFormLayout";
 import { MeetingRoomsPage } from "../pages/Meetings/MeetingRoomsPage";
 import FrontendLayout from "../pages/Dashboard/FrontendDashboard/FrontendLayout";
 import FrontendData from "../pages/Dashboard/FrontendDashboard/Data/FrontendData";
@@ -94,8 +76,7 @@ import MeetingRoomCredits from "../pages/Profile/MeetingRoomCredits";
 import TicketsHistory from "../pages/Profile/TicketsHistory";
 import EditTemplate from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/EditTemplate";
 import NotFoundPage from "../pages/NotFoundPage";
-import MonthMeetings from "../pages/MonthMeetings";
-import DepartmentWiseTickets from "../pages/Tickets/DepartmentWiseTickets";
+
 import PerformanceLayout from "../pages/Performance/PerformanceLayout";
 import PerformanceHome from "../pages/Performance/PerformanceHome";
 import DepartmentPerformanceLayout from "../pages/Performance/DepartmentPerformanceLayout";
@@ -106,14 +87,10 @@ import DepartmentTasksLayout from "../pages/Tasks/DepartmentTasks/DepartmentTask
 import DepartmentTasks from "../pages/Tasks/DepartmentTasks/DepartmentTasks";
 import TasksDepartmentLayout from "../pages/Tasks/DepartmentTasks/TasksDepartmentLayout";
 import TasksViewDepartment from "../pages/Tasks/DepartmentTasks/TasksViewDepartment";
-import ManageTicketLayout from "../pages/Tickets/Tables/ManageTicketLayout";
-import ManageTicketsHome from "../pages/Tickets/ManageTicketsHome";
 import Reimbursement from "../components/Pages/Reimbursement";
 import AddClient from "../pages/Visitors/Forms/AddClient";
 import ManageVisitorLayout from "../pages/Visitors/ManageVisitorLayout";
 import ExternalClients from "../pages/Visitors/ExternalClients";
-import ManageMeetingsLayout from "../pages/Meetings/ManageMeetingsLayout";
-import ExternalMeetingClients from "../pages/Meetings/ExternalMeetingClients";
 import Vendor from "../components/Vendor";
 import ViewVendor from "../components/vendor/ViewVendor";
 import MonthlyInvoiceCommon from "../components/Pages/MonthlyInvoiceCommon";
@@ -168,9 +145,13 @@ import WorkspaceSettingsPage from "../pages/WorkspaceSettings/WorkspaceSettingsP
 import WorkspaceManagementPage from "../pages/WorkspaceSettings/WorkspaceManagementPage";
 import CustomerSupportPage from "../pages/CustomerSupport/CustomerSupportPage";
 import TenantCompaniesPage from "../pages/Sales/TenantCompanies/TenantCompaniesPage";
-import PricingPackagesPage from "../pages/Sales/PricingPackages/PricingPackagesPage";
+import PricingPackagesPage from "../pages/Sales/PricingPackages/Plans&Pricing";
 import LeadsManagementPage from "../pages/Sales/LeadsManagement/LeadsManagementPage";
 import SalesArchitecturePage from "../pages/Sales/SalesArchitecture/SalesArchitecturePage";
+import AdministrationTenantCompaniesPage from "../pages/Administration/TenantCompanies/TenantCompaniesPage";
+import AdministrationBookingsPage from "../pages/Administration/Bookings/BookingsPage";
+import AdministrationResourceManagementPage from "../pages/Administration/ResourceManagement/ResourceManagementPage";
+import AdministrationHousekeepingPage from "../pages/Administration/HouseKeeping/HousekeepingPage";
 import { TicketsPage } from "../pages/Tickets/TicketsPage";
 
 function VerticalPickerRoute() {
@@ -385,7 +366,7 @@ export const routes = createBrowserRouter([
 
               {
                 path: "company-settings",
-                // element: <CompanyOverview />,
+                element: <Outlet />,
                 children: [
                   {
                     index: true, // login lands here
@@ -643,103 +624,17 @@ export const routes = createBrowserRouter([
               },
 
               {
-                path: "tickets", // Parent path
-                element: <TicketLayout />, // Parent component for tickets
+                path: "tickets",
                 children: [
                   {
-                    path: "", // Default route for /app/tickets
-                    element: <TicketDashboard />, // Dashboard is rendered by default
                     index: true,
-                  },
-                  {
-                    path: "raise-ticket",
-                    element: <RaiseTicket />,
-                  },
-                  {
-                    path: "manage-tickets",
-                    element: <ManageTicketLayout />,
-                    children: [
-                      {
-                        path: "",
-                        element: <ManageTicketsHome />,
-                        index: true,
-                      },
-                      {
-                        path: ":department",
-                        element: <ManageTickets />,
-                      },
-                    ],
-                  },
-                  {
-                    path: "ticket-settings",
-                    element: <TicketSettingsnew />,
-                  },
-                  {
-                    path: "team-members",
-                    element: <TeamMembers />,
-                  },
-                  {
-                    path: "reports",
-                    element: <TicketReports />,
-                  },
-                  {
-                    path: "department-wise-tickets",
-                    element: <DepartmentWiseTickets />,
+                    element: <TicketsPage />,
                   },
                 ],
               },
               {
-                path: "meetings", // Parent path
-                element: <MeetingLayout />, // Parent component for tickets
+                path: "meetings",
                 children: [
-                  {
-                    path: "", // Default route for /app/tickets
-                    element: <MeetingDashboard />, // Dashboard is rendered by default
-                    index: true,
-                  },
-                  {
-                    path: ":meetings",
-                    element: <MonthMeetings />,
-                  },
-                  {
-                    path: "book-meeting",
-                    element: <BookMeetings />, // This is your first page
-                  },
-                  {
-                    path: "book-meeting/schedule-meeting",
-                    element: <MeetingFormLayout />, // This is your second page
-                  },
-                  {
-                    path: "manage-meetings",
-                    element: <ManageMeetingsLayout />,
-                    children: [
-                      {
-                        path: "internal-meetings",
-                        element: <ManageMeetings />,
-                      },
-                      {
-                        path: "external-clients",
-                        element: <ExternalMeetingClients />,
-                      },
-                    ],
-                  },
-
-                  {
-                    path: "settings",
-                    element: <MeetingSettings />,
-                  },
-                  {
-                    path: "calendar",
-                    element: <MeetingCalendar />,
-                  },
-                  {
-                    path: "reports",
-                    element: <MeetingReports />,
-                  },
-                  {
-                    path: "reviews",
-                    element: <Reviews />,
-                  },
                   {
                     path: "meeting-rooms",
                     element: <MeetingRoomsPage />,
@@ -748,7 +643,7 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "tickets-center",
-                element: <TicketsPage />,
+                element: <Navigate to="/tickets" replace />,
               },
               {
                 path: "assets", // Parent path
@@ -807,10 +702,6 @@ export const routes = createBrowserRouter([
                   {
                     path: "reports",
                     element: <AssetReports />,
-                  },
-                  {
-                    path: "reviews",
-                    element: <Reviews />,
                   },
                   {
                     path: "settings",
@@ -935,10 +826,6 @@ export const routes = createBrowserRouter([
                   },
 
                   {
-                    path: "calendar",
-                    element: <MeetingCalendar />,
-                  },
-                  {
                     path: "reports",
                     element: <TaskReportLayout />,
                     children: [
@@ -955,10 +842,6 @@ export const routes = createBrowserRouter([
                         element: <DepartmentTaskReports />,
                       },
                     ],
-                  },
-                  {
-                    path: "reviews",
-                    element: <Reviews />,
                   },
                   {
                     path: "settings",
@@ -1056,6 +939,27 @@ export const routes = createBrowserRouter([
                   {
                     path: "sales-architecture",
                     element: <SalesArchitecturePage />,
+                  },
+                ],
+              },
+              {
+                path: "administration",
+                children: [
+                  {
+                    path: "tenant-companies",
+                    element: <AdministrationTenantCompaniesPage />,
+                  },
+                  {
+                    path: "bookings",
+                    element: <AdministrationBookingsPage />,
+                  },
+                  {
+                    path: "resource-management",
+                    element: <AdministrationResourceManagementPage />,
+                  },
+                  {
+                    path: "house-keeping",
+                    element: <AdministrationHousekeepingPage />,
                   },
                 ],
               },

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import React, { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Search, Plus, Eye, CheckCircle2, Clock, AlertCircle,
   Calendar, User, FileText, X, AlertTriangle, Paperclip,
@@ -202,6 +203,7 @@ function formatLocalInputDate(value) {
 
 export function TicketsPage() {
   const [isInitialLoading, setIsInitialLoading] = useState(false);
+  const location = useLocation();
 
   const storedUser = getStoredUser();
   const actingContext = getStoredActingManagerContext(storedUser);
@@ -1735,6 +1737,10 @@ export function TicketsPage() {
     }
   };
 
+  if (location.pathname !== "/tickets") {
+    return null;
+  }
+
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
@@ -1746,7 +1752,7 @@ export function TicketsPage() {
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                 Tickets Center
+                 Tickets 
               </h2>
               <p className="text-xs font-medium text-slate-500 mt-1">
                 {isEmployeeTicketProfile

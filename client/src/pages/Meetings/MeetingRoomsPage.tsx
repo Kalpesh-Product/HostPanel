@@ -2070,7 +2070,7 @@ export function MeetingRoomsPage() {
                         setActiveTab(tab);
                         setStatusFilter('all');
                       }}
-                    className={`flex-[2.2] min-w-[210px] sm:min-w-[250px] lg:min-w-[300px] py-2 px-3 sm:px-4 rounded-lg text-[11px] sm:text-[12px] lg:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap text-center ${
+                    className={`flex-[2.2] min-w-[210px] sm:min-w-[250px] lg:min-w-[200px] py-2 px-3 sm:px-4 rounded-lg text-[11px] sm:text-[12px] lg:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap text-center ${
                         (activeTab === 'assigned_dept_bookings' || activeTab === 'company_bookings' || activeTab === 'dept_bookings') ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
                       }`}
                     >
