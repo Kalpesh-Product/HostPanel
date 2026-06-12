@@ -4,19 +4,18 @@ import PageFrame from '@/components/Pages/PageFrame';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { toast } from 'sonner';
 import { createReport } from '@/services/reports';
-// Backend services - uncomment when backend is ready:
-// import {
-//   addTenantCompanyEmployee,
-//   deleteTenantCompanyEmployee,
-//   getTenantCompanies,
-//   renewTenantCompany,
-//   uploadTenantCompanyAgreementDocuments,
-//   updateTenantCompanyEmployee,
-//   updateTenantCompany,
-//   updateTenantCompanyManager,
-//   updateTenantCompanyEmployeeStatus,
-// } from '@/services/tenant-companies';
-// import { getPricingPackages } from '@/services/pricing-packages';
+import {
+  addTenantCompanyEmployee,
+  deleteTenantCompanyEmployee,
+  getTenantCompanies,
+  renewTenantCompany,
+  uploadTenantCompanyAgreementDocuments,
+  updateTenantCompanyEmployee,
+  updateTenantCompany,
+  updateTenantCompanyManager,
+  updateTenantCompanyEmployeeStatus,
+} from '@/services/tenant-companies';
+import { getPricingPackages } from '@/services/pricing-packages';
 import {
   Search,
   X,

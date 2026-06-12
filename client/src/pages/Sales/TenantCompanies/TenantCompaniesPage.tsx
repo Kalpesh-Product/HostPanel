@@ -658,7 +658,8 @@ export default function TenantCompaniesPage() {
         }
 
         if (resourceResult.status === 'fulfilled') {
-          const resourcePayload = resourceResult.value?.data || {};
+          const resourceBody = resourceResult.value?.data || {};
+          const resourcePayload = resourceBody?.data || resourceBody;
           setResources(Array.isArray(resourcePayload.resources) ? resourcePayload.resources : []);
         } else {
           setResources([]);
@@ -1079,7 +1080,7 @@ export default function TenantCompaniesPage() {
   };
 
   const initialCompanyForm = {
-    companyName: '', contactName: '', email: '', phone: '',
+    companyName: '', contactName: '', email: '', phone: '', businessType: '',
     contractDuration: '', customDurationMonths: '',
     startDate: '', endDate: '', pricingPackageId: '', planType: 'Custom', creditsAllocated: 0,
     customerDetails: { clientName: '', sector: '', hoCity: '', hoState: '' },
@@ -1239,16 +1240,16 @@ export default function TenantCompaniesPage() {
     [customPackageAreaResources],
   );
   const customPackageVisibleOpenAreaResources = useMemo(
-    () => (customPackageBlockMix === 'cabin' ? [] : customPackageOpenAreaResources),
-    [customPackageBlockMix, customPackageOpenAreaResources],
+    () => customPackageOpenAreaResources,
+    [customPackageOpenAreaResources],
   );
   const customPackageVisibleCabinAreaResources = useMemo(
-    () => (customPackageBlockMix === 'open' ? [] : customPackageCabinAreaResources),
-    [customPackageBlockMix, customPackageCabinAreaResources],
+    () => customPackageCabinAreaResources,
+    [customPackageCabinAreaResources],
   );
   const customPackageVisibleSingleOpenDeskResources = useMemo(
-    () => (customPackageBlockMix === 'cabin' ? [] : customPackageSingleOpenDeskResources),
-    [customPackageBlockMix, customPackageSingleOpenDeskResources],
+    () => customPackageSingleOpenDeskResources,
+    [customPackageSingleOpenDeskResources],
   );
   const customPackageSelectedResourceKeys = useMemo(
     () => new Set(
@@ -1447,7 +1448,7 @@ export default function TenantCompaniesPage() {
 
   const tenantAgreementDocuments = Array.isArray(selectedTenant?.agreementDocuments) ? selectedTenant.agreementDocuments : [];
   const hasExistingAgreementDocuments = tenantAgreementDocuments.length > 0;
-  const canSaveTenantCompany = activeModal === 'renew' || hasExistingAgreementDocuments || agreementFiles.length > 0;
+  const canSaveTenantCompany = activeModal === 'add' || activeModal === 'renew' || hasExistingAgreementDocuments || agreementFiles.length > 0;
   const contractDurationMonthsValue = Number(companyForm.agreementDetails?.lockInPeriod);
   const isContractDurationInvalid = !Number.isFinite(contractDurationMonthsValue) || contractDurationMonthsValue < 3;
 
@@ -1801,7 +1802,7 @@ export default function TenantCompaniesPage() {
     if (isSaving) return;
     setFormError('');
 
-    if (activeModal !== 'renew' && !hasExistingAgreementDocuments && agreementFiles.length === 0) {
+    if (activeModal !== 'renew' && activeModal !== 'add' && !hasExistingAgreementDocuments && agreementFiles.length === 0) {
       toast.error('At least one agreement document is required.');
       return;
     }
@@ -1826,6 +1827,9 @@ export default function TenantCompaniesPage() {
             ...buildDurationFields(agreementMonths),
             startDate: companyForm.agreementDetails?.startDate || companyForm.startDate,
             endDate: companyForm.agreementDetails?.endDate || companyForm.endDate,
+            businessType: companyForm.businessType || companyForm.customerDetails?.sector || '',
+            contractStart: companyForm.agreementDetails?.startDate || companyForm.startDate || null,
+            contractDurationMonths: agreementMonths,
           };
       if (activeModal === 'add' && submissionForm?.pricingPackageId === '__custom__') {
         submissionForm.packageDetails = {
@@ -1837,6 +1841,9 @@ export default function TenantCompaniesPage() {
       }
       if (submissionForm.packageDetails) {
         delete submissionForm.packageDetails.seatTypeVariants;
+        delete submissionForm.packageDetails.selectionFloor;
+        delete submissionForm.packageDetails.selectionWing;
+        delete submissionForm.packageDetails.selectionBlockMix;
       }
       let response = null;
 
@@ -2316,6 +2323,7 @@ export default function TenantCompaniesPage() {
       contactName: tenant.contactName || '',
       email: tenant.email || '',
       phone: tenant.phone || '',
+        businessType: tenant.businessType || tenant.customerDetails?.sector || '',
         pricingPackageId: packageId ? String(packageId) : '',
         planType: activePackage?.name || tenant.package || tenant.planType || 'Custom',
         creditsAllocated: Number(tenant.creditsTotal || tenant.creditsAllocated || activePackage?.creditsIncluded || 0),
@@ -2655,8 +2663,7 @@ export default function TenantCompaniesPage() {
               <div className="rounded-[2rem] border border-slate-100 bg-white shadow-sm overflow-hidden flex flex-1 flex-col">
                 <div className="p-3 border-b border-slate-100 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-3 bg-slate-50/50">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Queue</p>
-                    <h3 className="text-base font-black text-slate-900">Extra credits requests</h3>
+                    <h3 className="text-base font-pmedium text-primary">Extra credits requests</h3>
                   </div>
                   <div className="flex flex-wrap gap-2 w-full xl:w-auto">
                     <input
@@ -2791,8 +2798,7 @@ export default function TenantCompaniesPage() {
             <div className="w-full max-w-2xl overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
               <div className="flex items-start justify-between gap-4 p-4 sm:p-5 border-b border-slate-100 bg-slate-900 text-white">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-slate-400">Bulk Draft Import</p>
-                  <h2 className="mt-1.5 text-base font-black">Upload tenant companies</h2>
+                  <h2 className="mt-1.5 text-base font-pmedium text-white">Upload Tenant Companies</h2>
                   <p className="mt-1.5 max-w-xl text-[12px] font-medium text-slate-300">
                     Import only the onboarding text fields. Building name comes from sales architecture later, and package or contract values are filled during edit.
                   </p>
@@ -2906,7 +2912,7 @@ export default function TenantCompaniesPage() {
             <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] border border-white/70">
               <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
                  <div>
-                    <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+                    <h2 className="text-base font-pmedium text-primary flex items-center gap-2">
                       {activeModal === 'add' ? <><Building size={18}/> Add Tenant Company</> : activeModal === 'edit' ? <><Edit size={18}/> Edit Tenant Details</> : <><RefreshCw size={18}/> Renew Contract</>}
                     </h2>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
@@ -2921,11 +2927,15 @@ export default function TenantCompaniesPage() {
                   {activeModal !== 'renew' && (
                     <div className="order-5 space-y-3">
                       <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">5. Profile & Contact</h3>
-                      <div className="space-y-1">
-                        <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400">Company Name *</label>
-                        <input required type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyName} onChange={e => setCompanyForm({...companyForm, companyName: e.target.value})} />
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Company Name *</label>
+                          <input required type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.companyName} onChange={e => setCompanyForm({...companyForm, companyName: e.target.value})} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Business Type</label>
+                          <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.businessType} onChange={e => setCompanyForm({...companyForm, businessType: e.target.value})} />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div className="space-y-1">
                           <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400">Contact Person *</label>
                           <input required type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.contactName} onChange={e => setCompanyForm({...companyForm, contactName: e.target.value})} />
@@ -3025,7 +3035,7 @@ export default function TenantCompaniesPage() {
                        </select>
                      </div>
                    </div>
-                       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                       {/* <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                          <div className="space-y-1">
                            <label className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Floor</label>
                            <select
@@ -3077,8 +3087,8 @@ export default function TenantCompaniesPage() {
                              {tenantBlockMixOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                            </select>
                          </div>
-                       </div>
-                       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                       </div> */}
+                       {/* <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
                            <div className="mb-3 flex items-center justify-between gap-3">
                              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Open Desk Blocks</p>
@@ -3129,8 +3139,8 @@ export default function TenantCompaniesPage() {
                              )}
                            </div>
                          </div>
-                       </div>
-                       <div className="rounded-2xl border border-sky-100 bg-sky-50/40 p-4">
+                       </div> */}
+                       {/* <div className="rounded-2xl border border-sky-100 bg-sky-50/40 p-4">
                          <div className="flex items-center justify-between gap-3">
                            <p className="text-[10px] font-black uppercase tracking-widest text-sky-700">Single Open Desks</p>
                            <span className="rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-sky-700">{customPackageVisibleSingleOpenDeskResources.length}</span>
@@ -3154,7 +3164,7 @@ export default function TenantCompaniesPage() {
                              <div className="rounded-xl border border-dashed border-sky-200 bg-white px-3 py-4 text-center text-xs font-medium text-sky-700">No single open desks found in this scope.</div>
                            )}
                          </div>
-                        </div>
+                        </div> */}
                   </div>
 
                   {activeModal !== 'renew' && (
@@ -3750,7 +3760,7 @@ export default function TenantCompaniesPage() {
                              multiple
                              accept=".pdf,.doc,.docx,image/png,image/jpeg,image/jpg"
                              onChange={handleAgreementFilesChange}
-                             className="block w-full text-sm font-medium text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-amber-600 file:px-4 file:py-2 file:text-xs file:font-black file:uppercase file:tracking-wider file:text-white hover:file:bg-amber-700"
+                             className="block w-full text-sm font-medium text-slate-700 border-none outline-none focus:ring-0 file:mr-4 file:rounded-lg file:border-0 file:bg-amber-600 file:px-4 file:py-2 file:text-xs file:font-black file:uppercase file:tracking-wider file:text-white hover:file:bg-amber-700"
                            />
                          </div>
                          <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600">
@@ -3777,12 +3787,12 @@ export default function TenantCompaniesPage() {
                    </div>
                  )}
 
-                  <div className="sticky bottom-0 bg-white border-t border-slate-100 p-3 sm:p-4 flex gap-3">
-                    <button type="button" onClick={() => {setActiveModal(null); setSelectedTenant(null); setCompanyForm(initialCompanyForm); setAgreementFiles([]); setFormError('');}} className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-bold text-[11px] hover:bg-slate-200 transition-all">CANCEL</button>
-                    <button type="submit" disabled={!canSaveTenantCompany || isSaving || billingSummary.hasValidationError || isContractDurationInvalid} className="flex-[2] py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[11px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
-                      SUBMIT &amp; SEND TO FINANCE <Save size={14}/>
-                    </button>
-                  </div>
+                   <div className="order-11 sticky bottom-0 bg-white border-t border-slate-100 p-3 sm:p-4 flex gap-3">
+                     <button type="button" onClick={() => {setActiveModal(null); setSelectedTenant(null); setCompanyForm(initialCompanyForm); setAgreementFiles([]); setFormError('');}} className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-bold text-[11px] hover:bg-slate-200 transition-all">CANCEL</button>
+                     <button type="submit" disabled={!canSaveTenantCompany || isSaving || billingSummary.hasValidationError || isContractDurationInvalid} className="flex-[2] py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[11px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
+                       SUBMIT &amp; SEND TO FINANCE <Save size={14}/>
+                     </button>
+                   </div>
               </form>
             </div>
           </div>
@@ -3799,7 +3809,7 @@ export default function TenantCompaniesPage() {
                    </div>
                    <div>
                      <div className="flex items-center gap-2">
-                       <h2 className="text-base font-black text-slate-900">{selectedTenant.companyName}</h2>
+                       <h2 className="text-base font-pmedium text-primary">{selectedTenant.companyName}</h2>
                        {getStatusBadge(selectedTenant.status)}
                      </div>
                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Tenant ID: {selectedTenant.id}</p>

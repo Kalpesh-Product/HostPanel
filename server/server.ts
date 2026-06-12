@@ -28,6 +28,9 @@ import visitorRoutes from "./routes/visitorRoutes.js";
 import assetRoutes from "./routes/assetRoutes.js";
 import meetingRoomRoutes from "./routes/meetingRoomRoutes.js";
 import ticketRoutes from "./routes/ticketRoutes.js";
+import resourceRoutes from "./routes/resourceRoutes.js";
+import plansPricingRoutes from "./routes/plansPricing.routes.js";
+import tenantCompanyRoutes from "./routes/tenant-company.routes.js";
 
 const app = express();
 dotenv.config();
@@ -72,6 +75,9 @@ app.use("/api/v1/visitors", verifyJwt, visitorRoutes);
 app.use("/api/assets", verifyJwt, assetRoutes);
 app.use("/api/meeting-rooms", verifyJwt, meetingRoomRoutes);
 app.use("/api/tickets", verifyJwt, ticketRoutes);
+app.use("/api/v1/resources", verifyJwt, resourceRoutes);
+app.use("/api/v1/pricing-packages", verifyJwt, plansPricingRoutes);
+app.use("/api/v1/tenant-companies", verifyJwt, tenantCompanyRoutes);
 
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {

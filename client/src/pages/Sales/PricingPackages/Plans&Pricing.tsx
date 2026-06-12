@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { getResources, updateResource } from '../../../services/resources';
 import { createPricingPackage, deletePricingPackage, getPricingPackages, updatePricingPackage } from '../../../services/pricing-packages';
 import { toast } from 'sonner';
-import { AlertTriangle, Building2, CheckCircle2, Clock, CreditCard, Edit2, Eye, FileDown, FileSpreadsheet, LayoutGrid, Monitor, Plus, Search, Save, Tag, Trash, Users, X, XCircle } from 'lucide-react';
+import { AlertTriangle, Building2, CheckCircle2, CreditCard, Edit2, Eye, FileDown, FileSpreadsheet, LayoutGrid, Monitor, Plus, Search, Save, Tag, Trash, Users, X, XCircle } from 'lucide-react';
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
 import { createReport } from '../../../services/reports';
 import { downloadReportFile } from '../../../utils/report-download';
@@ -588,7 +588,7 @@ export default function PricingPackagesPage() {
     Promise.all([getResources(), getPricingPackages()])
       .then(([resourceResponse, packageResponse]) => {
         if (!mounted) return;
-        setResources((resourceResponse?.data?.resources || []).map(normalizeResource));
+        setResources((resourceResponse?.data?.data?.resources || resourceResponse?.data?.resources || []).map(normalizeResource));
         setPackages((packageResponse?.data?.packages || []).map(normalizePackage));
       })
       .catch((error) => {
@@ -611,6 +611,7 @@ export default function PricingPackagesPage() {
   const tenantPackages = useMemo(() => packages.filter((entry) => entry.category === 'Tenant'), [packages]);
   const activePackages = activeTab === 'membership' ? membershipPackages : tenantPackages;
   const isViewingPackage = modalKind === 'package' && modalMode === 'view';
+  const isViewingResource = modalKind === 'resource' && modalMode === 'view';
   const availableResourceFloors = useMemo(() => {
     const floors = Array.from(new Set(resources.map((item) => String(item.floor || '').trim()).filter(Boolean)));
     return floors.sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
@@ -793,6 +794,31 @@ export default function PricingPackagesPage() {
     setIsModalOpen(true);
   };
 
+  const openResourceViewModal = (resource) => {
+    setModalKind('resource');
+    setModalMode('view');
+    setSelectedItem(resource);
+    setResourceForm({
+      pricePerHour: String(resource.pricePerHour || ''),
+      pricePerDay: String(resource.pricePerDay || ''),
+      credits: String(resource.credits || 1),
+      status: resource.status || 'Active',
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleToggleResourceStatus = async (resource) => {
+    const newStatus = resource.status === 'Active' ? 'Disabled' : 'Active';
+    try {
+      const response = await updateResource(resource.recordId, { status: newStatus });
+      const saved = normalizeResource(response?.data?.data?.resource || response?.data?.resource);
+      setResources((current) => current.map((r) => (r.recordId === saved.recordId ? saved : r)));
+      toast.success(`Resource ${newStatus.toLowerCase()} successfully.`);
+    } catch (error) {
+      toast.error(error.message || 'Unable to update resource status.');
+    }
+  };
+
   const openPackageModal = (category, item = null, mode = 'edit') => {
     if (mode !== 'view' && item?.category === 'Tenant' && item?.assignedTenantCompanyId && category !== 'Tenant') {
       toast.error('This tenant package is locked to a company and cannot be edited.');
@@ -858,7 +884,7 @@ export default function PricingPackagesPage() {
     event.preventDefault();
 
     try {
-      if (modalKind === 'package' && modalMode === 'view') {
+      if ((modalKind === 'package' && modalMode === 'view') || (modalKind === 'resource' && modalMode === 'view')) {
         closeModal();
         return;
       }
@@ -870,7 +896,7 @@ export default function PricingPackagesPage() {
           credits: Number(resourceForm.credits || 1),
           status: resourceForm.status,
         });
-        const saved = normalizeResource(response?.data?.resource);
+        const saved = normalizeResource(response?.data?.data?.resource || response?.data?.resource);
         setResources((current) => current.map((item) => (item.recordId === saved.recordId ? saved : item)));
         toast.success('Resource pricing and credits updated successfully.');
         closeModal();
@@ -1196,7 +1222,7 @@ export default function PricingPackagesPage() {
       <div className="flex min-h-110 flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
         <div className="flex flex-col gap-4 border-b border-slate-100 bg-slate-50/50 p-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="flex items-center gap-2 text-[15px] font- font-black text-slate-900">
+            <h2 className="flex items-center gap-2 text-[15px] font- font-pmedium text-primary">
               {activeTab === 'resource' && <><Monitor size={18} className="text-blue-600" /> Resource Pricing</>}
               {activeTab === 'membership' && <><CreditCard size={18} className="text-indigo-600" /> Credit Memberships</>}
               {activeTab === 'tenant' && <><Building2 size={18} className="text-emerald-600" /> Tenant Packages</>}
@@ -1293,7 +1319,7 @@ export default function PricingPackagesPage() {
           <table className="w-full text-left">
             <thead className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 bg-white">
               {activeTab === 'resource' ? (
-                <tr><th className="px-3.5 py-2">Resource</th><th className="px-3.5 py-2">Category</th><th className="px-3.5 py-2">Inventory</th><th className="px-3.5 py-2">Floor</th><th className="px-3.5 py-2">Wing</th><th className="px-3.5 py-2">Capacity</th><th className="px-3.5 py-2">Hourly</th><th className="px-3.5 py-2">Daily</th><th className="px-3.5 py-2">Credits</th><th className="px-3.5 py-2">Last Updated</th><th className="px-3.5 py-2 text-center">Status</th><th className="px-3.5 py-2 text-center">Actions</th></tr>
+                <tr><th className="px-3.5 py-2 w-8 text-center">#</th><th className="px-3.5 py-2">Resource</th><th className="px-3.5 py-2">Category</th><th className="px-3.5 py-2">Inventory</th><th className="px-3.5 py-2">Floor</th><th className="px-3.5 py-2">Wing</th><th className="px-3.5 py-2">Capacity</th><th className="px-3.5 py-2">Hourly</th><th className="px-3.5 py-2">Daily</th><th className="px-3.5 py-2">Credits</th><th className="px-3.5 py-2 text-center">Status</th><th className="px-3.5 py-2 text-center">Actions</th></tr>
               ) : activeTab === 'membership' ? (
                 <tr><th className="px-3.5 py-2">Plan Name</th><th className="px-3.5 py-2">Credits</th><th className="px-3.5 py-2">Duration</th><th className="px-3.5 py-2">Price</th><th className="px-3.5 py-2 text-center">Status</th><th className="px-3.5 py-2 text-center">Actions</th></tr>
               ) : (
@@ -1302,24 +1328,20 @@ export default function PricingPackagesPage() {
             </thead>
 
             <tbody className="divide-y divide-slate-50">
-              {activeTab === 'resource' ? filteredResources.map((item) => (
+              {activeTab === 'resource' ? filteredResources.map((item, index) => (
                 <tr key={item.recordId} className="transition-all hover:bg-blue-50/30">
-                  <td className="px-3.5 py-2"><div className="flex items-center gap-3"><div className="flex w-8 h-8 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-600"><LayoutGrid size={16} /></div><div><p className="text-[12px] font-bold text-slate-900">{item.name}</p><p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{item.type} &bull; {item.resourceCode}</p></div></div></td>
+                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-500 text-center">{index + 1}</td>
+                  <td className="px-3.5 py-2 text-[12px] font-bold text-slate-900">{item.name}</td>
                   <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{getResourceCategoryLabel(item.resourceCategory)}</td>
                   <td className="px-3.5 py-2">
                     {isDeskCategory(item.resourceCategory) ? (
-                      <div>
-                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
-                          item.inventoryMode === 'area'
-                            ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
-                            : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                        }`}>
-                          {getInventoryModeLabel(item.inventoryMode)}
-                        </span>
-                        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                          {item.inventoryMode === 'area' ? 'Tenant area allocation' : 'Single desk allocation'}
-                        </p>
-                      </div>
+                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
+                        item.inventoryMode === 'area'
+                          ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                          : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      }`}>
+                        {getInventoryModeLabel(item.inventoryMode)}
+                      </span>
                     ) : (
                       <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
                         Not applicable
@@ -1331,15 +1353,17 @@ export default function PricingPackagesPage() {
                   <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.capacity} Pax</td>
                   <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.pricePerHour > 0 ? `${formatCurrency(item.pricePerHour)} / hr` : item.pricing || '--'}</td>
                   <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.pricePerDay > 0 ? `${formatCurrency(item.pricePerDay)} / day` : item.pricing || '--'}</td>
+                  <td className="px-3.5 py-2 text-[12px] font-bold text-slate-900 text-center">{getResourceCreditValue(item)}</td>
+                  <td className="px-3.5 py-2 text-center">{statusBadge(item.status)}</td>
                   <td className="px-3.5 py-2">
-                    <div className="text-[12px] font-bold text-slate-900">{getResourceCreditValue(item)}</div>
-                    <div className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                      {getResourceCreditSummary(item)}
+                    <div className="flex items-center justify-center gap-1.5">
+                      <button type="button" onClick={() => openResourceViewModal(item)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900" title="View Details"><Eye size={14} /></button>
+                      <button type="button" onClick={() => openResourceModal(item)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600" title="Edit Pricing & Credits"><Edit2 size={14} /></button>
+                      <button type="button" onClick={() => handleToggleResourceStatus(item)} className={`rounded-lg border p-2 shadow-sm transition-all ${item.status === 'Active' ? 'border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300' : 'border-emerald-200 bg-white text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300'}`} title={item.status === 'Active' ? 'Disable Resource' : 'Enable Resource'}>
+                        {item.status === 'Active' ? <XCircle size={14} /> : <CheckCircle2 size={14} />}
+                      </button>
                     </div>
                   </td>
-                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700 flex items-center gap-1.5"><Clock size={12} /> {formatDate(item.pricingUpdatedAt || item.updatedAt)}</td>
-                  <td className="px-3.5 py-2 text-center">{statusBadge(item.status)}</td>
-                  <td className="px-3.5 py-2 text-center"><button type="button" onClick={() => openResourceModal(item)} className="mx-auto rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"><Edit2 size={14} /></button></td>
                 </tr>
               )) : filteredPackages.map((item) => (
                 <tr key={item.recordId} className={`transition-all hover:bg-indigo-50/30 ${item.status === 'Disabled' ? 'opacity-60' : ''}`}>
@@ -1445,12 +1469,12 @@ export default function PricingPackagesPage() {
           <div className={`flex max-h-[95vh] w-full flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70 ${modalKind === 'package' && (isViewingPackage ? viewPackageCategory === 'Tenant' : packageForm.category === 'Tenant') ? 'max-w-5xl' : 'max-w-2xl'}`}>
             <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 p-4 sm:p-5">
               <div>
-                <h2 className="flex items-center gap-2 text-base font-black text-white">
-                  {modalKind === 'resource' ? <Monitor size={20} /> : isViewingPackage ? <Eye size={20} /> : <Plus size={20} />}
-                  {modalKind === 'resource' ? 'Edit Resource Pricing & Credits' : isViewingPackage ? 'View Package Details' : `${modalMode === 'add' ? 'Add New' : 'Edit'} Package`}
+                <h2 className="flex items-center gap-2 text-base font-pmedium text-white">
+                  {modalKind === 'resource' ? (isViewingResource ? <Eye size={20} /> : <Monitor size={20} />) : isViewingPackage ? <Eye size={20} /> : <Plus size={20} />}
+                  {modalKind === 'resource' ? (isViewingResource ? 'View Resource Details' : 'Edit Resource Pricing & Credits') : isViewingPackage ? 'View Package Details' : `${modalMode === 'add' ? 'Add New' : 'Edit'} Package`}
                 </h2>
                 <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  {modalKind === 'resource' ? 'Pricing and credit changes sync back to Resource Management.' : isViewingPackage ? 'Viewing tenant package details in read-only mode.' : 'Package changes drive tenant company onboarding.'}
+                  {modalKind === 'resource' ? (isViewingResource ? 'Viewing resource details in read-only mode.' : 'Pricing and credit changes sync back to Resource Management.') : isViewingPackage ? 'Viewing tenant package details in read-only mode.' : 'Package changes drive tenant company onboarding.'}
                 </p>
               </div>
               <button type="button" onClick={closeModal} className="flex w-8 h-8 items-center justify-center rounded-xl bg-white/10 text-slate-300 transition-all hover:bg-red-500 hover:text-white"><X size={18} /></button>
@@ -1479,7 +1503,7 @@ export default function PricingPackagesPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div className="space-y-1"><label className="text-[11px] font-bold text-slate-400">Price Per Hour (₹)</label><input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={resourceForm.pricePerHour} onChange={(e) => setResourceForm((current) => {
+                    <div className="space-y-1"><label className="text-[11px] font-bold text-slate-800">Price Per Hour (₹)</label><input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerHour} onChange={(e) => setResourceForm((current) => {
                       const nextHour = e.target.value;
                       if (nextHour === '') {
                         return { ...current, pricePerHour: '' };
@@ -1494,7 +1518,7 @@ export default function PricingPackagesPage() {
                         pricePerDay: formatAutoPriceValue(hourly * RESOURCE_FULL_DAY_HOURS),
                       };
                     })} /></div>
-                    <div className="space-y-1"><label className="text-[11px] font-bold text-slate-400">Price Per Day (₹)</label><input type="number" min="0" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={resourceForm.pricePerDay} onChange={(e) => setResourceForm((current) => {
+                    <div className="space-y-1"><label className="text-[11px] font-bold text-slate-400">Price Per Day (₹)</label><input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerDay} onChange={(e) => setResourceForm((current) => {
                       const nextDay = e.target.value;
                       if (nextDay === '') {
                         return { ...current, pricePerDay: '' };
@@ -1518,12 +1542,13 @@ export default function PricingPackagesPage() {
                       type="number"
                       min="1"
                       step="1"
-                      className="w-full px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                      disabled={isViewingResource}
+                      className="w-full px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60"
                       value={resourceForm.credits}
                       onChange={(e) => setResourceForm((current) => ({ ...current, credits: e.target.value }))}
                     />
                   </div>
-                  <div className="space-y-1"><label className="text-[11px] font-bold text-slate-400">Status</label><select className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={resourceForm.status} onChange={(e) => setResourceForm((current) => ({ ...current, status: e.target.value }))}>{resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
+                  <div className="space-y-1"><label className="text-[11px] font-bold text-slate-400">Status</label><select disabled={isViewingResource} className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.status} onChange={(e) => setResourceForm((current) => ({ ...current, status: e.target.value }))}>{resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                     <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Preview</p>
                     <p className="mt-1 text-sm font-bold text-slate-800">
@@ -1793,7 +1818,7 @@ export default function PricingPackagesPage() {
               ) : (
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400">Package Name *</label>
+                    <label className="text-[13px] font-bold text-slate-400">Package Name *</label>
                       <input
                         required
                         type="text"
@@ -2028,7 +2053,7 @@ export default function PricingPackagesPage() {
                   ) : (
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-1">
-                        <label className="text-[11px] font-bold text-slate-400">Credits Included *</label>
+                        <label className="text-[13px] font-bold text-slate-400">Credits Included *</label>
                           <input
                             required
                             type="number"
@@ -2041,7 +2066,7 @@ export default function PricingPackagesPage() {
                       </div>
 
                       <div className="space-y-1">
-                        <label className="text-[11px] font-bold text-slate-400">Price (₹) *</label>
+                        <label className="text-[13px] font-bold text-slate-400">Price (₹) *</label>
                           <input
                             required
                             type="number"
@@ -2059,7 +2084,7 @@ export default function PricingPackagesPage() {
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-slate-400">Duration (months)</label>
+                      <label className="text-[13px] font-bold text-slate-400">Duration (months)</label>
                       <input
                         required
                         type="number"
@@ -2071,7 +2096,7 @@ export default function PricingPackagesPage() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-slate-400">
+                      <label className="text-[13px] font-regular text-slate-400">
                         {packageForm.category === 'Tenant' ? 'Seats Included (auto-calculated)' : 'Seats Included (optional)'}
                       </label>
                       <input
@@ -2091,7 +2116,7 @@ export default function PricingPackagesPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400">Description</label>
+                    <label className="text-[13px] font-bold text-slate-400">Description</label>
                     <textarea
                       rows={3}
                       disabled={isTenantPackageRateEdit}
@@ -2102,7 +2127,7 @@ export default function PricingPackagesPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400">Feature Bullets</label>
+                    <label className="text-[13px] font-bold text-slate-400">Feature Bullets</label>
                     <textarea
                       rows={4}
                       placeholder="One feature per line"
@@ -2115,7 +2140,7 @@ export default function PricingPackagesPage() {
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-slate-400">Status</label>
+                      <label className="text-[13px] font-bold text-slate-400">Status</label>
                       <select
                         disabled={isTenantPackageRateEdit}
                         className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
@@ -2125,14 +2150,14 @@ export default function PricingPackagesPage() {
                         {packageStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
                       </select>
                     </div>
-                    <label className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
+                    <label className="h-10 mt-6 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
                       <input
                         type="checkbox"
                         disabled={isTenantPackageRateEdit}
                         checked={packageForm.isRecommended}
                         onChange={(e) => setPackageForm((current) => ({ ...current, isRecommended: e.target.checked }))}
                       />
-                      <span className="text-[12px] font-semibold text-slate-700">Mark as recommended</span>
+                      <span className="text-[13px] font-medium text-slate-600">Mark as recommended</span>
                     </label>
                   </div>
 
@@ -2173,9 +2198,9 @@ export default function PricingPackagesPage() {
                     </button>
                   </div>
                 ) : null}
-                <button type="button" onClick={closeModal} className="flex-1 rounded-xl bg-slate-100 py-2.5 text-[11px] font-bold text-slate-700 transition-all hover:bg-slate-200">{isViewingPackage ? 'CLOSE DETAILS' : 'CANCEL'}</button>
-                {!isViewingPackage ? (
-                  <button type="submit" className="flex-2 flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-2.5 text-[11px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
+                <button type="button" onClick={closeModal} className="flex-1 rounded-xl bg-slate-100 py-2.5 text-[11px] font-bold text-slate-700 transition-all hover:bg-slate-200">{isViewingPackage || isViewingResource ? 'CLOSE DETAILS' : 'CANCEL'}</button>
+                {!isViewingPackage && !isViewingResource ? (
+                  <button type="submit" className="flex-1 flex items-center justify-center gap-3 rounded-xl bg-[#2563EB] py-2.5 text-[11px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
                     <Save size={14} />
                     {isTenantPackageRateEdit ? 'SAVE DESK PRICES' : 'SAVE CONFIGURATION'}
                   </button>

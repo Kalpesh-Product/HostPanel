@@ -617,11 +617,11 @@ function HousekeepingPageInner() {
           </div>
 
           {/* Staff Registry Summary */}
-          <div className="mb-6 rounded-3xl border border-blue-100 bg-white p-5 shadow-sm">
+          {/* <div className="mb-6 rounded-3xl border border-blue-100 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">Housekeeping Staff Registry</p>
-                <h2 className="mt-1 text-lg font-black tracking-tight text-slate-900">Administration-managed staff</h2>
+                
                 <p className="mt-1 text-xs font-medium text-slate-500">Add staff here. Managers can mark them present or absent before assigning daily tasks.</p>
               </div>
               <div className="text-right">
@@ -641,7 +641,7 @@ function HousekeepingPageInner() {
                   ))
                 : <div className="text-sm font-medium text-slate-400">No housekeeping staff added yet.</div>}
             </div>
-          </div>
+          </div> */}
 
           {errorMessage ? <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorMessage}</div> : null}
           {bulkUploadMessage ? <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">{bulkUploadMessage}</div> : null}
@@ -737,7 +737,7 @@ function HousekeepingPageInner() {
             <div className="flex h-full max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
               <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/70 px-6 py-5 lg:px-8 lg:py-6">
                 <div>
-                  <h2 className="flex items-center gap-2 text-xl font-black text-slate-900">
+                  <h2 className="flex items-center gap-2 text-xl font-pmedium text-primary">
                     {editingTask ? 'Edit Scheduled Task' : 'New Scheduled Task'}
                   </h2>
                   <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Routine Housekeeping Assignment</p>
@@ -832,7 +832,7 @@ function HousekeepingPageInner() {
             <div className="flex w-full max-w-2xl flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
               <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/70 px-6 py-5 lg:px-8 lg:py-6">
                 <div>
-                  <h2 className="flex items-center gap-2 text-xl font-black text-slate-900"><Users size={20} /> Add Housekeeping Staff</h2>
+                  <h2 className="flex items-center gap-2 text-xl font-pmedium text-primary"><Users size={20} /> Add Housekeeping Staff</h2>
                   <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Basic details for task assignment</p>
                 </div>
                 <button onClick={() => { setIsStaffModalOpen(false); setStaffForm(staffFormState()); }} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100"><X size={18} /></button>
@@ -875,7 +875,7 @@ function HousekeepingPageInner() {
             <div className="flex w-full max-w-2xl flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
               <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/70 px-6 py-5 lg:px-8 lg:py-6">
                 <div>
-                  <h2 className="flex items-center gap-2 text-xl font-black text-slate-900"><Users size={20} /> Housekeeping Staff</h2>
+                  <h2 className="flex items-center gap-2 text-xl font-pmedium text-primary"><Users size={20} /> Housekeeping Staff</h2>
                   <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Present or absent is managed here</p>
                 </div>
                 <button onClick={() => setIsStaffListOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100"><X size={18} /></button>
@@ -918,17 +918,17 @@ function HousekeepingPageInner() {
             <div className="flex w-full max-w-2xl flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
               <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/70 px-6 py-5 lg:px-8 lg:py-6">
                 <div>
-                  <h2 className="flex items-center gap-2 text-xl font-black text-slate-900"><Upload size={20} /> Bulk Upload</h2>
+                  <h2 className="flex items-center gap-2 text-xl font-pmedium text-primary"><Upload size={20} /> Bulk Upload</h2>
                   <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">One workbook with staff and scheduled tasks</p>
                 </div>
                 <button onClick={() => setIsBulkUploadModalOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100"><X size={18} /></button>
               </div>
               <form onSubmit={handleBulkUpload} className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-6 lg:px-8 lg:py-7">
-                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800">
+                  {/* <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800">
                     Download the workbook template, fill only the required fields shown in the <strong>Instructions</strong> sheet, then upload the completed file here.
-                  </div>
-                  <button type="button" onClick={downloadBulkTemplate} className="w-full rounded-2xl border border-emerald-200 bg-white px-5 py-4 text-sm font-black text-emerald-700 transition-all hover:bg-emerald-50 flex items-center justify-center gap-2">
+                  </div> */}
+                  <button type="button" onClick={downloadBulkTemplate} className="w-full rounded-2xl border bg-blue-600 bg-slate-100 px-5 py-4 text-sm font-black text-slate-700 transition-all hover:bg-slate-200 flex items-center justify-center gap-2">
                     <Download size={16} /> Download Template
                   </button>
                   <div className="space-y-2">
@@ -944,7 +944,7 @@ function HousekeepingPageInner() {
                 </div>
                 <div className="flex gap-4 border-t border-slate-100 px-6 py-6 lg:px-8">
                   <button type="button" onClick={() => setIsBulkUploadModalOpen(false)} className="flex-1 rounded-2xl bg-slate-100 py-4 font-black text-slate-700 transition-all hover:bg-slate-200">Cancel</button>
-                  <button type="submit" disabled={isBulkUploading} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-4 font-black text-white shadow-sm transition-all hover:bg-emerald-700 disabled:opacity-60">
+                  <button type="submit" disabled={isBulkUploading} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-black text-white shadow-sm transition-all hover:bg-blue-700 disabled:opacity-60">
                     {isBulkUploading ? 'Importing...' : 'Import Workbook'}
                   </button>
                 </div>

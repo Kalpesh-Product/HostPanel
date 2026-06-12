@@ -71,3 +71,21 @@ export const canAccessMaintenanceDashboard = (user?: any): boolean => {
 export const canAccessEmployeeDashboard = (user?: any): boolean => {
   return true;
 };
+
+export const getStoredTenantCompanyId = (): string => {
+  try {
+    const raw = localStorage.getItem("hostpanel_tenant_company_id") || sessionStorage.getItem("tenant_company_id");
+    return raw || "";
+  } catch {
+    return "";
+  }
+};
+
+export const getStoredTenantCompanyName = (): string => {
+  try {
+    const raw = localStorage.getItem("hostpanel_tenant_company_name") || sessionStorage.getItem("tenant_company_name");
+    return raw || "";
+  } catch {
+    return "";
+  }
+};

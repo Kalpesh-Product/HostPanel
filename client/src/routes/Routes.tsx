@@ -153,6 +153,12 @@ import AdministrationBookingsPage from "../pages/Administration/Bookings/Booking
 import AdministrationResourceManagementPage from "../pages/Administration/ResourceManagement/ResourceManagementPage";
 import AdministrationHousekeepingPage from "../pages/Administration/HouseKeeping/HousekeepingPage";
 import { TicketsPage } from "../pages/Tickets/TicketsPage";
+import TenantDashboardPage from "../pages/tenant/TenantDashboardPage";
+import TenantMeetingRoomBookingPage from "../pages/tenant/TenantMeetingRoomBookingPage";
+import TenantBookingHistoryPage from "../pages/tenant/TenantBookingHistoryPage";
+import TenantBuyCreditsPage from "../pages/tenant/TenantBuyCreditsPage";
+import TenantTicketsPage from "../pages/tenant/TenantTicketsPage";
+import TenantProfilePage from "../pages/tenant/TenantProfilePage";
 
 function VerticalPickerRoute() {
   const location = useLocation();
@@ -355,6 +361,17 @@ export const routes = createBrowserRouter([
                   {
                     path: "poc-details",
                     element: <PocDetails />,
+                  },
+                  {
+                    path: "tenant",
+                    children: [
+                      { index: true, element: <TenantDashboardPage /> },
+                      { path: "meeting-room-booking", element: <TenantMeetingRoomBookingPage /> },
+                      { path: "booking-history", element: <TenantBookingHistoryPage /> },
+                      { path: "buy-credits", element: <TenantBuyCreditsPage /> },
+                      { path: "tickets", element: <TenantTicketsPage /> },
+                      { path: "profile", element: <TenantProfilePage /> },
+                    ],
                   },
                 ],
               },
