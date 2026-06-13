@@ -50,6 +50,7 @@ interface Resource {
   history?: Array<Record<string, unknown>>;
   assignedTenantCompanyId?: string | null;
   assignedTenantCompanyName?: string;
+  createdAt?: string | number | Date;
 }
 
 interface FormState {
@@ -587,10 +588,10 @@ function ResourceManagementPageInner() {
         );
       })
       .sort((a, b) => {
-        const aActive = a.isActive || a.status === 'Active' ? 1 : 0;
-        const bActive = b.isActive || b.status === 'Active' ? 1 : 0;
+        const aActive = a.status === 'Active' ? 1 : 0;
+        const bActive = b.status === 'Active' ? 1 : 0;
         if (aActive !== bActive) return bActive - aActive;
-        return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+        return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
       });
   }, [resources, searchQuery, categoryFilter, floorFilter, wingFilter, statusFilter]);
 
