@@ -335,8 +335,10 @@ export async function createPlansPricingForOwner(workspaceId: string, ownerId: s
     const price = category === "Tenant" ? (tenantPricing?.price || 0) : Number(input.price || 0);
 
     if (category === "Tenant") {
-        if (ratePerOpenDesk <= 0 || ratePerCabinDesk <= 0) {
-            const error: any = new Error("Tenant package requires both open desk and cabin desk rates.");
+        const hasOpenDesks = (seatTotals.openDesks || 0) > 0;
+        const hasCabinDesks = (seatTotals.cabinDesks || 0) > 0;
+        if ((hasOpenDesks && ratePerOpenDesk <= 0) || (hasCabinDesks && ratePerCabinDesk <= 0)) {
+            const error: any = new Error("Tenant package requires rates for all desk types included.");
             error.statusCode = 400;
             throw error;
         }
@@ -423,8 +425,10 @@ export async function updatePlansPricingForOwner(workspaceId: string, ownerId: s
 
     if (pkg!.category === "Tenant") {
         const tenantPricing = deriveTenantPackagePricing(pkg, derivedSeats);
-        if (tenantPricing.ratePerOpenDesk <= 0 || tenantPricing.ratePerCabinDesk <= 0) {
-            const error: any = new Error("Tenant package requires both open desk and cabin desk rates.");
+        const hasOpenDesks = (derivedSeats.openDesks || 0) > 0;
+        const hasCabinDesks = (derivedSeats.cabinDesks || 0) > 0;
+        if ((hasOpenDesks && tenantPricing.ratePerOpenDesk <= 0) || (hasCabinDesks && tenantPricing.ratePerCabinDesk <= 0)) {
+            const error: any = new Error("Tenant package requires rates for all desk types included.");
             error.statusCode = 400;
             throw error;
         }

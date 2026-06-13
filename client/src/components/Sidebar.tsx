@@ -272,6 +272,23 @@ const departmentModules: NavNode[] = [
   },
 ];
 
+const tenantPortalModules: NavNode[] = [
+  {
+    id: "tenant",
+    label: "Tenant",
+    icon: Building2,
+    defaultOpen: false,
+    children: [
+      { id: "tenant-dashboard", label: "Dashboard", icon: LayoutDashboard, route: "/dashboard/tenant" },
+      { id: "tenant-meeting-room-booking", label: "Meeting Room Booking", icon: CalendarCheck, route: "/dashboard/tenant/meeting-room-booking" },
+      { id: "tenant-booking-history", label: "Booking History", icon: Clock, route: "/dashboard/tenant/booking-history" },
+      { id: "tenant-buy-credits", label: "Buy Credits", icon: HandCoins, route: "/dashboard/tenant/buy-credits" },
+      { id: "tenant-tickets", label: "Tickets", icon: Ticket, route: "/dashboard/tenant/tickets" },
+      { id: "tenant-profile", label: "Profile", icon: User, route: "/profile/company-profile" },
+    ],
+  },
+];
+
 const generalData: NavNode[] = [
   { id: "profile", label: "Profile", icon: User, route: "/profile/company-profile" },
   { id: "logout", label: "Sign Out", icon: LogOut, isRed: true, route: "/sign-out" },
@@ -283,6 +300,7 @@ const SECTION_ABBR: Record<string, string> = {
   "key-apps": "KEY",
   "founder-core-modules": "FND",
   "department-accesses": "DEP",
+  "tenant": "TNT",
 };
 
 const ROUTE_BY_ID: Record<string, string> = {
@@ -308,6 +326,12 @@ const ROUTE_BY_ID: Record<string, string> = {
   "house-keeping": "/administration/house-keeping",
   "meeting-room-system": "/meetings/meeting-rooms",
   tickets: "/tickets",
+  "tenant-dashboard": "/dashboard/tenant",
+  "tenant-meeting-room-booking": "/dashboard/tenant/meeting-room-booking",
+  "tenant-booking-history": "/dashboard/tenant/booking-history",
+  "tenant-buy-credits": "/dashboard/tenant/buy-credits",
+  "tenant-tickets": "/dashboard/tenant/tickets",
+  "tenant-profile": "/profile/company-profile",
   profile: "/profile/company-profile",
 };
 
@@ -365,6 +389,12 @@ const ICON_BY_ID: Record<string, ElementType> = {
   "amc-maintenance-scheduler": CalendarClock,
   "tech-website-builder": Globe,
   "it-repair-logs": FileSearch,
+  "tenant-dashboard": LayoutDashboard,
+  "tenant-meeting-room-booking": CalendarCheck,
+  "tenant-booking-history": Clock,
+  "tenant-buy-credits": HandCoins,
+  "tenant-tickets": Ticket,
+  "tenant-profile": User,
   profile: User,
   logout: LogOut,
 };
@@ -808,6 +838,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const companySettingsItems = sortEnabledFirst(applyEnabledState(companySettingsData));
   const keyAppsItems = sortEnabledFirst(applyEnabledState(keyAppsData));
   const departmentItems = sortEnabledFirst(applyEnabledState(departmentModules));
+  const tenantPortalItems = sortEnabledFirst(applyEnabledState(tenantPortalModules));
 
   const roleAllowedModuleIds = useMemo(() => {
     const sections = Array.isArray(workspaceAccessMap?.moduleMap?.sections)
@@ -1204,6 +1235,65 @@ const onNavigate = (item: NavNode) => {
             )}
           </div>
           ))
+        )}
+
+        {tenantPortalItems.length > 0 && (
+          <div>
+            {!collapsed ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenSections((current) => ({
+                      ...current,
+                      "tenant-portal": !(current?.["tenant-portal"] ?? false),
+                    }))
+                  }
+                  className="w-full mb-2 px-3 flex items-center justify-between text-left"
+                >
+                  <span className="text-[12px] font-pbold text-gray-500 tracking-wider uppercase">
+                    Tenant Portal
+                  </span>
+                  {openSections?.["tenant-portal"] ?? false ? (
+                    <ChevronDown size={14} className="text-gray-400" />
+                  ) : (
+                    <ChevronRight size={14} className="text-gray-400" />
+                  )}
+                </button>
+                {openSections?.["tenant-portal"] ?? false ? (
+                  <div className="space-y-1">
+                    {tenantPortalItems.map((item) => (
+                      <NavGroup
+                        key={`tenant-portal-${item.id}`}
+                        item={item}
+                        collapsed={collapsed}
+                        pathname={location.pathname}
+                        onNavigate={onNavigate}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <div className="space-y-1">
+                <div className="px-2 pt-1 pb-2">
+                  <div className="text-[10px] font-pbold tracking-wider text-gray-500 uppercase text-center">
+                    {SECTION_ABBR["tenant"] || "TNT"}
+                  </div>
+                  <div className="mt-2 h-px bg-gray-300" />
+                </div>
+                {tenantPortalItems.map((item) => (
+                  <NavGroup
+                    key={`tenant-portal-${item.id}`}
+                    item={item}
+                    collapsed={collapsed}
+                    pathname={location.pathname}
+                    onNavigate={onNavigate}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         <div>

@@ -589,7 +589,7 @@ export default function PricingPackagesPage() {
       .then(([resourceResponse, packageResponse]) => {
         if (!mounted) return;
         setResources((resourceResponse?.data?.data?.resources || resourceResponse?.data?.resources || []).map(normalizeResource));
-        setPackages((packageResponse?.data?.packages || []).map(normalizePackage));
+        setPackages((packageResponse?.data?.data?.packages || packageResponse?.data?.packages || []).map(normalizePackage));
       })
       .catch((error) => {
         if (mounted) {
@@ -622,25 +622,32 @@ export default function PricingPackagesPage() {
   }, [resources]);
   const filteredResources = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return resources.filter((item) => {
-      const locationLabel = item.locationLabel || [item.floor, item.wing].filter(Boolean).join(' ').trim();
-      const matchesQuery = !query || [
-        item.name,
-        item.type,
-        item.resourceCode,
-        item.resourceCategory,
-        item.inventoryMode,
-        item.floor,
-        item.wing,
-        locationLabel,
-      ].filter(Boolean).some((value) => value.toLowerCase().includes(query));
-      const matchesCategory = resourceCategoryFilter === 'All Categories' || item.resourceCategory === resourceCategoryFilter;
-      const matchesFloor = resourceFloorFilter === 'All Floors' || String(item.floor || '').trim() === resourceFloorFilter;
-      const matchesWing = resourceWingFilter === 'All Wings' || String(item.wing || '').trim().toUpperCase() === resourceWingFilter;
-      const matchesStatus = resourceStatusFilter === 'All Status' || item.status === resourceStatusFilter;
+    return resources
+      .filter((item) => {
+        const locationLabel = item.locationLabel || [item.floor, item.wing].filter(Boolean).join(' ').trim();
+        const matchesQuery = !query || [
+          item.name,
+          item.type,
+          item.resourceCode,
+          item.resourceCategory,
+          item.inventoryMode,
+          item.floor,
+          item.wing,
+          locationLabel,
+        ].filter(Boolean).some((value) => value.toLowerCase().includes(query));
+        const matchesCategory = resourceCategoryFilter === 'All Categories' || item.resourceCategory === resourceCategoryFilter;
+        const matchesFloor = resourceFloorFilter === 'All Floors' || String(item.floor || '').trim() === resourceFloorFilter;
+        const matchesWing = resourceWingFilter === 'All Wings' || String(item.wing || '').trim().toUpperCase() === resourceWingFilter;
+        const matchesStatus = resourceStatusFilter === 'All Status' || item.status === resourceStatusFilter;
 
-      return matchesQuery && matchesCategory && matchesFloor && matchesWing && matchesStatus;
-    });
+        return matchesQuery && matchesCategory && matchesFloor && matchesWing && matchesStatus;
+      })
+      .sort((a, b) => {
+        const aActive = a.isActive || a.status === 'Active' ? 1 : 0;
+        const bActive = b.isActive || b.status === 'Active' ? 1 : 0;
+        if (aActive !== bActive) return bActive - aActive;
+        return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+      });
   }, [resources, searchQuery, resourceCategoryFilter, resourceFloorFilter, resourceWingFilter, resourceStatusFilter]);
   const filteredPackages = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -655,7 +662,8 @@ export default function PricingPackagesPage() {
       return resources.filter((resource) => {
         const isAreaBlock = isTenantAreaBlockResource(resource);
         const isUnassigned = !resource.assignedTenantCompanyId && !resource.assignedDepartmentId;
-        return isAreaBlock && isUnassigned;
+        const isEnabled = resource.isActive && Number(resource.pricePerDay) > 0 && Number(resource.credits) > 0;
+        return isAreaBlock && isUnassigned && isEnabled;
       });
     },
     [resources],
@@ -917,7 +925,7 @@ export default function PricingPackagesPage() {
             ratePerOpenDesk,
             ratePerCabinDesk,
           });
-          const saved = normalizePackage(response?.data?.package);
+          const saved = normalizePackage(response?.data?.data?.package || response?.data?.package);
           setPackages((current) => current.map((item) => (item.recordId === saved.recordId ? saved : item)));
           toast.success('Desk prices updated successfully.');
           closeModal();
@@ -972,7 +980,7 @@ export default function PricingPackagesPage() {
         const response = modalMode === 'add'
           ? await createPricingPackage(payload)
           : await updatePricingPackage(selectedItem.recordId, payload);
-        const saved = normalizePackage(response?.data?.package);
+        const saved = normalizePackage(response?.data?.data?.package || response?.data?.package);
         setPackages((current) => (modalMode === 'add' ? [saved, ...current] : current.map((item) => (item.recordId === saved.recordId ? saved : item))));
         toast.success(modalMode === 'add' ? 'Package created successfully.' : 'Package updated successfully.');
         closeModal();
@@ -1351,8 +1359,8 @@ export default function PricingPackagesPage() {
                   <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.floor || '--'}</td>
                   <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.wing || '--'}</td>
                   <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.capacity} Pax</td>
-                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.pricePerHour > 0 ? `${formatCurrency(item.pricePerHour)} / hr` : item.pricing || '--'}</td>
-                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.pricePerDay > 0 ? `${formatCurrency(item.pricePerDay)} / day` : item.pricing || '--'}</td>
+                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.pricePerHour > 0 ? `${formatCurrency(item.pricePerHour)} ` : item.pricing || '--'}</td>
+                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.pricePerDay > 0 ? `${formatCurrency(item.pricePerDay)} ` : item.pricing || '--'}</td>
                   <td className="px-3.5 py-2 text-[12px] font-bold text-slate-900 text-center">{getResourceCreditValue(item)}</td>
                   <td className="px-3.5 py-2 text-center">{statusBadge(item.status)}</td>
                   <td className="px-3.5 py-2">
@@ -1467,17 +1475,25 @@ export default function PricingPackagesPage() {
       {isModalOpen ? (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
           <div className={`flex max-h-[95vh] w-full flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70 ${modalKind === 'package' && (isViewingPackage ? viewPackageCategory === 'Tenant' : packageForm.category === 'Tenant') ? 'max-w-5xl' : 'max-w-2xl'}`}>
-            <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 p-4 sm:p-5">
+            <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 p-3 sm:p-4">
               <div>
-                <h2 className="flex items-center gap-2 text-base font-pmedium text-white">
-                  {modalKind === 'resource' ? (isViewingResource ? <Eye size={20} /> : <Monitor size={20} />) : isViewingPackage ? <Eye size={20} /> : <Plus size={20} />}
+                <h2 className="flex items-center gap-2 text-sm font-pmedium text-white">
+                  {modalKind === 'resource' ? (isViewingResource ? <Eye size={16} /> : <Monitor size={16} />) : isViewingPackage ? <Eye size={16} /> : <Plus size={16} />}
                   {modalKind === 'resource' ? (isViewingResource ? 'View Resource Details' : 'Edit Resource Pricing & Credits') : isViewingPackage ? 'View Package Details' : `${modalMode === 'add' ? 'Add New' : 'Edit'} Package`}
                 </h2>
-                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">
                   {modalKind === 'resource' ? (isViewingResource ? 'Viewing resource details in read-only mode.' : 'Pricing and credit changes sync back to Resource Management.') : isViewingPackage ? 'Viewing tenant package details in read-only mode.' : 'Package changes drive tenant company onboarding.'}
                 </p>
               </div>
-              <button type="button" onClick={closeModal} className="flex w-8 h-8 items-center justify-center rounded-xl bg-white/10 text-slate-300 transition-all hover:bg-red-500 hover:text-white"><X size={18} /></button>
+              <div className="flex items-center gap-2">
+                {isViewingPackage ? (
+                  <>
+                    <button type="button" onClick={() => handleExportPackageReport(selectedPackage, 'PDF')} disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'} className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-slate-300 transition-all hover:bg-red-600 hover:text-white" title="Download PDF"><FileDown size={16} /></button>
+                    <button type="button" onClick={() => handleExportPackageReport(selectedPackage, 'Excel')} disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'} className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-slate-300 transition-all hover:bg-emerald-600 hover:text-white" title="Download Excel"><FileSpreadsheet size={16} /></button>
+                  </>
+                ) : null}
+                <button type="button" onClick={closeModal} className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-600 text-white transition-all hover:bg-red-700"><X size={16} /></button>
+              </div>
             </div>
 
             <form onSubmit={handleSave} className="flex-1 overflow-y-auto bg-white p-4 sm:p-5">
@@ -1563,26 +1579,26 @@ export default function PricingPackagesPage() {
                   </div>
                 </div>
               ) : isViewingPackage ? (
-                <div className="space-y-6">
-                  <div className="rounded-3xl border border-slate-200 bg-linear-to-br from-slate-50 to-white p-5">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-slate-200 bg-linear-to-br from-slate-50 to-white p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Package Details</p>
-                        <h3 className="mt-1 text-2xl font-black text-slate-900">{selectedPackage.name || '--'}</h3>
-                        <p className="mt-1 text-sm font-bold text-slate-600">{viewPackageCategory} Package</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Package Details</p>
+                        <h3 className="mt-1 text-lg font-black text-slate-900">{selectedPackage.name || '--'}</h3>
+                        <p className="mt-0.5 text-[12px] font-bold text-slate-600">{viewPackageCategory} Package</p>
                         {selectedPackage.assignedTenantCompanyName ? (
-                          <p className="mt-1 text-xs font-bold text-slate-500">Assigned to {selectedPackage.assignedTenantCompanyName}</p>
+                          <p className="mt-0.5 text-[11px] font-bold text-slate-500">Assigned to {selectedPackage.assignedTenantCompanyName}</p>
                         ) : null}
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {statusBadge(selectedPackage.status || packageForm.status)}
                         {(selectedPackage.isRecommended ?? packageForm.isRecommended) ? (
-                          <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-amber-700">
+                          <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-amber-700">
                             Recommended
                           </span>
                         ) : null}
                         {hasMeaningfulValue(selectedPackage.packageCode) ? (
-                          <span className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-700">
+                          <span className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-700">
                             Code {selectedPackage.packageCode}
                           </span>
                         ) : null}
@@ -1591,108 +1607,108 @@ export default function PricingPackagesPage() {
                   </div>
 
                   {viewPackageCategory === 'Tenant' ? (
-                    <div className="space-y-6">
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                         {hasMeaningfulValue(viewPackageDurationMonths) ? (
-                          <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">Contract Duration</p>
-                            <p className="mt-2 text-2xl font-black text-blue-900">{viewPackageDurationMonths} months</p>
+                          <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-blue-500">Contract Duration</p>
+                            <p className="mt-1 text-base font-black text-blue-900">{viewPackageDurationMonths} months</p>
                           </div>
                         ) : null}
                         {(hasMeaningfulValue(viewPackageRatePerOpenDesk) || hasMeaningfulValue(viewPackageRatePerCabinDesk)) ? (
-                          <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Desk Rates</p>
-                            <p className="mt-2 text-sm font-black text-amber-900">
+                          <div className="rounded-xl border border-amber-100 bg-amber-50 p-3">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-amber-700">Desk Rates</p>
+                            <p className="mt-1 text-[12px] font-black text-amber-900">
                               {hasMeaningfulValue(viewPackageRatePerOpenDesk) ? `${formatCurrency(viewPackageRatePerOpenDesk)} open` : null}
-                              {hasMeaningfulValue(viewPackageRatePerOpenDesk) && hasMeaningfulValue(viewPackageRatePerCabinDesk) ? ' • ' : null}
+                              {hasMeaningfulValue(viewPackageRatePerOpenDesk) && hasMeaningfulValue(viewPackageRatePerCabinDesk) ? ' / ' : null}
                               {hasMeaningfulValue(viewPackageRatePerCabinDesk) ? `${formatCurrency(viewPackageRatePerCabinDesk)} cabin` : null}
                             </p>
                           </div>
                         ) : null}
                         {hasMeaningfulValue(viewPackageMonthlyRate) ? (
-                          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Monthly Rent</p>
-                            <p className="mt-2 text-2xl font-black text-emerald-700">{formatCurrency(viewPackageMonthlyRate)}</p>
-                            <p className="mt-1 text-xs font-medium text-emerald-700">{hasMeaningfulValue(viewPackageDailyRateTotal) ? `${formatCurrency(viewPackageDailyRateTotal)} / day` : ''}</p>
+                          <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Monthly Rent</p>
+                            <p className="mt-1 text-base font-black text-emerald-700">{formatCurrency(viewPackageMonthlyRate)}</p>
+                            <p className="mt-0.5 text-[10px] font-medium text-emerald-700">{hasMeaningfulValue(viewPackageDailyRateTotal) ? `${formatCurrency(viewPackageDailyRateTotal)} / day` : ''}</p>
                           </div>
                         ) : null}
                         {hasMeaningfulValue(viewPackageTotalContractValue) ? (
-                          <div className="rounded-2xl border-2 border-purple-200 bg-purple-50 p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-purple-600">Total Contract Value</p>
-                            <p className="mt-2 text-2xl font-black text-purple-700">{formatCurrency(viewPackageTotalContractValue)}</p>
-                            <p className="mt-1 text-xs font-medium text-purple-600">Monthly rent x duration</p>
+                          <div className="rounded-xl border border-purple-200 bg-purple-50 p-3">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-purple-600">Total Contract Value</p>
+                            <p className="mt-1 text-base font-black text-purple-700">{formatCurrency(viewPackageTotalContractValue)}</p>
+                            <p className="mt-0.5 text-[10px] font-medium text-purple-600">Monthly rent x duration</p>
                           </div>
                         ) : null}
                       </div>
 
-                      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Scope</p>
-                          <dl className="mt-4 space-y-4">
+                      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                        <div className="rounded-xl border border-slate-200 bg-white p-4">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Scope</p>
+                          <dl className="mt-3 space-y-3">
                             {hasMeaningfulValue(getTenantPackageScope(viewPackageLocationMappings)?.floor || selectedPackage.floor || packageForm.floor) ? (
                               <div>
-                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Floor</dt>
-                                <dd className="mt-1 text-sm font-bold text-slate-900">{getTenantPackageScope(viewPackageLocationMappings)?.floor || selectedPackage.floor || packageForm.floor}</dd>
+                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Floor</dt>
+                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{getTenantPackageScope(viewPackageLocationMappings)?.floor || selectedPackage.floor || packageForm.floor}</dd>
                               </div>
                             ) : null}
                             {hasMeaningfulValue(getTenantPackageScope(viewPackageLocationMappings)?.wing || selectedPackage.wing || packageForm.wing) ? (
                               <div>
-                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Wing</dt>
-                                <dd className="mt-1 text-sm font-bold text-slate-900">{getTenantPackageScope(viewPackageLocationMappings)?.wing || selectedPackage.wing || packageForm.wing}</dd>
+                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Wing</dt>
+                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{getTenantPackageScope(viewPackageLocationMappings)?.wing || selectedPackage.wing || packageForm.wing}</dd>
                               </div>
                             ) : null}
                             {hasMeaningfulValue(viewPackageLocationMappings.length) ? (
                               <div>
-                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Selected Blocks</dt>
-                                <dd className="mt-1 text-sm font-bold text-slate-900">{viewPackageLocationMappings.length}</dd>
+                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Selected Blocks</dt>
+                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageLocationMappings.length}</dd>
                               </div>
                             ) : null}
                             {hasMeaningfulValue(selectedPackage.locationLabel) ? (
                               <div>
-                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Location Label</dt>
-                                <dd className="mt-1 text-sm font-bold text-slate-900">{selectedPackage.locationLabel}</dd>
+                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Location Label</dt>
+                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedPackage.locationLabel}</dd>
                               </div>
                             ) : null}
                           </dl>
                         </div>
 
-                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Allocation</p>
-                          <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div className="rounded-xl border border-slate-200 bg-white p-4">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Allocation</p>
+                          <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                             {hasMeaningfulValue(viewPackageOpenDesks) ? (
                               <div>
-                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Open Desks</dt>
-                                <dd className="mt-1 text-sm font-bold text-slate-900">{viewPackageOpenDesks}</dd>
+                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Open Desks</dt>
+                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageOpenDesks}</dd>
                               </div>
                             ) : null}
                             {hasMeaningfulValue(viewPackageCabinDesks) ? (
                               <div>
-                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cabin Desks</dt>
-                                <dd className="mt-1 text-sm font-bold text-slate-900">{viewPackageCabinDesks}</dd>
+                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Cabin Desks</dt>
+                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageCabinDesks}</dd>
                               </div>
                             ) : null}
                             {hasMeaningfulValue(viewPackageTotalSeats) ? (
                               <div>
-                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Seats</dt>
-                                <dd className="mt-1 text-sm font-bold text-slate-900">{viewPackageTotalSeats}</dd>
+                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Seats</dt>
+                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageTotalSeats}</dd>
                               </div>
                             ) : null}
                             {hasMeaningfulValue(viewPackageCreditsPerSeat) ? (
                               <div>
-                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Credits / Seat</dt>
-                                <dd className="mt-1 text-sm font-bold text-slate-900">{viewPackageCreditsPerSeat}</dd>
+                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Credits / Seat</dt>
+                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageCreditsPerSeat}</dd>
                               </div>
                             ) : null}
                             {hasMeaningfulValue(viewPackageMonthlyCredits) ? (
                               <div>
-                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Monthly Credits</dt>
-                                <dd className="mt-1 text-sm font-bold text-slate-900">{viewPackageMonthlyCredits}</dd>
+                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Monthly Credits</dt>
+                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageMonthlyCredits}</dd>
                               </div>
                             ) : null}
                             {hasMeaningfulValue(selectedPackage.assignedTenantCompanyName) ? (
                               <div className="sm:col-span-2">
-                                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Assigned Company</dt>
-                                <dd className="mt-1 text-sm font-bold text-slate-900">{selectedPackage.assignedTenantCompanyName}</dd>
+                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Assigned Company</dt>
+                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedPackage.assignedTenantCompanyName}</dd>
                               </div>
                             ) : null}
                           </dl>
@@ -1700,19 +1716,19 @@ export default function PricingPackagesPage() {
                       </div>
 
                       {viewPackageLocationMappings.length > 0 ? (
-                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Included Blocks</p>
-                          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="rounded-xl border border-slate-200 bg-white p-4">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Included Blocks</p>
+                          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                             {viewPackageLocationMappings.map((mapping) => (
-                              <div key={`${mapping.locationCode || mapping.label || 'block'}-${mapping.floor || ''}-${mapping.wing || ''}`} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                                <p className="text-sm font-black text-slate-900">{mapping.label || '--'}</p>
-                                <p className="mt-1 text-xs font-medium text-slate-500">
+                              <div key={`${mapping.locationCode || mapping.label || 'block'}-${mapping.floor || ''}-${mapping.wing || ''}`} className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
+                                <p className="text-[12px] font-black text-slate-900">{mapping.label || '--'}</p>
+                                <p className="mt-0.5 text-[10px] font-medium text-slate-500">
                                   {hasMeaningfulValue(mapping.floor) ? `Floor ${mapping.floor}` : null}
-                                  {hasMeaningfulValue(mapping.floor) && hasMeaningfulValue(mapping.wing) ? ' • ' : ''}
+                                  {hasMeaningfulValue(mapping.floor) && hasMeaningfulValue(mapping.wing) ? ' / ' : ''}
                                   {hasMeaningfulValue(mapping.wing) ? `Wing ${mapping.wing}` : null}
                                 </p>
-                                <p className="mt-1 text-xs font-bold text-slate-500">
-                                  {hasMeaningfulValue(mapping.seatType) ? `${mapping.seatType} desk` : 'Desk'}{hasMeaningfulValue(mapping.seatsAllocated) ? ` • ${mapping.seatsAllocated} seats` : ''}
+                                <p className="mt-0.5 text-[10px] font-bold text-slate-500">
+                                  {hasMeaningfulValue(mapping.seatType) ? `${mapping.seatType} desk` : 'Desk'}{hasMeaningfulValue(mapping.seatsAllocated) ? ` / ${mapping.seatsAllocated} seats` : ''}
                                 </p>
                               </div>
                             ))}
@@ -1721,18 +1737,18 @@ export default function PricingPackagesPage() {
                       ) : null}
 
                       {hasMeaningfulValue(selectedPackage.description) ? (
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Description</p>
-                          <p className="mt-2 text-sm leading-relaxed text-slate-700">{selectedPackage.description}</p>
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Description</p>
+                          <p className="mt-1 text-[12px] leading-relaxed text-slate-700">{selectedPackage.description}</p>
                         </div>
                       ) : null}
 
                       {viewPackageFeatures.length > 0 ? (
-                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Feature Bullets</p>
-                          <ul className="mt-3 space-y-2">
+                        <div className="rounded-xl border border-slate-200 bg-white p-4">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Feature Bullets</p>
+                          <ul className="mt-2 space-y-1.5">
                             {viewPackageFeatures.map((feature) => (
-                              <li key={feature} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
+                              <li key={feature} className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-[12px] font-medium text-slate-700">
                                 {feature}
                               </li>
                             ))}
@@ -1741,24 +1757,24 @@ export default function PricingPackagesPage() {
                       ) : null}
                     </div>
                   ) : (
-                    <div className="space-y-6">
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                         {hasMeaningfulValue(selectedPackage.creditsIncluded) ? (
-                          <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Credits Included</p>
-                            <p className="mt-2 text-2xl font-black text-indigo-900">{selectedPackage.creditsIncluded}</p>
+                          <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-indigo-600">Credits Included</p>
+                            <p className="mt-1 text-base font-black text-indigo-900">{selectedPackage.creditsIncluded}</p>
                           </div>
                         ) : null}
                         {hasMeaningfulValue(viewPackagePrice) ? (
-                          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Price</p>
-                            <p className="mt-2 text-2xl font-black text-slate-900">{formatCurrency(viewPackagePrice)}</p>
+                          <div className="rounded-xl border border-slate-200 bg-white p-3">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Price</p>
+                            <p className="mt-1 text-base font-black text-slate-900">{formatCurrency(viewPackagePrice)}</p>
                           </div>
                         ) : null}
                         {hasMeaningfulValue(viewPackageDurationMonths) ? (
-                          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Duration</p>
-                            <p className="mt-2 text-2xl font-black text-emerald-700">{viewPackageDurationMonths} months</p>
+                          <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Duration</p>
+                            <p className="mt-1 text-base font-black text-emerald-700">{viewPackageDurationMonths} months</p>
                           </div>
                         ) : null}
                       </div>
@@ -2172,33 +2188,9 @@ export default function PricingPackagesPage() {
                 </div>
               )}
 
-              <div className="sticky bottom-0 bg-white border-t border-slate-100 p-3 sm:p-4">
+                <div className="sticky bottom-0 bg-white border-t border-slate-100 p-3 sm:p-4">
                 <div className="flex flex-col gap-2 sm:flex-row">
-                {isViewingPackage ? (
-                  <div className="flex flex-1 flex-col gap-2 sm:flex-row">
-                    <button
-                      type="button"
-                      onClick={() => handleExportPackageReport(selectedPackage, 'PDF')}
-                      disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'}
-                      className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-[11px] font-bold uppercase tracking-widest text-slate-700 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <span className="inline-flex items-center justify-center gap-2">
-                        <FileDown size={14} /> Download PDF
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleExportPackageReport(selectedPackage, 'Excel')}
-                      disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'}
-                      className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-[11px] font-bold uppercase tracking-widest text-slate-700 transition-all hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <span className="inline-flex items-center justify-center gap-2">
-                        <FileSpreadsheet size={14} /> Download Excel
-                      </span>
-                    </button>
-                  </div>
-                ) : null}
-                <button type="button" onClick={closeModal} className="flex-1 rounded-xl bg-slate-100 py-2.5 text-[11px] font-bold text-slate-700 transition-all hover:bg-slate-200">{isViewingPackage || isViewingResource ? 'CLOSE DETAILS' : 'CANCEL'}</button>
+                <button type="button" onClick={closeModal} className="flex-1 rounded-xl bg-blue-600 py-2.5 text-[11px] font-bold text-white transition-all hover:bg-blue-700">{isViewingPackage || isViewingResource ? 'CLOSE DETAILS' : 'CANCEL'}</button>
                 {!isViewingPackage && !isViewingResource ? (
                   <button type="submit" className="flex-1 flex items-center justify-center gap-3 rounded-xl bg-[#2563EB] py-2.5 text-[11px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
                     <Save size={14} />

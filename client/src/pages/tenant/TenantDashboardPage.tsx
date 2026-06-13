@@ -3,10 +3,12 @@ import { Link } from 'react-router';
 import {
   Building2,
   Calendar,
+  CalendarCheck,
   CheckCircle2,
   ChevronRight,
   Clock,
   CreditCard,
+  Hand,
   History,
   MapPin,
   Plus,
@@ -16,8 +18,10 @@ import {
   X,
 } from 'lucide-react';
 import { DashboardSkeleton } from '@/components/ui/Skeleton';
+import PageFrame from '@/components/Pages/PageFrame';
 import { getStoredTenantCompanyId, getStoredTenantCompanyName, getStoredUser } from '@/lib/auth-session';
 import { getStoredTenantRole, isTenantAdminRole, isTenantManagerRole } from '@/lib/tenant-session';
+import { MOCK_BOOKINGS, MOCK_TICKETS, MOCK_ROOMS, MOCK_TENANT_COMPANIES, initMockTenantSession } from './mock-tenant-data';
 
 // ─── Backend service imports (uncomment when backend ready) ───
 // import { getMeetingRoomBookings } from '@/services/meeting-room-bookings';
@@ -271,6 +275,7 @@ export default function TenantDashboardPage() {
     let active = true;
 
     const loadDashboard = async () => {
+      initMockTenantSession();
       setIsRefreshing(true);
       setLoadError('');
 
@@ -296,7 +301,11 @@ export default function TenantDashboardPage() {
         // ⚠️ Placeholder: remove when backend is connected
         await new Promise((resolve) => setTimeout(resolve, 600));
         if (!active) return;
-        setTenantSummary(null);
+        setBookings(MOCK_BOOKINGS);
+        setTickets(MOCK_TICKETS);
+        setRooms(MOCK_ROOMS.map(normalizeRoom));
+        setTenantCompanies(MOCK_TENANT_COMPANIES);
+        setTenantSummary({ totalTenants: 12, activeContracts: 8 });
 
       } catch (error: any) {
         if (!active) return;
@@ -333,46 +342,47 @@ export default function TenantDashboardPage() {
   if (isLoading) return <DashboardSkeleton />;
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F8FAFC] px-6 py-6 font-sans text-[#0F172A] lg:px-8">
-      <div className="mb-8 flex shrink-0 flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+      <PageFrame>
+        <div className="mb-8 flex shrink-0 flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="flex items-center gap-4">
-          <div className={`flex h-16 w-16 items-center justify-center rounded-2xl text-2xl font-black text-white shadow-md ${canManageTenant ? 'bg-linear-to-br from-purple-600 to-indigo-800' : 'bg-linear-to-br from-[#2563EB] to-indigo-600'}`}>
+          {/* <div className={`flex h-16 w-16 items-center justify-center rounded-2xl text-2xl font-pbold text-white shadow-md ${canManageTenant ? 'bg-linear-to-br from-purple-600 to-indigo-800' : 'bg-linear-to-br from-[#2563EB] to-indigo-600'}`}>
             {normalizeText(currentUser?.fullName || tenantCompanyName || 'T').charAt(0).toUpperCase()}
-          </div>
+          </div> */}
           <div>
-            <h1 className="text-3xl font-black tracking-tight">
+            <h1 className="text-title font-pmedium text-primary uppercase flex items-center gap-2">
               Welcome back, {normalizeText(currentUser?.fullName || companyContact || 'Tenant user').split(' ')[0]}.
             </h1>
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${canManageTenant ? 'bg-purple-100 text-purple-700' : 'bg-slate-200/70 text-slate-500'}`}>
+              <span className={`rounded-md px-2.5 py-1 text-xs font-pmedium ${canManageTenant ? 'bg-purple-100 text-purple-700' : 'bg-slate-200/70 text-slate-500'}`}>
                 {canManageTenant ? 'Tenant Manager' : 'Tenant Employee'}
               </span>
-              <span className="flex items-center gap-1 text-xs font-bold text-[#2563EB]">
+              <span className="flex items-center gap-1 text-xs font-pmedium text-[#2563EB]">
                 <Building2 size={12} /> {tenantCompanyName}
               </span>
-              <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">
+              {/* <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-pbold uppercase tracking-widest text-emerald-700">
                 {companyStatus}
-              </span>
+              </span> */}
             </div>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <Link to="/dashboard/tenant/meeting-room-booking" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-700 shadow-sm transition-colors hover:bg-slate-50">
+          <Link to="/dashboard/tenant/meeting-room-booking" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-pbold uppercase tracking-widest text-slate-700 shadow-sm transition-colors hover:bg-slate-50">
             <Calendar size={16} className="text-[#2563EB]" /> Book Room
           </Link>
-          <Link to="/dashboard/tenant/tickets" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-700 shadow-sm transition-colors hover:bg-slate-50">
-            <Ticket size={16} className="text-purple-600" /> Raise Ticket
+          <Link to="/dashboard/tenant/tickets" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-pbold uppercase tracking-widest text-slate-700 shadow-sm transition-colors hover:bg-slate-50">
+            <Ticket size={16} className="text-green-600" /> Raise Ticket
           </Link>
-          <Link to="/dashboard/tenant/booking-history" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-50">
-            <History size={16} /> Booking History
+          <Link to="/dashboard/tenant/booking-history" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-pbold uppercase tracking-widest text-slate-700 shadow-sm transition-colors hover:bg-slate-50">
+            <History size={16} className="text-purple-600"/> Booking History
           </Link>
         </div>
       </div>
 
       {/* Load error banner — uncomment error setter above to activate */}
       {/* loadError && (
-        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-pregular text-amber-800">
           {loadError}
         </div>
       ) */}
@@ -382,8 +392,8 @@ export default function TenantDashboardPage() {
           <div className="w-full max-w-md overflow-hidden rounded-[2rem] border border-amber-100 bg-white shadow-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-amber-100 bg-amber-50 px-6 py-5">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Credits alert</p>
-                <h2 className="mt-2 text-xl font-black text-slate-950">Credits are low / exhausted.</h2>
+                <p className="text-[10px] font-pbold uppercase tracking-widest text-amber-600">Credits alert</p>
+                <h2 className="mt-2 text-xl font-pbold text-slate-950">Credits are low / exhausted.</h2>
               </div>
               <button type="button" onClick={dismissCreditAlert} className="rounded-xl bg-white p-2 text-slate-500 shadow-sm hover:text-slate-900">
                 <X size={16} />
@@ -394,10 +404,10 @@ export default function TenantDashboardPage() {
                 Buy new credits for this month. Your current tenant balance is {companyCreditsRemaining} credits.
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
-                <button type="button" onClick={dismissCreditAlert} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50">
+                <button type="button" onClick={dismissCreditAlert} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-pbold uppercase tracking-widest text-slate-600 hover:bg-slate-50">
                   Later
                 </button>
-                <Link to="/dashboard/tenant/buy-credits" className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm hover:bg-blue-700">
+                <Link to="/dashboard/tenant/buy-credits" className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-3 text-xs font-pbold uppercase tracking-widest text-white shadow-sm hover:bg-blue-700">
                   Buy new credits <ChevronRight size={14} />
                 </Link>
               </div>
@@ -406,325 +416,315 @@ export default function TenantDashboardPage() {
         </div>
       )}
 
-      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <div className={`relative overflow-hidden rounded-4xl border p-6 text-white shadow-md ${isCreditLow ? 'border-amber-600 bg-linear-to-br from-amber-500 to-orange-600' : 'border-blue-700 bg-linear-to-br from-[#2563EB] to-indigo-600'}`}>
-          <div className="absolute right-0 top-0 p-6 opacity-20">
-            <CreditCard size={64} />
-          </div>
-          <div className="relative z-10">
-            <p className="mb-1 text-[10px] font-black uppercase tracking-widest opacity-80">Credits Remaining</p>
-            <div className="mb-4 flex items-baseline gap-2">
-              <p className="text-5xl font-black">{companyCreditsRemaining}</p>
-              <span className="text-sm font-bold opacity-80">/ {companyCreditsDisplay}</span>
+      <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Total Meeting Rooms</p>
+              <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
+                <Building2 size={16} />
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-lg bg-white/20 px-3 py-1.5 text-xs font-bold backdrop-blur-sm">
-                {isCreditLow ? 'Low balance' : 'Healthy balance'}
-              </span>
-            </div>
+            <p className="text-xl font-pbold text-slate-900">{availableRoomsCount}</p>
           </div>
         </div>
 
-        <div className="flex flex-col justify-between rounded-4xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <div>
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Available Rooms</p>
-              <div className="rounded-xl bg-blue-50 p-2.5 text-blue-600">
-                <Building2 size={18} />
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Upcoming Bookings</p>
+              <div className="rounded-lg bg-purple-50 p-2 text-purple-600">
+                <CalendarCheck size={16} />
               </div>
             </div>
-            <p className="text-3xl font-black text-slate-900">{availableRoomsCount}</p>
-            <p className="mt-1 text-xs font-bold text-slate-500">Meeting and conference rooms ready to book.</p>
+            <p className="text-xl font-pbold text-slate-900">{upcomingBookings.length}</p>
           </div>
         </div>
 
-        <div className="flex flex-col justify-between rounded-4xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <div>
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Upcoming Bookings</p>
-              <div className="rounded-xl bg-purple-50 p-2.5 text-purple-600">
-                <Calendar size={18} />
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Open Tickets</p>
+              <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600">
+                <Ticket size={16} />
               </div>
             </div>
-            <p className="text-3xl font-black text-slate-900">{upcomingBookings.length}</p>
-            <p className="mt-1 text-xs font-bold text-slate-500">Next 4 upcoming items in your tenant scope.</p>
+            <p className="text-xl font-pbold text-slate-900">{openTicketCount}</p>
           </div>
         </div>
 
-        <div className="flex flex-col justify-between rounded-4xl border border-slate-100 bg-white p-6 shadow-sm">
+        <div className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <div>
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Open Tickets</p>
-              <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600">
-                <Ticket size={18} />
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Credits Remaining</p>
+              <div className="rounded-lg bg-amber-50 p-2 text-amber-600">
+                <CreditCard size={16} />
               </div>
             </div>
-            <p className="text-3xl font-black text-slate-900">{openTicketCount}</p>
-            <p className="mt-1 text-xs font-bold text-slate-500">Support items still in progress or awaiting action.</p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-xl font-pbold text-slate-900">{companyCreditsRemaining > 0 ? companyCreditsRemaining : 0}</p>
+              <span className="text-xs font-pmedium text-slate-400">/ {companyCreditsDisplay > 0 ? companyCreditsDisplay : 0}</span>
+            </div>
+            
           </div>
         </div>
       </div>
 
       <div className="grid flex-1 gap-8 lg:grid-cols-3">
-        <div className="flex flex-col gap-8 lg:col-span-2">
-          <div className="flex min-h-90 flex-col overflow-hidden rounded-[2.5rem] border border-slate-100 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-50 bg-slate-50/60 px-6 py-5">
-              <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
-                <Clock size={20} className="text-[#2563EB]" /> {canManageTenant ? 'Company Upcoming Bookings' : 'My Upcoming Bookings'}
-              </h2>
-              <Link to="/dashboard/tenant/booking-history" className="flex items-center gap-1 text-xs font-black uppercase tracking-widest text-[#2563EB]">
-                View All <ChevronRight size={14} />
-              </Link>
-            </div>
-
-            <div className="flex-1 divide-y divide-slate-50 overflow-y-auto">
-              {upcomingBookings.length > 0 ? (
-                upcomingBookings.map((booking) => (
-                  <div key={booking.recordId || booking.id} className="group flex flex-col gap-4 p-6 transition-colors hover:bg-slate-50/60 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-                        <span className="text-[10px] font-black uppercase">{String(booking?.date || '').split('-')[1] || '--'}</span>
-                        <span className="text-sm font-black">{String(booking?.date || '').split('-')[2] || '--'}</span>
-                      </div>
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-base font-black text-slate-900 transition-colors group-hover:text-[#2563EB]">{booking.roomName}</h3>
-                          <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">
-                            {normalizeText(booking.bookingType || 'Tenant')}
-                          </span>
-                        </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-500">
-                          <span className="flex items-center gap-1.5">
-                            <Clock size={12} /> {formatBookingWindow(booking)}
-                          </span>
-                          {booking.clientCompany && (
-                            <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                              {booking.clientCompany}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-4 sm:justify-end">
-                      <div className="text-right">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Status</p>
-                        <p className="text-sm font-bold text-[#2563EB]">{normalizeText(booking.status || booking.bookingStatus || 'Booked')}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Host</p>
-                        <p className="text-sm font-bold text-slate-700">{booking.bookedByName || companyContact}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
-                  <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                    <Calendar size={24} />
-                  </div>
-                  <h3 className="text-lg font-black text-slate-900">No upcoming bookings</h3>
-                  <p className="mt-1 text-sm font-medium text-slate-500">Use the booking page to reserve a room for your team.</p>
-                </div>
-              )}
-            </div>
+        {/* Row 1: Upcoming Bookings + Room Pool */}
+        <div className="flex flex-col overflow-hidden rounded-[2.5rem] border border-slate-100 bg-white shadow-sm lg:col-span-2">
+          <div className="flex items-center justify-between border-b border-slate-50 bg-slate-50/60 px-6 py-5">
+            <h2 className="flex items-center gap-2 text-lg font-pbold text-slate-900">
+              <Clock size={20} className="text-[#2563EB]" /> {canManageTenant ? 'Company Upcoming Bookings' : 'My Upcoming Bookings'}
+            </h2>
+            <Link to="/dashboard/tenant/booking-history" className="flex items-center gap-1 text-xs font-pbold uppercase tracking-widest text-[#2563EB]">
+              View All <ChevronRight size={14} />
+            </Link>
           </div>
 
-          <div className="grid gap-8 xl:grid-cols-2">
-            <div className="flex min-h-75 flex-col rounded-[2.5rem] border border-slate-100 bg-white p-6 shadow-sm">
-              <div className="mb-6 flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-slate-900">
-                  <Ticket size={16} className="text-purple-600" /> {canManageTenant ? 'Company Tickets' : 'My Tickets'}
-                </h2>
-                <Link to="/dashboard/tenant/tickets" className="text-[10px] font-black uppercase tracking-widest text-purple-600 hover:underline">
-                  View All
-                </Link>
-              </div>
-
-              <div className="flex flex-1 flex-col gap-4 overflow-y-auto">
-                {visibleTickets.slice(0, 4).map((ticket) => (
-                  <Link key={ticket.recordId || ticket.id} to="/dashboard/tenant/tickets" className="block rounded-2xl border border-slate-100 bg-slate-50 p-4 transition-all hover:border-purple-200 hover:bg-white">
-                    <div className="mb-2 flex items-start justify-between gap-3">
-                      <span className="text-[10px] font-black text-slate-500">{ticket.id}</span>
-                      <span className={`rounded-md border px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${isOpenTicket(ticket) ? 'border-amber-200 bg-amber-100 text-amber-700' : 'border-emerald-200 bg-emerald-100 text-emerald-700'}`}>
-                        {normalizeText(ticket.status || 'Open')}
-                      </span>
+          <div className="flex-1 divide-y divide-slate-50 overflow-y-auto">
+            {upcomingBookings.length > 0 ? (
+              upcomingBookings.map((booking) => (
+                <div key={booking.recordId || booking.id} className="group flex flex-col gap-4 p-6 transition-colors hover:bg-slate-50/60 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+                      <span className="text-[10px] font-pbold uppercase">{String(booking?.date || '').split('-')[1] || '--'}</span>
+                      <span className="text-sm font-pbold">{String(booking?.date || '').split('-')[2] || '--'}</span>
                     </div>
-                    <p className="mb-2 text-sm font-bold text-slate-800">{ticket.title}</p>
-                    <div className="flex items-center justify-between gap-3 text-[10px] font-bold text-slate-400">
-                      <span>{ticket.department || 'Administration'}</span>
-                      <span>{ticket.assignedTo || ticket.submittedBy || 'Unassigned'}</span>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-base font-pbold text-slate-900 transition-colors group-hover:text-[#2563EB]">{booking.roomName}</h3>
+                        <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-pbold uppercase tracking-widest text-slate-500">
+                          {normalizeText(booking.bookingType || 'Tenant')}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-3 text-xs font-pmedium text-slate-500">
+                        <span className="flex items-center gap-1.5">
+                          <Clock size={12} /> {formatBookingWindow(booking)}
+                        </span>
+                        {booking.clientCompany && (
+                          <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-pbold uppercase tracking-widest text-slate-500">
+                            {booking.clientCompany}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </Link>
-                ))}
-
-                {visibleTickets.length === 0 && (
-                  <div className="flex flex-1 flex-col items-center justify-center text-center">
-                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                      <Ticket size={22} />
-                    </div>
-                    <h3 className="text-base font-black text-slate-900">No support tickets yet</h3>
-                    <p className="mt-1 text-sm font-medium text-slate-500">Raise a ticket when something needs admin attention.</p>
                   </div>
-                )}
+
+                  <div className="flex items-center justify-between gap-4 sm:justify-end">
+                    <div className="text-right">
+                      <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Status</p>
+                      <p className="text-sm font-pmedium text-[#2563EB]">{normalizeText(booking.status || booking.bookingStatus || 'Booked')}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Host</p>
+                      <p className="text-sm font-pmedium text-slate-700">{booking.bookedByName || companyContact}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                  <Calendar size={24} />
+                </div>
+                <h3 className="text-lg font-pbold text-slate-900">No upcoming bookings</h3>
+                <p className="mt-1 text-sm font-pregular text-slate-500">Use the booking page to reserve a room for your team.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col rounded-[2.5rem] border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-pbold uppercase tracking-widest text-slate-900">
+              <MapPin size={16} className="text-[#2563EB]" /> Room Pool
+            </h2>
+            <span className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">{availableRooms.length} available</span>
+          </div>
+
+          <div className="flex-1 space-y-4 overflow-y-auto">
+            {availableRooms.slice(0, 5).map((room) => (
+              <div key={room.id || room.name} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-pmedium text-slate-900">{room.name || 'Meeting room'}</p>
+                    <p className="mt-1 text-[10px] font-pbold uppercase tracking-widest text-slate-400">
+                      {normalizeText(room.type || 'Room')} {room.floor ? `\u2022 Floor ${room.floor}` : ''} {room.wing ? `\u2022 Wing ${room.wing}` : ''}
+                    </p>
+                  </div>
+                  <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-pbold uppercase tracking-widest text-blue-700">
+                    Ready
+                  </span>
+                </div>
+              </div>
+            ))}
+
+            {availableRooms.length === 0 && (
+              <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
+                <div className="mb-3 rounded-full bg-white p-3 text-slate-400 shadow-sm">
+                  <MapPin size={20} />
+                </div>
+                <p className="text-sm font-pmedium text-slate-800">No meeting rooms are currently available.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Row 2: Tickets + Team Snapshot + Tenant Summary */}
+        <div className="flex flex-col rounded-[2.5rem] border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-pbold uppercase tracking-widest text-slate-900">
+              <Ticket size={16} className="text-purple-600" /> {canManageTenant ? 'Company Tickets' : 'My Tickets'}
+            </h2>
+            <Link to="/dashboard/tenant/tickets" className="text-[10px] font-pbold uppercase tracking-widest text-purple-600 hover:underline">
+              View All
+            </Link>
+          </div>
+
+          <div className="flex flex-1 flex-col gap-4 overflow-y-auto">
+            {visibleTickets.slice(0, 4).map((ticket) => (
+              <Link key={ticket.recordId || ticket.id} to="/dashboard/tenant/tickets" className="block rounded-2xl border border-slate-100 bg-slate-50 p-4 transition-all hover:border-purple-200 hover:bg-white">
+                <div className="mb-2 flex items-start justify-between gap-3">
+                  <span className="text-[10px] font-pbold text-slate-500">{ticket.id}</span>
+                  <span className={`rounded-md border px-2 py-0.5 text-[9px] font-pbold uppercase tracking-widest ${isOpenTicket(ticket) ? 'border-amber-200 bg-amber-100 text-amber-700' : 'border-emerald-200 bg-emerald-100 text-emerald-700'}`}>
+                    {normalizeText(ticket.status || 'Open')}
+                  </span>
+                </div>
+                <p className="mb-2 text-sm font-pmedium text-slate-800">{ticket.title}</p>
+                <div className="flex items-center justify-between gap-3 text-[10px] font-pmedium text-slate-400">
+                  <span>{ticket.department || 'Administration'}</span>
+                  <span>{ticket.assignedTo || ticket.submittedBy || 'Unassigned'}</span>
+                </div>
+              </Link>
+            ))}
+
+            {visibleTickets.length === 0 && (
+              <div className="flex flex-1 flex-col items-center justify-center text-center">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                  <Ticket size={22} />
+                </div>
+                <h3 className="text-base font-pbold text-slate-900">No support tickets yet</h3>
+                <p className="mt-1 text-sm font-pregular text-slate-500">Raise a ticket when something needs admin attention.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col rounded-[2.5rem] border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-pbold uppercase tracking-widest text-slate-900">
+              <UserCheck size={16} className="text-emerald-600" /> Team Snapshot
+            </h2>
+            <span className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">{employeeCount} Members</span>
+          </div>
+
+          <div className="space-y-4 overflow-y-auto">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Plan</p>
+                  <p className="mt-1 text-sm font-pmedium text-slate-900">{companyPlan}</p>
+                </div>
+                <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600">
+                  <Building2 size={18} />
+                </div>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-xl bg-white p-3">
+                  <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Contact</p>
+                  <p className="mt-1 font-pmedium text-slate-800">{companyContact}</p>
+                </div>
+                <div className="rounded-xl bg-white p-3">
+                  <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Credits Used</p>
+                  <p className="mt-1 font-pmedium text-slate-800">{companyCreditsUsed}</p>
+                </div>
               </div>
             </div>
 
-            <div className="flex min-h-75 flex-col rounded-[2.5rem] border border-slate-100 bg-white p-6 shadow-sm">
-              <div className="mb-6 flex items-center justify-between">
-                <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-slate-900">
-                  <UserCheck size={16} className="text-emerald-600" /> Team Snapshot
-                </h2>
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{employeeCount} Members</span>
+            <div className="rounded-2xl border border-slate-100 bg-white p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Company Credit Usage</p>
+                <span className="text-[10px] font-pbold uppercase tracking-widest text-slate-500">{creditUsagePercent}%</span>
               </div>
-
-              <div className="space-y-4 overflow-y-auto">
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Plan</p>
-                      <p className="mt-1 text-sm font-bold text-slate-900">{companyPlan}</p>
-                    </div>
-                    <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600">
-                      <Building2 size={18} />
-                    </div>
-                  </div>
-                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                    <div className="rounded-xl bg-white p-3">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Contact</p>
-                      <p className="mt-1 font-bold text-slate-800">{companyContact}</p>
-                    </div>
-                    <div className="rounded-xl bg-white p-3">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Credits Used</p>
-                      <p className="mt-1 font-bold text-slate-800">{companyCreditsUsed}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-100 bg-white p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Company Credit Usage</p>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{creditUsagePercent}%</span>
-                  </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div className={`h-2 rounded-full ${isCreditLow ? 'bg-amber-500' : 'bg-[#2563EB]'}`} style={{ width: `${creditUsagePercent}%` }} />
-                  </div>
-                </div>
-
-                {companyManager && (
-                  <div className="rounded-2xl border border-slate-100 bg-white p-4">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Manager</p>
-                    <p className="mt-1 text-sm font-bold text-slate-900">{companyManager.name || companyManager.fullName || 'Assigned manager'}</p>
-                    <p className="mt-1 text-xs font-medium text-slate-500">{companyManager.email || 'No email on file'}</p>
-                  </div>
-                )}
-
-                <div className="space-y-3 rounded-2xl border border-slate-100 bg-white p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Recent Team Members</p>
-                    <Users size={14} className="text-slate-400" />
-                  </div>
-                  {companyEmployees.slice(0, 4).map((employee: Record<string, any>, index: number) => (
-                    <div key={employee?.id || employee?.email || `${index}`} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
-                      <div>
-                        <p className="text-sm font-bold text-slate-800">{employee?.name || employee?.fullName || employee?.email || 'Employee'}</p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{employee?.designation || employee?.role || 'Staff'}</p>
-                      </div>
-                      <span className={`rounded-md border px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${normalizeId(employee?.status || 'active') === 'active' ? 'border-emerald-200 bg-emerald-100 text-emerald-700' : 'border-slate-200 bg-slate-100 text-slate-500'}`}>
-                        {normalizeText(employee?.status || 'Active')}
-                      </span>
-                    </div>
-                  ))}
-
-                  {companyEmployees.length === 0 && (
-                    <div className="rounded-xl bg-slate-50 px-3 py-4 text-center text-sm font-medium text-slate-500">
-                      No embedded team members are available on this tenant record yet.
-                    </div>
-                  )}
-                </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className={`h-2 rounded-full ${isCreditLow ? 'bg-amber-500' : 'bg-[#2563EB]'}`} style={{ width: `${creditUsagePercent}%` }} />
               </div>
+            </div>
+
+            {companyManager && (
+              <div className="rounded-2xl border border-slate-100 bg-white p-4">
+                <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Manager</p>
+                <p className="mt-1 text-sm font-pmedium text-slate-900">{companyManager.name || companyManager.fullName || 'Assigned manager'}</p>
+                <p className="mt-1 text-xs font-pregular text-slate-500">{companyManager.email || 'No email on file'}</p>
+              </div>
+            )}
+
+            <div className="space-y-3 rounded-2xl border border-slate-100 bg-white p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Recent Team Members</p>
+                <Users size={14} className="text-slate-400" />
+              </div>
+              {companyEmployees.slice(0, 4).map((employee: Record<string, any>, index: number) => (
+                <div key={employee?.id || employee?.email || `${index}`} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
+                  <div>
+                    <p className="text-sm font-pmedium text-slate-800">{employee?.name || employee?.fullName || employee?.email || 'Employee'}</p>
+                    <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">{employee?.designation || employee?.role || 'Staff'}</p>
+                  </div>
+                  <span className={`rounded-md border px-2 py-0.5 text-[9px] font-pbold uppercase tracking-widest ${normalizeId(employee?.status || 'active') === 'active' ? 'border-emerald-200 bg-emerald-100 text-emerald-700' : 'border-slate-200 bg-slate-100 text-slate-500'}`}>
+                    {normalizeText(employee?.status || 'Active')}
+                  </span>
+                </div>
+              ))}
+
+              {companyEmployees.length === 0 && (
+                <div className="rounded-xl bg-slate-50 px-3 py-4 text-center text-sm font-pregular text-slate-500">
+                  No embedded team members are available on this tenant record yet.
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col gap-8">
-          <div className="flex min-h-75 flex-col rounded-[2.5rem] border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-slate-900">
-                <MapPin size={16} className="text-[#2563EB]" /> Room Pool
-              </h2>
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{availableRooms.length} available</span>
-            </div>
-
-            <div className="space-y-4 overflow-y-auto">
-              {availableRooms.slice(0, 5).map((room) => (
-                <div key={room.id || room.name} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">{room.name || 'Meeting room'}</p>
-                      <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        {normalizeText(room.type || 'Room')} {room.floor ? `\u2022 Floor ${room.floor}` : ''} {room.wing ? `\u2022 Wing ${room.wing}` : ''}
-                      </p>
-                    </div>
-                    <span className="rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">
-                      Ready
-                    </span>
-                  </div>
-                </div>
-              ))}
-
-              {availableRooms.length === 0 && (
-                <div className="flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
-                  <div className="mb-3 rounded-full bg-white p-3 text-slate-400 shadow-sm">
-                    <MapPin size={20} />
-                  </div>
-                  <p className="text-sm font-bold text-slate-800">No meeting rooms are currently available.</p>
-                </div>
-              )}
-            </div>
+        <div className="flex flex-col rounded-[2.5rem] border border-slate-100 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-pbold uppercase tracking-widest text-slate-900">
+              <CheckCircle2 size={16} className="text-emerald-600" /> Tenant Summary
+            </h2>
           </div>
 
-          <div className="rounded-[2.5rem] border border-slate-100 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-slate-900">
-                <CheckCircle2 size={16} className="text-emerald-600" /> Tenant Summary
-              </h2>
-              {/* isRefreshing && <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Refreshing</span> */}
+          <div className="mt-4 space-y-3 text-sm font-pregular text-slate-600">
+            <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+              <span>Visible bookings</span>
+              <span className="font-pbold text-slate-900">{bookingCount}</span>
             </div>
-
-            <div className="mt-4 space-y-3 text-sm font-medium text-slate-600">
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-                <span>Visible bookings</span>
-                <span className="font-black text-slate-900">{bookingCount}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-                <span>Open support tickets</span>
-                <span className="font-black text-slate-900">{openTicketCount}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-                <span>Tenant credits remaining</span>
-                <span className="font-black text-slate-900">{companyCreditsRemaining}</span>
-              </div>
-              {tenantSummary && canViewWorkspaceSummary && (
-                <div className="rounded-xl bg-slate-50 px-4 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Workspace Summary</p>
-                  <p className="mt-1 text-sm font-bold text-slate-800">
-                    {tenantSummary.totalTenants || 0} tenant companies, {tenantSummary.activeContracts || 0} active contracts.
-                  </p>
-                </div>
-              )}
+            <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+              <span>Open support tickets</span>
+              <span className="font-pbold text-slate-900">{openTicketCount}</span>
             </div>
+            <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+              <span>Tenant credits remaining</span>
+              <span className="font-pbold text-slate-900">{companyCreditsRemaining}</span>
+            </div>
+            {tenantSummary && canViewWorkspaceSummary && (
+              <div className="rounded-xl bg-slate-50 px-4 py-3">
+                <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Workspace Summary</p>
+                <p className="mt-1 text-sm font-pmedium text-slate-800">
+                  {tenantSummary.totalTenants || 0} tenant companies, {tenantSummary.activeContracts || 0} active contracts.
+                </p>
+              </div>
+            )}
           </div>
 
           {canManageTenant && (
-            <Link to="/dashboard/tenant/buy-credits" className="flex items-center justify-between rounded-4xl border border-slate-100 bg-white px-6 py-5 shadow-sm transition-colors hover:bg-slate-50">
+            <Link to="/dashboard/tenant/buy-credits" className="mt-6 flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50 px-5 py-4 transition-colors hover:bg-white">
               <div className="flex items-center gap-3">
                 <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600">
                   <Plus size={18} />
                 </div>
                 <div>
-                  <p className="text-sm font-black text-slate-900">Request Credits</p>
-                  <p className="text-xs font-medium text-slate-500">Ask Sales to add more credits for your team.</p>
+                  <p className="text-sm font-pbold text-slate-900">Request Credits</p>
+                  <p className="text-xs font-pregular text-slate-500">Ask Sales to add more credits for your team.</p>
                 </div>
               </div>
               <ChevronRight size={18} className="text-slate-300" />
@@ -732,6 +732,7 @@ export default function TenantDashboardPage() {
           )}
         </div>
       </div>
+      </PageFrame>
     </div>
   );
 }

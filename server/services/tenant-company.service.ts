@@ -1,6 +1,8 @@
 // @ts-nocheck
 import crypto from "crypto";
+import mongoose from "mongoose";
 import { TenantCompany } from "../models/TenantCompany.js";
+import { PlansPricing } from "../models/PlansPricing.js";
 import HostUser from "../models/HostUser.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
@@ -204,6 +206,57 @@ async function sendEmployeeAccessEmail(email, name, companyName, loginUrl) {
   }
 }
 
+function formatPricingPackage(pkg) {
+  if (!pkg) return null;
+  const openDesks = Number(pkg.openDesks || 0);
+  const cabinDesks = Number(pkg.cabinDesks || 0);
+  const breakdownSeats = openDesks + cabinDesks;
+  const totalSeats = breakdownSeats > 0 ? breakdownSeats : (Number(pkg.totalSeats || pkg.seatsIncluded || 0));
+  const creditsPerSeat = roundNumber(pkg.creditsPerSeat || 0);
+  const monthlyCredits = Number(
+    (pkg.monthlyCredits || pkg.creditsIncluded || 0) ||
+    (totalSeats > 0 && creditsPerSeat > 0 ? roundNumber(totalSeats * creditsPerSeat) : 0),
+  );
+  return {
+    recordId: pkg._id,
+    id: pkg.packageCode,
+    packageCode: pkg.packageCode,
+    _id: pkg._id,
+    category: pkg.category,
+    name: pkg.name,
+    creditsIncluded: roundNumber(pkg.creditsIncluded || 0),
+    price: Number(pkg.price || 0),
+    durationMonths: Number(pkg.durationMonths || 0),
+    seatsIncluded: Number(pkg.seatsIncluded || 0),
+    totalSeats,
+    openDesks,
+    cabinDesks,
+    ratePerOpenDesk: roundNumber(pkg.ratePerOpenDesk || 0),
+    ratePerCabinDesk: roundNumber(pkg.ratePerCabinDesk || 0),
+    creditsPerSeat,
+    monthlyCredits,
+    locationMappings: Array.isArray(pkg.locationMappings) ? pkg.locationMappings.map((m) => ({
+      floor: normalizeText(m.floor || ""),
+      wing: normalizeText(m.wing || ""),
+      locationCode: normalizeText(m.locationCode || ""),
+      label: normalizeText(m.label || ""),
+      seatType: m.seatType || "mixed",
+      seatsAllocated: Number(m.seatsAllocated || 0),
+    })) : [],
+    description: pkg.description || "",
+    features: Array.isArray(pkg.features) ? pkg.features : [],
+    isRecommended: Boolean(pkg.isRecommended),
+    isCustom: Boolean(pkg.isCustom),
+    sourceTenantCompanyId: pkg.sourceTenantCompanyId || null,
+    assignedTenantCompanyId: pkg.assignedTenantCompanyId || null,
+    assignedTenantCompanyName: normalizeText(pkg.assignedTenantCompanyName || ""),
+    status: pkg.status || "Active",
+    sortOrder: Number(pkg.sortOrder || 0),
+    createdAt: pkg.createdAt,
+    updatedAt: pkg.updatedAt,
+  };
+}
+
 function formatTenantCompany(company) {
   if (!company) return null;
   const employees = Array.isArray(company.employees) ? company.employees : [];
@@ -272,12 +325,15 @@ export async function listTenantCompaniesForCurrentUser(userId, query = {}) {
   const limit = Math.min(100, Math.max(1, parseInt(query.limit) || 50));
   const skip = (page - 1) * limit;
 
-  const [total, companies] = await Promise.all([
+  const [total, companies, packages] = await Promise.all([
     TenantCompany.countDocuments(filter),
     TenantCompany.find(filter)
       .sort({ createdAt: -1, tenantNumber: -1 })
       .skip(skip)
       .limit(limit)
+      .lean(),
+    PlansPricing.find({ workspaceId: new mongoose.Types.ObjectId(workspaceId), category: "Tenant" })
+      .sort({ sortOrder: 1, name: 1 })
       .lean(),
   ]);
 
@@ -285,6 +341,7 @@ export async function listTenantCompaniesForCurrentUser(userId, query = {}) {
 
   return {
     tenants,
+    packages: packages.map(formatPricingPackage),
     total,
     page,
     limit,
@@ -323,11 +380,16 @@ export async function createTenantCompanyForCurrentUser(userId, input) {
   const status = contractEnd ? deriveTenantStatus(contractEnd) : "Pending Space Assignment";
   const creditsAllocated = Math.max(0, Number(input.creditsAllocated || 0));
 
+  const pricingPackageId = input.pricingPackageId && input.pricingPackageId !== '__custom__'
+    ? new mongoose.Types.ObjectId(String(input.pricingPackageId))
+    : null;
+
   const company = await TenantCompany.create({
     workspaceId: access.workspaceId,
     ownerId: access.workspace.ownerId || userId,
     tenantNumber,
     tenantCode,
+    pricingPackageId,
     companyName: normalizeText(input.companyName),
     contactName: normalizeText(input.contactName),
     email: normalizeText(input.email || "").toLowerCase(),
@@ -438,6 +500,12 @@ export async function updateTenantCompanyForCurrentUser(userId, tenantCompanyId,
         company[field] = normalizeText(input[field]);
       }
     }
+  }
+
+  if (input.pricingPackageId !== undefined) {
+    company.pricingPackageId = input.pricingPackageId && input.pricingPackageId !== '__custom__'
+      ? new mongoose.Types.ObjectId(String(input.pricingPackageId))
+      : null;
   }
 
   if (input.contractStart) {

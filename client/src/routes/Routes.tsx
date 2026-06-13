@@ -158,7 +158,6 @@ import TenantMeetingRoomBookingPage from "../pages/tenant/TenantMeetingRoomBooki
 import TenantBookingHistoryPage from "../pages/tenant/TenantBookingHistoryPage";
 import TenantBuyCreditsPage from "../pages/tenant/TenantBuyCreditsPage";
 import TenantTicketsPage from "../pages/tenant/TenantTicketsPage";
-import TenantProfilePage from "../pages/tenant/TenantProfilePage";
 
 function VerticalPickerRoute() {
   const location = useLocation();
@@ -370,7 +369,7 @@ export const routes = createBrowserRouter([
                       { path: "booking-history", element: <TenantBookingHistoryPage /> },
                       { path: "buy-credits", element: <TenantBuyCreditsPage /> },
                       { path: "tickets", element: <TenantTicketsPage /> },
-                      { path: "profile", element: <TenantProfilePage /> },
+                      { path: "profile", element: <Navigate to="/profile/company-profile" replace /> },
                     ],
                   },
                 ],

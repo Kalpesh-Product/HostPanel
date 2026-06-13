@@ -570,21 +570,28 @@ function ResourceManagementPageInner() {
 
   const filteredResources = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return resources.filter((resource) => {
-      const locationLabel = resource.locationLabel || [resource.floor, resource.wing].filter(Boolean).join(' ').trim();
-      const matchesSearch =
-        !query ||
-        [resource.id, resource.name, resource.type, resource.resourceCategory, resource.floor, resource.wing, locationLabel]
-          .filter(Boolean)
-          .some((value) => value?.toString().toLowerCase().includes(query));
-      return (
-        matchesSearch &&
-        (categoryFilter === 'All Categories' || resource.resourceCategory === categoryFilter) &&
-        (floorFilter === 'All Floors' || resource.floor === floorFilter) &&
-        (wingFilter === 'All Wings' || resource.wing === wingFilter) &&
-        (statusFilter === 'All Status' || resource.status === statusFilter)
-      );
-    });
+    return resources
+      .filter((resource) => {
+        const locationLabel = resource.locationLabel || [resource.floor, resource.wing].filter(Boolean).join(' ').trim();
+        const matchesSearch =
+          !query ||
+          [resource.id, resource.name, resource.type, resource.resourceCategory, resource.floor, resource.wing, locationLabel]
+            .filter(Boolean)
+            .some((value) => value?.toString().toLowerCase().includes(query));
+        return (
+          matchesSearch &&
+          (categoryFilter === 'All Categories' || resource.resourceCategory === categoryFilter) &&
+          (floorFilter === 'All Floors' || resource.floor === floorFilter) &&
+          (wingFilter === 'All Wings' || resource.wing === wingFilter) &&
+          (statusFilter === 'All Status' || resource.status === statusFilter)
+        );
+      })
+      .sort((a, b) => {
+        const aActive = a.isActive || a.status === 'Active' ? 1 : 0;
+        const bActive = b.isActive || b.status === 'Active' ? 1 : 0;
+        if (aActive !== bActive) return bActive - aActive;
+        return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+      });
   }, [resources, searchQuery, categoryFilter, floorFilter, wingFilter, statusFilter]);
 
   const stats: Stats = useMemo(

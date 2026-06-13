@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import {
+  AlertCircle,
   Calendar,
+  CheckCircle2,
   Clock,
   Edit2,
   Eye,
@@ -12,13 +14,19 @@ import {
   Users,
   XCircle,
 } from 'lucide-react';
+import PageFrame from '@/components/Pages/PageFrame';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
+import { formatTime12h } from '@/utils/time';
 import { getStoredTenantCompanyId, getStoredTenantCompanyName, getStoredUser } from '@/lib/auth-session';
 import { getStoredTenantRole, isTenantAdminRole, isTenantManagerRole } from '@/lib/tenant-session';
+import { MOCK_BOOKINGS, MOCK_TENANT_COMPANIES, initMockTenantSession } from './mock-tenant-data';
 
 // ─── Backend service imports (uncomment when backend ready) ───
 // import { getTenantCompanies } from '@/services/tenant-companies';
 // import { getMeetingRoomBookings, respondToMeetingRoomInvite, updateMeetingRoomBooking } from '@/services/meeting-room-bookings';
+
+const BOOKING_SLOT_STEP_MINUTES = 5;
+const BOOKING_MIN_DURATION_MINUTES = 30;
 
 function normalizeText(value: unknown): string {
   return String(value ?? '').trim();
@@ -102,7 +110,7 @@ function formatBookingWindow(booking: Record<string, any>): string {
   const dl = formatDateLabel(booking?.date);
   const st = booking?.checkIn || booking?.startTime || '';
   const et = booking?.checkOut || booking?.endTime || '';
-  return `${dl} \u2022 ${st}${et ? ` - ${et}` : ''}`;
+  return `${dl} ${st}${et ? ` - ${et}` : ''}`;
 }
 
 function toBookingSortKey(booking: Record<string, any>): number {
@@ -190,6 +198,61 @@ function getInviteTone(status: string): string {
   return 'border-amber-200 bg-amber-100 text-amber-700';
 }
 
+function formatTimeOptionLabel(value: string): string {
+  return formatTime12h(value) || value;
+}
+
+function buildTimeOptions(minTime = '00:00', maxTime = '23:55', stepMinutes = BOOKING_SLOT_STEP_MINUTES): string[] {
+  const minMinutes = Math.max(0, timeToMinutes(minTime) ?? 0);
+  const maxMinutes = Math.min((24 * 60) - stepMinutes, timeToMinutes(maxTime) ?? ((24 * 60) - stepMinutes));
+  const options: string[] = [];
+  for (let minutes = minMinutes; minutes <= maxMinutes; minutes += stepMinutes) {
+    options.push(minutesToTimeString(minutes));
+  }
+  return options;
+}
+
+function roundUpToStepTime(value: string, stepMinutes = BOOKING_SLOT_STEP_MINUTES): string {
+  const totalMinutes = timeToMinutes(value);
+  if (totalMinutes === null) return '';
+  const roundedMinutes = Math.ceil(totalMinutes / stepMinutes) * stepMinutes;
+  if (roundedMinutes >= 24 * 60) return '23:55';
+  return minutesToTimeString(roundedMinutes);
+}
+
+function getCurrentTimeInputValue(date = new Date()): string {
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+function getTodayInputValue(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getLaterTimeInputValue(...values: string[]): string {
+  const validValues = values.map((value) => timeToMinutes(value)).filter((v): v is number => v !== null);
+  if (validValues.length === 0) return '';
+  return minutesToTimeString(Math.max(...validValues));
+}
+
+function getMinimumEndTime(startTime: string): string {
+  const startMinutes = timeToMinutes(startTime);
+  if (startMinutes === null) return '';
+  return minutesToTimeString(startMinutes + BOOKING_MIN_DURATION_MINUTES);
+}
+
+function parseFloorFromLocation(location: string): string {
+  const match = String(location || '').match(/Floor\s+(\d+)/i);
+  return match ? match[1] : '';
+}
+
+function parseWingFromLocation(location: string): string {
+  const match = String(location || '').match(/Wing\s+(\w+)/i);
+  return match ? match[1] : '';
+}
+
 export default function TenantBookingHistoryPage() {
   const currentUser = getStoredUser() || {};
   const userRole = getStoredTenantRole() || 'tenant-employee';
@@ -234,6 +297,7 @@ export default function TenantBookingHistoryPage() {
   );
 
   const loadBookings = async () => {
+    initMockTenantSession();
     setIsLoading(true);
     setErrorMessage('');
     try {
@@ -246,8 +310,8 @@ export default function TenantBookingHistoryPage() {
 
       // ⚠️ Placeholder
       await new Promise((resolve) => setTimeout(resolve, 500));
-      const nextBookings: Record<string, any>[] = [];
-      const nextCompanies: Record<string, any>[] = [];
+      const nextBookings: Record<string, any>[] = MOCK_BOOKINGS;
+      const nextCompanies: Record<string, any>[] = MOCK_TENANT_COMPANIES;
 
       setBookings(nextBookings);
       setTenantCompanies(nextCompanies);
@@ -308,6 +372,48 @@ export default function TenantBookingHistoryPage() {
     return getBookingScheduleAvailability(tenantBookings, { ...extendModal, endTime: minutesToTimeString(nextEndMinutes) }, extendModal.recordId);
   }, [extendModal, extendMinutes, tenantBookings]);
 
+  const rescheduleBookingRate = useMemo(() => {
+    if (!rescheduleModal) return 0;
+    const originalCredits = Number(rescheduleModal.bookingCredits || 0);
+    const origStartMinutes = timeToMinutes(rescheduleModal.startTime || rescheduleModal.checkIn || '');
+    const origEndMinutes = timeToMinutes(rescheduleModal.endTime || rescheduleModal.checkOut || '');
+    if (!originalCredits || origStartMinutes === null || origEndMinutes === null || origEndMinutes <= origStartMinutes) return originalCredits;
+    const durationHours = (origEndMinutes - origStartMinutes) / 60;
+    return durationHours > 0 ? Number((originalCredits / durationHours).toFixed(2)) : originalCredits;
+  }, [rescheduleModal]);
+
+  const rescheduleNewCredits = useMemo(() => {
+    if (!rescheduleModal) return 0;
+    const startM = timeToMinutes(rescheduleForm.startTime);
+    const endM = timeToMinutes(rescheduleForm.endTime);
+    if (startM === null || endM === null || endM <= startM) return 0;
+    const durationHours = (endM - startM) / 60;
+    return Number((rescheduleBookingRate * durationHours).toFixed(2));
+  }, [rescheduleForm.startTime, rescheduleForm.endTime, rescheduleBookingRate]);
+
+  const rescheduleCreditDiff = useMemo(() => {
+    if (!rescheduleModal) return 0;
+    const originalCredits = Number(rescheduleModal.bookingCredits || 0);
+    return Number((rescheduleNewCredits - originalCredits).toFixed(2));
+  }, [rescheduleModal, rescheduleNewCredits]);
+
+  const todayValue = getTodayInputValue();
+  const currentTimeValue = getCurrentTimeInputValue();
+  const roundedCurrentTimeValue = roundUpToStepTime(currentTimeValue);
+
+  const rescheduleStartTimeOptions = useMemo(
+    () => buildTimeOptions(rescheduleForm.date === todayValue ? roundedCurrentTimeValue : '00:00'),
+    [rescheduleForm.date, roundedCurrentTimeValue, todayValue],
+  );
+
+  const rescheduleEndTimeOptions = useMemo(() => {
+    const minimumEndTime = getMinimumEndTime(rescheduleForm.startTime);
+    const baseMin = rescheduleForm.date === todayValue
+      ? getLaterTimeInputValue(roundedCurrentTimeValue, minimumEndTime || '')
+      : minimumEndTime;
+    return buildTimeOptions(baseMin || '00:00');
+  }, [rescheduleForm.date, rescheduleForm.startTime, roundedCurrentTimeValue, todayValue]);
+
   useEffect(() => {
     if (mainTab === 'invites' && inviteBookings.length > 0) return;
     if (mainTab === 'company' && companyBookings.length > 0) return;
@@ -360,8 +466,8 @@ export default function TenantBookingHistoryPage() {
     if (!cancelModal?.recordId) return;
     setIsSaving(true); setErrorMessage('');
     try {
-      // await updateMeetingRoomBooking(cancelModal.recordId, { status: 'cancelled', cancelReason: cancelReason.trim() });
-      setNoticeMessage('Booking cancelled.');
+      // await updateMeetingRoomBooking(cancelModal.recordId, { status: 'cancelled', cancelReason: cancelReason.trim(), bookingCreditsRefunded: cancelModal.bookingCredits || 0 });
+      setNoticeMessage('Booking cancelled. Credits will be refunded.');
       setCancelModal(null); setCancelReason('');
       await loadBookings();
     } catch (error: any) {
@@ -375,7 +481,7 @@ export default function TenantBookingHistoryPage() {
     if (!rescheduleAvailability.available) { setErrorMessage(rescheduleAvailability.reason); return; }
     setIsSaving(true); setErrorMessage('');
     try {
-      // await updateMeetingRoomBooking(rescheduleModal.recordId, { ...rescheduleForm, status: 'rescheduled' });
+      // await updateMeetingRoomBooking(rescheduleModal.recordId, { ...rescheduleForm, bookingCredits: rescheduleNewCredits, status: 'rescheduled' });
       setNoticeMessage('Booking rescheduled.');
       setRescheduleModal(null);
       await loadBookings();
@@ -402,60 +508,57 @@ export default function TenantBookingHistoryPage() {
     } finally { setIsSaving(false); }
   };
 
-  if (isLoading) return <TablePageSkeleton rows={6} columns={5} />;
+  if (isLoading) return <TablePageSkeleton />;
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F8FAFC] px-6 py-6 font-sans text-[#0F172A] lg:px-8">
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+      <PageFrame>
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-black tracking-tight">Meeting Schedule</h1>
-          <p className="mt-1 text-sm font-bold text-slate-500">Track bookings, handle invites, and keep your tenant meetings in one place.</p>
+          <h1 className="text-title font-pmedium text-primary uppercase">Meeting Schedule</h1>
+          <p className="mt-1 text-sm font-pmedium text-slate-500">Track bookings, handle invites, and keep your tenant meetings in one place.</p>
         </div>
         <div className="flex flex-wrap gap-2 rounded-2xl bg-slate-200/50 p-1.5 shadow-inner">
-          <button onClick={() => { setMainTab('my'); setSubTab('upcoming'); }}
-            className={`rounded-xl px-5 py-2.5 text-xs font-black uppercase tracking-widest transition-all ${mainTab === 'my' ? 'bg-white text-[#2563EB] shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>My Bookings</button>
-          <button onClick={() => { setMainTab('invites'); setSubTab('upcoming'); }}
-            className={`rounded-xl px-5 py-2.5 text-xs font-black uppercase tracking-widest transition-all ${mainTab === 'invites' ? 'bg-white text-[#2563EB] shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Invites {pendingInviteCount > 0 ? `(${pendingInviteCount})` : ''}</button>
           {canManageTenant && (
             <button onClick={() => { setMainTab('company'); setSubTab('upcoming'); }}
-              className={`rounded-xl px-5 py-2.5 text-xs font-black uppercase tracking-widest transition-all ${mainTab === 'company' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Company View</button>
+              className={`rounded-xl px-5 py-2.5 text-xs font-pbold uppercase tracking-widest transition-all ${mainTab === 'company' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Company View</button>
           )}
-          <button onClick={handleRefresh}
-            className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-2.5 text-xs font-black uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">
-            <RefreshCw size={14} /> Refresh
-          </button>
+          <button onClick={() => { setMainTab('my'); setSubTab('upcoming'); }}
+            className={`rounded-xl px-5 py-2.5 text-xs font-pbold uppercase tracking-widest transition-all ${mainTab === 'my' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>My Bookings</button>
+          <button onClick={() => { setMainTab('invites'); setSubTab('upcoming'); }}
+            className={`rounded-xl px-5 py-2.5 text-xs font-pbold uppercase tracking-widest transition-all ${mainTab === 'invites' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>Invites {pendingInviteCount > 0 ? `(${pendingInviteCount})` : ''}</button>
         </div>
       </div>
 
       {errorMessage && (
-        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">{errorMessage}</div>
+        <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-pregular text-amber-800">{errorMessage}</div>
       )}
       {noticeMessage && (
-        <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">{noticeMessage}</div>
+        <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-pregular text-emerald-800">{noticeMessage}</div>
       )}
 
       <div className="mb-6 flex flex-wrap gap-3">
-        <button onClick={() => setSubTab('upcoming')} className={`rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-widest ${subTab === 'upcoming' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 shadow-sm'}`}>Upcoming {upcomingCount}</button>
-        <button onClick={() => setSubTab('past')} className={`rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-widest ${subTab === 'past' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 shadow-sm'}`}>Past {pastCount}</button>
-        <button onClick={() => setSubTab('cancelled')} className={`rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-widest ${subTab === 'cancelled' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 shadow-sm'}`}>Cancelled {cancelledCount}</button>
+        <button onClick={() => setSubTab('upcoming')} className={`rounded-xl px-4 py-2.5 text-xs font-pbold uppercase tracking-widest ${subTab === 'upcoming' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 shadow-sm'}`}>Upcoming {upcomingCount}</button>
+        <button onClick={() => setSubTab('past')} className={`rounded-xl px-4 py-2.5 text-xs font-pbold uppercase tracking-widest ${subTab === 'past' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 shadow-sm'}`}>Past {pastCount}</button>
+        <button onClick={() => setSubTab('cancelled')} className={`rounded-xl px-4 py-2.5 text-xs font-pbold uppercase tracking-widest ${subTab === 'cancelled' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 shadow-sm'}`}>Cancelled {cancelledCount}</button>
       </div>
 
       <div className="flex-1 rounded-[2.5rem] border border-slate-100 bg-white shadow-sm overflow-hidden">
         <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-6 py-5">
           <div>
-            <h2 className="flex items-center gap-2 text-lg font-black text-slate-900">
+            <h2 className="flex items-center gap-2 text-lg font-pbold text-slate-900">
               <History size={20} className="text-[#2563EB]" /> {mainTab === 'company' ? 'Company Booking History' : mainTab === 'invites' ? 'Meeting Invites' : 'My Booking History'}
             </h2>
-            <p className="mt-1 text-xs font-bold uppercase tracking-widest text-slate-400">{tenantCompanyName}</p>
+            <p className="mt-1 text-xs font-pmedium uppercase tracking-widest text-slate-400">{tenantCompanyName}</p>
           </div>
-          <Link to="/dashboard/tenant/meeting-room-booking" className="hidden items-center gap-2 rounded-xl bg-slate-100 px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-100 md:inline-flex">
+          <Link to="/dashboard/tenant/meeting-room-booking" className="hidden items-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-xs font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-800 md:inline-flex">
             <Calendar size={14} /> Book Room
           </Link>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left">
-            <thead className="sticky top-0 z-10 border-b border-slate-100 bg-white text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <thead className="sticky top-0 z-10 border-b border-slate-100 bg-white text-[10px] font-pbold uppercase tracking-widest text-slate-400">
               <tr>
                 <th className="px-6 py-4">Meeting</th>
                 <th className="px-6 py-4">Host / Company</th>
@@ -481,68 +584,68 @@ export default function TenantBookingHistoryPage() {
                       <div className="flex items-start gap-4">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500"><MapPin size={18} /></div>
                         <div>
-                          <p className="text-sm font-black text-slate-900">{booking.roomName}</p>
-                          <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">{booking.bookingCode || booking.id}</p>
-                          <p className="mt-1 text-xs font-medium text-slate-500">{booking.bookingType || 'Tenant'}</p>
+                          <p className="text-sm font-pbold text-slate-900">{booking.roomName}</p>
+                          <p className="mt-1 text-[10px] font-pbold uppercase tracking-widest text-slate-400">{booking.bookingCode || booking.id}</p>
+                          <p className="mt-1 text-xs font-pregular text-slate-500">{booking.bookingType || 'Tenant'}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-5 align-top">
-                      <p className="text-sm font-bold text-slate-800">{booking.bookedByName || 'Unknown host'}</p>
-                      <p className="mt-1 text-xs font-medium text-slate-500">{booking.clientCompany || tenantCompanyName}</p>
+                      <p className="text-sm font-pmedium text-slate-800">{booking.bookedByName || 'Unknown host'}</p>
+                      <p className="mt-1 text-xs font-pregular text-slate-500">{booking.clientCompany || tenantCompanyName}</p>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {inviteDisplayStatus === 'pending' && <span className="rounded-md border border-amber-200 bg-amber-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-amber-700">Pending Invite</span>}
-                        {inviteDisplayStatus === 'accepted' && <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">Accepted Invite</span>}
-                        {inviteDisplayStatus === 'cancelled' && <span className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Cancelled Invite</span>}
+                        {inviteDisplayStatus === 'pending' && <span className="rounded-md border border-amber-200 bg-amber-100 px-2 py-0.5 text-[9px] font-pbold uppercase tracking-widest text-amber-700">Pending Invite</span>}
+                        {inviteDisplayStatus === 'accepted' && <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-pbold uppercase tracking-widest text-emerald-700">Accepted Invite</span>}
+                        {inviteDisplayStatus === 'cancelled' && <span className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[9px] font-pbold uppercase tracking-widest text-slate-500">Cancelled Invite</span>}
                       </div>
                     </td>
                     <td className="px-6 py-5 align-top">
-                      <p className="text-sm font-bold text-slate-700">{formatDateLabel(booking.date)}</p>
-                      <p className="mt-1 flex items-center gap-1.5 text-xs font-bold text-slate-500">
+                      <p className="text-sm font-pmedium text-slate-700">{formatDateLabel(booking.date)}</p>
+                      <p className="mt-1 flex items-center gap-1.5 text-xs font-pmedium text-slate-500">
                         <Clock size={12} /> {booking.checkIn || booking.startTime} - {booking.checkOut || booking.endTime}
                       </p>
                     </td>
                     <td className="px-6 py-5 align-top">
-                      <span className={`inline-flex rounded-lg border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${getStatusTone(bookingStatus)}`}>{bookingStatus}</span>
+                      <span className={`inline-flex rounded-lg border px-3 py-1 text-[10px] font-pbold uppercase tracking-widest ${getStatusTone(bookingStatus)}`}>{bookingStatus}</span>
                       {inviteDisplayStatus && inviteDisplayStatus !== 'pending' && (
                         <div className="mt-2">
-                          <span className={`inline-flex rounded-lg border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${getInviteTone(inviteDisplayStatus)}`}>Invite {normalizeText(inviteDisplayStatus)}</span>
+                          <span className={`inline-flex rounded-lg border px-3 py-1 text-[10px] font-pbold uppercase tracking-widest ${getInviteTone(inviteDisplayStatus)}`}>Invite {normalizeText(inviteDisplayStatus)}</span>
                         </div>
                       )}
                     </td>
                     <td className="px-6 py-5 align-top text-right">
                       <div className="flex flex-wrap justify-end gap-2">
-                        <button onClick={() => setSelectedBooking(booking)} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">
+                        <button onClick={() => setSelectedBooking(booking)} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">
                           <Eye size={14} /> View
                         </button>
                         {inviteDisplayStatus === 'pending' && (
                           <>
-                            <button disabled={isSaving || areInviteActionsDisabled} onClick={() => handleAcceptInvite(booking)} className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60">
+                            <button disabled={isSaving || areInviteActionsDisabled} onClick={() => handleAcceptInvite(booking)} className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60">
                               <Send size={14} /> Accept
                             </button>
-                            <button disabled={isSaving || areInviteActionsDisabled} onClick={() => handleRejectInvite(booking)} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
+                            <button disabled={isSaving || areInviteActionsDisabled} onClick={() => handleRejectInvite(booking)} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
                               <XCircle size={14} /> Decline
                             </button>
                           </>
                         )}
                         {inviteDisplayStatus === 'cancelled' && (
                           <>
-                            <button disabled className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 opacity-80"><Send size={14} /> Accept</button>
-                            <button disabled className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 opacity-80"><XCircle size={14} /> Decline</button>
+                            <button disabled className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-slate-400 opacity-80"><Send size={14} /> Accept</button>
+                            <button disabled className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-slate-400 opacity-80"><XCircle size={14} /> Decline</button>
                           </>
                         )}
                         {canRescheduleOrCancel && (
                           <>
-                            <button disabled={isSaving} onClick={() => openRescheduleModal(booking)} className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-blue-700 shadow-sm transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60">
+                            <button disabled={isSaving} onClick={() => openRescheduleModal(booking)} className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-blue-700 shadow-sm transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60">
                               <Edit2 size={14} /> Reschedule
                             </button>
-                            <button disabled={isSaving} onClick={() => openCancelModal(booking)} className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-red-600 shadow-sm transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60">
+                            <button disabled={isSaving} onClick={() => openCancelModal(booking)} className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-red-600 shadow-sm transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60">
                               <XCircle size={14} /> Cancel
                             </button>
                           </>
                         )}
                         {canExtendBooking && (
-                          <button disabled={isSaving} onClick={() => openExtendModal(booking)} className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-indigo-700 shadow-sm transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60">
+                          <button disabled={isSaving} onClick={() => openExtendModal(booking)} className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-indigo-700 shadow-sm transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60">
                             <RefreshCw size={14} /> Extend Meeting
                           </button>
                         )}
@@ -555,9 +658,9 @@ export default function TenantBookingHistoryPage() {
                 <tr>
                   <td colSpan={5} className="px-6 py-20 text-center">
                     <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400"><History size={24} /></div>
-                    <h3 className="text-lg font-black text-slate-900">No bookings match this filter</h3>
-                    <p className="mt-1 text-sm font-medium text-slate-500">Use the booking page to create a new room reservation.</p>
-                    <Link to="/dashboard/tenant/meeting-room-booking" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-800">
+                    <h3 className="text-lg font-pbold text-slate-900">No bookings match this filter</h3>
+                    <p className="mt-1 text-sm font-pregular text-slate-500">Use the booking page to create a new room reservation.</p>
+                    <Link to="/dashboard/tenant/meeting-room-booking" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-3 text-xs font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-800">
                       <Calendar size={14} /> Book a room
                     </Link>
                   </td>
@@ -574,8 +677,8 @@ export default function TenantBookingHistoryPage() {
           <div className="max-h-[90vh] w-full max-w-xl overflow-hidden rounded-[2.5rem] bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-6 py-5">
               <div>
-                <h3 className="text-xl font-black text-slate-900">Booking Details</h3>
-                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">{selectedBooking.bookingCode || selectedBooking.id}</p>
+                <h3 className="text-xl font-pbold text-slate-900">Booking Details</h3>
+                <p className="mt-1 text-[10px] font-pbold uppercase tracking-widest text-slate-400">{selectedBooking.bookingCode || selectedBooking.id}</p>
               </div>
               <button onClick={() => setSelectedBooking(null)} className="rounded-full bg-white p-2 text-slate-400 shadow-sm transition-colors hover:text-red-500"><XCircle size={18} /></button>
             </div>
@@ -583,40 +686,40 @@ export default function TenantBookingHistoryPage() {
               <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-black text-slate-900">{selectedBooking.roomName}</p>
-                    <p className="mt-1 text-xs font-medium text-slate-500">{selectedBooking.roomInventoryMode || 'Meeting room'} \u2022 {selectedBooking.roomCapacity ? `${selectedBooking.roomCapacity} seats` : 'Capacity not set'}</p>
+                    <p className="text-sm font-pbold text-slate-900">{selectedBooking.roomName}</p>
+                    <p className="mt-1 text-xs font-pregular text-slate-500">{selectedBooking.roomInventoryMode || 'Meeting room'} {selectedBooking.roomCapacity ? `${selectedBooking.roomCapacity} seats` : 'Capacity not set'}</p>
                   </div>
-                  <span className={`rounded-lg border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${getStatusTone(selectedBooking.status || selectedBooking.bookingStatus)}`}>{normalizeText(selectedBooking.status || selectedBooking.bookingStatus || 'Booked')}</span>
+                  <span className={`rounded-lg border px-3 py-1 text-[10px] font-pbold uppercase tracking-widest ${getStatusTone(selectedBooking.status || selectedBooking.bookingStatus)}`}>{normalizeText(selectedBooking.status || selectedBooking.bookingStatus || 'Booked')}</span>
                 </div>
-                <p className="mt-4 flex items-center gap-1.5 text-xs font-bold text-slate-500"><Clock size={12} /> {formatBookingWindow(selectedBooking)}</p>
-                <div className="mt-4 grid gap-3 md:grid-cols-3 text-xs font-bold text-slate-600">
-                  <div className="rounded-xl bg-white px-3 py-2 border border-slate-100">Location: {selectedBooking.location || 'Workspace'}{selectedBooking.roomWing ? ` \u2022 Wing ${selectedBooking.roomWing}` : ''}</div>
-                  <div className="rounded-xl bg-white px-3 py-2 border border-slate-100">
-                    <p>Credits Used: {selectedBooking.bookingCredits || 0}</p>
-                    {normalizeText(selectedBooking.status || selectedBooking.bookingStatus) === 'cancelled' && <p className="mt-1 text-xs font-bold text-slate-700">Credits Refunded: {selectedBooking.bookingCredits || 0}</p>}
+                <p className="mt-4 flex items-center gap-1.5 text-xs font-pmedium text-slate-500"><Clock size={12} /> {formatBookingWindow(selectedBooking)}</p>
+                <div className="mt-4 grid gap-3 md:grid-cols-3 text-xs font-pmedium text-slate-600 items-stretch">
+                  <div className="rounded-xl bg-white px-3 py-2 border border-slate-100 flex flex-col items-center justify-center text-center">{(function () { const loc = normalizeText(selectedBooking.location || ''); const floor = parseFloorFromLocation(loc); const wing = normalizeText(selectedBooking.roomWing || parseWingFromLocation(loc)); const parts = [loc.replace(/Floor\s+\d+.*$/i, '').trim() || 'Location:']; if (floor) parts.push(`Floor ${floor}`); if (wing) parts.push(wing); return parts.join(' '); })()}</div>
+                  <div className="rounded-xl bg-white px-3 py-2 border border-slate-100 flex flex-col items-center justify-center text-center">
+                    <p>Credits Used: {Number(selectedBooking.bookingCredits || 0).toFixed(2)}</p>
+                    {normalizeText(selectedBooking.status || selectedBooking.bookingStatus) === 'cancelled' && <p className="mt-1 text-xs font-pmedium text-slate-700">Refunded: {Number(selectedBooking.bookingCredits || 0).toFixed(2)} CR</p>}
                   </div>
-                  <div className="rounded-xl bg-white px-3 py-2 border border-slate-100">Remaining: {Number.isFinite(companyCreditsRemaining) ? companyCreditsRemaining : '\u2014'}</div>
+                  <div className="rounded-xl bg-white px-3 py-2 border border-slate-100 flex flex-col items-center justify-center text-center">Remaining: {Number.isFinite(companyCreditsRemaining) ? `${companyCreditsRemaining.toFixed(2)} CR` : ''}</div>
                 </div>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-2xl border border-slate-100 bg-white p-4"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Host</p><p className="mt-1 text-sm font-bold text-slate-900">{selectedBooking.bookedByName || 'Unknown host'}</p></div>
-                <div className="rounded-2xl border border-slate-100 bg-white p-4"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Attendees</p><p className="mt-1 text-sm font-bold text-slate-900">{selectedBooking.attendees || 0}</p></div>
+                <div className="rounded-2xl border border-slate-100 bg-white p-4"><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Host</p><p className="mt-1 text-sm font-pmedium text-slate-900">{selectedBooking.bookedByName || 'Unknown host'}</p></div>
+                <div className="rounded-2xl border border-slate-100 bg-white p-4"><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Attendees</p><p className="mt-1 text-sm font-pmedium text-slate-900">{selectedBooking.attendees || 0}</p></div>
               </div>
-              <div className="rounded-2xl border border-slate-100 bg-white p-4"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Purpose</p><p className="mt-2 text-sm font-medium leading-6 text-slate-600">{selectedBooking.purpose || 'No purpose provided.'}</p></div>
+              <div className="rounded-2xl border border-slate-100 bg-white p-4"><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Purpose</p><p className="mt-2 text-sm font-pregular leading-6 text-slate-600">{selectedBooking.purpose || 'No purpose provided.'}</p></div>
               <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-2xl border border-slate-100 bg-white p-4"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Booker</p><p className="mt-1 text-sm font-bold text-slate-900">{selectedBooking.bookedByName || 'Unknown host'}</p><p className="mt-1 text-xs text-slate-500">{selectedBooking.bookedByEmail || 'No email on file'}</p></div>
-                <div className="rounded-2xl border border-slate-100 bg-white p-4"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Room Details</p><p className="mt-1 text-sm font-bold text-slate-900">{selectedBooking.roomName}</p><p className="mt-1 text-xs text-slate-500">{selectedBooking.roomDescription || 'No room description available.'}</p></div>
+                <div className="rounded-2xl border border-slate-100 bg-white p-4"><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Booker</p><p className="mt-1 text-sm font-pmedium text-slate-900">{selectedBooking.bookedByName || 'Unknown host'}</p><p className="mt-1 text-xs text-slate-500">{selectedBooking.bookedByEmail || 'No email on file'}</p></div>
+                <div className="rounded-2xl border border-slate-100 bg-white p-4"><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Room Details</p><p className="mt-1 text-sm font-pmedium text-slate-900">{selectedBooking.roomName}</p><p className="mt-1 text-xs text-slate-500">{selectedBooking.roomDescription || 'No room description available.'}</p></div>
               </div>
               <div className="rounded-2xl border border-slate-100 bg-white p-4">
-                <div className="flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Invite List</p><Users size={14} className="text-slate-400" /></div>
+                <div className="flex items-center justify-between"><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Invite List</p><Users size={14} className="text-slate-400" /></div>
                 <div className="mt-4 space-y-2">
                   {(Array.isArray(selectedBooking.invites) ? selectedBooking.invites : []).length > 0 ? selectedBooking.invites.map((invite: Record<string, any>) => (
                     <div key={`${invite.invitedUserId || invite.invitedName}`} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
-                      <div><p className="text-sm font-bold text-slate-800">{invite.invitedName}</p><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{invite.invitedRole || 'Member'}</p></div>
-                      <span className={`rounded-md border px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${getInviteTone(invite.status)}`}>{normalizeText(invite.status || 'pending')}</span>
+                      <div><p className="text-sm font-pmedium text-slate-800">{invite.invitedName}</p><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">{invite.invitedRole || 'Member'}</p></div>
+                      <span className={`rounded-md border px-2 py-0.5 text-[9px] font-pbold uppercase tracking-widest ${getInviteTone(invite.status)}`}>{normalizeText(invite.status || 'pending')}</span>
                     </div>
                   )) : (
-                    <div className="rounded-xl bg-slate-50 px-3 py-4 text-sm font-medium text-slate-500">No invite list available.</div>
+                    <div className="rounded-xl bg-slate-50 px-3 py-4 text-sm font-pregular text-slate-500">No invite list available.</div>
                   )}
                 </div>
               </div>
@@ -628,18 +731,23 @@ export default function TenantBookingHistoryPage() {
       {/* Cancel modal */}
       {cancelModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-[2.5rem] bg-white shadow-2xl">
+          <div className="w-full max-w-md overflow-hidden rounded-[2.5rem] bg-white shadow-2xl">
             <div className="border-b border-slate-100 bg-red-50 px-6 py-5">
-              <h3 className="text-xl font-black text-red-900">Cancel Booking</h3>
-              <p className="mt-1 text-xs font-bold uppercase tracking-widest text-red-700">{cancelModal.roomName}</p>
+              <h3 className="text-xl font-pbold text-red-900">Cancel Booking</h3>
+              <p className="mt-1 text-xs font-pmedium uppercase tracking-widest text-red-700">{cancelModal.roomName}</p>
             </div>
             <div className="space-y-4 p-6">
-              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-medium text-slate-600">Enter a cancellation reason so the workspace can keep a proper record.</div>
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-pregular text-slate-600">Enter a cancellation reason so the workspace can keep a proper record.</div>
+              {Number(cancelModal?.bookingCredits || 0) > 0 && (
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-pmedium text-emerald-800">
+                  You will be refunded {Number(cancelModal.bookingCredits).toFixed(2)} CR for this booking.
+                </div>
+              )}
               <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} rows={4}
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition-colors focus:border-[#2563EB]" placeholder="Reason for cancellation" />
               <div className="flex gap-3">
-                <button onClick={() => setCancelModal(null)} className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Back</button>
-                <button disabled={isSaving} onClick={handleCancelBooking} className="flex-2 rounded-xl bg-red-600 px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60">Confirm Cancel</button>
+                <button onClick={() => setCancelModal(null)} className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Back</button>
+                <button disabled={isSaving} onClick={handleCancelBooking} className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-xs font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60">Confirm Cancel</button>
               </div>
             </div>
           </div>
@@ -651,39 +759,72 @@ export default function TenantBookingHistoryPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
           <form onSubmit={handleRescheduleBooking} className="w-full max-w-2xl overflow-hidden rounded-[2.5rem] bg-white shadow-2xl">
             <div className="border-b border-slate-100 bg-slate-50 px-6 py-5">
-              <h3 className="text-xl font-black text-slate-900">Reschedule Booking</h3>
-              <p className="mt-1 text-xs font-bold uppercase tracking-widest text-slate-400">{rescheduleModal.roomName}</p>
+              <h3 className="text-xl font-pbold text-slate-900">Reschedule Booking</h3>
+              <p className="mt-1 text-xs font-pmedium uppercase tracking-widest text-slate-400">{rescheduleModal.roomName}</p>
             </div>
             <div className="grid gap-4 p-6 md:grid-cols-2">
-              <label className="space-y-2 text-sm font-bold text-slate-700"><span>Room</span>
-                <input value={rescheduleForm.roomName} onChange={(e) => setRescheduleForm((p) => ({ ...p, roomName: e.target.value }))}
+              <label className="space-y-2 text-sm font-pmedium text-slate-700"><span>Room</span>
+                <input value={rescheduleForm.roomName} readOnly tabIndex={-1}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500 outline-none cursor-not-allowed" />
+              </label>
+              <label className="space-y-2 text-sm font-pmedium text-slate-700"><span>Date</span>
+                <input type="date" value={rescheduleForm.date} min={todayValue}
+                  onChange={(e) => setRescheduleForm((p) => ({ ...p, date: e.target.value }))}
                   className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-[#2563EB]" />
               </label>
-              <label className="space-y-2 text-sm font-bold text-slate-700"><span>Date</span>
-                <input type="date" value={rescheduleForm.date} onChange={(e) => setRescheduleForm((p) => ({ ...p, date: e.target.value }))}
+              <label className="space-y-2 text-sm font-pmedium text-slate-700"><span>Start Time</span>
+                <div className="relative">
+                  <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <select required value={rescheduleForm.startTime}
+                    onChange={(e) => {
+                      const nextStart = e.target.value;
+                      const minEnd = getMinimumEndTime(nextStart);
+                      setRescheduleForm((p) => {
+                        const curEndMin = timeToMinutes(p.endTime);
+                        const minEndMin = timeToMinutes(minEnd);
+                        const shouldAdjust = !p.endTime || curEndMin === null || (minEndMin !== null && curEndMin < minEndMin);
+                        return { ...p, startTime: nextStart, endTime: shouldAdjust ? minEnd : p.endTime };
+                      });
+                    }}
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-transparent rounded-xl font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all">
+                    <option value="">Select start time</option>
+                    {rescheduleStartTimeOptions.map((tv) => <option key={tv} value={tv}>{formatTimeOptionLabel(tv)}</option>)}
+                  </select>
+                </div>
+              </label>
+              <label className="space-y-2 text-sm font-pmedium text-slate-700"><span>End Time</span>
+                <div className="relative">
+                  <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <select required value={rescheduleForm.endTime}
+                    onChange={(e) => setRescheduleForm((p) => ({ ...p, endTime: e.target.value }))}
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-transparent rounded-xl font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all">
+                    <option value="">Select end time</option>
+                    {rescheduleEndTimeOptions.map((tv) => <option key={tv} value={tv}>{formatTimeOptionLabel(tv)}</option>)}
+                  </select>
+                </div>
+              </label>
+              <label className="space-y-2 text-sm font-pmedium text-slate-700 md:col-span-2"><span>Purpose</span>
+                <textarea value={rescheduleForm.purpose} onChange={(e) => setRescheduleForm((p) => ({ ...p, purpose: e.target.value }))} rows={3}
                   className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-[#2563EB]" />
               </label>
-              <label className="space-y-2 text-sm font-bold text-slate-700"><span>Start Time</span>
-                <input type="time" value={rescheduleForm.startTime} onChange={(e) => setRescheduleForm((p) => ({ ...p, startTime: e.target.value }))}
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-[#2563EB]" />
-              </label>
-              <label className="space-y-2 text-sm font-bold text-slate-700"><span>End Time</span>
-                <input type="time" value={rescheduleForm.endTime} onChange={(e) => setRescheduleForm((p) => ({ ...p, endTime: e.target.value }))}
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-[#2563EB]" />
-              </label>
-              <label className="space-y-2 text-sm font-bold text-slate-700 md:col-span-2"><span>Purpose</span>
-                <textarea value={rescheduleForm.purpose} onChange={(e) => setRescheduleForm((p) => ({ ...p, purpose: e.target.value }))} rows={4}
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-[#2563EB]" />
-              </label>
-              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-medium text-slate-600 md:col-span-2">
-                <p className="font-bold text-slate-800">Credits used: {Number(rescheduleModal?.bookingCredits || 0).toFixed(2)} CR</p>
-                <p className="mt-1 text-slate-600">The backend will refund or deduct the difference automatically after the new slot is saved.</p>
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-pregular text-slate-600 md:col-span-2">
+                <p className="font-pmedium text-slate-800">Current credits: {Number(rescheduleModal?.bookingCredits || 0).toFixed(2)} CR</p>
+                {rescheduleForm.startTime && rescheduleForm.endTime && (
+                  <>
+                    <p className="mt-1 text-slate-600">New credits: {rescheduleNewCredits.toFixed(2)} CR</p>
+                    <p className={`mt-1 font-pmedium ${rescheduleCreditDiff >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      {rescheduleCreditDiff >= 0
+                        ? `You will be charged ${rescheduleCreditDiff.toFixed(2)} additional CR`
+                        : `${Math.abs(rescheduleCreditDiff).toFixed(2)} CR will be refunded`}
+                    </p>
+                  </>
+                )}
               </div>
-              <div className={`rounded-2xl border p-4 text-sm font-bold md:col-span-2 ${rescheduleAvailability.available ? 'border-emerald-100 bg-emerald-50 text-emerald-800' : 'border-rose-100 bg-rose-50 text-rose-800'}`}>{rescheduleAvailability.reason}</div>
+              <div className={`rounded-2xl border p-4 text-sm font-pmedium md:col-span-2 ${rescheduleAvailability.available ? 'border-emerald-100 bg-emerald-50 text-emerald-800' : 'border-rose-100 bg-rose-50 text-rose-800'}`}>{rescheduleAvailability.reason}</div>
             </div>
             <div className="flex gap-3 border-t border-slate-100 bg-slate-50 px-6 py-5">
-              <button onClick={() => setRescheduleModal(null)} type="button" className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Back</button>
-              <button disabled={isSaving || !rescheduleAvailability.available} type="submit" className="flex-2 rounded-xl bg-[#2563EB] px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">Save Changes</button>
+              <button onClick={() => setRescheduleModal(null)} type="button" className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Back</button>
+              <button disabled={isSaving || !rescheduleAvailability.available} type="submit" className="flex-1 rounded-xl bg-[#2563EB] px-4 py-3 text-xs font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">Save Changes</button>
             </div>
           </form>
         </div>
@@ -694,16 +835,16 @@ export default function TenantBookingHistoryPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
           <form onSubmit={handleExtendBooking} className="w-full max-w-xl overflow-hidden rounded-[2.5rem] bg-white shadow-2xl">
             <div className="border-b border-slate-100 bg-slate-50 px-6 py-5">
-              <h3 className="text-xl font-black text-slate-900">Extend Booking</h3>
-              <p className="mt-1 text-xs font-bold uppercase tracking-widest text-slate-400">{extendModal.roomName}</p>
+              <h3 className="text-xl font-pbold text-slate-900">Extend Booking</h3>
+              <p className="mt-1 text-xs font-pmedium uppercase tracking-widest text-slate-400">{extendModal.roomName}</p>
             </div>
             <div className="grid gap-4 p-6 md:grid-cols-2">
               <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 md:col-span-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current Schedule</p>
-                <p className="mt-1 text-sm font-bold text-slate-900">{formatBookingWindow(extendModal)}</p>
-                <p className="mt-2 text-xs font-medium text-slate-500">Bookings are checked against room overlap before the extension is saved.</p>
+                <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Current Schedule</p>
+                <p className="mt-1 text-sm font-pmedium text-slate-900">{formatBookingWindow(extendModal)}</p>
+                <p className="mt-2 text-xs font-pregular text-slate-500">Bookings are checked against room overlap before the extension is saved.</p>
               </div>
-              <label className="space-y-2 text-sm font-bold text-slate-700 md:col-span-2"><span>Extend By</span>
+              <label className="space-y-2 text-sm font-pmedium text-slate-700 md:col-span-2"><span>Extend By</span>
                 <select value={extendMinutes} onChange={(e) => setExtendMinutes(e.target.value)}
                   className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-[#2563EB]">
                   <option value="15">15 minutes</option>
@@ -714,19 +855,20 @@ export default function TenantBookingHistoryPage() {
                 </select>
               </label>
               <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 md:col-span-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current Credits</p>
-                <p className="mt-1 text-sm font-bold text-slate-900">{Number(extendModal?.bookingCredits || 0).toFixed(2)} CR</p>
-                <p className="mt-2 text-xs font-medium text-slate-500">The backend recalculates the extra charge from the new end time and adjusts the tenant balance automatically.</p>
+                <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Current Credits</p>
+                <p className="mt-1 text-sm font-pmedium text-slate-900">{Number(extendModal?.bookingCredits || 0).toFixed(2)} CR</p>
+                <p className="mt-2 text-xs font-pregular text-slate-500">The backend recalculates the extra charge from the new end time and adjusts the tenant balance automatically.</p>
               </div>
-              <div className={`rounded-2xl border p-4 text-sm font-bold md:col-span-2 ${extendAvailability.available ? 'border-emerald-100 bg-emerald-50 text-emerald-800' : 'border-rose-100 bg-rose-50 text-rose-800'}`}>{extendAvailability.reason}</div>
+              <div className={`rounded-2xl border p-4 text-sm font-pmedium md:col-span-2 ${extendAvailability.available ? 'border-emerald-100 bg-emerald-50 text-emerald-800' : 'border-rose-100 bg-rose-50 text-rose-800'}`}>{extendAvailability.reason}</div>
             </div>
             <div className="flex gap-3 border-t border-slate-100 bg-slate-50 px-6 py-5">
-              <button onClick={closeExtendModal} type="button" className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Back</button>
-              <button disabled={isSaving || !extendAvailability.available} type="submit" className="flex-2 rounded-xl bg-indigo-600 px-4 py-3 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60">Extend Meeting</button>
+              <button onClick={closeExtendModal} type="button" className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Back</button>
+              <button disabled={isSaving || !extendAvailability.available} type="submit" className="flex-1 rounded-xl bg-indigo-600 px-4 py-3 text-xs font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60">Extend Meeting</button>
             </div>
           </form>
         </div>
       )}
+      </PageFrame>
     </div>
   );
 }

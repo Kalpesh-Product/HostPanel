@@ -18,6 +18,7 @@ import {
   updateTenantCompany,
 } from '../../../services/tenant-companies';
 import { getResources } from '../../../services/resources';
+import { getPricingPackages } from '../../../services/pricing-packages';
 import { toast } from 'sonner';
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
 import { createReport } from '../../../services/reports';
@@ -641,6 +642,7 @@ export default function TenantCompaniesPage() {
     let isMounted = true;
 
     async function loadTenantCompanies() {
+      let packagesFallback = [];
       try {
         const [tenantResult, resourceResult] = await Promise.allSettled([
           getTenantCompanies(),
@@ -650,11 +652,18 @@ export default function TenantCompaniesPage() {
         if (tenantResult.status === 'fulfilled') {
           const payload = tenantResult.value?.data || {};
           setTenants(Array.isArray(payload.tenants) ? payload.tenants : []);
-          setAvailablePackages(Array.isArray(payload.packages) ? payload.packages : []);
+          packagesFallback = Array.isArray(payload.packages) ? payload.packages : [];
         } else {
           toast.error(tenantResult.reason?.message || 'Failed to load tenant companies.');
           setTenants([]);
-          setAvailablePackages([]);
+        }
+
+        try {
+          const pkgResponse = await getPricingPackages();
+          const allPkgs = pkgResponse?.data?.data?.packages || pkgResponse?.data?.packages || [];
+          if (isMounted) setAvailablePackages(allPkgs);
+        } catch {
+          if (isMounted) setAvailablePackages(packagesFallback);
         }
 
         if (resourceResult.status === 'fulfilled') {
@@ -876,10 +885,19 @@ export default function TenantCompaniesPage() {
       return Math.round(total / items.length);
     };
 
+    const averageCredits = (items = []) => {
+      if (items.length === 0) {
+        return 0;
+      }
+      const total = items.reduce((sum, resource) => sum + Math.max(0, Number(resource.credits || 0)), 0);
+      return Math.round(total / items.length);
+    };
+
     return {
       mappedResources,
       ratePerOpenDesk: averageDailyRate(mappedResources.filter((resource) => resource.resourceCategory === 'open_desk')),
       ratePerCabinDesk: averageDailyRate(mappedResources.filter((resource) => resource.resourceCategory === 'cabin_desk')),
+      avgCreditsPerSeat: averageCredits(mappedResources),
     };
   };
 
@@ -995,6 +1013,12 @@ export default function TenantCompaniesPage() {
         || (pricingSummary.ratePerOpenDesk ? String(pricingSummary.ratePerOpenDesk) : '');
       const nextCabinDeskRate = String(current.companyDetails?.ratePerCabinDesk || '').trim()
         || (pricingSummary.ratePerCabinDesk ? String(pricingSummary.ratePerCabinDesk) : '');
+      const nextCreditsPerSeat = String(current.packageDetails?.creditsPerSeat || '').trim()
+        || (pricingSummary.avgCreditsPerSeat > 0 ? String(pricingSummary.avgCreditsPerSeat) : '');
+      const nextCreditsPerSeatNum = toNumber(nextCreditsPerSeat || 0);
+      const nextMonthlyTotal = nextCreditsPerSeatNum > 0 && mappedDeskCounts.totalSeats > 0
+        ? String(Math.round(mappedDeskCounts.totalSeats * nextCreditsPerSeatNum))
+        : '';
 
       return {
         ...current,
@@ -1013,27 +1037,19 @@ export default function TenantCompaniesPage() {
           cabinDesks: mappedDeskCounts.cabinDesks ? String(mappedDeskCounts.cabinDesks) : '',
           ratePerOpenDesk: String(current.packageDetails?.ratePerOpenDesk || '').trim() || nextOpenDeskRate,
           ratePerCabinDesk: String(current.packageDetails?.ratePerCabinDesk || '').trim() || nextCabinDeskRate,
-          creditsPerSeat: String(current.packageDetails?.creditsPerSeat || '').trim(),
-          monthlyTotalCredits: toNumber(current.packageDetails?.creditsPerSeat || 0) > 0 && mappedDeskCounts.totalSeats > 0
-            ? String(Math.round(mappedDeskCounts.totalSeats * toNumber(current.packageDetails?.creditsPerSeat || 0)))
-            : '',
+          creditsPerSeat: nextCreditsPerSeat,
+          monthlyTotalCredits: nextMonthlyTotal,
         },
         agreementDetails: {
           ...(current.agreementDetails || {}),
-          perDeskMeetingCredits: String(current.packageDetails?.creditsPerSeat || current.agreementDetails?.perDeskMeetingCredits || ''),
-          totalMeetingCredits: toNumber(current.packageDetails?.creditsPerSeat || 0) > 0 && mappedDeskCounts.totalSeats > 0
-            ? String(Math.round(mappedDeskCounts.totalSeats * toNumber(current.packageDetails?.creditsPerSeat || 0)))
-            : String(current.agreementDetails?.totalMeetingCredits || ''),
+          perDeskMeetingCredits: nextCreditsPerSeat || String(current.agreementDetails?.perDeskMeetingCredits || ''),
+          totalMeetingCredits: nextMonthlyTotal || String(current.agreementDetails?.totalMeetingCredits || ''),
         },
         creditConfiguration: {
           ...(current.creditConfiguration || {}),
-          monthlyTotalCredits: toNumber(current.packageDetails?.creditsPerSeat || 0) > 0 && mappedDeskCounts.totalSeats > 0
-            ? String(Math.round(mappedDeskCounts.totalSeats * toNumber(current.packageDetails?.creditsPerSeat || 0)))
-            : String(current.creditConfiguration?.monthlyTotalCredits || ''),
+          monthlyTotalCredits: nextMonthlyTotal || String(current.creditConfiguration?.monthlyTotalCredits || ''),
         },
-        creditsAllocated: toNumber(current.packageDetails?.creditsPerSeat || 0) > 0 && mappedDeskCounts.totalSeats > 0
-          ? Math.round(mappedDeskCounts.totalSeats * toNumber(current.packageDetails?.creditsPerSeat || 0))
-          : current.creditsAllocated,
+        creditsAllocated: nextMonthlyTotal ? Number(nextMonthlyTotal) : current.creditsAllocated,
       };
     });
   };
@@ -1196,7 +1212,13 @@ export default function TenantCompaniesPage() {
   const customPackageBlockMix = String(companyForm.packageDetails?.selectionBlockMix || 'all').trim().toLowerCase();
   const hasCustomPackageScopeSelection = Boolean(customPackageFloor && customPackageWing);
   const customPackageDeskResources = useMemo(
-    () => resources.filter((resource) => isTenantDeskResource(resource) && !resource.assignedTenantCompanyId),
+    () => resources.filter((resource) =>
+      isTenantDeskResource(resource)
+      && !resource.assignedTenantCompanyId
+      && resource.isActive
+      && Number(resource.pricePerDay) > 0
+      && Number(resource.credits) > 0
+    ),
     [resources],
   );
   const customPackageFloorOptions = useMemo(() => {
@@ -3538,7 +3560,7 @@ export default function TenantCompaniesPage() {
                        >
                          <option value="" disabled hidden>Select a package</option>
                          <option value="__custom__">Custom package</option>
-                         {tenantPackageSelectionOptions.map((pkg) => <option key={pkg.recordId || pkg.id} value={pkg.recordId || pkg.id}>{pkg.name} â€¢ {pkg.creditsIncluded} CR{pkg.assignedTenantCompanyId ? ' â€¢ Locked' : ''}</option>)}
+                         {tenantPackageSelectionOptions.map((pkg) => <option key={pkg.recordId || pkg.id} value={pkg.recordId || pkg.id}>{pkg.name} - {pkg.creditsIncluded} CR{pkg.assignedTenantCompanyId ? ' - Locked' : ''}</option>)}
                        </select>
                      </div>
                      <div className="space-y-1">
@@ -3547,92 +3569,92 @@ export default function TenantCompaniesPage() {
                        <p className="text-[9px] font-bold text-indigo-400 mt-1">Credits used for meeting room bookings.</p>
                      </div>
                      {isCustomPackageSelected && (
-                       <div className="md:col-span-2 space-y-4 rounded-2xl border border-indigo-100 bg-white p-4">
-                         <div className="flex items-center justify-between gap-3">
-                           <div className="flex items-center gap-2">
-                             <div className="flex h-6 w-6 items-center justify-center rounded-md bg-indigo-100 text-indigo-700"><LayoutGrid size={12} /></div>
-                             <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Custom Package Builder</p>
-                           </div>
-                           <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-indigo-700">
-                             {customPackageSelectedResourceKeys.size} selected
-                           </span>
-                         </div>
-                         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                           <div className="space-y-1">
-                             <label className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Floor</label>
-                             <select
-                               className="w-full rounded-xl border-2 border-indigo-200 bg-white px-4 py-3.5 text-sm font-bold text-indigo-900 outline-none"
-                               value={customPackageFloor}
-                               onChange={(e) => setCompanyForm((prev) => ({
-                                 ...prev,
-                                 packageDetails: {
-                                   ...(prev.packageDetails || {}),
-                                   selectionFloor: e.target.value,
-                                   selectionWing: '',
-                                 },
-                               }))}
-                             >
-                               <option value="">Select floor</option>
-                               {customPackageFloorOptions.map((floor) => <option key={floor} value={floor}>{floor}</option>)}
-                             </select>
-                           </div>
-                           <div className="space-y-1">
-                             <label className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Wing</label>
-                             <select
-                               className="w-full rounded-xl border-2 border-indigo-200 bg-white px-4 py-3.5 text-sm font-bold text-indigo-900 outline-none"
-                               value={customPackageWing}
-                               onChange={(e) => setCompanyForm((prev) => ({
-                                 ...prev,
-                                 packageDetails: {
-                                   ...(prev.packageDetails || {}),
-                                   selectionWing: e.target.value.toUpperCase(),
-                                 },
-                               }))}
-                             >
-                               <option value="">Select wing</option>
-                               {customPackageWingOptions.map((wing) => <option key={wing} value={wing}>{wing}</option>)}
-                             </select>
-                           </div>
-                           <div className="space-y-1">
-                             <label className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Block Mix</label>
-                             <select
-                               className="w-full rounded-xl border-2 border-indigo-200 bg-white px-4 py-3.5 text-sm font-bold text-indigo-900 outline-none"
-                               value={customPackageBlockMix}
-                               onChange={(e) => setCompanyForm((prev) => ({
-                                 ...prev,
-                                 packageDetails: {
-                                   ...(prev.packageDetails || {}),
-                                   selectionBlockMix: e.target.value,
-                                 },
-                               }))}
-                             >
-                               {tenantBlockMixOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                             </select>
-                           </div>
-                         </div>
+                        <div className="md:col-span-2 space-y-3 rounded-xl border border-indigo-100 bg-white p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <div className="flex h-5 w-5 items-center justify-center rounded-md bg-indigo-100 text-indigo-700"><LayoutGrid size={10} /></div>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Custom Package Builder</p>
+                            </div>
+                            <span className="rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-indigo-700">
+                              {customPackageSelectedResourceKeys.size} selected
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Floor</label>
+                              <select
+                                className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-[12px] font-bold text-indigo-900 outline-none"
+                                value={customPackageFloor}
+                                onChange={(e) => setCompanyForm((prev) => ({
+                                  ...prev,
+                                  packageDetails: {
+                                    ...(prev.packageDetails || {}),
+                                    selectionFloor: e.target.value,
+                                    selectionWing: '',
+                                  },
+                                }))}
+                              >
+                                <option value="">Select floor</option>
+                                {customPackageFloorOptions.map((floor) => <option key={floor} value={floor}>{floor}</option>)}
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Wing</label>
+                              <select
+                                className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-[12px] font-bold text-indigo-900 outline-none"
+                                value={customPackageWing}
+                                onChange={(e) => setCompanyForm((prev) => ({
+                                  ...prev,
+                                  packageDetails: {
+                                    ...(prev.packageDetails || {}),
+                                    selectionWing: e.target.value.toUpperCase(),
+                                  },
+                                }))}
+                              >
+                                <option value="">Select wing</option>
+                                {customPackageWingOptions.map((wing) => <option key={wing} value={wing}>{wing}</option>)}
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Block Mix</label>
+                              <select
+                                className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-[12px] font-bold text-indigo-900 outline-none"
+                                value={customPackageBlockMix}
+                                onChange={(e) => setCompanyForm((prev) => ({
+                                  ...prev,
+                                  packageDetails: {
+                                    ...(prev.packageDetails || {}),
+                                    selectionBlockMix: e.target.value,
+                                  },
+                                }))}
+                              >
+                                {tenantBlockMixOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                              </select>
+                            </div>
+                          </div>
                          {hasCustomPackageScopeSelection ? (
                            customPackageVisibleOpenAreaResources.length > 0 || customPackageVisibleCabinAreaResources.length > 0 || customPackageVisibleSingleOpenDeskResources.length > 0 ? (
                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                             <div className="rounded-2xl border border-emerald-200 bg-white p-4">
-                               <div className="mb-3 flex items-center justify-between gap-3">
-                                 <div className="flex items-center gap-2">
-                                   <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-100 text-emerald-700"><LayoutGrid size={12} /></div>
-                                   <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Open Desk Blocks</p>
-                                 </div>
-                                 <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-700">
-                                   {customPackageOpenSelectedCount}/{customPackageVisibleOpenAreaResources.length}
-                                 </span>
-                               </div>
-                               <div className="max-h-52 space-y-2 overflow-y-auto pr-1">
-                                 {customPackageVisibleOpenAreaResources.length > 0 ? customPackageVisibleOpenAreaResources.map((resource) => {
-                                   const selected = customPackageSelectedResourceKeys.has(getTenantResourceSelectionKey(resource));
-                                   const seatLabels = Array.isArray(resource.seatLabels) ? resource.seatLabels : [];
-                                   return (
-                                     <label key={resource.recordId || resource.resourceCode} className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition-all ${selected ? 'border-emerald-300 bg-emerald-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-emerald-200'}`}>
-                                       <input type="checkbox" disabled={isTenantPackageLocked} className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" checked={selected} onChange={() => toggleLocationMapping(resource)} />
-                                       <div className="min-w-0 flex-1">
-                                         <p className="truncate text-sm font-black text-slate-900">{resource.name || resource.locationLabel || resource.resourceCode}</p>
-                                         <p className="text-[10px] font-bold text-slate-400">{resource.capacity} seats â€¢ {formatCurrency(resource.pricePerDay)}/day â€¢ {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
+                              <div className="rounded-xl border border-emerald-200 bg-white p-3">
+                                <div className="mb-2 flex items-center justify-between gap-3">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex h-5 w-5 items-center justify-center rounded-md bg-emerald-100 text-emerald-700"><LayoutGrid size={10} /></div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Open Desk Blocks</p>
+                                  </div>
+                                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">
+                                    {customPackageOpenSelectedCount}/{customPackageVisibleOpenAreaResources.length}
+                                  </span>
+                                </div>
+                                <div className="max-h-44 space-y-1.5 overflow-y-auto pr-1">
+                                  {customPackageVisibleOpenAreaResources.length > 0 ? customPackageVisibleOpenAreaResources.map((resource) => {
+                                    const selected = customPackageSelectedResourceKeys.has(getTenantResourceSelectionKey(resource));
+                                    const seatLabels = Array.isArray(resource.seatLabels) ? resource.seatLabels : [];
+                                    return (
+                                      <label key={resource.recordId || resource.resourceCode} className={`flex cursor-pointer items-start gap-2 rounded-lg border px-2.5 py-2 transition-all ${selected ? 'border-emerald-300 bg-emerald-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-emerald-200'}`}>
+                                        <input type="checkbox" disabled={isTenantPackageLocked} className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" checked={selected} onChange={() => toggleLocationMapping(resource)} />
+                                        <div className="min-w-0 flex-1">
+                                          <p className="truncate text-[12px] font-black text-slate-900">{resource.name || resource.locationLabel || resource.resourceCode}</p>
+                                          <p className="text-[10px] font-bold text-slate-400">{resource.capacity} seats - {formatCurrency(resource.pricePerDay)}/day - {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
                                          {seatLabels.length > 0 && (
                                            <div className="mt-2 flex flex-wrap gap-1.5">
                                              {seatLabels.map((seatLabel) => (
@@ -3650,26 +3672,26 @@ export default function TenantCompaniesPage() {
                                  )}
                                </div>
                              </div>
-                             <div className="rounded-2xl border border-blue-200 bg-white p-4">
-                               <div className="mb-3 flex items-center justify-between gap-3">
-                                 <div className="flex items-center gap-2">
-                                   <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 text-blue-700"><LayoutGrid size={12} /></div>
-                                   <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Cabin Desk Blocks</p>
-                                 </div>
-                                 <span className="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-blue-700">
-                                   {customPackageCabinSelectedCount}/{customPackageVisibleCabinAreaResources.length}
-                                 </span>
-                               </div>
-                               <div className="max-h-52 space-y-2 overflow-y-auto pr-1">
-                                 {customPackageVisibleCabinAreaResources.length > 0 ? customPackageVisibleCabinAreaResources.map((resource) => {
-                                   const selected = customPackageSelectedResourceKeys.has(getTenantResourceSelectionKey(resource));
-                                   const seatLabels = Array.isArray(resource.seatLabels) ? resource.seatLabels : [];
-                                   return (
-                                     <label key={resource.recordId || resource.resourceCode} className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition-all ${selected ? 'border-blue-300 bg-blue-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-blue-200'}`}>
-                                       <input type="checkbox" disabled={isTenantPackageLocked} className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked={selected} onChange={() => toggleLocationMapping(resource)} />
-                                       <div className="min-w-0 flex-1">
-                                         <p className="truncate text-sm font-black text-slate-900">{resource.name || resource.locationLabel || resource.resourceCode}</p>
-                                         <p className="text-[10px] font-bold text-slate-400">{resource.capacity} seats â€¢ {formatCurrency(resource.pricePerDay)}/day â€¢ {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
+                              <div className="rounded-xl border border-blue-200 bg-white p-3">
+                                <div className="mb-2 flex items-center justify-between gap-3">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex h-5 w-5 items-center justify-center rounded-md bg-blue-100 text-blue-700"><LayoutGrid size={10} /></div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Cabin Desk Blocks</p>
+                                  </div>
+                                  <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">
+                                    {customPackageCabinSelectedCount}/{customPackageVisibleCabinAreaResources.length}
+                                  </span>
+                                </div>
+                                <div className="max-h-44 space-y-1.5 overflow-y-auto pr-1">
+                                  {customPackageVisibleCabinAreaResources.length > 0 ? customPackageVisibleCabinAreaResources.map((resource) => {
+                                    const selected = customPackageSelectedResourceKeys.has(getTenantResourceSelectionKey(resource));
+                                    const seatLabels = Array.isArray(resource.seatLabels) ? resource.seatLabels : [];
+                                    return (
+                                      <label key={resource.recordId || resource.resourceCode} className={`flex cursor-pointer items-start gap-2 rounded-lg border px-2.5 py-2 transition-all ${selected ? 'border-blue-300 bg-blue-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-blue-200'}`}>
+                                        <input type="checkbox" disabled={isTenantPackageLocked} className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked={selected} onChange={() => toggleLocationMapping(resource)} />
+                                        <div className="min-w-0 flex-1">
+                                          <p className="truncate text-[12px] font-black text-slate-900">{resource.name || resource.locationLabel || resource.resourceCode}</p>
+                                          <p className="text-[10px] font-bold text-slate-400">{resource.capacity} seats - {formatCurrency(resource.pricePerDay)}/day - {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
                                          {seatLabels.length > 0 && (
                                            <div className="mt-2 flex flex-wrap gap-1.5">
                                              {seatLabels.map((seatLabel) => (
@@ -3687,29 +3709,29 @@ export default function TenantCompaniesPage() {
                                  )}
                                </div>
                              </div>
-                             <div className="rounded-2xl border border-sky-200 bg-white p-4">
-                               <div className="mb-3 flex items-center justify-between gap-3">
-                                 <div className="flex items-center gap-2">
-                                   <div className="flex h-6 w-6 items-center justify-center rounded-md bg-sky-100 text-sky-700"><LayoutGrid size={12} /></div>
-                                   <p className="text-[10px] font-black uppercase tracking-widest text-sky-700">Single Open Desks</p>
-                                 </div>
-                                 <span className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-sky-700">
-                                   {customPackageVisibleSingleOpenDeskResources.length}
-                                 </span>
-                               </div>
-                               <div className="max-h-52 space-y-2 overflow-y-auto pr-1">
-                                 {customPackageVisibleSingleOpenDeskResources.length > 0 ? customPackageVisibleSingleOpenDeskResources.map((resource) => {
-                                   const selected = customPackageSelectedResourceKeys.has(getTenantResourceSelectionKey(resource));
-                                   return (
-                                     <label key={resource.recordId || resource.resourceCode} className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition-all ${selected ? 'border-sky-300 bg-sky-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-sky-200'}`}>
-                                       <input type="checkbox" disabled={isTenantPackageLocked} className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-sky-600 focus:ring-sky-500" checked={selected} onChange={() => toggleLocationMapping(resource)} />
-                                       <div className="min-w-0 flex-1">
-                                         <p className="truncate text-sm font-black text-slate-900">{resource.name || resource.locationLabel || resource.resourceCode}</p>
-                                         <p className="text-[10px] font-bold text-slate-400">{resource.floor || '--'} / {resource.wing || '--'} â€¢ Single open desk</p>
-                                       </div>
-                                     </label>
-                                   );
-                                 }) : (
+                              <div className="rounded-xl border border-sky-200 bg-white p-3">
+                                <div className="mb-2 flex items-center justify-between gap-3">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex h-5 w-5 items-center justify-center rounded-md bg-sky-100 text-sky-700"><LayoutGrid size={10} /></div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-sky-700">Single Open Desks</p>
+                                  </div>
+                                  <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-sky-700">
+                                    {customPackageVisibleSingleOpenDeskResources.length}
+                                  </span>
+                                </div>
+                                <div className="max-h-44 space-y-1.5 overflow-y-auto pr-1">
+                                  {customPackageVisibleSingleOpenDeskResources.length > 0 ? customPackageVisibleSingleOpenDeskResources.map((resource) => {
+                                    const selected = customPackageSelectedResourceKeys.has(getTenantResourceSelectionKey(resource));
+                                    return (
+                                      <label key={resource.recordId || resource.resourceCode} className={`flex cursor-pointer items-start gap-2 rounded-lg border px-2.5 py-2 transition-all ${selected ? 'border-sky-300 bg-sky-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-sky-200'}`}>
+                                        <input type="checkbox" disabled={isTenantPackageLocked} className="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-slate-300 text-sky-600 focus:ring-sky-500" checked={selected} onChange={() => toggleLocationMapping(resource)} />
+                                        <div className="min-w-0 flex-1">
+                                          <p className="truncate text-[12px] font-black text-slate-900">{resource.name || resource.locationLabel || resource.resourceCode}</p>
+                                          <p className="text-[10px] font-bold text-slate-400">{resource.floor || '--'} / {resource.wing || '--'} - Single open desk</p>
+                                        </div>
+                                      </label>
+                                    );
+                                  }) : (
                                    <div className="rounded-xl border border-dashed border-sky-200 bg-sky-50/50 px-3 py-4 text-center text-xs font-medium text-sky-700">No single open desks in this scope.</div>
                                  )}
                                </div>
@@ -3987,8 +4009,8 @@ export default function TenantCompaniesPage() {
                          <h4 className="mt-0.5 text-sm font-bold text-slate-900">{selectedTenant.invoiceNumber || 'Not generated yet'}</h4>
                          <p className="mt-0.5 text-[11px] font-medium text-slate-500">
                            {selectedTenant.invoiceStatus || 'Pending'}
-                           {selectedTenant.invoiceGeneratedAt ? ` â€¢ Generated ${selectedTenant.invoiceGeneratedAt}` : ''}
-                           {selectedTenant.invoiceSentAt ? ` â€¢ Sent ${selectedTenant.invoiceSentAt}` : ''}
+                           {selectedTenant.invoiceGeneratedAt ? ` - Generated ${selectedTenant.invoiceGeneratedAt}` : ''}
+                           {selectedTenant.invoiceSentAt ? ` - Sent ${selectedTenant.invoiceSentAt}` : ''}
                          </p>
                        </div>
                        <div className={`rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-widest border ${
