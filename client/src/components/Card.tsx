@@ -18,6 +18,7 @@ interface CardProps {
   lockReason?: string;
   onClick?: () => void;
   interactive?: boolean;
+  state?: Record<string, unknown>;
 }
 
 const Card = ({
@@ -33,6 +34,7 @@ const Card = ({
   lockReason = "You don't have access to this item.",
   onClick,
   interactive = true,
+  state,
 }: CardProps) => {
   const navigate = useNavigate();
 
@@ -62,7 +64,7 @@ const Card = ({
           onClick();
           return;
         }
-        navigate(route);
+        navigate(route, state ? { state } : undefined);
       }}
       title={locked ? lockReason : undefined}
       className={`group relative flex w-full flex-col items-center justify-center rounded-2xl bg-white p-6 text-center shadow-md transition-all hover:border-[0.2px] hover:border-primary hover:shadow-xl ${

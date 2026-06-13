@@ -1228,7 +1228,7 @@ function ResourceManagementPageInner() {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Resource snapshot</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-600">A quick summary of the workspace before you save it.</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-600">A quick summary of the unit before you save it.</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">

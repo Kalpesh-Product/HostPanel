@@ -7,7 +7,7 @@ import PersistLogin from "../layouts/PersistLogin";
 
 // Import main pages
 import Reports from "../pages/Reports";
-import Calender from "../pages/Calendar";
+import { CalendarPage } from "../pages/Calendar/CalendarPage";
 import Access from "../pages/Access/Access";
 import AccessProfile from "../pages/Access/AccessProfile";
 import Notifications from "../pages/Notifications";
@@ -527,6 +527,10 @@ export const routes = createBrowserRouter([
                 element: <ModuleCardsLanding section="key-apps" />,
               },
               {
+                path: "module-sections/:sectionId/:departmentId",
+                element: <ModuleCardsLanding />,
+              },
+              {
                 path: "module-sections/:sectionId",
                 element: <ModuleCardsLanding />,
               },
@@ -540,7 +544,7 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "calendar",
-                element: <Calender />,
+                element: <CalendarPage />,
               },
               {
                 path: "access",

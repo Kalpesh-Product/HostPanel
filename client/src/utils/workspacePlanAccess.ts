@@ -17,8 +17,20 @@ const BASIC_LOCKED_MODULE_IDS = ["workspace-settings"] as const;
 
 const BASIC_KEY_APP_IDS = [
   "tickets",
-  "visitor-management",
-  "chat-bot",
+  "calendar",
+] as const;
+
+const BASIC_DEPARTMENT_IDS = [
+  "tenant-companies-admin",
+  "bookings",
+  "visitors-management",
+  "resource-management",
+  "house-keeping",
+  "leads-management",
+  "tenant-companies-sales",
+  "plans-pricing",
+  "sales-architecture",
+  "it-repair-logs",
 ] as const;
 
 const PROFESSIONAL_EXTRA_IDS = [
@@ -37,11 +49,10 @@ const ALL_LEAF_IDS = [
   "tickets",
   "leave-requests",
   "meeting-room-system",
-  "visitor-management",
+  "calendar",
   "assets",
   "inventory",
   "finance-management",
-  "chat-bot",
   "reports",
   "employee-management",
   "hr-documents",
@@ -85,7 +96,7 @@ export const getEnabledModuleIdsForPlan = (
     return [...ALL_LEAF_IDS];
   }
 
-  const enabled = new Set<string>([...COMPANY_SETTINGS_IDS, ...BASIC_KEY_APP_IDS]);
+  const enabled = new Set<string>([...COMPANY_SETTINGS_IDS, ...BASIC_KEY_APP_IDS, ...BASIC_DEPARTMENT_IDS]);
 
   if (plan === "professional") {
     PROFESSIONAL_EXTRA_IDS.forEach((id) => enabled.add(id));

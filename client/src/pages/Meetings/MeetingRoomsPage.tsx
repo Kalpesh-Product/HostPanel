@@ -1370,7 +1370,7 @@ export function MeetingRoomsPage() {
 
     if (!wsId) {
       console.warn("⚠️ No workspaceId found in user object");
-      setErrorMessage("No workspace found. Please check login or user data.");
+      setErrorMessage("No unit found. Please check login or user data.");
       setIsLoading(false);
       return;
     }

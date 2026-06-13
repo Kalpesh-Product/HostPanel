@@ -27,7 +27,7 @@ export default function WorkspaceSwitcher() {
   const canSwitch = accessibleWorkspaces.length > 1;
   const activeWorkspaceId = String(currentUser?.primaryWorkspace || "");
   const activeWorkspaceName =
-    accessibleWorkspaces.find((workspace) => workspace.id === activeWorkspaceId)?.workspaceName || "Workspace";
+    accessibleWorkspaces.find((workspace) => workspace.id === activeWorkspaceId)?.workspaceName || "Unit";
   const switcherWidthCh = Math.min(Math.max(activeWorkspaceName.length + 10, 22), 46);
 
   const handleSwitch = async (workspaceId: string) => {
@@ -49,10 +49,10 @@ export default function WorkspaceSwitcher() {
             }
           : prev.user,
       }));
-      toast.success("Workspace switched.");
+      toast.success("Unit switched.");
       navigate("/company-settings", { replace: true });
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Unable to switch workspace.");
+      toast.error(error?.response?.data?.message || "Unable to switch unit.");
     } finally {
       setIsSwitching(false);
     }
@@ -77,7 +77,7 @@ export default function WorkspaceSwitcher() {
       >
         {accessibleWorkspaces.map((workspace) => (
           <option key={workspace.id} value={workspace.id}>
-            {workspace.workspaceName || "Workspace"}
+            {workspace.workspaceName || "Unit"}
           </option>
         ))}
       </select>

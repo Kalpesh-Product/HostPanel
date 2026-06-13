@@ -429,14 +429,14 @@ const CreateWorkspacePage: React.FC = () => {
         }
         setWorkspaceNameStatus(available ? "available" : "taken");
         setWorkspaceNameMessage(
-          available ? "Workspace name is available." : "Workspace name already taken.",
+          available ? "Unit name is available." : "Unit name already taken.",
         );
       } catch (error: unknown) {
         const message = (error as { response?: { data?: { message?: string } } })?.response
           ?.data?.message;
         setWorkspaceNameStatus("idle");
         setWorkspaceNameMessage(
-          message || "Unable to validate workspace name right now. We'll re-check on continue.",
+          message || "Unable to validate unit name right now. We'll re-check on continue.",
         );
       }
     }, 500);
@@ -524,7 +524,7 @@ const CreateWorkspacePage: React.FC = () => {
               e.preventDefault();
               if (!isWorkspaceFormComplete) {
                 if (workspaceNameStatus === "taken") {
-                  toast.error("Workspace name already taken.");
+                  toast.error("Unit name already taken.");
                 }
                 return;
               }
@@ -551,11 +551,11 @@ const CreateWorkspacePage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-5">
               <div className="flex flex-col">
                 <label className="text-[10px] md:text-xs font-bold tracking-[0.16em] uppercase text-[#3d4d67] mb-2">
-                  Workspace Name
+                  Unit Name
                 </label>
                 <input
                   type="text"
-                  placeholder="Enter Unique workspace name"
+                  placeholder="Enter Unique unit name"
                   value={workspaceName}
                   onChange={(e) => setWorkspaceName(e.target.value)}
                   className="w-full h-[42px] rounded-xl border border-[#d2d9e5] bg-[#f2f4f8] px-3.5 text-[13px] placeholder:text-[#9aa6b9] text-[#334155] focus:outline-none focus:ring-2 focus:ring-[#bcd0ff]"
@@ -566,7 +566,7 @@ const CreateWorkspacePage: React.FC = () => {
                       workspaceNameStatus === "available" ? "text-emerald-600" : "text-rose-600"
                     }`}
                   >
-                    {workspaceNameStatus === "checking" ? "Checking workspace name..." : workspaceNameMessage}
+                    {workspaceNameStatus === "checking" ? "Checking unit name..." : workspaceNameMessage}
                   </p>
                 ) : null}
               </div>

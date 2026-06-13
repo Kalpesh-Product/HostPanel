@@ -31,7 +31,7 @@ const ALL_VERTICALS: Array<{
     key: "co-working",
     label: "Co-Working",
     icon: "\u{1F5A5}\uFE0F",
-    desc: "Desks, plans & workspace tours",
+    desc: "Desks, plans & unit tours",
   },
   {
     key: "co-living",
@@ -199,7 +199,7 @@ export default function VerticalPicker({ workspaceId }: VerticalPickerProps) {
         if (!mounted) return;
         setErrorMessage(
           error?.response?.data?.message ||
-            "Unable to load workspace business types right now.",
+            "Unable to load unit business types right now.",
         );
       } finally {
         if (mounted) {

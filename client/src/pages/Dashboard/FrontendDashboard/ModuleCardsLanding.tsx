@@ -1,4 +1,5 @@
 import {
+  Calendar,
   CheckCircle2,
   BarChart,
   Bed,
@@ -138,7 +139,7 @@ const ICON_BY_ID: Record<string, ElementType> = {
   tickets: Ticket,
   "leave-requests": CalendarClock,
   "meeting-room-system": CalendarClock,
-  "chat-bot": CalendarClock,
+  calendar: Calendar,
   assets: Package,
   inventory: Warehouse,
   "finance-management": Wallet,
@@ -198,7 +199,7 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
       { id: "tickets", label: "Tickets", route: "/tickets", implemented: true, unlockedInWorkspace: true },
       { id: "leave-requests", label: "Leave Requests", implemented: false, unlockedInWorkspace: false },
       { id: "meeting-room-system", label: "Meeting Room Booking", route: "/meetings/meeting-rooms", implemented: true, unlockedInWorkspace: true },
-      { id: "chat-bot", label: "Calendar", implemented: false, unlockedInWorkspace: false },
+      { id: "calendar", label: "Calendar", route: "/calendar", implemented: true, unlockedInWorkspace: true },
     ],
   },
   "extra-common-modules": {
@@ -227,8 +228,8 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
     items: [
       { id: "organization-management", label: "Organization Management", route: "/company-settings/organization-management", implemented: true, unlockedInWorkspace: true },
       { id: "access-grants", label: "Access Grants", route: "/company-settings/access-grants", implemented: true, unlockedInWorkspace: true },
-      { id: "workspace-settings", label: "Workspace Settings", route: "/company-settings/workspace-settings", implemented: true, unlockedInWorkspace: false },
-      { id: "workspace-management", label: "Workspace Management", route: "/company-settings/workspace-management", implemented: true, unlockedInWorkspace: false },
+      { id: "workspace-settings", label: "Unit Settings", route: "/company-settings/workspace-settings", implemented: true, unlockedInWorkspace: false },
+      { id: "workspace-management", label: "Unit Management", route: "/company-settings/workspace-management", implemented: true, unlockedInWorkspace: false },
       { id: "analytics", label: "Analytics", implemented: false, unlockedInWorkspace: false },
     ],
   },
@@ -324,6 +325,16 @@ const normalizeModuleToken = (value = "") =>
     .toLowerCase()
     .replace(/[_\s]+/g, "-");
 
+const DEPARTMENT_LABELS: Record<string, string> = {
+  "hr-department": "HR Department",
+  "administration-department": "Administration Department",
+  "sales-department": "Sales Department",
+  "finance-department": "Finance Department",
+  "maintenance-department": "Maintenance Department",
+  "tech-department": "Tech Department",
+  "it-department": "IT Department",
+};
+
 const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
   const params = useParams();
   const { auth } = useAuth();
@@ -339,6 +350,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
   const [requestedUpgradePlan, setRequestedUpgradePlan] = useState("");
   const workspaceSetup = readWorkspaceSetup();
   const sectionId = resolveSectionId(section || params.sectionId);
+  const departmentId = params.departmentId;
 
   useEffect(() => {
     let active = true;
@@ -672,7 +684,15 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
   }, [isCardsHydrated, matchedWorkspaceSection, sectionId]);
 
   const cards = useMemo(() => {
-    const items = Array.isArray(sectionData?.items) ? sectionData.items : [];
+    const rawItems = Array.isArray(sectionData?.items) ? sectionData.items : [];
+
+    const items = departmentId && sectionId === "department-accesses"
+      ? (() => {
+          const dept = rawItems.find(i => String(i?.id || "").trim() === departmentId);
+          const tabs = dept && Array.isArray(dept.tabs) ? dept.tabs : [];
+          return tabs.map(t => ({ ...t, _parentDept: dept?.label || departmentId }));
+        })()
+      : rawItems;
 
     return items
       .map((item): LandingCard | null => {
@@ -682,7 +702,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
         const iconNode = Icon ? <Icon size={26} /> : undefined;
         const routedItem = String(item?.route || DEFAULT_SECTION_ROUTES[itemId] || "").trim() || undefined;
 
-        if (sectionId === "department-accesses") {
+        if (sectionId === "department-accesses" && !departmentId) {
           const tabs = Array.isArray(item?.tabs) ? item.tabs : [];
           const unlockedChildren = tabs.filter((tab) => {
             const tabId = String(tab?.id || "").trim();
@@ -697,10 +717,10 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
           return {
             id: itemId,
             title: itemLabel,
-            route: String(firstRoutedUnlockedChild?.route || routedItem || "").trim() || undefined,
+            route: hasUnlockedChildren ? `/module-sections/department-accesses/${itemId}` : undefined,
             icon: iconNode,
             isEnabled: hasUnlockedChildren,
-            isInteractive: Boolean(firstRoutedUnlockedChild?.route || routedItem),
+            isInteractive: hasUnlockedChildren,
             upgradeLocked: !hasUnlockedChildren,
             disabledTitle: !hasUnlockedChildren ? "Upgrade plan to unlock this" : undefined,
             helperText:
@@ -781,7 +801,9 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
     }
   };
 
-  const pageTitle = SECTION_TITLES[sectionId];
+  const pageTitle = departmentId && sectionId === "department-accesses"
+    ? DEPARTMENT_LABELS[departmentId] || departmentId.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase())
+    : SECTION_TITLES[sectionId];
 
   return (
     <PageFrame>
@@ -798,7 +820,13 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
             {cards.map((card) => (
               <div key={card.id}>
                 {card.isEnabled && card.route ? (
-                  <Card title={card.title} icon={card.icon} route={card.route} fullHeight />
+                  <Card
+                    title={card.title}
+                    icon={card.icon}
+                    route={card.route}
+                    fullHeight
+                    state={departmentId && sectionId === "department-accesses" ? { fromSection: "department-accesses" } : undefined}
+                  />
                 ) : card.isEnabled ? (
                   <Card
                     title={card.title}

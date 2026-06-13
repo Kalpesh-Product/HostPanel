@@ -8,6 +8,8 @@ type Crumb = {
 
 type BreadcrumbMatcher = {
   pattern: string;
+  fromSection?: string;
+  end?: boolean;
   crumbs: Crumb[];
 };
 
@@ -17,6 +19,7 @@ const SECTION_LABELS = {
   keyApps: "Key Apps",
   founderCore: "Founder Core Modules",
   departmentAccesses: "Department Accesses",
+  tenantPortal: "Tenant Portal",
   general: "General",
 } as const;
 
@@ -42,10 +45,66 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     crumbs: [{ label: SECTION_LABELS.departmentAccesses }],
   },
   {
+    pattern: "/module-sections/department-accesses/hr-department",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "HR Department" },
+    ],
+  },
+  {
+    pattern: "/module-sections/department-accesses/administration-department",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Administration Department" },
+    ],
+  },
+  {
+    pattern: "/module-sections/department-accesses/sales-department",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Sales Department" },
+    ],
+  },
+  {
+    pattern: "/module-sections/department-accesses/finance-department",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Finance Department" },
+    ],
+  },
+  {
+    pattern: "/module-sections/department-accesses/maintenance-department",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Maintenance Department" },
+    ],
+  },
+  {
+    pattern: "/module-sections/department-accesses/tech-department",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Tech Department" },
+    ],
+  },
+  {
+    pattern: "/module-sections/department-accesses/it-department",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "IT Department" },
+    ],
+  },
+  {
     pattern: "/dashboard",
     crumbs: [
       { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
       { label: "Dashboard" },
+    ],
+  },
+  {
+    pattern: "/calendar",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
+      { label: "Calendar" },
     ],
   },
   {
@@ -56,10 +115,26 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/meetings/meeting-rooms",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
+      { label: "Meeting Room Booking" },
+    ],
+  },
+  {
     pattern: "/company-settings/customer-support",
     crumbs: [
       { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
       { label: "Customer Support" },
+    ],
+  },
+  {
+    pattern: "/visitors/visitor-management",
+    fromSection: "department-accesses",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Administration Department", path: "/module-sections/department-accesses/administration-department" },
+      { label: "Visitor Management" },
     ],
   },
   {
@@ -74,6 +149,16 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
       { label: "Wono Nomad" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder",
+    fromSection: "department-accesses",
+    end: false,
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Tech Department", path: "/module-sections/department-accesses/tech-department" },
+      { label: "Website Builder" },
     ],
   },
   {
@@ -275,14 +360,113 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     pattern: "/company-settings/workspace-settings",
     crumbs: [
       { label: SECTION_LABELS.founderCore, path: "/module-sections/founder-core-modules" },
-      { label: "Workspace Settings" },
+      { label: "Unit Settings" },
     ],
   },
   {
     pattern: "/company-settings/workspace-management",
     crumbs: [
       { label: SECTION_LABELS.founderCore, path: "/module-sections/founder-core-modules" },
-      { label: "Workspace Management" },
+      { label: "Unit Management" },
+    ],
+  },
+  {
+    pattern: "/administration/tenant-companies",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Administration Department", path: "/module-sections/department-accesses/administration-department" },
+      { label: "Tenant Companies" },
+    ],
+  },
+  {
+    pattern: "/administration/bookings",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Administration Department", path: "/module-sections/department-accesses/administration-department" },
+      { label: "Bookings" },
+    ],
+  },
+  {
+    pattern: "/administration/resource-management",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Administration Department", path: "/module-sections/department-accesses/administration-department" },
+      { label: "Resource Management" },
+    ],
+  },
+  {
+    pattern: "/administration/house-keeping",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Administration Department", path: "/module-sections/department-accesses/administration-department" },
+      { label: "House Keeping" },
+    ],
+  },
+  {
+    pattern: "/sales-crm/leads-management",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Sales Department", path: "/module-sections/department-accesses/sales-department" },
+      { label: "Leads Management" },
+    ],
+  },
+  {
+    pattern: "/sales-crm/tenant-companies",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Sales Department", path: "/module-sections/department-accesses/sales-department" },
+      { label: "Tenant Companies" },
+    ],
+  },
+  {
+    pattern: "/sales-crm/plans-pricing",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Sales Department", path: "/module-sections/department-accesses/sales-department" },
+      { label: "Plans & Pricing" },
+    ],
+  },
+  {
+    pattern: "/sales-crm/sales-architecture",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Sales Department", path: "/module-sections/department-accesses/sales-department" },
+      { label: "Sales Architecture" },
+    ],
+  },
+  {
+    pattern: "/dashboard/tenant",
+    crumbs: [
+      { label: SECTION_LABELS.tenantPortal },
+      { label: "Dashboard" },
+    ],
+  },
+  {
+    pattern: "/dashboard/tenant/meeting-room-booking",
+    crumbs: [
+      { label: SECTION_LABELS.tenantPortal },
+      { label: "Meeting Room Booking" },
+    ],
+  },
+  {
+    pattern: "/dashboard/tenant/booking-history",
+    crumbs: [
+      { label: SECTION_LABELS.tenantPortal },
+      { label: "Booking History" },
+    ],
+  },
+  {
+    pattern: "/dashboard/tenant/buy-credits",
+    crumbs: [
+      { label: SECTION_LABELS.tenantPortal },
+      { label: "Buy Credits" },
+    ],
+  },
+  {
+    pattern: "/dashboard/tenant/tickets",
+    crumbs: [
+      { label: SECTION_LABELS.tenantPortal },
+      { label: "Tickets" },
     ],
   },
   {
@@ -316,9 +500,15 @@ const BreadCrumbComponent = () => {
   const searchParams = new URLSearchParams(location.search);
   const queryParamEntries = Array.from(searchParams.entries());
 
-  const matchedConfig = BREADCRUMB_MATCHERS.find((matcher) =>
-    Boolean(matchPath({ path: matcher.pattern, end: true }, location.pathname)),
-  );
+  const matchedConfig = BREADCRUMB_MATCHERS.find((matcher) => {
+    const end = matcher.end !== false;
+    const pathMatch = Boolean(matchPath({ path: matcher.pattern, end }, location.pathname));
+    if (!pathMatch) return false;
+    if (matcher.fromSection) {
+      return (location.state as Record<string, unknown>)?.fromSection === matcher.fromSection;
+    }
+    return true;
+  });
 
   const breadcrumbs = matchedConfig?.crumbs || buildFallbackCrumbs(location.pathname);
 

@@ -4228,7 +4228,7 @@ export default function TenantCompaniesPage() {
                       <div className="space-y-3 rounded-xl border border-dashed border-orange-200 bg-orange-50 p-3">
                         <div className="text-center py-3">
                           <AlertTriangle size={18} className="mx-auto text-orange-400 mb-1.5"/>
-                          <p className="text-[12px] font-bold text-orange-800">No architecture-linked workspace assigned yet.</p>
+                          <p className="text-[12px] font-bold text-orange-800">No architecture-linked unit assigned yet.</p>
                           <p className="mt-1 text-[10px] font-medium text-orange-700">Assign desks from the package block in Sales Architecture. This page reads the live assignment from there.</p>
                         </div>
                         <div className="flex justify-center">

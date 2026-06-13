@@ -708,7 +708,7 @@ export default function TenantDashboardPage() {
             </div>
             {tenantSummary && canViewWorkspaceSummary && (
               <div className="rounded-xl bg-slate-50 px-4 py-3">
-                <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Workspace Summary</p>
+                <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Unit Summary</p>
                 <p className="mt-1 text-sm font-pmedium text-slate-800">
                   {tenantSummary.totalTenants || 0} tenant companies, {tenantSummary.activeContracts || 0} active contracts.
                 </p>

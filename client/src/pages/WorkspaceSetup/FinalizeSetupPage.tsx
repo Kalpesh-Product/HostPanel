@@ -186,7 +186,7 @@ const FinalizeSetupPage: React.FC = () => {
   const currentPlanCard = PLAN_UI_DATA.find((plan) => plan.key === selectedPlan) || PLAN_UI_DATA[0];
   const upgradePlanOptions = getUpgradePlanOptions(selectedPlan);
   const workspaceRows = [
-    { label: "Workspace Name", value: workspaceDetails.workspaceName },
+    { label: "Unit Name", value: workspaceDetails.workspaceName },
     { label: "Company Name", value: workspaceDetails.businessName },
     { label: "Brand Name", value: workspaceDetails.brandName },
     { label: "Country", value: workspaceDetails.country },
@@ -524,13 +524,13 @@ const FinalizeSetupPage: React.FC = () => {
             }
           : prevState.user,
       }));
-      toast.success(response.data?.message || "Workspace created successfully.");
+      toast.success(response.data?.message || "Unit created successfully.");
       setShowSuccessPopup(true);
       setTimeout(() => {
         navigate("/dashboard", { replace: true });
       }, 5000);
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Failed to complete workspace setup.");
+      toast.error(error?.response?.data?.message || "Failed to complete unit setup.");
     } finally {
       setIsSubmitting(false);
     }
@@ -562,7 +562,7 @@ const FinalizeSetupPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex flex-col leading-tight">
-                  <span className="text-sm font-bold text-[#233552]">Workspace</span>
+                  <span className="text-sm font-bold text-[#233552]">Unit</span>
                   <span className="text-[11px] text-[#6d9bff] font-semibold">Done</span>
                 </div>
               </div>
@@ -645,12 +645,12 @@ const FinalizeSetupPage: React.FC = () => {
                     </div>
                   ))
                 ) : (
-                  <p className="text-[11px] text-[#6f7f96]">No workspace details available</p>
+                  <p className="text-[11px] text-[#6f7f96]">No unit details available</p>
                 )}
               </div>
               <div className="h-px bg-[#d8e0ea] mt-3 mb-2" />
               <p className="text-[11px] text-[#9aa8bc] text-center">
-                You can still edit these details later from workspace settings.
+                You can still edit these details later from unit settings.
               </p>
             </div>
             </div>
@@ -693,7 +693,7 @@ const FinalizeSetupPage: React.FC = () => {
                   </h2>
                 <p className="text-[15px] text-[#63738d] mt-1 max-w-[900px] whitespace-nowrap">
                   {selectedPlan === "basic"
-                    ? "Pick the next plan that fits your workspace best, or continue now with your current plan."
+                    ? "Pick the next plan that fits your unit best, or continue now with your current plan."
                     : "Send an upgrade request for a higher plan, or continue now with your current plan."}
                 </p>
               </div>
@@ -729,7 +729,7 @@ const FinalizeSetupPage: React.FC = () => {
                     minHeightClass="h-full"
                     footerNote={
                       selectedPlan === "basic"
-                        ? "Upgrade now if you want more features for this workspace."
+                        ? "Upgrade now if you want more features for this unit."
                         : "Request this plan and our sales team will contact you soon."
                     }
                   />

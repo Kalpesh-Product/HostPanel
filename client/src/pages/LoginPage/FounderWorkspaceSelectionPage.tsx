@@ -47,7 +47,7 @@ export default function FounderWorkspaceSelectionPage() {
 
   const submitSelection = async () => {
     if (!selectedWorkspaceId) {
-      toast.error("Select a workspace to continue.");
+      toast.error("Select a unit to continue.");
       return;
     }
     try {
@@ -69,7 +69,7 @@ export default function FounderWorkspaceSelectionPage() {
       }));
       navigate("/dashboard", { replace: true });
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Unable to open the selected workspace.");
+      toast.error(error?.response?.data?.message || "Unable to open the selected unit.");
     } finally {
       setIsSubmitting(false);
     }
@@ -101,11 +101,11 @@ export default function FounderWorkspaceSelectionPage() {
           <div className="self-start">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e8edf8] px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-[#2563EB]">
               <Sparkles className="h-2.5 w-2.5" />
-              Workspace Selection
+              Unit Selection
             </span>
-            <h1 className="mt-2.5 text-2xl font-black leading-tight text-slate-950">Choose your workspace</h1>
+            <h1 className="mt-2.5 text-2xl font-black leading-tight text-slate-950">Choose your unit</h1>
             <p className="mt-1 max-w-lg text-sm font-semibold text-slate-500">
-              This account has access to multiple workspaces. Pick the one you want to open for this session.
+              This account has access to multiple units. Pick the one you want to open for this session.
             </p>
           </div>
 
@@ -129,7 +129,7 @@ export default function FounderWorkspaceSelectionPage() {
                         <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white text-[#2563EB]">
                           <Building2 className="h-3 w-3" />
                         </span>
-                        <p className="truncate text-base font-black text-slate-900">{workspace.workspaceName || "Workspace"}</p>
+                        <p className="truncate text-base font-black text-slate-900">{workspace.workspaceName || "Unit"}</p>
                       </div>
                       <p className="mt-1 truncate text-sm font-semibold text-slate-600">
                         {workspace.businessName || "Business name not set"}
@@ -160,7 +160,7 @@ export default function FounderWorkspaceSelectionPage() {
               className="flex w-full items-center justify-center gap-1.5 rounded-full bg-[#2563EB] py-2.5 text-xs font-black uppercase tracking-[0.11em] text-white disabled:opacity-60"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
-              {isSubmitting ? "Opening..." : "Open Workspace"}
+              {isSubmitting ? "Opening..." : "Open Unit"}
             </button>
           </div>
         </div>

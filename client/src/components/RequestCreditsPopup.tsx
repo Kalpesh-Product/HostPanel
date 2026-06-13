@@ -74,7 +74,7 @@ const RequestCreditsPopup = ({
       setSubmitting(true);
 
       if (!finalCompanyId || !finalWorkspaceId) {
-        toast.error("Company or workspace details are missing.");
+        toast.error("Company or unit details are missing.");
         return;
       }
 

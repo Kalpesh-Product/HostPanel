@@ -123,9 +123,9 @@ function WorkspaceEditModal({
       <div className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-slate-950">Edit Workspace</h2>
+            <h2 className="text-lg font-bold text-slate-950">Edit Unit</h2>
             <p className="mt-1 text-[12px] font-medium text-slate-500">
-              Update the workspace identity without changing unrelated founder settings.
+              Update the unit identity without changing unrelated founder settings.
             </p>
           </div>
           <button
@@ -141,7 +141,7 @@ function WorkspaceEditModal({
         <form onSubmit={onSubmit} className="mt-4 grid gap-3 md:grid-cols-2">
           <label className="grid gap-2 md:col-span-2">
             <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Workspace Name
+              Unit Name
             </span>
             <input
               value={form.workspaceName}
@@ -195,7 +195,7 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
       <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_30px_90px_rgba(15,23,42,0.28)]">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3.5">
           <div>
-            <h2 className="text-lg font-black text-slate-950">Combined Workspaces Data</h2>
+            <h2 className="text-lg font-black text-slate-950">Combined Units Data</h2>
             <p className="mt-1 text-[12px] font-medium text-slate-500">
               Unified founder view across tasks, tickets, assets, inventory, bookings, and employees.
             </p>
@@ -429,7 +429,7 @@ export default function WorkspaceManagementPage() {
         }
       } catch (error) {
         if (isMounted) {
-          toast.error(error.message || "Unable to load workspace management.");
+          toast.error(error.message || "Unable to load unit management.");
         }
       } finally {
         if (isMounted) {
@@ -538,7 +538,7 @@ export default function WorkspaceManagementPage() {
   }, [canManageModule, navigate]);
 
   const activeWorkspaceName = useMemo(
-    () => workspaceList.find((workspace) => workspace.isActiveWorkspace)?.workspaceName || "Workspace",
+    () => workspaceList.find((workspace) => workspace.isActiveWorkspace)?.workspaceName || "Unit",
     [workspaceList],
   );
 
@@ -590,9 +590,9 @@ export default function WorkspaceManagementPage() {
       setOverview(refreshed?.data?.data || null);
       setEditingWorkspace(null);
       setEditForm(EMPTY_EDIT_FORM);
-      toast.success("Workspace updated successfully.");
+      toast.success("Unit updated successfully.");
     } catch (error) {
-      toast.error(error.message || "Unable to update workspace.");
+      toast.error(error.message || "Unable to update unit.");
     } finally {
       setIsSavingEdit(false);
     }
@@ -605,20 +605,20 @@ export default function WorkspaceManagementPage() {
           <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase">
-                Workspace Management
+                Unit Management
               </h2>
               <p className="mt-2 max-w-3xl text-[12px] font-medium leading-6 text-slate-500">
-                Review every workspace linked to this founder account and compare operational health from one place.
+                Review every unit linked to this founder account and compare operational health from one place.
               </p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <div className="h-11 inline-flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] font-semibold text-slate-600 whitespace-nowrap">
-                Current workspace: <span className="text-slate-950 ml-1">{activeWorkspaceName}</span>
+                Current unit: <span className="text-slate-950 ml-1">{activeWorkspaceName}</span>
               </div>
               <label className="grid gap-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Workspace Filter
+                  Unit Filter
                 </span>
                 <select
                   value={workspaceFilter}
@@ -628,7 +628,7 @@ export default function WorkspaceManagementPage() {
                   }}
                   className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
                 >
-                  <option value="all">All workspaces</option>
+                  <option value="all">All units</option>
                   {workspaceList.map((workspace) => (
                     <option key={workspace.id} value={workspace.id}>
                       {workspace.workspaceName}
@@ -669,10 +669,10 @@ export default function WorkspaceManagementPage() {
           <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-[16px] font-bold text-slate-950">All Workspaces</h2>
+                <h2 className="text-[16px] font-bold text-slate-950">All Units</h2>
                 <p className="mt-1 text-[12px] font-medium text-slate-500">
                   {departmentFilter === "All departments"
-                    ? "Founder-level combined view across every active workspace."
+                    ? "Founder-level combined view across every active unit."
                     : `Metrics filtered to ${departmentFilter}.`}
                 </p>
               </div>
@@ -683,7 +683,7 @@ export default function WorkspaceManagementPage() {
                   className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 text-[12px] font-semibold text-[#2563EB] transition hover:bg-blue-100"
                 >
                   <BarChart3 className="h-3.5 w-3.5" />
-                  View Workspaces Data
+                  View Units Data
                 </button>
                 <button
                   type="button"
@@ -699,7 +699,7 @@ export default function WorkspaceManagementPage() {
             {isLoading ? (
               <div className="mt-6 flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Loading workspace management...
+                Loading unit management...
               </div>
             ) : (
               <div className="mt-5 grid gap-3.5">
@@ -746,7 +746,7 @@ export default function WorkspaceManagementPage() {
                           ) : (
                             <Building2 className="h-3.5 w-3.5" />
                           )}
-                          {workspace.isActiveWorkspace ? "Current Workspace" : "Linked Workspace"}
+                          {workspace.isActiveWorkspace ? "Current Unit" : "Linked Unit"}
                         </div>
                         <button
                           type="button"
@@ -766,7 +766,7 @@ export default function WorkspaceManagementPage() {
                           className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
                         >
                           <Pencil className="h-3.5 w-3.5" />
-                          Edit Workspace
+                          Edit Unit
                         </button>
                       </div>
                     </div>

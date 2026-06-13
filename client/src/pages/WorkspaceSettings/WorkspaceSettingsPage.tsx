@@ -83,7 +83,7 @@ export default function WorkspaceSettingsPage() {
         if (!mounted) return;
         setOverview(response?.data?.data || null);
       } catch (error: any) {
-        if (mounted) toast.error(error?.response?.data?.message || "Unable to load workspace information.");
+        if (mounted) toast.error(error?.response?.data?.message || "Unable to load unit information.");
       } finally {
         if (mounted) setIsLoadingOverview(false);
       }
@@ -112,7 +112,7 @@ export default function WorkspaceSettingsPage() {
     .toLowerCase();
   const canCreateWorkspace = currentRole === "founder" || currentRole === "owner";
   const canOpenWorkspaceManagement = currentRole === "founder" || currentRole === "owner";
-  const activeWorkspaceName = activeWorkspace?.workspaceName || "Workspace";
+  const activeWorkspaceName = activeWorkspace?.workspaceName || "Unit";
   const activeWorkspaceLocation = activeWorkspace?.location || "Location not set";
 
   const openPasswordGate = () => {
@@ -176,15 +176,15 @@ export default function WorkspaceSettingsPage() {
     <PageFrame>
         <div className="w-full space-y-4 p-2 lg:p-2.5">
           <header>
-            <h2 className="text-title font-pmedium text-primary uppercase">Workspace Settings</h2>
+            <h2 className="text-title font-pmedium text-primary uppercase">Unit Settings</h2>
             <p className="mt-2 max-w-3xl text-[11px] font-medium leading-6 text-slate-500">
-              Manage the founder-level workspace flow. Create new workspace branches securely and unlock workspace management once you have more than one workspace.
+              Manage the founder-level unit flow. Create new unit branches securely and unlock unit management once you have more than one unit.
             </p>
           </header>
 
         <section className="grid gap-3 md:grid-cols-3">
-          <StatCard label="Owned Workspaces" value={workspaceCount} icon={Briefcase} />
-          <StatCard label="Active Workspace" value={activeWorkspaceName} icon={Building2} />
+          <StatCard label="Owned Units" value={workspaceCount} icon={Briefcase} />
+          <StatCard label="Active Unit" value={activeWorkspaceName} icon={Building2} />
           <StatCard label="Combined Employees" value={overview?.summary?.totalEmployees || 0} icon={Users} />
         </section>
 
@@ -196,9 +196,9 @@ export default function WorkspaceSettingsPage() {
                   <Plus className="h-5 w-5" />
                 </span>
                 <div>
-                  <h2 className="text-[22px] leading-none font-bold text-slate-950">Create New Workspace</h2>
+                  <h2 className="text-[22px] leading-none font-pmedium text-primary">Create New Unit</h2>
                   <p className="mt-1 text-[11px] font-medium leading-6 text-slate-500">
-                    Keep the same founder onboarding flow and create a new branch workspace under the same business.
+                    Keep the same founder onboarding flow and create a new branch unit under the same business.
                   </p>
                 </div>
               </div>
@@ -210,11 +210,11 @@ export default function WorkspaceSettingsPage() {
                     <p className="mt-1 text-[14px] font-bold text-slate-950">
                       {(auth.user as { companyName?: string } | null)?.companyName || "Business name"}
                     </p>
-                    <p className="mt-0.5 text-[11px] font-medium text-slate-500">Brand from current workspace</p>
+                    <p className="mt-0.5 text-[11px] font-medium text-slate-500">Brand from current unit</p>
                   </div>
                   <div className="rounded-2xl border border-dashed border-blue-200 bg-white/80 px-5 py-5">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">New branch identity</p>
-                    <p className="mt-1 text-[14px] font-bold text-slate-950">Workspace name starts empty</p>
+                    <p className="mt-1 text-[14px] font-bold text-slate-950">Unit name starts empty</p>
                     <p className="mt-0.5 text-[11px] font-medium text-slate-500">
                       Location, address and vertical are entered fresh for the new branch.
                     </p>
@@ -222,7 +222,7 @@ export default function WorkspaceSettingsPage() {
                 </div>
                 <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-blue-100 bg-white px-5 py-4">
                   <div className="text-[11px] font-medium leading-6 text-slate-600">
-                    Founder password verification runs first, then branch workspace onboarding opens.
+                    Founder password verification runs first, then branch unit onboarding opens.
                   </div>
                   <button
                     type="button"
@@ -238,7 +238,7 @@ export default function WorkspaceSettingsPage() {
                     }`}
                   >
                     <LockKeyhole className="h-4 w-4" />
-                    Create Workspace
+                    Create Unit
                   </button>
                 </div>
               </div>
@@ -247,9 +247,9 @@ export default function WorkspaceSettingsPage() {
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-[22px] leading-none font-bold text-slate-950">Workspace Snapshot</h2>
+                  <h2 className="text-[22px] leading-none font-pmedium text-primary">Unit Snapshot</h2>
                   <p className="mt-1 text-[11px] font-medium leading-6 text-slate-500">
-                    Current founder-level view of active workspace and shared totals.
+                    Current founder-level view of active unit and shared totals.
                   </p>
                 </div>
                 {overview?.workspaceManagement?.enabled && canOpenWorkspaceManagement ? (
@@ -266,14 +266,14 @@ export default function WorkspaceSettingsPage() {
 
               <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Active workspace</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Active unit</p>
                   <p className="mt-1 text-[16px] leading-none font-black text-slate-950">{activeWorkspaceName}</p>
                   <p className="mt-1 text-[11px] font-medium text-slate-500">{activeWorkspaceLocation}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Total tasks</p>
                   <p className="mt-1 text-[16px] leading-none font-black text-slate-950">{overview?.summary?.totalTasks || 0}</p>
-                  <p className="mt-1 text-[11px] font-medium text-slate-500">Across linked Workspaces</p>
+                  <p className="mt-1 text-[11px] font-medium text-slate-500">Across Linked Units</p>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Departments</p>
@@ -291,7 +291,7 @@ export default function WorkspaceSettingsPage() {
 
           <aside className="space-y-4">
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-[14px] font-bold text-slate-950">Linked Workspaces</h2>
+              <h2 className="text-[14px] font-pmedium text-primary">Linked Units</h2>
               {isLoadingOverview ? (
                 <div className="mt-4 flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -327,7 +327,7 @@ export default function WorkspaceSettingsPage() {
             </section>
 
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-[14px] font-bold text-slate-950">Creation flow notes</h2>
+              <h2 className="text-[14px] font-pmedium text-primary">Creation flow notes</h2>
               <div className="mt-4 grid gap-3.5">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                   <div className="flex items-center gap-2">

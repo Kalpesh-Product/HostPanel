@@ -41,7 +41,7 @@ const VISITOR_ACTION_CHILDREN = [
   { id: 'visitors_tab_bookings', label: 'Bookings Tab', description: 'Access bookings tab on the start page.' },
   { id: 'visitors_tab_clients', label: 'Clients Tab', description: 'Access clients tab on the start page.' },
   { id: 'visitors_mode_standard', label: 'Standard Visitor Tab', description: 'Access Standard Visitor tab in New Frontdesk Action.' },
-  { id: 'visitors_mode_workspace_tour', label: 'Workspace Tour Tab', description: 'Access Workspace Tour tab in New Frontdesk Action.' },
+  { id: 'visitors_mode_workspace_tour', label: 'Unit Tour Tab', description: 'Access Unit Tour tab in New Frontdesk Action.' },
   { id: 'visitors_mode_walkin_booking', label: 'Walk-in Booking Tab', description: 'Access Walk-in Booking tab in New Frontdesk Action.' },
   { id: 'visitors_mode_verify_booking', label: 'Verify Booking Tab', description: 'Access Verify Booking ID tab in New Frontdesk Action.' },
 ];
@@ -1171,7 +1171,7 @@ export default function AccessGrantsPage() {
       setSelectedUser(null);
       toast.success(`${selectedUser.name} can now access another workspace.`);
     } catch (error) {
-      toast.error(error.message || 'Unable to add workspace access right now.');
+      toast.error(error.message || 'Unable to add unit access right now.');
     } finally {
       setIsSaving(false);
     }
@@ -1209,7 +1209,7 @@ export default function AccessGrantsPage() {
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase">Access Grants</h2>
               <p className="text-xs font-medium text-slate-500 mt-1">
-                Manage user roles and founder access for {workspace?.workspaceName || 'this workspace'}.
+                Manage user roles and founder access for {workspace?.workspaceName || 'this unit'}.
               </p>
             </div>
           </div>
@@ -1609,8 +1609,8 @@ export default function AccessGrantsPage() {
                               <ArrowRightLeft className="w-4 h-4 text-indigo-600" />
                             </div>
                             <div>
-                              <div className="font-semibold text-[13px] text-slate-900">Transfer Workspace</div>
-                              <div className="text-xs text-slate-500 mt-0.5">Move this user to another linked workspace</div>
+                              <div className="font-semibold text-[13px] text-slate-900">Transfer Unit</div>
+                              <div className="text-xs text-slate-500 mt-0.5">Move this user to another linked unit</div>
                             </div>
                           </div>
                           <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 transition-colors" />
@@ -1630,8 +1630,8 @@ export default function AccessGrantsPage() {
                                 <Users className="w-4 h-4 text-sky-600" />
                               </div>
                               <div>
-                                <div className="font-semibold text-[13px] text-slate-900">Add Workspace Access</div>
-                                <div className="text-xs text-slate-500 mt-0.5">Keep this user here and add another workspace</div>
+                                <div className="font-semibold text-[13px] text-slate-900">Add Unit Access</div>
+                                <div className="text-xs text-slate-500 mt-0.5">Keep this user here and add another unit</div>
                               </div>
                             </div>
                             <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-sky-500 transition-colors" />
@@ -1918,7 +1918,7 @@ export default function AccessGrantsPage() {
               <div className="my-6 w-full max-w-md overflow-hidden rounded-[1.1rem] border border-white/10 bg-white shadow-2xl scale-95 sm:scale-90">
                 <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-3 sm:p-3.5">
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">Workspace Access</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">Unit Access</p>
                     <h2 className="mt-1 text-sm font-semibold text-white">Add access for {selectedUser.name}</h2>
                   </div>
                   <button
@@ -1931,7 +1931,7 @@ export default function AccessGrantsPage() {
 
                 <div className="space-y-3 bg-gradient-to-b from-slate-50 to-white p-3 sm:p-3.5">
                   <div className="rounded-[0.9rem] border border-slate-100 bg-white p-3 shadow-sm">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Current workspaces</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Current units</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {(selectedUser.workspaceAccesses || []).map((access) => (
                         <span key={access.id} className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
@@ -1954,7 +1954,7 @@ export default function AccessGrantsPage() {
                         }
                         className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
                       >
-                        <option value="">Select workspace</option>
+                        <option value="">Select unit</option>
                         {linkWorkspaceOptions.map((item) => (
                           <option key={item.id} value={item.id}>
                             {item.workspaceName}{item.location ? ` - ${item.location}` : ''}
@@ -2010,7 +2010,7 @@ export default function AccessGrantsPage() {
             <div className="my-6 w-full max-w-lg overflow-hidden rounded-[1.1rem] border border-white/10 bg-white shadow-2xl scale-95 sm:scale-90">
               <div className="flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-3 sm:p-3.5">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">Workspace Transfer</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">Unit Transfer</p>
                   <h2 className="mt-1 text-sm font-semibold text-white">Transfer {selectedUser.name}</h2>
                 </div>
                 <button
@@ -2033,7 +2033,7 @@ export default function AccessGrantsPage() {
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Target Workspace</label>
+                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Target Unit</label>
                     <div className="relative">
                       <select
                         value={workspaceTransferForm.targetWorkspaceId}

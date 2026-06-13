@@ -70,7 +70,7 @@ const CompanyProfile = () => {
   }, [defaults, reset]);
 
   const fields = [
-    { name: "workspaceName", label: "Workspace Name" },
+    { name: "workspaceName", label: "Unit Name" },
     { name: "businessName", label: "Company Name" },
     { name: "brandName", label: "Brand Name" },
     { name: "country", label: "Country" },

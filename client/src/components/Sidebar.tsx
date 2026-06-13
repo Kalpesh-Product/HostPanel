@@ -20,6 +20,7 @@ import {
   ListChecks,
   Ticket,
   CalendarClock,
+  Calendar,
   Presentation,
   ContactRound,
   Warehouse,
@@ -162,30 +163,17 @@ const companySettingsData: NavNode[] = [
   { id: "organization-management", label: "Organization Management", icon: Building, route: "/company-settings/organization-management" },
   { id: "module-management", label: "Module Management", icon: Boxes, disabled: true },
   { id: "access-grants", label: "Access Grants", icon: UserCog, route: "/company-settings/access-grants" },
-  { id: "workspace-settings", label: "Workspace Settings", icon: Settings, route: "/company-settings/workspace-settings", disabled: true },
-  { id: "workspace-management", label: "Workspace Management", icon: MonitorCog, route: "/company-settings/workspace-management", disabled: true },
+  { id: "unit-settings", label: "Unit Settings", icon: Settings, route: "/company-settings/unit-settings", disabled: true },
+  { id: "unit-management", label: "Unit Management", icon: MonitorCog, route: "/company-settings/unit-management", disabled: true },
   { id: "analytics", label: "Analytics", icon: BarChart, disabled: true },
   { id: "customer-support", label: "Customer Support", icon: MessageSquareCode, route: "/company-settings/customer-support" },
 ];
 
 const keyAppsData: NavNode[] = [
-  { id: "attendance", label: "Attendance", icon: Clock, route: "/dashboard/attendance" },
-  { id: "tasks", label: "Tasks", icon: ListChecks, disabled: true },
-  { id: "tickets", label: "Tickets", icon: Ticket, route: "/tickets", disabled: false },
-  { id: "leave-requests", label: "Leave Requests", icon: CalendarClock, disabled: true },
-  { id: "meeting-room-system", label: "Meeting Room System", icon: Presentation, route:"/meetings/meeting-rooms", disabled: false },
-  {
-    id: "visitor-management",
-    label: "Visitor Management",
-    icon: ContactRound,
-    route: "/visitors/visitor-management",
-    disabled: false,
-  },
-  { id: "assets", label: "Assets", icon: Package, disabled: true },
-  { id: "inventory", label: "Inventory", icon: Warehouse, disabled: true },
-  { id: "finance-management", label: "Finance Management", icon: Wallet, disabled: true },
-  { id: "chat-bot", label: "Calendar", icon: CalendarClock, disabled: true },
-  { id: "reports", label: "Reports", icon: FileChartColumn, disabled: true },
+  { id: "visitor-management", label: "Visitor Management", icon: ContactRound, route: "/visitors/visitor-management", disabled: false },
+  { id: "website-builder", label: "Website Builder", icon: Globe, route: "/company-settings/website-builder", disabled: false },
+  { id: "wono-nomad", label: "Wono Nomad", icon: ShieldCheck, route: "/company-settings/wono-nomad", disabled: false },
+  { id: "website-leads", label: "Website Leads", icon: NotebookText, route: "/company-settings/website-builder/leads", disabled: false },
 ];
 
 const departmentModules: NavNode[] = [
@@ -312,8 +300,8 @@ const ROUTE_BY_ID: Record<string, string> = {
   "website-leads": "/company-settings/website-builder/leads",
   "organization-management": "/company-settings/organization-management",
   "access-grants": "/company-settings/access-grants",
-  "workspace-settings": "/company-settings/workspace-settings",
-  "workspace-management": "/company-settings/workspace-management",
+  "unit-settings": "/company-settings/unit-settings",
+  "unit-management": "/company-settings/unit-management",
   "visitor-management": "/visitors/visitor-management",
   "visitors-management": "/visitors/visitor-management",
   "tenant-companies-sales": "/sales-crm/tenant-companies",
@@ -325,6 +313,7 @@ const ROUTE_BY_ID: Record<string, string> = {
   "resource-management": "/administration/resource-management",
   "house-keeping": "/administration/house-keeping",
   "meeting-room-system": "/meetings/meeting-rooms",
+  calendar: "/calendar",
   tickets: "/tickets",
   "tenant-dashboard": "/dashboard/tenant",
   "tenant-meeting-room-booking": "/dashboard/tenant/meeting-room-booking",
@@ -343,7 +332,7 @@ const ICON_BY_ID: Record<string, ElementType> = {
   tickets: Ticket,
   "leave-requests": CalendarClock,
   "meeting-room-system": Presentation,
-  "chat-bot": CalendarClock,
+  calendar: Calendar,
   assets: Package,
   inventory: Warehouse,
   "finance-management": Wallet,
@@ -354,8 +343,8 @@ const ICON_BY_ID: Record<string, ElementType> = {
   "organization-management": Building,
   "module-management": Boxes,
   "access-grants": UserCog,
-  "workspace-settings": Settings,
-  "workspace-management": MonitorCog,
+  "unit-settings": Settings,
+  "unit-management": MonitorCog,
   analytics: BarChart,
   "visitor-management": ContactRound,
   "visitors-management": ContactRound,
@@ -400,8 +389,8 @@ const ICON_BY_ID: Record<string, ElementType> = {
 };
 
 const BASIC_PLAN_HARD_LOCK_IDS = new Set([
-  "workspace-settings",
-  "workspace-management",
+  "unit-settings",
+  "unit-management",
 ]);
 
 const normalizeRole = (value = "") =>
@@ -478,10 +467,11 @@ interface NavGroupProps {
   collapsed: boolean;
   depth?: number;
   pathname: string;
-  onNavigate: (item: NavNode) => void;
+  onNavigate: (item: NavNode, sectionKey?: string) => void;
+  sectionKey?: string;
 }
 
-const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate }: NavGroupProps) => {
+const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate, sectionKey }: NavGroupProps) => {
   const [isOpen, setIsOpen] = useState(item.defaultOpen !== false);
   const hasChildren = Boolean(item.children?.length);
   const isActive = (() => {
@@ -497,7 +487,7 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate }: NavGroup
       setIsOpen((prev) => !prev);
       return;
     }
-    onNavigate(item);
+    onNavigate(item, sectionKey);
   };
 
   return (
@@ -530,6 +520,7 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate }: NavGroup
               depth={depth + 1}
               pathname={pathname}
               onNavigate={onNavigate}
+              sectionKey={sectionKey}
             />
           ))}
         </div>
@@ -709,6 +700,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const enabledIds = new Set([
     ...getEnabledModuleIdsForPlan(planLabel, workspaceCount),
     ...(workspaceAccessMap?.enabledModuleIds || workspaceSetup.enabledModuleIds || []),
+    "calendar",
   ]);
 
   useEffect(() => {
@@ -1111,12 +1103,12 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     }
   };
 
-  const navigateFromSidebar = (route: string) => {
-  navigate(route, { flushSync: true });
+  const navigateFromSidebar = (route: string, sectionKey?: string) => {
+  navigate(route, { state: { fromSection: sectionKey }, flushSync: true });
   if (onCloseDrawer) onCloseDrawer();
 };
 
-const onNavigate = (item: NavNode) => {
+const onNavigate = (item: NavNode, sectionKey?: string) => {
   if (item.id === "logout") {
     void logout();
     if (onCloseDrawer) onCloseDrawer();
@@ -1129,7 +1121,7 @@ const onNavigate = (item: NavNode) => {
     return;
   }
   if (!item.route) return;
-  navigateFromSidebar(item.route);
+  navigateFromSidebar(item.route, sectionKey);
 };
 
   return (
@@ -1173,7 +1165,19 @@ const onNavigate = (item: NavNode) => {
             </div>
           </div>
         ) : (
-          (mappedSections.length > 0 ? mappedSections : [
+          (mappedSections.length > 0
+            ? (() => {
+                const hasKeyApps = mappedSections.some(s => s.key === "key-apps");
+                if (hasKeyApps) {
+                  return mappedSections.map(s =>
+                    s.key === "key-apps"
+                      ? { ...s, items: [...s.items, ...keyAppsItems.filter(k => k.route && !k.disabled && !s.items.some(ex => ex.id === k.id))] }
+                      : s
+                  );
+                }
+                return [...mappedSections, { key: "key-apps", title: "Key Apps", items: keyAppsItems }];
+              })()
+          : [
           { key: "company-settings", title: "Company Settings", items: companySettingsItems },
           { key: "key-apps", title: "Key Apps", items: keyAppsItems },
           { key: "department-accesses", title: "Department Accesses", items: departmentItems },
@@ -1209,6 +1213,7 @@ const onNavigate = (item: NavNode) => {
                         collapsed={collapsed}
                         pathname={location.pathname}
                         onNavigate={onNavigate}
+                        sectionKey={section.key}
                       />
                     ))}
                   </div>
@@ -1229,6 +1234,7 @@ const onNavigate = (item: NavNode) => {
                     collapsed={collapsed}
                     pathname={location.pathname}
                     onNavigate={onNavigate}
+                    sectionKey={section.key}
                   />
                 ))}
               </div>
@@ -1269,6 +1275,7 @@ const onNavigate = (item: NavNode) => {
                         collapsed={collapsed}
                         pathname={location.pathname}
                         onNavigate={onNavigate}
+                        sectionKey="tenant-portal"
                       />
                     ))}
                   </div>
@@ -1289,6 +1296,7 @@ const onNavigate = (item: NavNode) => {
                     collapsed={collapsed}
                     pathname={location.pathname}
                     onNavigate={onNavigate}
+                    sectionKey="tenant-portal"
                   />
                 ))}
               </div>

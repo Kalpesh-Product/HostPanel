@@ -1400,7 +1400,7 @@ export function TicketsPage() {
       if (!isMounted) return;
 
       const mockSuggestions = [
-        { title: `${ticketForm.department} Request - Resource Provisioning`, description: "Standard request for new workspace resources or software licenses.", department: ticketForm.department, departmentKey: ticketForm.department.toLowerCase() },
+        { title: `${ticketForm.department} Request - Resource Provisioning`, description: "Standard request for new unit resources or software licenses.", department: ticketForm.department, departmentKey: ticketForm.department.toLowerCase() },
         { title: `${ticketForm.department} Support - Incident Reporting`, description: "Reporting a physical or digital interruption affecting department activity.", department: ticketForm.department, departmentKey: ticketForm.department.toLowerCase() },
         { title: `${ticketForm.department} Help - Query & Clarification`, description: "General questions concerning corporate policies or task assignments.", department: ticketForm.department, departmentKey: ticketForm.department.toLowerCase() },
       ];
@@ -2063,7 +2063,7 @@ export function TicketsPage() {
               
               <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
                  <div>
-                   <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] flex items-center gap-2">
+                   <h2 className="text-xl sm:text-2xl font-pmedium text-primary flex items-center gap-2">
                       <div className="bg-blue-50 text-[#2563EB] p-2 rounded-xl">
                         <AlertCircle size={20} strokeWidth={2.5}/>
                       </div>

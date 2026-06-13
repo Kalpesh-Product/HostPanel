@@ -1323,7 +1323,7 @@ export function OrganizationPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="space-y-1">
-                        <div className="font-bold text-slate-900">{member.transferredToWorkspaceName || 'Linked Workspace'}</div>
+                        <div className="font-bold text-slate-900">{member.transferredToWorkspaceName || 'Linked Unit'}</div>
                         <div className="text-[12px] font-medium text-slate-500">
                           {member.transferredToWorkspaceLocation || 'Location not set'}
                         </div>
@@ -1340,7 +1340,7 @@ export function OrganizationPage() {
                   </tr>
                 ))}
                 {filteredTransferredTeamMembers.length === 0 && (
-                  <tr><td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-bold"><ArrowLeft size={32} className="mx-auto mb-3 opacity-30 rotate-45"/>No transferred users recorded for this workspace.</td></tr>
+                  <tr><td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-bold"><ArrowLeft size={32} className="mx-auto mb-3 opacity-30 rotate-45"/>No transferred users recorded for this unit.</td></tr>
                 )}
               </tbody>
             </table>
@@ -1587,7 +1587,7 @@ export function OrganizationPage() {
                       </td>
                       <td className="px-6 py-4">{getRoleBadge(emp.role)}</td>
                       <td className="px-6 py-4">
-                        <div className="font-bold text-slate-900">{emp.transferredToWorkspaceName || 'Linked Workspace'}</div>
+                        <div className="font-bold text-slate-900">{emp.transferredToWorkspaceName || 'Linked Unit'}</div>
                         <div className="text-[12px] font-medium text-slate-500">{emp.transferredToWorkspaceLocation || 'Location not set'}</div>
                       </td>
                       <td className="px-6 py-4 text-[13px] font-medium text-slate-500">{formatTransferDate(emp.transferredAt)}</td>

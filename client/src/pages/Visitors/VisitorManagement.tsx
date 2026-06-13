@@ -3132,7 +3132,7 @@ export default function VisitorsManagementPage() {
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <h2 className="text-title font-pmedium text-primary uppercase mt-1.5">Visitor Management</h2>
-            <p className="mt-1 max-w-2xl text-xs font-semibold text-slate-500">Daily visitors, walk-in bookings, client conversion, payment proof, and invoice handoff in one front desk workspace.</p>
+            <p className="mt-1 max-w-2xl text-xs font-semibold text-slate-500">Daily visitors, walk-in bookings, client conversion, payment proof, and invoice handoff in one front desk unit.</p>
           </div>
           <button
             type="button"
@@ -3648,7 +3648,7 @@ export default function VisitorsManagementPage() {
                     onClick={() => { setVisitorMode('standard'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setForm((prev) => ({ ...prev, standardVisitorType: prev.standardVisitorType || 'standard' })); }}
                     className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all ${visitorMode === 'standard' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.standard ? 'cursor-not-allowed opacity-60' : ''}`}
                   >Standard Visitor</button>
-                  <button type="button" disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have permission for Workspace Tour.' : undefined} onClick={() => setVisitorMode('tour')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'tour' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.tour ? 'text-slate-500 bg-slate-700/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.tour && <Lock size={11} />} Workspace Tour</button>
+                  <button type="button" disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have permission for Unit Tour.' : undefined} onClick={() => setVisitorMode('tour')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'tour' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.tour ? 'text-slate-500 bg-slate-700/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.tour && <Lock size={11} />} Unit Tour</button>
                   <button type="button" disabled={!visitorAccess.modes.walkin_booking} title={!visitorAccess.modes.walkin_booking ? 'You do not have permission for Walk-in Booking.' : undefined} onClick={() => setVisitorMode('walkin_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'walkin_booking' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.walkin_booking ? 'text-slate-500 bg-slate-700/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.walkin_booking && <Lock size={11} />} Walk-in Booking</button>
                   <button type="button" disabled={!visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have permission for Verify Booking ID.' : undefined} onClick={() => setVisitorMode('verify_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'verify_booking' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.verify_booking ? 'text-slate-500 bg-slate-700/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.verify_booking && <Lock size={11} />} Verify Booking ID</button>
                 </div>
@@ -4078,7 +4078,7 @@ export default function VisitorsManagementPage() {
                               {visitorOverviewError ? (
                                 <p className="text-[10px] font-bold text-red-600">{visitorOverviewError}</p>
                               ) : (
-                                <p className="text-[10px] font-bold text-blue-700">Only present workspace members in the selected group can be selected, including managers and other roles.</p>
+                                <p className="text-[10px] font-bold text-blue-700">Only present unit members in the selected group can be selected, including managers and other roles.</p>
                               )}
                             </div>
                           </div>
@@ -4095,7 +4095,7 @@ export default function VisitorsManagementPage() {
                               >
                                 <option value="Exploring Services">Exploring Services</option>
                                 <option value="General Visit">General Visit</option>
-                                <option value="Workspace Enquiry">Workspace Enquiry</option>
+                                <option value="Unit Enquiry">Unit Enquiry</option>
                                 <option value="Delivery">Delivery</option>
                               </select>
                             </div>
@@ -4123,9 +4123,9 @@ export default function VisitorsManagementPage() {
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                           <div className="max-w-2xl">
                             <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700">
-                              <Building size={12} /> Workspace Tour Check-in
+                              <Building size={12} /> Unit Tour Check-in
                             </div>
-                            <h3 className="mt-1 text-base font-black tracking-tight text-gray-950">Workspace Tour / Enquiry</h3>
+                            <h3 className="mt-1 text-base font-black tracking-tight text-gray-950">Unit Tour / Enquiry</h3>
                             <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-gray-600">
                               Capture the full client profile during the tour so Administration can check the visitor in immediately and Sales can follow up with pricing, space needs, and contact context already in place.
                             </p>
@@ -4967,7 +4967,7 @@ export default function VisitorsManagementPage() {
                   </button>
                 )}
                 {visitorMode === 'tour' && (
-                  <button onClick={handleProcessAction} disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have access to Workspace Tour tab.' : undefined} className="flex-[2] py-3 bg-indigo-600 text-white rounded-xl text-xs font-black shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-gray-300 disabled:shadow-none">
+                  <button onClick={handleProcessAction} disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have access to Unit Tour tab.' : undefined} className="flex-[2] py-3 bg-indigo-600 text-white rounded-xl text-xs font-black shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-gray-300 disabled:shadow-none">
                     <Building size={18} /> SYNC LEAD & START TOUR
                   </button>
                 )}

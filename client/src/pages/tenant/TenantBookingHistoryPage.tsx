@@ -737,7 +737,7 @@ export default function TenantBookingHistoryPage() {
               <p className="mt-1 text-xs font-pmedium uppercase tracking-widest text-red-700">{cancelModal.roomName}</p>
             </div>
             <div className="space-y-4 p-6">
-              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-pregular text-slate-600">Enter a cancellation reason so the workspace can keep a proper record.</div>
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-pregular text-slate-600">Enter a cancellation reason so the unit can keep a proper record.</div>
               {Number(cancelModal?.bookingCredits || 0) > 0 && (
                 <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-pmedium text-emerald-800">
                   You will be refunded {Number(cancelModal.bookingCredits).toFixed(2)} CR for this booking.
