@@ -2105,7 +2105,7 @@ export function MeetingRoomsPage() {
               <div>
                 <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
 
-                  Meeting Rooms
+                  Meeting Rooms Booking
                 </h2>
                 <p className="text-xs font-medium text-slate-500 mt-1">
                   Reserve campus workspaces and monitor department availability.
