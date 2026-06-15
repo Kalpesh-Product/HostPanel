@@ -4,6 +4,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Drawer, IconButton, useMediaQuery } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import Sidebar from "../components/Sidebar";
+import TenantSidebar from "../components/TenantSidebar";
 import Header from "../components/Header";
 import BreadCrumbComponent from "../components/BreadCrumbComponent";
 import Footer from "../components/Footer";
@@ -43,6 +44,7 @@ const MainLayout = () => {
     }
   }, [location.pathname, auth, navigate]);
 
+  const isTenantRoute = location.pathname.startsWith("/dashboard/tenant");
   const isMobile = useMediaQuery("(max-width: 768px)");
   const outletKey = `${location.pathname}${location.search}`;
 
@@ -89,15 +91,22 @@ const MainLayout = () => {
             }}
           >
             <div className="py-2">
-              <Sidebar
-                drawerOpen={mobileOpen}
-                onCloseDrawer={() => setMobileOpen(false)}
-              />
+              {isTenantRoute ? (
+                <TenantSidebar
+                  drawerOpen={mobileOpen}
+                  onCloseDrawer={() => setMobileOpen(false)}
+                />
+              ) : (
+                <Sidebar
+                  drawerOpen={mobileOpen}
+                  onCloseDrawer={() => setMobileOpen(false)}
+                />
+              )}
             </div>
           </Drawer>
         ) : (
           <aside className="bg-white">
-            <Sidebar />
+            {isTenantRoute ? <TenantSidebar /> : <Sidebar />}
           </aside>
         )}
 

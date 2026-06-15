@@ -1,10 +1,10 @@
 // @ts-nocheck
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getResources, updateResource } from '../../../services/resources';
+import { createResource, getResources, updateResource } from '../../../services/resources';
 import { createPricingPackage, deletePricingPackage, getPricingPackages, updatePricingPackage } from '../../../services/pricing-packages';
 import { toast } from 'sonner';
-import { AlertTriangle, Building2, CheckCircle2, CreditCard, Edit2, Eye, FileDown, FileSpreadsheet, LayoutGrid, Monitor, Plus, Search, Save, Tag, Trash, Users, X, XCircle } from 'lucide-react';
+import { AlertTriangle, Building2, CheckCircle2, ChevronDown, CreditCard, Download, Edit2, Eye, FileDown, FileSpreadsheet, LayoutGrid, Monitor, Plus, Search, Save, Tag, Trash, UploadCloud, Users, X, XCircle } from 'lucide-react';
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
 import { createReport } from '../../../services/reports';
 import { downloadReportFile } from '../../../utils/report-download';
@@ -25,6 +25,12 @@ const inventoryModeOptions = [
 ];
 const TENANT_PACKAGE_MIN_DURATION_MONTHS = 3;
 const TENANT_PACKAGE_MONTH_DAYS = 30;
+const ADD_NEW_OPTION = '__add_new__';
+
+const areaCapacityOptions = {
+  open_desk: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+  cabin_desk: [4, 6, 8, 10],
+};
 
 function formatCurrency(value = 0) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value || 0));
@@ -266,6 +272,7 @@ function buildTenantPackageSummary(resources = [], durationMonths = TENANT_PACKA
 function normalizeResource(resource = {}) {
   const floor = String(resource.floor || '501').trim() || '501';
   const wing = String(resource.wing || '').trim().toUpperCase();
+  const locationArea = [floor, wing].filter(Boolean).join(' ').trim();
   return {
     ...resource,
     recordId: resource.recordId || resource._id || resource.id || resource.resourceCode,
@@ -276,7 +283,8 @@ function normalizeResource(resource = {}) {
     inventoryMode: resource.inventoryMode || 'area',
     floor,
     wing,
-    locationLabel: [floor, wing].filter(Boolean).join(' ').trim(),
+    location: String(resource.location || locationArea).trim(),
+    locationLabel: [String(resource.location || '').trim(), locationArea].filter(Boolean).join(' \u2022 ').trim(),
     capacity: Number(resource.capacity || 1),
     pricePerHour: Number(resource.pricePerHour || 0),
     pricePerDay: Number(resource.pricePerDay || 0),
@@ -289,6 +297,15 @@ function normalizeResource(resource = {}) {
 
 function isDeskCategory(category = '') {
   return category === 'open_desk' || category === 'cabin_desk' || category === 'virtual_office';
+}
+
+function deriveResourceTypeFromCategory(category = '') {
+  if (!category) return '';
+  if (category === 'open_desk') return 'Desk';
+  if (category === 'cabin_desk') return 'Cabin';
+  if (category === 'conference_room') return 'Conference Room';
+  if (category === 'virtual_office') return 'Virtual Office';
+  return 'Meeting Room';
 }
 
 function getResourceCategoryLabel(value = '') {
@@ -316,6 +333,22 @@ function getResourceCreditValue(resource = {}) {
   }
 
   return credits;
+}
+
+function getCapacityOptions(category = '', inventoryMode = 'area') {
+  if (!isDeskCategory(category)) return [];
+  if (category === 'virtual_office') return [1];
+  if (category === 'cabin_desk') return areaCapacityOptions[category] || [];
+  if (inventoryMode === 'single') return [1];
+  return areaCapacityOptions[category] || [];
+}
+
+function normalizeCapacityForSelection(category = '', inventoryMode = 'area', capacity = '1') {
+  const options = getCapacityOptions(category, inventoryMode);
+  const parsedCapacity = Number(capacity || 1);
+  if (options.length === 0) return String(Math.max(1, Math.trunc(parsedCapacity) || 1));
+  if (options.includes(parsedCapacity)) return String(parsedCapacity);
+  return String(options[0]);
 }
 
 function getResourceCreditSummary(resource = {}) {
@@ -529,7 +562,7 @@ const RESOURCE_FULL_DAY_HOURS = 24;
 function formatAutoPriceValue(value) {
   const numeric = Number(value || 0);
   if (!Number.isFinite(numeric) || numeric <= 0) {
-    return '0';
+    return '';
   }
 
   const rounded = Math.round(numeric * 100) / 100;
@@ -551,7 +584,11 @@ export default function PricingPackagesPage() {
   const [modalKind, setModalKind] = useState('package');
   const [modalMode, setModalMode] = useState('add');
   const [selectedItem, setSelectedItem] = useState(null);
-  const [resourceForm, setResourceForm] = useState({ pricePerHour: '', pricePerDay: '', credits: '', status: 'Active' });
+  const [resourceForm, setResourceForm] = useState({ name: '', type: '', resourceCategory: '', inventoryMode: '', location: '', floor: '', wing: '', capacity: '1', description: '', pricePerHour: '', pricePerDay: '', credits: '', status: 'Active' });
+  const [addResourceForm, setAddResourceForm] = useState({
+    name: '', type: '', resourceCategory: '', inventoryMode: '', location: '', floor: '', wing: '', capacity: '1',
+    pricePerHour: '', pricePerDay: '', credits: '1', status: 'Active', description: '',
+  });
   const [packageForm, setPackageForm] = useState({
     category: 'Membership',
     name: '',
@@ -574,6 +611,17 @@ export default function PricingPackagesPage() {
     isRecommended: false,
     status: 'Active',
   });
+  const bulkUploadInputRef = useRef(null);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+  const [isTemplateInfoOpen, setIsTemplateInfoOpen] = useState(false);
+  const [isAllowedValuesOpen, setIsAllowedValuesOpen] = useState(false);
+  const [isBulkImporting, setIsBulkImporting] = useState(false);
+  const [bulkUploadSummary, setBulkUploadSummary] = useState(null);
+  const [bulkUploadFileName, setBulkUploadFileName] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [locationMode, setLocationMode] = useState('select');
+  const [floorMode, setFloorMode] = useState('select');
+  const [wingMode, setWingMode] = useState('select');
   const currentUser = useFreshCurrentUser();
   const navigate = useNavigate();
 
@@ -612,9 +660,12 @@ export default function PricingPackagesPage() {
   const activePackages = activeTab === 'membership' ? membershipPackages : tenantPackages;
   const isViewingPackage = modalKind === 'package' && modalMode === 'view';
   const isViewingResource = modalKind === 'resource' && modalMode === 'view';
+  const availableResourceLocations = useMemo(() => {
+    return Array.from(new Set(resources.map((item) => String(item.location || '').trim()).filter(Boolean)));
+  }, [resources]);
   const availableResourceFloors = useMemo(() => {
     const floors = Array.from(new Set(resources.map((item) => String(item.floor || '').trim()).filter(Boolean)));
-    return floors.sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
+    return floors.length > 0 ? floors : ['501', '601', '701'];
   }, [resources]);
   const availableResourceWings = useMemo(() => {
     const wings = Array.from(new Set(resources.map((item) => String(item.wing || '').trim().toUpperCase()).filter(Boolean)));
@@ -782,11 +833,234 @@ export default function PricingPackagesPage() {
       : [];
   const viewPackageFeatures = Array.isArray(selectedPackage.features) ? selectedPackage.features : parseFeatures(selectedPackage.featuresText);
 
+  const openAddResourceModal = () => {
+    setModalKind('resource');
+    setModalMode('add');
+    setSelectedItem(null);
+    setLocationMode('select');
+    setFloorMode('select');
+    setWingMode('select');
+    setAddResourceForm({
+      name: '', type: '', resourceCategory: 'open_desk', inventoryMode: 'area', location: '', floor: '', wing: '', capacity: '1',
+      pricePerHour: '', pricePerDay: '', credits: '1', status: 'Active', description: '',
+    });
+    setIsModalOpen(true);
+  };
+
+  const BULK_TEMPLATE_HEADERS = [
+    'name', 'resourceCategory', 'inventoryMode', 'location', 'floor', 'wing', 'capacity',
+    'pricePerHour', 'pricePerDay', 'credits', 'description', 'status',
+  ];
+
+  const BULK_COLUMN_ALIASES = {
+    name: ['name', 'resource name', 'resource', 'label'],
+    resourceCategory: ['resourcecategory', 'resource category', 'category', 'resource type'],
+    type: ['type'],
+    inventoryMode: ['inventorymode', 'inventory mode', 'inventory', 'mode'],
+    location: ['location', 'site', 'area'],
+    floor: ['floor', 'level'],
+    wing: ['wing', 'block', 'section'],
+    capacity: ['capacity', 'seats', 'seat count', 'pax'],
+    pricePerHour: ['priceperhour', 'price per hour', 'hourly rate', 'hourly', 'per hour rate'],
+    pricePerDay: ['priceperday', 'price per day', 'daily rate', 'daily', 'per day rate'],
+    credits: ['credits', 'credit', 'credit points'],
+    description: ['description', 'amenities', 'notes'],
+    status: ['status', 'state'],
+  };
+
+  function normalizeBulkHeader(value) {
+    return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+  }
+
+  function resolveBulkCellValue(row, aliases = []) {
+    const entries = Object.entries(row || {});
+    const normalizedEntries = entries.map(([key, value]) => [normalizeBulkHeader(key), value]);
+    for (const alias of aliases) {
+      const normalizedAlias = normalizeBulkHeader(alias);
+      const match = normalizedEntries.find(([key]) => key === normalizedAlias);
+      if (match && String(match[1] ?? '').trim()) return String(match[1]);
+    }
+    return '';
+  }
+
+  function normalizeBulkCategory(value = '', fallback = '') {
+    const normalized = String(value || fallback || '').trim().toLowerCase();
+    if (!normalized) return '';
+    if (normalized.includes('open') || normalized === 'desk') return 'open_desk';
+    if (normalized.includes('cabin')) return 'cabin_desk';
+    if (normalized.includes('conference') || normalized.includes('board')) return 'conference_room';
+    if (normalized.includes('meeting')) return 'meeting_room';
+    if (normalized.includes('virtual')) return 'virtual_office';
+    const allowed = resourceCategoryOptions.map((opt) => opt.value);
+    return allowed.includes(normalized) ? normalized : '';
+  }
+
+  function normalizeBulkInventoryMode(value = '', category = '', capacity = 1) {
+    const normalized = String(value || '').trim().toLowerCase();
+    const normalizedCategory = normalizeBulkCategory(category);
+    if (normalizedCategory === 'virtual_office') return 'single';
+    if (normalizedCategory === 'cabin_desk') return 'area';
+    if (normalized === 'area' || normalized === 'single') return normalized;
+    const seatCount = Number(capacity || 0);
+    if (normalizedCategory === 'open_desk') return seatCount > 1 ? 'area' : 'single';
+    return 'area';
+  }
+
+  function normalizeBulkWing(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    return raw.toUpperCase().replace(/^WING\s+/i, '');
+  }
+
+  function normalizeBulkStatus(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    const status = resourceStatusOptions.find((opt) => opt.toLowerCase() === normalized);
+    return status || 'Active';
+  }
+
+  function normalizeBulkCapacity(value) {
+    const numericValue = typeof value === 'number' ? value : Number.parseInt(String(value || '').replace(/[^0-9-]/g, ''), 10);
+    return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : 0;
+  }
+
+  function isBulkRowEmpty(row = {}) {
+    return !Object.values(row).some((value) => String(value ?? '').trim());
+  }
+
+  function buildBulkResourcePayload(row) {
+    const name = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.name)).trim();
+    if (!name) return { payload: null, error: 'Missing resource name.' };
+    const rawCategory = resolveBulkCellValue(row, BULK_COLUMN_ALIASES.resourceCategory);
+    const rawType = resolveBulkCellValue(row, BULK_COLUMN_ALIASES.type);
+    const resourceCategory = normalizeBulkCategory(rawCategory, rawType);
+    if (!resourceCategory) return { payload: null, error: 'Missing or invalid resource category.' };
+    const capacityValue = normalizeBulkCapacity(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.capacity));
+    if (!capacityValue) return { payload: null, error: 'Missing or invalid capacity.' };
+    const inventoryMode = normalizeBulkInventoryMode(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.inventoryMode), resourceCategory, capacityValue);
+    const rawInventoryMode = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.inventoryMode)).trim().toLowerCase();
+    if (resourceCategory === 'cabin_desk' && rawInventoryMode.includes('single')) {
+      return { payload: null, error: 'Cabin desks can only be imported as area blocks.' };
+    }
+    const rawWing = resolveBulkCellValue(row, BULK_COLUMN_ALIASES.wing);
+    const wing = normalizeBulkWing(rawWing);
+    const location = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.location)).trim();
+    const floorValue = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.floor)).trim();
+    const description = String(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.description)).trim();
+    if (!location) return { payload: null, error: 'Missing location.' };
+    const rawPricePerHour = normalizeBulkCapacity(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.pricePerHour));
+    const rawPricePerDay = normalizeBulkCapacity(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.pricePerDay));
+    const rawCredits = normalizeBulkCapacity(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.credits));
+    return {
+      payload: {
+        name,
+        type: resourceCategory === 'open_desk' ? 'Desk' : resourceCategory === 'cabin_desk' ? 'Cabin' : resourceCategory === 'conference_room' ? 'Conference Room' : resourceCategory === 'virtual_office' ? 'Virtual Office' : 'Meeting Room',
+        resourceCategory,
+        inventoryMode: resourceCategory === 'virtual_office' ? 'single' : inventoryMode,
+        location,
+        floor: floorValue || '501',
+        wing,
+        capacity: resourceCategory === 'virtual_office' ? 1 : capacityValue,
+        pricePerHour: rawPricePerHour,
+        pricePerDay: rawPricePerDay,
+        credits: Math.max(1, rawCredits || 1),
+        description,
+        status: normalizeBulkStatus(resolveBulkCellValue(row, BULK_COLUMN_ALIASES.status)),
+      },
+    };
+  }
+
+  async function readSpreadsheetRows(file) {
+    const XLSX = await import('xlsx');
+    const name = String(file?.name || '').toLowerCase();
+    const isCsv = name.endsWith('.csv');
+    const workbook = isCsv
+      ? XLSX.read(await file.text(), { type: 'string', cellDates: true })
+      : XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
+    const firstSheetName = workbook.SheetNames[0];
+    if (!firstSheetName) return [];
+    const sheet = workbook.Sheets[firstSheetName];
+    return XLSX.utils.sheet_to_json(sheet, { defval: '' });
+  }
+
+  async function handleBulkFileSelected(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setIsBulkUploadOpen(false);
+    setErrorMessage('');
+    setIsBulkImporting(true);
+    setBulkUploadSummary(null);
+    setBulkUploadFileName(file.name);
+    try {
+      const rows = await readSpreadsheetRows(file);
+      if (!Array.isArray(rows) || rows.length === 0) throw new Error('The file does not contain any resource rows.');
+      const importRows = rows.map((row, index) => ({ row, index: index + 2 })).filter(({ row }) => !isBulkRowEmpty(row));
+      if (importRows.length === 0) throw new Error('No valid resource rows were found.');
+      let createdCount = 0;
+      const failedRows = [];
+      for (const { row, index } of importRows) {
+        const { payload, error } = buildBulkResourcePayload(row);
+        if (!payload) { failedRows.push(`Row ${index}: ${error || 'invalid row.'}`); continue; }
+        try {
+          const response = await createResource(payload);
+          const saved = normalizeResource(response?.data?.data?.resource || response?.data?.resource);
+          if (saved?.recordId) { setResources((current) => [saved, ...current]); createdCount += 1; }
+          else { failedRows.push(`Row ${index}: resource was not returned by the server.`); }
+        } catch { failedRows.push(`Row ${index}: failed to import.`); }
+      }
+      setBulkUploadSummary({ fileName: file.name, totalRows: rows.length, processedRows: importRows.length, createdCount, failedCount: failedRows.length, failedRows: failedRows.slice(0, 5) });
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to import resources right now.');
+    } finally { setIsBulkImporting(false); }
+  }
+
+  async function downloadBulkTemplate() {
+    const XLSX = await import('xlsx');
+    const workbook = XLSX.utils.book_new();
+    const templateRow = Object.fromEntries(BULK_TEMPLATE_HEADERS.map((h) => [h, '']));
+    const worksheet = XLSX.utils.json_to_sheet([templateRow]);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Resources');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(resourceCategoryOptions.map((opt) => ({ Category: opt.value, Label: opt.label }))), 'Allowed Categories');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(inventoryModeOptions.map((opt) => ({ InventoryMode: opt.value, Label: opt.label }))), 'Allowed Inventory Modes');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(resourceStatusOptions.map((s) => ({ 'Allowed Status': s }))), 'Allowed Status');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([
+      { Field: 'name', Requirement: 'Required', Notes: 'Resource display name.' },
+      { Field: 'resourceCategory', Requirement: 'Required', Notes: 'Use one of the allowed categories.' },
+      { Field: 'location', Requirement: 'Required', Notes: 'Location label shown in dropdowns.' },
+      { Field: 'capacity', Requirement: 'Required', Notes: 'Seats or capacity based on category.' },
+      { Field: 'inventoryMode', Requirement: 'Optional', Notes: 'area or single (open desk only).' },
+      { Field: 'floor', Requirement: 'Optional', Notes: 'Floor label, e.g. 501.' },
+      { Field: 'wing', Requirement: 'Optional', Notes: 'Short wing label, or blank.' },
+      { Field: 'pricePerHour', Requirement: 'Optional', Notes: 'Hourly price set by Sales.' },
+      { Field: 'pricePerDay', Requirement: 'Optional', Notes: 'Daily price set by Sales.' },
+      { Field: 'credits', Requirement: 'Optional', Notes: 'Credit points per seat/hr (default 1).' },
+      { Field: 'description', Requirement: 'Optional', Notes: 'Amenities or notes.' },
+      { Field: 'status', Requirement: 'Optional', Notes: 'Use one of the allowed statuses.' },
+    ]), 'Required Fields');
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([
+      { Category: 'open_desk', InventoryMode: 'area', Capacity: '1-10', Pricing: 'Set hourly/daily/credits' },
+      { Category: 'open_desk', InventoryMode: 'single', Capacity: '1', Pricing: 'Set hourly/daily/credits' },
+      { Category: 'cabin_desk', InventoryMode: 'area', Capacity: '4, 6, 8, 10', Pricing: 'Set hourly/daily/credits' },
+      { Category: 'meeting_room', InventoryMode: 'area', Capacity: 'Any', Pricing: 'Set hourly/daily/credits' },
+      { Category: 'conference_room', InventoryMode: 'area', Capacity: 'Any', Pricing: 'Set hourly/daily/credits' },
+      { Category: 'virtual_office', InventoryMode: 'single', Capacity: '1', Pricing: 'Set hourly/daily/credits' },
+    ]), 'Capacity & Pricing Guide');
+    XLSX.writeFile(workbook, 'resource-pricing-template.xlsx');
+    toast.success('Template downloaded as resource-pricing-template.xlsx');
+  }
+
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedItem(null);
     setModalKind('package');
     setModalMode('add');
+    setLocationMode('select');
+    setFloorMode('select');
+    setWingMode('select');
+    setAddResourceForm({
+      name: '', type: '', resourceCategory: '', inventoryMode: '', location: '', floor: '', wing: '', capacity: '1',
+      pricePerHour: '', pricePerDay: '', credits: '1', status: 'Active', description: '',
+    });
   };
 
   const openResourceModal = (resource) => {
@@ -794,11 +1068,23 @@ export default function PricingPackagesPage() {
     setModalMode('edit');
     setSelectedItem(resource);
     setResourceForm({
+      name: resource.name || '',
+      type: resource.type || '',
+      resourceCategory: resource.resourceCategory || 'open_desk',
+      inventoryMode: resource.inventoryMode || 'area',
+      location: resource.location || '',
+      floor: resource.floor || '',
+      wing: resource.wing || '',
+      capacity: String(resource.capacity || '1'),
+      description: resource.description || '',
       pricePerHour: String(resource.pricePerHour || ''),
       pricePerDay: String(resource.pricePerDay || ''),
       credits: String(resource.credits || 1),
       status: resource.status || 'Active',
     });
+    setLocationMode('select');
+    setFloorMode('select');
+    setWingMode('select');
     setIsModalOpen(true);
   };
 
@@ -807,11 +1093,23 @@ export default function PricingPackagesPage() {
     setModalMode('view');
     setSelectedItem(resource);
     setResourceForm({
+      name: resource.name || '',
+      type: resource.type || '',
+      resourceCategory: resource.resourceCategory || 'open_desk',
+      inventoryMode: resource.inventoryMode || 'area',
+      location: resource.location || '',
+      floor: resource.floor || '',
+      wing: resource.wing || '',
+      capacity: String(resource.capacity || '1'),
+      description: resource.description || '',
       pricePerHour: String(resource.pricePerHour || ''),
       pricePerDay: String(resource.pricePerDay || ''),
       credits: String(resource.credits || 1),
       status: resource.status || 'Active',
     });
+    setLocationMode('select');
+    setFloorMode('select');
+    setWingMode('select');
     setIsModalOpen(true);
   };
 
@@ -897,18 +1195,56 @@ export default function PricingPackagesPage() {
         return;
       }
 
-      if (modalKind === 'resource' && selectedItem) {
-        const response = await updateResource(selectedItem.recordId, {
-          pricePerHour: Number(resourceForm.pricePerHour || 0),
-          pricePerDay: Number(resourceForm.pricePerDay || 0),
-          credits: Number(resourceForm.credits || 1),
-          status: resourceForm.status,
-        });
-        const saved = normalizeResource(response?.data?.data?.resource || response?.data?.resource);
-        setResources((current) => current.map((item) => (item.recordId === saved.recordId ? saved : item)));
-        toast.success('Resource pricing and credits updated successfully.');
-        closeModal();
-        return;
+      if (modalKind === 'resource') {
+        if (modalMode === 'add') {
+          const category = addResourceForm.resourceCategory;
+          const inventoryMode = category === 'virtual_office' ? 'single' : category === 'cabin_desk' ? 'area' : addResourceForm.inventoryMode;
+          const payload = {
+            name: addResourceForm.name.trim(),
+            type: addResourceForm.type || deriveResourceTypeFromCategory(category),
+            resourceCategory: category,
+            inventoryMode,
+            location: addResourceForm.location.trim() || addResourceForm.name.trim(),
+            floor: addResourceForm.floor.trim() || '501',
+            wing: addResourceForm.wing.trim(),
+            capacity: Number(addResourceForm.capacity || 1),
+            pricePerHour: Number(addResourceForm.pricePerHour || 0),
+            pricePerDay: Number(addResourceForm.pricePerDay || 0),
+            credits: Number(addResourceForm.credits || 1),
+            description: addResourceForm.description.trim(),
+            status: addResourceForm.status,
+          };
+          const response = await createResource(payload);
+          const saved = normalizeResource(response?.data?.data?.resource || response?.data?.resource);
+          setResources((current) => [saved, ...current]);
+          toast.success('Resource created successfully.');
+          closeModal();
+          return;
+        }
+        if (selectedItem) {
+          const editCategory = resourceForm.resourceCategory;
+          const editInventoryMode = editCategory === 'virtual_office' ? 'single' : editCategory === 'cabin_desk' ? 'area' : resourceForm.inventoryMode;
+          const response = await updateResource(selectedItem.recordId, {
+            name: resourceForm.name.trim(),
+            type: resourceForm.type || deriveResourceTypeFromCategory(editCategory),
+            resourceCategory: editCategory,
+            inventoryMode: editInventoryMode,
+            location: resourceForm.location.trim() || resourceForm.name.trim(),
+            floor: resourceForm.floor.trim() || '501',
+            wing: resourceForm.wing.trim(),
+            capacity: Number(resourceForm.capacity || 1),
+            description: resourceForm.description.trim(),
+            pricePerHour: Number(resourceForm.pricePerHour || 0),
+            pricePerDay: Number(resourceForm.pricePerDay || 0),
+            credits: Number(resourceForm.credits || 1),
+            status: resourceForm.status,
+          });
+          const saved = normalizeResource(response?.data?.data?.resource || response?.data?.resource);
+          setResources((current) => current.map((item) => (item.recordId === saved.recordId ? saved : item)));
+          toast.success('Resource pricing and credits updated successfully.');
+          closeModal();
+          return;
+        }
       }
 
       if (modalKind === 'package') {
@@ -1156,12 +1492,19 @@ export default function PricingPackagesPage() {
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
+      {errorMessage ? (
+        <div className="mb-4 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+          <AlertTriangle size={16} className="text-red-500 shrink-0" />
+          <p className="text-[12px] font-medium text-red-700 flex-1">{errorMessage}</p>
+          <button type="button" onClick={() => setErrorMessage('')} className="text-red-400 hover:text-red-600"><X size={14} /></button>
+        </div>
+      ) : null}
       <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
           <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-            Plans &amp; Pricing
+            Resource &amp; Pricing
           </h2>
-          <p className="text-xs font-medium text-slate-500 mt-1">Manage unit resources and membership packages.</p>
+          <p className="text-xs font-medium text-slate-500 mt-1">Manage resources, pricing, credits, and membership packages.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -1180,11 +1523,21 @@ export default function PricingPackagesPage() {
           >
             <FileSpreadsheet size={15} /> 
           </button>
-          {activeTab !== 'resource' ? (
+          {activeTab === 'resource' ? (
+            <>
+              <input ref={bulkUploadInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleBulkFileSelected} />
+              <button onClick={() => { setBulkUploadSummary(null); setBulkUploadFileName(''); setErrorMessage(''); setIsBulkUploadOpen(true); }} className="flex items-center justify-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-[10px] font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300">
+                <UploadCloud size={16} /> BULK UPLOAD
+              </button>
+              <button onClick={openAddResourceModal} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
+                <Plus size={16} /> ADD RESOURCE
+              </button>
+            </>
+          ) : (
             <button onClick={() => openPackageModal(activeTab === 'membership' ? 'Membership' : 'Tenant')} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
               <Plus size={16} /> ADD NEW PACKAGE
             </button>
-          ) : null}
+          )}
         </div>
       </div>
 
@@ -1472,17 +1825,168 @@ export default function PricingPackagesPage() {
         </div>
       </div>
 
+      {/* ── Bulk Upload Modal ─────────────────────────────────────────── */}
+      {isBulkUploadOpen ? (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
+          <div className="flex w-full max-w-2xl max-h-[85vh] flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/70 p-5">
+              <div>
+                <h2 className="flex items-center gap-2 text-sm font-pmedium text-primary tracking-tight">
+                  <UploadCloud size={20} /> Bulk Upload Resources
+                </h2>
+                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Import resources from Excel or CSV</p>
+              </div>
+              <button onClick={() => setIsBulkUploadOpen(false)} className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4 overflow-y-auto bg-slate-50/60 p-5">
+              <button
+                type="button"
+                onClick={() => setIsTemplateInfoOpen(!isTemplateInfoOpen)}
+                className="flex w-full items-center justify-between rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-left transition-all hover:bg-blue-100"
+              >
+                <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Template required</p>
+                <ChevronDown
+                  size={16}
+                  className={`text-blue-500 transition-transform duration-200 ${isTemplateInfoOpen ? 'rotate-0' : '-rotate-90'}`}
+                />
+              </button>
+
+              {isTemplateInfoOpen ? (
+                <div className="space-y-4 pl-2">
+                  <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 shadow-sm">
+                    <p className="text-sm font-semibold text-blue-800">
+                      Download the template first to avoid validation errors. Cabin desks are area blocks only, so single cabin rows will be rejected.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Fields (from Add Resource form)</p>
+                    <div className="grid gap-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-md bg-red-50 px-2 py-0.5 text-[10px] font-black text-red-600">Required</span>
+                        <span className="font-semibold text-slate-700">name, location, resourceCategory, floor, capacity</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-600">Conditional</span>
+                        <span className="font-semibold text-slate-700">inventoryMode (for open desks)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">Optional</span>
+                        <span className="font-semibold text-slate-700">wing, description, pricePerHour, pricePerDay, credits, status</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => setIsAllowedValuesOpen(!isAllowedValuesOpen)}
+                className="flex w-full items-center justify-between rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-left transition-all hover:bg-blue-100"
+              >
+                <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Allowed values</p>
+                <ChevronDown
+                  size={16}
+                  className={`text-blue-500 transition-transform duration-200 ${isAllowedValuesOpen ? 'rotate-0' : '-rotate-90'}`}
+                />
+              </button>
+
+              {isAllowedValuesOpen ? (
+                <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 shadow-sm">
+                  <p className="text-sm font-semibold text-blue-800 leading-6">
+                    Categories: {resourceCategoryOptions.map((option) => `${option.label} (${option.value})`).join(', ')}
+                    <br />
+                    Inventory: {inventoryModeOptions.map((option) => option.value).join(', ')}
+                    <br />
+                    Status: {resourceStatusOptions.join(', ')}
+                    <br />
+                    Capacity rules: open desk area = 1-10, cabin desk area = 4/6/8/10, single desk = 1, virtual office = 1.
+                  </p>
+                </div>
+              ) : null}
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button type="button" onClick={downloadBulkTemplate} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm flex-1 py-3 text-sm font-black inline-flex items-center justify-center gap-2 transition-all hover:border-blue-200 hover:text-blue-600">
+                  <Download size={16} /> Download Template
+                </button>
+                <button
+                  type="button"
+                  onClick={() => bulkUploadInputRef.current?.click()}
+                  disabled={isBulkImporting}
+                  className="flex-1 rounded-lg bg-blue-600 py-3 text-sm font-black text-white shadow-sm transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none inline-flex items-center justify-center gap-2"
+                >
+                  <UploadCloud size={16} /> {isBulkImporting ? 'Importing...' : 'Choose File'}
+                </button>
+              </div>
+
+              {bulkUploadFileName ? (
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Selected file</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-800">{bulkUploadFileName}</p>
+                </div>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-slate-100 bg-white p-5 sm:flex-row">
+              <button type="button" onClick={() => setIsBulkUploadOpen(false)} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm flex-1 py-3 text-sm font-black transition-all hover:bg-slate-50">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {bulkUploadSummary ? (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[2.5rem] bg-white shadow-2xl border border-white/70 overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 p-3 sm:p-4">
+              <div>
+                <h2 className="flex items-center gap-2 text-sm font-pmedium text-white"><UploadCloud size={16} /> Bulk Upload Results</h2>
+                <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">Import completed for {bulkUploadSummary.fileName}</p>
+              </div>
+              <button type="button" onClick={() => setBulkUploadSummary(null)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-600 text-white transition-all hover:bg-red-700"><X size={16} /></button>
+            </div>
+            <div className="p-4 sm:p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-center">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Created</p>
+                  <p className="mt-1 text-2xl font-black text-emerald-700">{bulkUploadSummary.createdCount}</p>
+                </div>
+                <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-center">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-red-600">Failed</p>
+                  <p className="mt-1 text-2xl font-black text-red-700">{bulkUploadSummary.failedCount}</p>
+                </div>
+              </div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Processed {bulkUploadSummary.processedRows} of {bulkUploadSummary.totalRows} rows</p>
+              </div>
+              {bulkUploadSummary.failedRows.length > 0 ? (
+                <div className="rounded-xl border border-red-100 bg-red-50 p-3">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-red-600 mb-2">Errors (first 5)</p>
+                  <ul className="space-y-1">
+                    {bulkUploadSummary.failedRows.map((msg, i) => <li key={i} className="text-[11px] font-medium text-red-700">{msg}</li>)}
+                  </ul>
+                </div>
+              ) : null}
+              <button type="button" onClick={() => setBulkUploadSummary(null)} className="w-full rounded-xl bg-blue-600 py-2.5 text-[11px] font-bold text-white transition-all hover:bg-blue-700">CLOSE</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {isModalOpen ? (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
           <div className={`flex max-h-[95vh] w-full flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70 ${modalKind === 'package' && (isViewingPackage ? viewPackageCategory === 'Tenant' : packageForm.category === 'Tenant') ? 'max-w-5xl' : 'max-w-2xl'}`}>
             <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 p-3 sm:p-4">
               <div>
                 <h2 className="flex items-center gap-2 text-sm font-pmedium text-white">
-                  {modalKind === 'resource' ? (isViewingResource ? <Eye size={16} /> : <Monitor size={16} />) : isViewingPackage ? <Eye size={16} /> : <Plus size={16} />}
-                  {modalKind === 'resource' ? (isViewingResource ? 'View Resource Details' : 'Edit Resource Pricing & Credits') : isViewingPackage ? 'View Package Details' : `${modalMode === 'add' ? 'Add New' : 'Edit'} Package`}
+                  {modalKind === 'resource' ? (modalMode === 'add' ? <Plus size={16} /> : isViewingResource ? <Eye size={16} /> : <Monitor size={16} />) : isViewingPackage ? <Eye size={16} /> : <Plus size={16} />}
+                  {modalKind === 'resource' ? (modalMode === 'add' ? 'Add New Resource' : isViewingResource ? 'View Resource Details' : 'Edit Resource Pricing & Credits') : isViewingPackage ? 'View Package Details' : `${modalMode === 'add' ? 'Add New' : 'Edit'} Package`}
                 </h2>
                 <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">
-                  {modalKind === 'resource' ? (isViewingResource ? 'Viewing resource details in read-only mode.' : 'Pricing and credit changes sync back to Resource Management.') : isViewingPackage ? 'Viewing tenant package details in read-only mode.' : 'Package changes drive tenant company onboarding.'}
+                  {modalKind === 'resource' ? (modalMode === 'add' ? 'Create a new resource with pricing and credits. This will sync to Resource Management.' : isViewingResource ? 'Viewing resource details in read-only mode.' : 'Edit resource details, pricing, and credits. Changes sync back to Resource Management.') : isViewingPackage ? 'Viewing tenant package details in read-only mode.' : 'Package changes drive tenant company onboarding.'}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -1496,75 +2000,428 @@ export default function PricingPackagesPage() {
               </div>
             </div>
 
-            <form onSubmit={handleSave} className="flex-1 overflow-y-auto bg-white p-4 sm:p-5">
-              {modalKind === 'resource' ? (
+            <form onSubmit={handleSave} className="flex-1 overflow-y-auto bg-white p-3 sm:p-4">
+              {modalKind === 'resource' && modalMode === 'add' ? (
+                <div className="space-y-3">
+
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Resource snapshot</p>
+                        <p className="mt-0.5 text-[11px] font-semibold text-slate-500">Summary before saving.</p>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">
+                          {getResourceCategoryLabel(addResourceForm.resourceCategory)}
+                        </span>
+                        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-600">
+                          {addResourceForm.location || 'Location pending'}
+                        </span>
+                        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-600">
+                          Floor {addResourceForm.floor || '--'}
+                        </span>
+                        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-600">
+                          Wing {addResourceForm.wing || 'N/A'}
+                        </span>
+                        {isDeskCategory(addResourceForm.resourceCategory) ? (
+                          <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">
+                            {getInventoryModeLabel(addResourceForm.inventoryMode)}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Resource Name *</label>
+                    <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.name} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, name: e.target.value }))} />
+                  </div>
+
+                  <div className={`grid grid-cols-1 gap-3 ${addResourceForm.resourceCategory === 'open_desk' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Location *</label>
+                      {locationMode === 'custom' ? (
+                        <div className="space-y-1.5">
+                          <input required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.location} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, location: e.target.value }))} placeholder="Enter new location" />
+                          <button type="button" onClick={() => { setLocationMode('select'); setAddResourceForm((prev) => ({ ...prev, location: '' })); }} className="text-[10px] font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.location || ''} onChange={(e) => {
+                            const nextValue = e.target.value;
+                            if (nextValue === ADD_NEW_OPTION) { setLocationMode('custom'); setAddResourceForm((prev) => ({ ...prev, location: '' })); return; }
+                            setAddResourceForm((prev) => ({ ...prev, location: nextValue }));
+                          }}>
+                            <option value="">Select location</option>
+                            {availableResourceLocations.map((location) => (<option key={location} value={location}>{location}</option>))}
+                            <option value={ADD_NEW_OPTION}>Add new location</option>
+                          </select>
+                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Category *</label>
+                      <select required className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.resourceCategory} onChange={(e) => {
+                        const nextCategory = e.target.value;
+                        const nextInventoryMode = nextCategory === 'virtual_office' ? 'single' : nextCategory === 'cabin_desk' ? 'area' : isDeskCategory(nextCategory) ? '' : 'area';
+                        setAddResourceForm((prev) => ({
+                          ...prev,
+                          resourceCategory: nextCategory,
+                          type: deriveResourceTypeFromCategory(nextCategory),
+                          inventoryMode: nextInventoryMode,
+                          capacity: normalizeCapacityForSelection(nextCategory, nextInventoryMode, nextCategory === 'virtual_office' ? '1' : prev.capacity),
+                        }));
+                      }}>
+                        <option value="">Select category</option>
+                        {resourceCategoryOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                    </div>
+
+                    {addResourceForm.resourceCategory === 'open_desk' ? (
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Inventory *</label>
+                        <div className="relative">
+                          <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.inventoryMode} onChange={(e) => {
+                            const nextInventoryMode = e.target.value;
+                            setAddResourceForm((prev) => ({
+                              ...prev,
+                              inventoryMode: nextInventoryMode,
+                              capacity: normalizeCapacityForSelection(prev.resourceCategory, nextInventoryMode, nextInventoryMode === 'single' ? '1' : prev.capacity),
+                            }));
+                          }}>
+                            <option value="">Select inventory</option>
+                            {inventoryModeOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                          </select>
+                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Floor *</label>
+                      {floorMode === 'custom' ? (
+                        <div className="space-y-1.5">
+                          <input required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.floor} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, floor: e.target.value }))} placeholder="Enter new floor" />
+                          <button type="button" onClick={() => { setFloorMode('select'); setAddResourceForm((prev) => ({ ...prev, floor: '' })); }} className="text-[10px] font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.floor || ''} onChange={(e) => {
+                            const nextValue = e.target.value;
+                            if (nextValue === ADD_NEW_OPTION) { setFloorMode('custom'); setAddResourceForm((prev) => ({ ...prev, floor: '' })); return; }
+                            setAddResourceForm((prev) => ({ ...prev, floor: nextValue }));
+                          }}>
+                            <option value="">Select floor</option>
+                            {availableResourceFloors.map((floor) => (<option key={floor} value={floor}>{floor}</option>))}
+                            <option value={ADD_NEW_OPTION}>Add new floor</option>
+                          </select>
+                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Wing</label>
+                      {wingMode === 'custom' ? (
+                        <div className="space-y-1.5">
+                          <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.wing} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, wing: e.target.value }))} placeholder="Enter new wing" />
+                          <button type="button" onClick={() => { setWingMode('select'); setAddResourceForm((prev) => ({ ...prev, wing: '' })); }} className="text-[10px] font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <select className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.wing || ''} onChange={(e) => {
+                            const nextValue = e.target.value;
+                            if (nextValue === ADD_NEW_OPTION) { setWingMode('custom'); setAddResourceForm((prev) => ({ ...prev, wing: '' })); return; }
+                            setAddResourceForm((prev) => ({ ...prev, wing: nextValue }));
+                          }}>
+                            <option value="">Select wing</option>
+                            {availableResourceWings.map((wing) => (<option key={wing} value={wing}>{wing}</option>))}
+                            <option value={ADD_NEW_OPTION}>Add new wing</option>
+                          </select>
+                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                      {isDeskCategory(addResourceForm.resourceCategory) ? 'Seats *' : 'Capacity *'}
+                    </label>
+                    {(() => {
+                      const capacityOptions = getCapacityOptions(addResourceForm.resourceCategory, addResourceForm.inventoryMode);
+                      const isSingleDeskInventory = addResourceForm.resourceCategory === 'open_desk' && addResourceForm.inventoryMode === 'single';
+                      const selectedDeskCapacity = normalizeCapacityForSelection(addResourceForm.resourceCategory, addResourceForm.inventoryMode, addResourceForm.capacity);
+                      return isDeskCategory(addResourceForm.resourceCategory) && capacityOptions.length > 0 ? (
+                        <div className="space-y-1.5">
+                          <div className="relative">
+                            <select required disabled={isSingleDeskInventory} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" value={selectedDeskCapacity} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, capacity: e.target.value }))}>
+                              {capacityOptions.map((option) => (
+                                <option key={option} value={String(option)}>{option} {isSingleDeskInventory && option === 1 ? 'desk fixed' : option === 1 ? 'desk' : 'seats'}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                          </div>
+                          {isSingleDeskInventory ? (
+                            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-[12px] font-semibold text-emerald-800">Single desks are fixed to 1 desk.</div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <input required type="number" min="1" placeholder="Enter capacity" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none ring-1 ring-slate-200 transition focus:ring-2 focus:ring-blue-500" value={addResourceForm.capacity} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, capacity: e.target.value }))} />
+                      );
+                    })()}
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Description / Amenities</label>
+                    <textarea rows={2} className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-medium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.description} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
+                  </div>
+
+                  <div className="border-t border-slate-100 pt-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-2">Pricing & Credits (set by Sales)</p>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-800">Price Per Hour (&#8377;)</label>
+                        <input type="number" min="0" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.pricePerHour} onChange={(e) => setAddResourceForm((current) => {
+                          const nextHour = e.target.value;
+                          if (nextHour === '') return { ...current, pricePerHour: '', pricePerDay: '' };
+                          const hourly = Number(nextHour);
+                          if (!Number.isFinite(hourly) || hourly < 0) return { ...current, pricePerHour: nextHour };
+                          return { ...current, pricePerHour: nextHour, pricePerDay: formatAutoPriceValue(hourly * RESOURCE_FULL_DAY_HOURS) };
+                        })} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-800">Price Per Day (&#8377;)</label>
+                        <input type="number" min="0" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.pricePerDay} onChange={(e) => setAddResourceForm((current) => {
+                          const nextDay = e.target.value;
+                          if (nextDay === '') return { ...current, pricePerDay: '', pricePerHour: '' };
+                          const daily = Number(nextDay);
+                          if (!Number.isFinite(daily) || daily < 0) return { ...current, pricePerDay: nextDay };
+                          return { ...current, pricePerDay: nextDay, pricePerHour: formatAutoPriceValue(daily / RESOURCE_FULL_DAY_HOURS) };
+                        })} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-800">Credits</label>
+                        <input type="number" min="1" className="w-full px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.credits} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Status</label>
+                    <select className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.status} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, status: e.target.value }))}>
+                      {resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                    </select>
+                  </div>
+                </div>
+              ) : modalKind === 'resource' ? (
                 <div className="space-y-4">
                   <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
                     <p className="text-[11px] font-bold uppercase tracking-widest text-blue-500">Resource</p>
-                    <p className="mt-1 text-base font-black text-blue-900">{selectedItem?.name}</p>
-                    <p className="text-[12px] font-semibold text-blue-700">{selectedItem?.type}</p>
+                    <p className="mt-1 text-base font-black text-blue-900">{resourceForm.name || selectedItem?.name}</p>
+                    <p className="text-[12px] font-semibold text-blue-700">{resourceForm.type || selectedItem?.type}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
-                        {getResourceCategoryLabel(selectedItem?.resourceCategory)}
+                        {getResourceCategoryLabel(resourceForm.resourceCategory)}
                       </span>
                       <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
-                        {isDeskCategory(selectedItem?.resourceCategory) ? getInventoryModeLabel(selectedItem?.inventoryMode) : 'Not applicable'}
+                        {isDeskCategory(resourceForm.resourceCategory) ? getInventoryModeLabel(resourceForm.inventoryMode) : 'Not applicable'}
                       </span>
                       <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
-                        Floor {selectedItem?.floor || '--'}
+                        Floor {resourceForm.floor || '--'}
                       </span>
                       <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
-                        Wing {selectedItem?.wing || '--'}
+                        Wing {resourceForm.wing || '--'}
                       </span>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div className="space-y-1"><label className="text-[11px] font-bold text-slate-800">Price Per Hour (₹)</label><input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerHour} onChange={(e) => setResourceForm((current) => {
-                      const nextHour = e.target.value;
-                      if (nextHour === '') {
-                        return { ...current, pricePerHour: '' };
-                      }
-                      const hourly = Number(nextHour);
-                      if (!Number.isFinite(hourly) || hourly < 0) {
-                        return { ...current, pricePerHour: nextHour };
-                      }
-                      return {
-                        ...current,
-                        pricePerHour: nextHour,
-                        pricePerDay: formatAutoPriceValue(hourly * RESOURCE_FULL_DAY_HOURS),
-                      };
-                    })} /></div>
-                    <div className="space-y-1"><label className="text-[11px] font-bold text-slate-400">Price Per Day (₹)</label><input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerDay} onChange={(e) => setResourceForm((current) => {
-                      const nextDay = e.target.value;
-                      if (nextDay === '') {
-                        return { ...current, pricePerDay: '' };
-                      }
-                      const daily = Number(nextDay);
-                      if (!Number.isFinite(daily) || daily < 0) {
-                        return { ...current, pricePerDay: nextDay };
-                      }
-                      return {
-                        ...current,
-                        pricePerDay: nextDay,
-                        pricePerHour: formatAutoPriceValue(daily / RESOURCE_FULL_DAY_HOURS),
-                      };
-                    })} /></div>
-                  </div>
+
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400">
-                      {getResourceCreditModeLabel(selectedItem?.resourceCategory, selectedItem?.inventoryMode)}
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      disabled={isViewingResource}
-                      className="w-full px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60"
-                      value={resourceForm.credits}
-                      onChange={(e) => setResourceForm((current) => ({ ...current, credits: e.target.value }))}
-                    />
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Resource Name *</label>
+                    <input required disabled={isViewingResource} type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.name} onChange={(e) => setResourceForm((prev) => ({ ...prev, name: e.target.value }))} />
                   </div>
-                  <div className="space-y-1"><label className="text-[11px] font-bold text-slate-400">Status</label><select disabled={isViewingResource} className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.status} onChange={(e) => setResourceForm((current) => ({ ...current, status: e.target.value }))}>{resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}</select></div>
+
+                  <div className={`grid grid-cols-1 gap-4 ${resourceForm.resourceCategory === 'open_desk' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Location *</label>
+                      {locationMode === 'custom' ? (
+                        <div className="space-y-2">
+                          <input required disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.location} onChange={(e) => setResourceForm((prev) => ({ ...prev, location: e.target.value }))} placeholder="Enter new location" />
+                          {!isViewingResource && <button type="button" onClick={() => { setLocationMode('select'); setResourceForm((prev) => ({ ...prev, location: '' })); }} className="text-xs font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>}
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.location || ''} onChange={(e) => {
+                            const nextValue = e.target.value;
+                            if (nextValue === ADD_NEW_OPTION) { setLocationMode('custom'); setResourceForm((prev) => ({ ...prev, location: '' })); return; }
+                            setResourceForm((prev) => ({ ...prev, location: nextValue }));
+                          }}>
+                            <option value="">Select location</option>
+                            {availableResourceLocations.map((location) => (<option key={location} value={location}>{location}</option>))}
+                            {!isViewingResource && <option value={ADD_NEW_OPTION}>Add new location</option>}
+                          </select>
+                          <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Category *</label>
+                      <select required disabled={isViewingResource} className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.resourceCategory} onChange={(e) => {
+                        const nextCategory = e.target.value;
+                        const nextInventoryMode = nextCategory === 'virtual_office' ? 'single' : nextCategory === 'cabin_desk' ? 'area' : isDeskCategory(nextCategory) ? '' : 'area';
+                        setResourceForm((prev) => ({
+                          ...prev,
+                          resourceCategory: nextCategory,
+                          type: deriveResourceTypeFromCategory(nextCategory),
+                          inventoryMode: nextInventoryMode,
+                          capacity: normalizeCapacityForSelection(nextCategory, nextInventoryMode, nextCategory === 'virtual_office' ? '1' : prev.capacity),
+                        }));
+                      }}>
+                        <option value="">Select category</option>
+                        {resourceCategoryOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      </select>
+                    </div>
+
+                    {resourceForm.resourceCategory === 'open_desk' ? (
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Inventory *</label>
+                        <div className="relative">
+                          <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.inventoryMode} onChange={(e) => {
+                            const nextInventoryMode = e.target.value;
+                            setResourceForm((prev) => ({
+                              ...prev,
+                              inventoryMode: nextInventoryMode,
+                              capacity: normalizeCapacityForSelection(prev.resourceCategory, nextInventoryMode, nextInventoryMode === 'single' ? '1' : prev.capacity),
+                            }));
+                          }}>
+                            <option value="">Select inventory</option>
+                            {inventoryModeOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                          </select>
+                          <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Floor *</label>
+                      {floorMode === 'custom' ? (
+                        <div className="space-y-2">
+                          <input required disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.floor} onChange={(e) => setResourceForm((prev) => ({ ...prev, floor: e.target.value }))} placeholder="Enter new floor" />
+                          {!isViewingResource && <button type="button" onClick={() => { setFloorMode('select'); setResourceForm((prev) => ({ ...prev, floor: '' })); }} className="text-xs font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>}
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.floor || ''} onChange={(e) => {
+                            const nextValue = e.target.value;
+                            if (nextValue === ADD_NEW_OPTION) { setFloorMode('custom'); setResourceForm((prev) => ({ ...prev, floor: '' })); return; }
+                            setResourceForm((prev) => ({ ...prev, floor: nextValue }));
+                          }}>
+                            <option value="">Select floor</option>
+                            {availableResourceFloors.map((floor) => (<option key={floor} value={floor}>{floor}</option>))}
+                            {!isViewingResource && <option value={ADD_NEW_OPTION}>Add new floor</option>}
+                          </select>
+                          <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Wing</label>
+                      {wingMode === 'custom' ? (
+                        <div className="space-y-2">
+                          <input disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.wing} onChange={(e) => setResourceForm((prev) => ({ ...prev, wing: e.target.value }))} placeholder="Enter new wing" />
+                          {!isViewingResource && <button type="button" onClick={() => { setWingMode('select'); setResourceForm((prev) => ({ ...prev, wing: '' })); }} className="text-xs font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>}
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <select disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.wing || ''} onChange={(e) => {
+                            const nextValue = e.target.value;
+                            if (nextValue === ADD_NEW_OPTION) { setWingMode('custom'); setResourceForm((prev) => ({ ...prev, wing: '' })); return; }
+                            setResourceForm((prev) => ({ ...prev, wing: nextValue }));
+                          }}>
+                            <option value="">Select wing</option>
+                            {availableResourceWings.map((wing) => (<option key={wing} value={wing}>{wing}</option>))}
+                            {!isViewingResource && <option value={ADD_NEW_OPTION}>Add new wing</option>}
+                          </select>
+                          <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                      {isDeskCategory(resourceForm.resourceCategory) ? 'Seats *' : 'Capacity *'}
+                    </label>
+                    {(() => {
+                      const capacityOptions = getCapacityOptions(resourceForm.resourceCategory, resourceForm.inventoryMode);
+                      const isSingleDeskInventory = resourceForm.resourceCategory === 'open_desk' && resourceForm.inventoryMode === 'single';
+                      const selectedDeskCapacity = normalizeCapacityForSelection(resourceForm.resourceCategory, resourceForm.inventoryMode, resourceForm.capacity);
+                      return isDeskCategory(resourceForm.resourceCategory) && capacityOptions.length > 0 ? (
+                        <div className="space-y-2">
+                          <div className="relative">
+                            <select required disabled={isViewingResource || isSingleDeskInventory} className="w-full appearance-none cursor-pointer rounded-2xl border border-slate-200 bg-white px-4 py-3.5 pr-10 text-sm font-bold text-slate-900 shadow-sm outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" value={selectedDeskCapacity} onChange={(e) => setResourceForm((prev) => ({ ...prev, capacity: e.target.value }))}>
+                              {capacityOptions.map((option) => (
+                                <option key={option} value={String(option)}>{option} {isSingleDeskInventory && option === 1 ? 'desk fixed' : option === 1 ? 'desk' : 'seats'}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                          </div>
+                          {isSingleDeskInventory ? (
+                            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">Single desks are fixed to 1 desk.</div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <input required disabled={isViewingResource} type="number" min="1" placeholder="Enter capacity" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-bold text-slate-900 outline-none ring-1 ring-slate-200 transition focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.capacity} onChange={(e) => setResourceForm((prev) => ({ ...prev, capacity: e.target.value }))} />
+                      );
+                    })()}
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Description / Amenities</label>
+                    <textarea disabled={isViewingResource} rows={3} className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.description} onChange={(e) => setResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
+                  </div>
+
+                  <div className="border-t border-slate-100 pt-4">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-amber-600 mb-3">Pricing & Credits (set by Sales)</p>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-slate-800">Price Per Hour (&#8377;)</label>
+                        <input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerHour} onChange={(e) => setResourceForm((current) => {
+                          const nextHour = e.target.value;
+                          if (nextHour === '') return { ...current, pricePerHour: '', pricePerDay: '' };
+                          const hourly = Number(nextHour);
+                          if (!Number.isFinite(hourly) || hourly < 0) return { ...current, pricePerHour: nextHour };
+                          return { ...current, pricePerHour: nextHour, pricePerDay: formatAutoPriceValue(hourly * RESOURCE_FULL_DAY_HOURS) };
+                        })} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-slate-800">Price Per Day (&#8377;)</label>
+                        <input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerDay} onChange={(e) => setResourceForm((current) => {
+                          const nextDay = e.target.value;
+                          if (nextDay === '') return { ...current, pricePerDay: '', pricePerHour: '' };
+                          const daily = Number(nextDay);
+                          if (!Number.isFinite(daily) || daily < 0) return { ...current, pricePerDay: nextDay };
+                          return { ...current, pricePerDay: nextDay, pricePerHour: formatAutoPriceValue(daily / RESOURCE_FULL_DAY_HOURS) };
+                        })} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-bold text-slate-800">Credits</label>
+                        <input type="number" min="1" step="1" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.credits} onChange={(e) => setResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Status</label>
+                    <select disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.status} onChange={(e) => setResourceForm((prev) => ({ ...prev, status: e.target.value }))}>
+                      {resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                    </select>
+                  </div>
+
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                     <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Preview</p>
                     <p className="mt-1 text-sm font-bold text-slate-800">
@@ -2194,7 +3051,7 @@ export default function PricingPackagesPage() {
                 {!isViewingPackage && !isViewingResource ? (
                   <button type="submit" className="flex-1 flex items-center justify-center gap-3 rounded-xl bg-[#2563EB] py-2.5 text-[11px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
                     <Save size={14} />
-                    {isTenantPackageRateEdit ? 'SAVE DESK PRICES' : 'SAVE CONFIGURATION'}
+                    {modalKind === 'resource' && modalMode === 'add' ? 'CREATE RESOURCE' : isTenantPackageRateEdit ? 'SAVE DESK PRICES' : 'SAVE CONFIGURATION'}
                   </button>
                 ) : null}
                 </div>

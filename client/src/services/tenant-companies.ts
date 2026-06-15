@@ -4,6 +4,10 @@ export const getTenantCompanies = async () => {
   return axiosPrivate.get("/api/v1/tenant-companies");
 };
 
+export const getTenantCompanySectors = async () => {
+  return axiosPrivate.get("/api/v1/tenant-companies/sectors");
+};
+
 export const createTenantCompany = async (payload: Record<string, any>) => {
   return axiosPrivate.post("/api/v1/tenant-companies", payload);
 };

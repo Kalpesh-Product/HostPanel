@@ -515,8 +515,8 @@ export default function TenantBookingHistoryPage() {
       <PageFrame>
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-title font-pmedium text-primary uppercase">Meeting Schedule</h1>
-          <p className="mt-1 text-sm font-pmedium text-slate-500">Track bookings, handle invites, and keep your tenant meetings in one place.</p>
+          <h1 className="text-title font-pmedium text-primary uppercase">Booking History</h1>
+          <p className="mt-1 text-xs font-medium text-slate-500">Track bookings, handle invites, and keep your tenant meetings in one place.</p>
         </div>
         <div className="flex flex-wrap gap-2 rounded-2xl bg-slate-200/50 p-1.5 shadow-inner">
           {canManageTenant && (

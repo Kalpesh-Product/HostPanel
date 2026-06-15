@@ -6,10 +6,11 @@ import { PlansPricing } from "../models/PlansPricing.js";
 import HostUser from "../models/HostUser.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
+import { uploadFileToS3 } from "../config/s3config.js";
 
 const TENANT_COMPANIES_SALES_MODULE = "tenant-companies-sales";
 const TENANT_COMPANIES_ADMIN_MODULE = "tenant-companies-admin";
-const ADMIN_ROLES = new Set(["owner", "super_admin"]);
+const ADMIN_ROLES = new Set(["owner", "super_admin", "founder"]);
 
 function toId(value) {
   return value ? String(value) : "";
@@ -278,6 +279,8 @@ function formatTenantCompany(company) {
     businessType: company.businessType || "",
     pricingPackageId: company.pricingPackageId || null,
     planType: company.planType,
+    packageName: company.packageDetails?.packageName || company.planType || "",
+    package: company.packageDetails?.packageName || company.planType || "",
     contractStart: company.contractStart ? formatDate(company.contractStart) : "",
     contractEnd: company.contractEnd ? formatDate(company.contractEnd) : "",
     contractStartAt: company.contractStart || null,
@@ -292,7 +295,9 @@ function formatTenantCompany(company) {
     managerEmployee,
     customerDetails: company.customerDetails || {},
     companyDetails: { ...(company.companyDetails || {}), status },
-    agreementDetails: company.agreementDetails || {},
+    agreementDetails: company.agreementDetails
+      ? Object.fromEntries(Object.entries(company.agreementDetails.toObject ? company.agreementDetails.toObject() : company.agreementDetails).filter(([k]) => k !== 'rentDate' && k !== 'nextIncrement'))
+      : {},
     billingDetails: company.billingDetails || {},
     invoiceDetails: company.invoiceDetails || {},
     pocDetails: company.pocDetails || {},
@@ -355,6 +360,19 @@ export async function listTenantCompaniesForCurrentUser(userId, query = {}) {
   };
 }
 
+export async function getTenantCompanySectorsForCurrentUser(userId) {
+  const access = await resolveWorkspaceAccess(userId);
+  const raw = await TenantCompany.distinct("customerDetails.sector", {
+    workspaceId: access.workspaceId,
+    "customerDetails.sector": { $exists: true, $ne: "", $ne: null },
+  });
+  const sectors = (Array.isArray(raw) ? raw : [])
+    .map((s) => String(s || "").trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
+  return { sectors };
+}
+
 export async function getTenantCompanyForCurrentUser(userId, tenantCompanyId) {
   const access = await resolveWorkspaceAccess(userId);
   const company = await TenantCompany.findById(tenantCompanyId).lean();
@@ -406,8 +424,9 @@ export async function createTenantCompanyForCurrentUser(userId, input) {
     customerDetails: {
       clientName: normalizeText(input.customerDetails?.clientName || input.companyName || ""),
       sector: normalizeText(input.customerDetails?.sector || input.businessType || ""),
-      hoCity: normalizeText(input.customerDetails?.hoCity || ""),
+      hoCountry: normalizeText(input.customerDetails?.hoCountry || ""),
       hoState: normalizeText(input.customerDetails?.hoState || ""),
+      hoCity: normalizeText(input.customerDetails?.hoCity || ""),
     },
     companyDetails: {
       buildingName: normalizeText(input.companyDetails?.buildingName || ""),
@@ -424,8 +443,7 @@ export async function createTenantCompanyForCurrentUser(userId, input) {
       startDate: input.agreementDetails?.startDate ? new Date(input.agreementDetails.startDate) : contractStart,
       endDate: input.agreementDetails?.endDate ? new Date(input.agreementDetails.endDate) : contractEnd,
       lockInPeriod: Math.max(0, Number(input.agreementDetails?.lockInPeriod || 0)),
-      rentDate: input.agreementDetails?.rentDate ? new Date(input.agreementDetails.rentDate) : null,
-      nextIncrement: input.agreementDetails?.nextIncrement ? new Date(input.agreementDetails.nextIncrement) : null,
+
     },
     billingDetails: {
       contractDurationMonths: Math.max(0, Number(input.billingDetails?.contractDurationMonths || contractDurationMonths)),
@@ -526,6 +544,11 @@ export async function updateTenantCompanyForCurrentUser(userId, tenantCompanyId,
       }
       company[field] = existing;
     }
+  }
+
+  if (company.agreementDetails) {
+    delete company.agreementDetails.rentDate;
+    delete company.agreementDetails.nextIncrement;
   }
 
   company.status = deriveTenantStatus(company.contractEnd);
@@ -664,16 +687,22 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
       employee.lastLoginAt = existingUser.lastLoginAt || null;
       employee.inviteAcceptedAt = now;
 
-      await sendEmployeeAccessEmail(email, name, company.companyName, `${process.env.CLIENT_URL || ""}/login`);
+      const frontendBase = String(process.env.FRONTEND_PROD_LINK || process.env.CLIENT_URL || "http://localhost:3006")
+        .trim()
+        .replace(/\/$/, "");
+      await sendEmployeeAccessEmail(email, name, company.companyName, `${frontendBase}/login`);
       inviteSent = true;
     } else {
       const rawToken = crypto.randomBytes(32).toString("hex");
-      const inviteUrl = `${process.env.CLIENT_URL || ""}/register?inviteToken=${rawToken}&email=${encodeURIComponent(email)}&fullName=${encodeURIComponent(name)}`;
+      employee.inviteToken = rawToken;
+      employee.inviteTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const frontendBase = String(process.env.FRONTEND_PROD_LINK || process.env.CLIENT_URL || "http://localhost:3006")
+        .trim()
+        .replace(/\/$/, "");
+      const inviteUrl = `${frontendBase}/register?inviteToken=${rawToken}&email=${encodeURIComponent(email)}&fullName=${encodeURIComponent(name)}`;
 
       await sendEmployeeInviteEmail(email, name, access.user?.name || "Administration", role, company.companyName, inviteUrl);
       inviteSent = true;
-
-      employee.inviteId = new crypto.Types().ObjectId ? null : null;
     }
   }
 
@@ -875,15 +904,28 @@ export async function uploadTenantCompanyAgreementDocumentsForCurrentUser(userId
   const company = await TenantCompany.findById(tenantCompanyId);
   ensureTenantCompanyExists(company, access.workspaceId);
 
-  const uploadedDocuments = normalizedFiles.map((file) => ({
-    name: file.originalname || "document",
-    type: file.mimetype || "document",
-    mimeType: file.mimetype || "",
-    size: formatFileSize(file.size),
-    url: "",
-    publicId: "",
-    uploadedAt: new Date(),
-  }));
+  const uploadedDocuments = await Promise.all(
+    normalizedFiles.map(async (file) => {
+      const timestamp = Date.now();
+      const safeName = (file.originalname || "document").replace(/[^a-zA-Z0-9._-]/g, "_");
+      const route = `tenant-companies/${access.workspaceId}/${tenantCompanyId}/${timestamp}-${safeName}`;
+      let s3Result;
+      try {
+        s3Result = await uploadFileToS3(route, file);
+      } catch {
+        s3Result = { id: route, url: "" };
+      }
+      return {
+        name: file.originalname || "document",
+        type: file.mimetype || "document",
+        mimeType: file.mimetype || "",
+        size: formatFileSize(file.size),
+        url: s3Result.url || "",
+        publicId: s3Result.id || route,
+        uploadedAt: new Date(),
+      };
+    }),
+  );
 
   company.agreementDocuments = [
     ...(Array.isArray(company.agreementDocuments) ? company.agreementDocuments : []),

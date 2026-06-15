@@ -8,6 +8,7 @@ import {
   addTenantCompanyEmployee,
   deleteTenantCompanyEmployee,
   getTenantCompanies,
+  getTenantCompanySectors,
   renewTenantCompany,
   uploadTenantCompanyAgreementDocuments,
   updateTenantCompanyEmployee,
@@ -89,6 +90,7 @@ interface CreditHistoryEntry {
 interface CustomerDetails {
   clientName?: string;
   sector?: string;
+  hoCountry?: string;
   hoCity?: string;
   hoState?: string;
 }
@@ -110,8 +112,6 @@ interface AgreementDetails {
   startDate?: string | null;
   endDate?: string | null;
   lockInPeriod?: number;
-  rentDate?: string | null;
-  nextIncrement?: string | null;
 }
 
 interface PocDetails {
@@ -252,8 +252,6 @@ interface TenantCompany {
   agreementDetailsAt: {
     startDate: string | null;
     endDate: string | null;
-    rentDate: string | null;
-    nextIncrement: string | null;
   };
   pocDetails: PocDetails;
   packageDetails: PackageDetails;
@@ -269,8 +267,9 @@ interface TenantCompany {
 interface EditFormCustomerDetails {
   clientName: string;
   sector: string;
-  hoCity: string;
+  hoCountry: string;
   hoState: string;
+  hoCity: string;
 }
 
 interface EditFormCompanyDetails {
@@ -290,8 +289,6 @@ interface EditFormAgreementDetails {
   startDate: string;
   endDate: string;
   lockInPeriod: string;
-  rentDate: string;
-  nextIncrement: string;
 }
 
 interface EditFormPocDetails {
@@ -694,8 +691,9 @@ function normalizeTenantCompany(company: Record<string, unknown> = {}, packageLo
     customerDetails: {
       clientName: String((customerDetails as Record<string, unknown>).clientName || company.companyName || ''),
       sector: String((customerDetails as Record<string, unknown>).sector || company.businessType || ''),
-      hoCity: String((customerDetails as Record<string, unknown>).hoCity || ''),
+      hoCountry: String((customerDetails as Record<string, unknown>).hoCountry || ''),
       hoState: String((customerDetails as Record<string, unknown>).hoState || ''),
+      hoCity: String((customerDetails as Record<string, unknown>).hoCity || ''),
     },
     companyDetails: {
       buildingName: String((companyDetails as Record<string, unknown>).buildingName || ''),
@@ -713,14 +711,10 @@ function normalizeTenantCompany(company: Record<string, unknown> = {}, packageLo
       startDate: (agreementDetails as Record<string, unknown>).startDate as string || company.contractStartAt as string || null,
       endDate: (agreementDetails as Record<string, unknown>).endDate as string || company.contractEndAt as string || null,
       lockInPeriod: Number((agreementDetails as Record<string, unknown>).lockInPeriod || company.contractDurationMonths || 12),
-      rentDate: (agreementDetails as Record<string, unknown>).rentDate as string || null,
-      nextIncrement: (agreementDetails as Record<string, unknown>).nextIncrement as string || null,
     },
     agreementDetailsAt: {
       startDate: (company.contractStartAt as string) || null,
       endDate: (company.contractEndAt as string) || null,
-      rentDate: (agreementDetails as Record<string, unknown>).rentDate as string || null,
-      nextIncrement: (agreementDetails as Record<string, unknown>).nextIncrement as string || null,
     },
     pocDetails: {
       localPocName: String((pocDetails as Record<string, unknown>).localPocName || company.contactPerson || ''),
@@ -776,8 +770,9 @@ function buildEditForm(company: TenantCompany): EditForm {
     customerDetails: {
       clientName: company.customerDetails?.clientName || company.name || '',
       sector: company.customerDetails?.sector || company.businessType || '',
-      hoCity: company.customerDetails?.hoCity || '',
+      hoCountry: company.customerDetails?.hoCountry || '',
       hoState: company.customerDetails?.hoState || '',
+      hoCity: company.customerDetails?.hoCity || '',
     },
     companyDetails: {
       buildingName: company.companyDetails?.buildingName || '',
@@ -795,8 +790,7 @@ function buildEditForm(company: TenantCompany): EditForm {
       startDate: company.agreementDetailsAt?.startDate ? toDateInputValue(company.agreementDetailsAt.startDate) : (company.contractStartAt ? toDateInputValue(company.contractStartAt) : ''),
       endDate: company.agreementDetailsAt?.endDate ? toDateInputValue(company.agreementDetailsAt.endDate) : (company.contractEndAt ? toDateInputValue(company.contractEndAt) : ''),
       lockInPeriod: String(company.agreementDetails?.lockInPeriod || company.contractDurationMonths || ''),
-      rentDate: company.agreementDetailsAt?.rentDate ? toDateInputValue(company.agreementDetailsAt.rentDate) : '',
-      nextIncrement: company.agreementDetailsAt?.nextIncrement ? toDateInputValue(company.agreementDetailsAt.nextIncrement) : '',
+
     },
     pocDetails: {
       localPocName: company.pocDetails?.localPocName || company.contactPerson || '',
@@ -859,9 +853,23 @@ export default function AdministrationTenantCompaniesPage() {
   const [renewForm, setRenewForm] = useState({ extendMonths: '12', addCredits: '1000' });
   const [agreementFiles, setAgreementFiles] = useState<File[]>([]);
   const [isAgreementUploading, setIsAgreementUploading] = useState(false);
+  const [availableSectors, setAvailableSectors] = useState<string[]>([]);
+  const [showCustomSector, setShowCustomSector] = useState(false);
 
-  // ── Data Loading (commented out for now) ──
-  /*
+  const SECTOR_OPTIONS = [
+    'Technology', 'Finance & Banking', 'Healthcare', 'Real Estate & Construction',
+    'Manufacturing', 'Education & Training', 'Retail & E-Commerce',
+    'Media & Entertainment', 'Consulting', 'Legal', 'Travel & Hospitality',
+    'Telecommunications', 'Energy & Utilities', 'Pharmaceuticals',
+    'Insurance', 'Logistics & Transportation', 'Non-Profit',
+  ];
+
+  const allSectorOptions = useMemo(() => {
+    const merged = new Set([...SECTOR_OPTIONS, ...availableSectors]);
+    return Array.from(merged).sort((a, b) => a.localeCompare(b));
+  }, [availableSectors]);
+
+  // ── Data Loading ──
   async function loadTenantCompanies({ silent = false } = {}) {
     if (!silent) setIsLoading(true);
     try {
@@ -873,14 +881,14 @@ export default function AdministrationTenantCompaniesPage() {
         : Array.isArray(tenantPayload.packages)
           ? tenantPayload.packages
           : [];
-      const nextPackageLookup = new Map(
+      const nextPackageLookup = new Map<string, Record<string, unknown>>(
         nextAvailablePackages
           .filter((item) => item.category === 'Tenant')
           .flatMap((item) => {
             const keys = [item._id, item.recordId, item.id, item.packageCode]
               .map((value) => String(value || '').trim())
               .filter(Boolean);
-            return keys.map((key) => [key, item]);
+            return keys.map((key) => [key, item as Record<string, unknown>] as [string, Record<string, unknown>]);
           }),
       );
       const nextCompanies = Array.isArray(tenantPayload.tenants)
@@ -888,8 +896,8 @@ export default function AdministrationTenantCompaniesPage() {
         : [];
       setCompanies(nextCompanies);
       return nextCompanies;
-    } catch (error) {
-      toast.error(error.message || 'Failed to load tenant companies.');
+    } catch (error: unknown) {
+      toast.error((error as Error).message || 'Failed to load tenant companies.');
       setCompanies([]);
       return [];
     } finally {
@@ -903,14 +911,6 @@ export default function AdministrationTenantCompaniesPage() {
     const handleFocus = () => { loadTenantCompanies({ silent: true }); };
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, []);
-  */
-
-  // ── Mock Data (temporary) ──
-  useEffect(() => {
-    const mockCompanies: TenantCompany[] = [];
-    setCompanies(mockCompanies);
-    setIsLoading(false);
   }, []);
 
   const filteredCompanies = useMemo(() => {
@@ -1011,8 +1011,16 @@ export default function AdministrationTenantCompaniesPage() {
     }
   };
 
-  const openEditModal = (company: TenantCompany) => { setEditingCompany(company); setEditForm(buildEditForm(company)); };
+  const openEditModal = (company: TenantCompany) => { setEditingCompany(company); setEditForm(buildEditForm(company)); setShowCustomSector(false); };
   const closeEditModal = () => { setEditingCompany(null); setEditForm(null); };
+
+  useEffect(() => {
+    if (editingCompany) {
+      getTenantCompanySectors()
+        .then((res) => setAvailableSectors(res?.data?.sectors || []))
+        .catch(() => {});
+    }
+  }, [editingCompany]);
   const openRenewModal = (company: TenantCompany) => { setRenewingContract(company); setRenewForm({ extendMonths: '12', addCredits: '1000' }); };
   const closeRenewModal = () => { setRenewingContract(null); setRenewForm({ extendMonths: '12', addCredits: '1000' }); };
   const openAddEmployeeModal = (company: TenantCompany) => { setAddingEmployeeTo(company); setEmployeeForm({ name: '', email: '', phone: '', designation: '', role: 'Employee' }); };
@@ -1035,26 +1043,14 @@ export default function AdministrationTenantCompaniesPage() {
     });
   };
 
-  // ── Backend handlers (commented out) ──
-  /*
-  const handleEditSave = async (event) => { ... };
-  const handleRenewSave = async (event) => { ... };
-  const handleAddEmployee = async (event) => { ... };
-  const handleEmployeeEditSave = async (event) => { ... };
-  const handleUploadAgreementDocuments = async () => { ... };
-  const handleAssignManager = async (employeeId) => { ... };
-  const handleDeactivateEmployee = async (employeeId) => { ... };
-  const handleDeleteEmployee = async (employeeId) => { ... };
-  */
-
   const handleEditSave = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!editingCompany || !editForm || isSaving) return;
     setIsSaving(true);
     try {
-      // Backend call - uncomment when ready:
-      // await updateTenantCompany(editingCompany.recordId || editingCompany.id, { ... });
-      toast.success('Tenant company updated successfully (UI only).');
+      await updateTenantCompany(editingCompany.recordId || editingCompany.id, editForm);
+      await loadTenantCompanies({ silent: true });
+      toast.success('Tenant company updated successfully.');
       closeEditModal();
     } catch (error) {
       toast.error((error as Error).message || 'Unable to save tenant company.');
@@ -1068,9 +1064,13 @@ export default function AdministrationTenantCompaniesPage() {
     if (!renewingContract || isSaving) return;
     setIsSaving(true);
     try {
-      // Backend call - uncomment when ready:
-      // await renewTenantCompany(renewingContract.recordId || renewingContract.id, { ... });
-      toast.success('Contract renewed successfully (UI only).');
+      const renewPayload = {
+        contractDurationMonths: Number(renewForm.extendMonths) || 12,
+        creditsAllocated: Number(renewForm.addCredits) || 0,
+      };
+      await renewTenantCompany(renewingContract.recordId || renewingContract.id, renewPayload);
+      await loadTenantCompanies({ silent: true });
+      toast.success('Contract renewed successfully.');
       closeRenewModal();
     } catch (error) {
       toast.error((error as Error).message || 'Unable to renew tenant company.');
@@ -1084,10 +1084,11 @@ export default function AdministrationTenantCompaniesPage() {
     if (!addingEmployeeTo || isSaving) return;
     setIsSaving(true);
     try {
-      // Backend call - uncomment when ready:
-      // const response = await addTenantCompanyEmployee(addingEmployeeTo.recordId || addingEmployeeTo.id, employeeForm);
-      toast.success('Employee added successfully (UI only).');
+      await addTenantCompanyEmployee(addingEmployeeTo.recordId || addingEmployeeTo.id, employeeForm);
+      await loadTenantCompanies({ silent: true });
+      toast.success('Employee added successfully.');
       closeAddEmployeeModal();
+      setViewingCompany(null);
     } catch (error) {
       toast.error((error as Error).message || 'Unable to add employee.');
     } finally {
@@ -1100,9 +1101,9 @@ export default function AdministrationTenantCompaniesPage() {
     if (!viewingCompany || !editingEmployee || isSaving) return;
     setIsSaving(true);
     try {
-      // Backend call - uncomment when ready:
-      // await updateTenantCompanyEmployee(viewingCompany.recordId || viewingCompany.id, editingEmployee.id, { ... });
-      toast.success('Employee details updated successfully (UI only).');
+      await updateTenantCompanyEmployee(viewingCompany.recordId || viewingCompany.id, editingEmployee.id || '', employeeEditForm);
+      await loadTenantCompanies({ silent: true });
+      toast.success('Employee details updated successfully.');
       closeEditEmployeeModal();
     } catch (error) {
       toast.error((error as Error).message || 'Unable to update employee details.');
@@ -1119,10 +1120,10 @@ export default function AdministrationTenantCompaniesPage() {
     if (!viewingCompany || agreementFiles.length === 0 || isAgreementUploading) return;
     setIsAgreementUploading(true);
     try {
-      // Backend call - uncomment when ready:
-      // await uploadTenantCompanyAgreementDocuments(viewingCompany.recordId || viewingCompany.id, agreementFiles);
-      toast.success('Agreement documents uploaded successfully (UI only).');
+      await uploadTenantCompanyAgreementDocuments(viewingCompany.recordId || viewingCompany.id, agreementFiles);
+      toast.success('Agreement documents uploaded successfully.');
       setAgreementFiles([]);
+      loadTenantCompanies({ silent: true });
     } catch (error) {
       toast.error((error as Error).message || 'Unable to upload agreement documents.');
     } finally {
@@ -1134,9 +1135,9 @@ export default function AdministrationTenantCompaniesPage() {
     if (!viewingCompany || isSaving) return;
     setIsSaving(true);
     try {
-      // Backend call - uncomment when ready:
-      // await updateTenantCompanyManager(viewingCompany.recordId || viewingCompany.id, { employeeId });
-      toast.success('Manager updated successfully (UI only).');
+      await updateTenantCompanyManager(viewingCompany.recordId || viewingCompany.id, { employeeId });
+      await loadTenantCompanies({ silent: true });
+      toast.success('Manager updated successfully.');
     } catch (error) {
       toast.error((error as Error).message || 'Unable to update manager.');
     } finally {
@@ -1148,9 +1149,9 @@ export default function AdministrationTenantCompaniesPage() {
     if (!viewingCompany || isSaving) return;
     setIsSaving(true);
     try {
-      // Backend call - uncomment when ready:
-      // await updateTenantCompanyEmployeeStatus(viewingCompany.recordId || viewingCompany.id, employeeId, { status: 'Inactive' });
-      toast.success('Employee status updated (UI only).');
+      await updateTenantCompanyEmployeeStatus(viewingCompany.recordId || viewingCompany.id, employeeId, { status: 'Inactive' });
+      await loadTenantCompanies({ silent: true });
+      toast.success('Employee status updated.');
     } catch (error) {
       toast.error((error as Error).message || 'Unable to update employee status.');
     } finally {
@@ -1162,9 +1163,9 @@ export default function AdministrationTenantCompaniesPage() {
     if (!viewingCompany || isSaving) return;
     setIsSaving(true);
     try {
-      // Backend call - uncomment when ready:
-      // await deleteTenantCompanyEmployee(viewingCompany.recordId || viewingCompany.id, employeeId);
-      toast.success('Employee removed successfully (UI only).');
+      await deleteTenantCompanyEmployee(viewingCompany.recordId || viewingCompany.id, employeeId);
+      await loadTenantCompanies({ silent: true });
+      toast.success('Employee removed successfully.');
       setSelectedEmployee(null);
     } catch (error) {
       toast.error((error as Error).message || 'Unable to remove employee.');
@@ -1226,13 +1227,13 @@ export default function AdministrationTenantCompaniesPage() {
           <div className="border border-slate-100 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead className="bg-white text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100"><tr><th className="px-3.5 py-2">Company / Tenant</th><th className="px-3.5 py-2">Plan & Contract Dates</th><th className="px-3.5 py-2 text-center">Credits (Used / Total)</th><th className="px-3.5 py-2 text-center">Status</th><th className="px-3.5 py-2 text-center">Actions</th></tr></thead>
+                <thead className="bg-white text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100"><tr><th className="px-3.5 py-2">Tenant Company</th><th className="px-3.5 py-2">Plan & Contract Dates</th><th className="px-3.5 py-2 text-center">Credits (Used / Total)</th><th className="px-3.5 py-2 text-center">Status</th><th className="px-3.5 py-2 text-center">Actions</th></tr></thead>
                 <tbody className="divide-y divide-slate-50">
                   {filteredCompanies.map((company) => {
                     const progress = company.creditsAllocated > 0 ? company.creditsUsed / company.creditsAllocated : 0;
                     return (
                       <tr key={company.recordId || company.id} className="hover:bg-blue-50/30 transition-all group">
-                        <td className="px-3.5 py-2"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-600 shadow-sm">{company.initials}</div><div><div className="font-black text-slate-900 text-sm">{company.name}</div><div className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">{company.contactPerson}</div></div></div></td>
+                        <td className="px-3.5 py-2"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-[11px] font-black shadow-sm shrink-0 border border-slate-200">{company.initials}</div><div><div className="font-pmedium text-primary text-sm">{company.name}</div></div></div></td>
                         <td className="px-3.5 py-2"><span className="text-xs font-bold text-slate-700">{company.planType}</span><p className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-500"><Calendar size={10} />{company.contractStart} - {company.contractEnd}</p></td>
                         <td className="px-3.5 py-2"><div className="flex items-center justify-center gap-2"><span className="text-sm font-black text-slate-900">{company.creditsUsed}</span><span className="text-[10px] font-bold text-slate-600">/ {company.creditsAllocated}</span></div><div className="mx-auto mt-1 h-1.5 w-24 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${progress > 0.9 ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(progress * 100, 100)}%` }} /></div></td>
                         <td className="px-3.5 py-2 text-center"><span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${getStatusBadge(company.status)}`}>{company.status}</span></td>
@@ -1261,7 +1262,7 @@ export default function AdministrationTenantCompaniesPage() {
                     <Building2 className="text-blue-600" size={28} />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-black text-slate-900">{viewingCompany.name}</h2>
+                    <h2 className="text-2xl font-pmedium text-primary">{viewingCompany.name}</h2>
                     <div className="mt-1 flex items-center gap-3">
                       <span className={`inline-flex rounded-md border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${getStatusBadge(viewingCompany.status)}`}>{viewingCompany.status}</span>
                       <span className="flex items-center gap-1 text-xs font-bold text-slate-500"><Briefcase size={12} /> {viewingCompany.businessType || 'Tenant Company'}</span>
@@ -1270,18 +1271,26 @@ export default function AdministrationTenantCompaniesPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    type="button"
-                    onClick={() => handleExportCompanyReport(viewingCompany, 'PDF')}
-                    disabled={Boolean(isExportingReport)}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  >PDF</button>
-                  <button
-                    type="button"
-                    onClick={() => handleExportCompanyReport(viewingCompany, 'Excel')}
-                    disabled={Boolean(isExportingReport)}
-                    className="rounded-xl bg-[#2563EB] px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  >Excel</button>
-                  <button onClick={() => { setViewingCompany(null); setSelectedEmployee(null); setEditingEmployee(null); setAgreementFiles([]); }} className="rounded-xl border border-slate-200 bg-white p-2 text-slate-400 transition-colors hover:bg-slate-100">
+                type="button"
+                onClick={() => handleExportCompaniesReport('PDF')}
+                disabled={Boolean(isExportingReport)}
+                title="Export PDF"
+                className="px-4 py-2.5 bg-white text-[#f10505] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <FileDown size={14} /> {isExportingReport === 'PDF' ? 'Exporting...' : ''}
+                
+              </button>
+              <button
+                type="button"
+                onClick={() => handleExportCompaniesReport('Excel')}
+                disabled={Boolean(isExportingReport)}
+                title="Export Excel"
+                className="px-4 py-2.5 bg-[#ffffff] text-[#1fd628] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <FileSpreadsheet size={14} /> {isExportingReport === 'Excel' ? 'Exporting...' : ''}
+                
+              </button>
+                  <button onClick={() => { setViewingCompany(null); setSelectedEmployee(null); setEditingEmployee(null); setAgreementFiles([]); }} className="rounded-xl border border-slate-200 bg-red-500 p-2 text-white transition-colors hover:bg-red-600">
                     <X size={20} />
                   </button>
                 </div>
@@ -1369,8 +1378,9 @@ export default function AdministrationTenantCompaniesPage() {
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                           <div><p className="mb-1 text-xs font-bold text-slate-400">Company Name</p><p className="text-sm font-bold text-slate-900">{viewingCompany.customerDetails?.clientName || viewingCompany.name}</p></div>
                           <div><p className="mb-1 text-xs font-bold text-slate-400">Sector</p><p className="text-sm font-bold text-slate-900">{viewingCompany.customerDetails?.sector || viewingCompany.businessType || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">HO City</p><p className="text-sm font-bold text-slate-900">{viewingCompany.customerDetails?.hoCity || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">HO Country</p><p className="text-sm font-bold text-slate-900">{viewingCompany.customerDetails?.hoCountry || 'N/A'}</p></div>
                           <div><p className="mb-1 text-xs font-bold text-slate-400">HO State</p><p className="text-sm font-bold text-slate-900">{viewingCompany.customerDetails?.hoState || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">HO City</p><p className="text-sm font-bold text-slate-900">{viewingCompany.customerDetails?.hoCity || 'N/A'}</p></div>
                         </div>
                       </div>
 
@@ -1434,8 +1444,6 @@ export default function AdministrationTenantCompaniesPage() {
                           <div><p className="mb-1 text-xs font-bold text-slate-400">Annual Increment</p><p className="text-sm font-bold text-slate-900">{formatCurrency(viewingCompany.livePricingSummary?.annualIncrement || viewingCompany.agreementDetails?.annualIncrement || 0)}</p></div>
                           <div><p className="mb-1 text-xs font-bold text-slate-400">Meeting Credits</p><p className="text-sm font-bold text-slate-900">{viewingCompany.agreementDetails?.totalMeetingCredits || 0}</p></div>
                           <div><p className="mb-1 text-xs font-bold text-slate-400">Lock-in Period</p><p className="text-sm font-bold text-slate-900">{viewingCompany.agreementDetails?.lockInPeriod || viewingCompany.contractDurationMonths || 0} Months</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Rent Date</p><p className="text-sm font-bold text-slate-900">{viewingCompany.agreementDetails?.rentDate || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Next Increment</p><p className="text-sm font-bold text-slate-900">{viewingCompany.agreementDetails?.nextIncrement || 'N/A'}</p></div>
                           <div><p className="mb-1 text-xs font-bold text-slate-400">Status</p><p className="text-sm font-bold text-slate-900">{viewingCompany.companyDetails?.status || viewingCompany.status}</p></div>
                         </div>
                       </div>
@@ -1847,7 +1855,43 @@ export default function AdministrationTenantCompaniesPage() {
                       </div>
                       <div>
                         <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Sector</label>
-                        <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={editForm.customerDetails.sector} onChange={(event) => updateEditSection('customerDetails', 'sector', event.target.value)} />
+                        {!showCustomSector ? (
+                          <div className="space-y-1.5">
+                            <select
+                              className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none"
+                              value={allSectorOptions.includes(editForm.customerDetails.sector) ? editForm.customerDetails.sector : ''}
+                              onChange={(event) => { setShowCustomSector(false); updateEditSection('customerDetails', 'sector', event.target.value); }}
+                            >
+                              <option value="">Select sector</option>
+                              {allSectorOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => { setShowCustomSector(true); updateEditSection('customerDetails', 'sector', ''); }}
+                              className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
+                            >
+                              + Add custom sector
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            <input
+                              required
+                              type="text"
+                              placeholder="Type new sector name"
+                              className="w-full rounded-xl border border-indigo-200 bg-slate-50 p-2.5 text-sm font-bold outline-none"
+                              value={editForm.customerDetails.sector}
+                              onChange={(event) => updateEditSection('customerDetails', 'sector', event.target.value)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => { setShowCustomSector(false); updateEditSection('customerDetails', 'sector', ''); }}
+                              className="text-[10px] font-bold text-slate-500 hover:text-slate-700 transition-colors"
+                            >
+                              Cancel &amp; pick from list
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </section>

@@ -235,8 +235,8 @@ export default function TenantTicketsPage() {
             <Ticket size={22} />
           </div> */}
           <div>
-            <h1 className="text-title font-pmedium text-primary uppercase">Support Tickets</h1>
-            <p className="mt-1 text-sm font-pmedium text-slate-500">
+            <h1 className="text-title font-pmedium text-primary uppercase">Tickets</h1>
+            <p className="mt-1 text-xs font-medium text-slate-500">
               Raise and track support tickets for {tenantCompanyName}.
             </p>
           </div>
