@@ -15,12 +15,12 @@ const getValidObjectId = (id: any): string | null =>
 
 const workspaceIdFor = (req: AuthenticatedRequest) => req.workspaceMembership?.workspace || "";
 const ACTIVE_BOOKING_STATUSES = { $nin: ["cancelled", "completed"] };
-const MEETING_ROOM_RESOURCE_FILTER = {
-    $or: [
-        { resourceCategory: { $in: ["meeting_room", "conference_room"] } },
-        { type: { $in: ["Meeting Room", "Conference Room"] } },
-    ],
-};
+// const MEETING_ROOM_RESOURCE_FILTER = {
+//     $or: [
+//         { resourceCategory: { $in: ["meeting_room", "conference_room", "desk", "cabin", "virtual_office"] } },
+//         { type: { $in: ["Meeting Room", "Conference Room", "Desk", "Cabin", "Virtual Office"] } },
+//     ],
+// };
 
 const dateTimeParts = (date: Date) => {
     const parts = new Intl.DateTimeFormat("en-GB", {
@@ -88,7 +88,7 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
             workspaceId,
             isActive: true,
             status: "Active",
-            ...MEETING_ROOM_RESOURCE_FILTER,
+            // ...MEETING_ROOM_RESOURCE_FILTER,
         }).lean().exec();
         if (!room) return res.status(404).json({ message: "Meeting room not found or inactive" });
         const attendeeCount = Math.max(1, Number(attendees || inviteeUserIds.length + 1));
@@ -135,7 +135,7 @@ export const getBookings = async (req: AuthenticatedRequest, res: Response, next
                 workspaceId,
                 isActive: true,
                 status: "Active",
-                ...MEETING_ROOM_RESOURCE_FILTER,
+                // ...MEETING_ROOM_RESOURCE_FILTER,
             }).sort({ sortOrder: 1, name: 1 }).lean().exec(),
         ]);
         const transformedBookings = bookings.map((booking: any) => transformBooking(booking, req.user));
