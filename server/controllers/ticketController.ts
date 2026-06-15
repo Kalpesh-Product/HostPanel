@@ -4,7 +4,19 @@ import { Ticket, ITicket } from "../models/Ticket.js";
 // Create a new ticket
 export const createTicket = async (req: Request, res: Response): Promise<void> => {
     try {
-        const newTicket = new Ticket(req.body);
+        const ownerId = (req as any).user;
+        const workspaceId = (req as any).workspaceMembership?.workspace || null;
+        const latestTicket = await Ticket.findOne({ ownerId }).sort({ ticketNumber: -1 }).select("ticketNumber").lean();
+        const ticketNumber = Number(latestTicket?.ticketNumber || 0) + 1;
+        const newTicket = new Ticket({
+            ...req.body,
+            ownerId,
+            workspaceId,
+            requesterUserId: ownerId,
+            ticketNumber,
+            ticketCode: `TCK-${String(ticketNumber).padStart(4, "0")}`,
+            status: "Open",
+        });
         const savedTicket = await newTicket.save();
         res.status(201).json({ success: true, data: savedTicket });
     } catch (error: any) {
@@ -15,11 +27,13 @@ export const createTicket = async (req: Request, res: Response): Promise<void> =
 // Get all tickets (with optional filtering)
 export const getTickets = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { workspaceId, status, department, assigneeUserId } = req.query;
-        const filter: any = {};
+        const { status, department, assigneeUserId } = req.query;
+        const requestWorkspaceId = (req as any).workspaceMembership?.workspace;
+        const filter: any = requestWorkspaceId
+            ? { workspaceId: requestWorkspaceId }
+            : { ownerId: (req as any).user };
         // const filter: Partial<ITicket> = {};
 
-        if (workspaceId) filter.workspaceId = workspaceId as any;
         if (status) filter.status = status as any;
         if (department) filter.department = department as string;
         if (assigneeUserId) filter.assigneeUserId = assigneeUserId as any;

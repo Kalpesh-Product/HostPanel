@@ -19,8 +19,8 @@ import {
   getStoredActingManagerContext,
   getStoredUser,
 } from '../../lib/auth-session';
+import { createTicket, getTickets } from '../../services/tickets';
 
-// Backend services commented out for frontend-only mode
 // import { getWorkspaceMembers } from '@/services/auth';
 // import { getAssets } from '@/services/assets';
 // import { createTicket, getTicketIssueSuggestions, getTickets, updateTicket } from '@/services/tickets';
@@ -125,9 +125,9 @@ function getManagedOrganizationDepartments(currentUser) {
   const currentUserId = String(currentUser?._id || currentUser?.id || '').trim();
   const currentUserName = String(
     currentUser?.fullName ||
-      [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(' ') ||
-      currentUser?.name ||
-      '',
+    [currentUser?.firstName, currentUser?.lastName].filter(Boolean).join(' ') ||
+    currentUser?.name ||
+    '',
   )
     .trim()
     .toLowerCase()
@@ -532,9 +532,9 @@ export function TicketsPage() {
       : (isDepartmentManagerProfile ? 'department_tickets' : (isEmployeeTicketProfile ? 'department_tasks' : 'all'))
   ));
   const [statusFilter, setStatusFilter] = useState('All');
-  const [selectedDeptFilter, setSelectedDeptFilter] = useState('All'); 
+  const [selectedDeptFilter, setSelectedDeptFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [viewingTicket, setViewingTicket] = useState(null);
   const [isRepairLogModalOpen, setIsRepairLogModalOpen] = useState(false);
@@ -543,7 +543,7 @@ export function TicketsPage() {
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  
+
   // Resolution State 
   const [showResolvePrompt, setShowResolvePrompt] = useState(false);
   const [resolutionMessage, setResolutionMessage] = useState("");
@@ -574,7 +574,7 @@ export function TicketsPage() {
   const [issueSuggestions, setIssueSuggestions] = useState([]);
   const [issueSuggestionsLoading, setIssueSuggestionsLoading] = useState(false);
   const [assetOptions, setAssetOptions] = useState([]);
-  const [tickets, setTickets] = useState(MOCK_TICKETS);
+  const [tickets, setTickets] = useState([]);
   const [optimisticTicketBackups, setOptimisticTicketBackups] = useState({});
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 3, hasNextPage: false });
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -814,9 +814,9 @@ export function TicketsPage() {
     return Array.isArray(fromWorkspace)
       ? (isOwnerProfile || isSuperAdminProfile || normalizedRole.includes('manager'))
         ? orderTopManagementDepartments([
-            ...fromWorkspace.filter(Boolean).filter((department) => shouldShowDepartmentOption(department)),
-            'Admin',
-          ])
+          ...fromWorkspace.filter(Boolean).filter((department) => shouldShowDepartmentOption(department)),
+          'Admin',
+        ])
         : dedupeDepartmentLabels(fromWorkspace.filter(Boolean).filter((department) => shouldShowDepartmentOption(department)))
       : [];
   }, [orgData, storedUser, tickets, isAdminTicketProfile, adminAssignedDepartments, isOwnerProfile, isSuperAdminProfile, normalizedRole]);
@@ -936,34 +936,34 @@ export function TicketsPage() {
     const selectedMembers = routingPoolMembers.length > 0
       ? routingPoolMembers
       : memberDirectory.filter((member) => {
-          const memberRole = normalizeRoleValue(member?.role || '');
-          const memberDepartments = Array.isArray(member?.departments) ? member.departments : [];
-          const hasDepartment = memberDepartments.some(
-            (item) => normalizeRoleValue(item) === normalizedDepartment,
-          );
+        const memberRole = normalizeRoleValue(member?.role || '');
+        const memberDepartments = Array.isArray(member?.departments) ? member.departments : [];
+        const hasDepartment = memberDepartments.some(
+          (item) => normalizeRoleValue(item) === normalizedDepartment,
+        );
 
-          if (normalizedDepartment === 'owner') {
-            return memberRole === 'owner' || hasDepartment;
-          }
+        if (normalizedDepartment === 'owner') {
+          return memberRole === 'owner' || hasDepartment;
+        }
 
-          if (normalizedDepartment === 'super_admin') {
-            return memberRole === 'super_admin' || hasDepartment;
-          }
+        if (normalizedDepartment === 'super_admin') {
+          return memberRole === 'super_admin' || hasDepartment;
+        }
 
-          if (normalizedDepartment === 'admin') {
-            return memberRole === 'admin' || hasDepartment;
-          }
+        if (normalizedDepartment === 'admin') {
+          return memberRole === 'admin' || hasDepartment;
+        }
 
-          return hasDepartment;
-        });
+        return hasDepartment;
+      });
 
     const topManagementMembers =
       normalizedDepartment === 'owner' || normalizedDepartment === 'super_admin' || normalizedDepartment === 'admin'
         ? []
         : [
-            ...(Array.isArray(specialRoutingAssignees.owner) ? specialRoutingAssignees.owner : []),
-            ...(Array.isArray(specialRoutingAssignees.superAdmin) ? specialRoutingAssignees.superAdmin : []),
-          ];
+          ...(Array.isArray(specialRoutingAssignees.owner) ? specialRoutingAssignees.owner : []),
+          ...(Array.isArray(specialRoutingAssignees.superAdmin) ? specialRoutingAssignees.superAdmin : []),
+        ];
 
     const combinedMembers = [];
     const seenMemberKeys = new Set();
@@ -1075,7 +1075,10 @@ export function TicketsPage() {
   function normalizeTicket(ticket) {
     return {
       ...ticket,
-      recordId: ticket.recordId,
+      recordId: String(ticket.recordId || ticket._id || ''),
+      id: ticket.id || ticket.ticketCode || '',
+      ticketCode: ticket.ticketCode || ticket.id || '',
+      assignedTo: ticket.assignedTo || ticket.assignee || '',
       tenantCompanyId: ticket.tenantCompanyId || '',
       tenantCompanyName: ticket.tenantCompanyName || '',
       assetId: ticket.assetId || '',
@@ -1226,9 +1229,22 @@ export function TicketsPage() {
     let isMounted = true;
 
     async function loadTickets() {
-      if (isMounted) {
-        setTickets(MOCK_TICKETS.map(normalizeTicket));
-        setIsInitialLoading(false);
+      setIsInitialLoading(true);
+      try {
+        const response = await getTickets({ page: 1, limit: TICKETS_PAGE_SIZE });
+        const loadedTickets = Array.isArray(response) ? response : response?.tickets || response?.items || [];
+        if (isMounted) {
+          setTickets(loadedTickets.map(normalizeTicket));
+          setPagination((current) => ({ ...current, total: loadedTickets.length, hasNextPage: false }));
+        }
+      } catch (error) {
+        if (isMounted) {
+          setErrorMessage(error?.response?.data?.message || 'Unable to load tickets. Please try again.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsInitialLoading(false);
+        }
       }
     }
 
@@ -1473,8 +1489,8 @@ export function TicketsPage() {
       const matchesStatus = statusFilter === 'All' ? true : t.status === statusFilter;
 
       const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            t.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            t.submittedBy.toLowerCase().includes(searchQuery.toLowerCase());
+        t.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.submittedBy.toLowerCase().includes(searchQuery.toLowerCase());
 
       return matchesTab && matchesDept && matchesStatus && matchesSearch;
     });
@@ -1519,7 +1535,7 @@ export function TicketsPage() {
   }, [tickets, activeTab, selectedDeptFilter, currentUserId, isDepartmentManagerProfile, isAdminTicketProfile, isEmployeeTicketProfile, currentUserDepartmentKeys, adminAssignedDepartments]);
 
   // Form Handlers
-  const handleCreateTicket = (e) => {
+  const handleCreateTicket = async (e) => {
     e.preventDefault();
 
     const requiresAssetSnapshot = requiresAssetSnapshotDepartment(ticketForm.department);
@@ -1540,10 +1556,10 @@ export function TicketsPage() {
     const selectedAssignee = queueSelection
       ? null
       : assigneeOptions.find((option) => {
-          const optionUserId = String(option.userId || option.id || '');
-          const selectedUserId = String(ticketForm.assigneeUserId || '');
-          return optionUserId && selectedUserId && optionUserId === selectedUserId;
-        }) || null;
+        const optionUserId = String(option.userId || option.id || '');
+        const selectedUserId = String(ticketForm.assigneeUserId || '');
+        return optionUserId && selectedUserId && optionUserId === selectedUserId;
+      }) || null;
 
     if (
       selectedAssignee?.userId &&
@@ -1561,13 +1577,11 @@ export function TicketsPage() {
 
     setIsSaving(true);
 
-    const createdTicket = {
-      id: `TCK-${Math.floor(404 + Math.random() * 500)}`,
-      recordId: String(tickets.length + 1),
+    const ticketPayload = {
       title: ticketForm.title,
       description: buildTicketDescription(ticketForm.description, selectedAsset),
       department: ticketForm.department,
-      assignee: queueSelection
+      assignedTo: queueSelection
         ? getQueueAssigneeLabel(ticketForm.department)
         : (selectedAssignee?.name || ticketForm.assignee),
       assigneeUserId: queueSelection
@@ -1585,13 +1599,21 @@ export function TicketsPage() {
       status: 'Open',
       submittedBy: displayUserName,
       submittedByDept: profile.dept,
+      requesterUserId: currentUserId,
     };
 
-    setTickets((current) => [normalizeTicket(createdTicket), ...current]);
-    setErrorMessage('');
-    setIsCreateModalOpen(false);
-    setTicketForm(initialForm);
-    setIsSaving(false);
+    try {
+      const createdTicket = await createTicket(ticketPayload);
+      setTickets((current) => [normalizeTicket(createdTicket), ...current]);
+      setPagination((current) => ({ ...current, total: current.total + 1 }));
+      setErrorMessage('');
+      setIsCreateModalOpen(false);
+      setTicketForm(initialForm);
+    } catch (error) {
+      setErrorMessage(error?.response?.data?.message || 'Unable to create the ticket. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleAcceptTicket = (payload = {}) => {
@@ -1600,7 +1622,7 @@ export function TicketsPage() {
     }
 
     const recordId = viewingTicket.recordId;
-    
+
     const targetUserId = payload?.assigneeUserId || currentUserId;
     const targetMember = memberDirectory.find(m => String(m.userId) === String(targetUserId));
     const targetName = targetMember ? targetMember.name : displayUserName;
@@ -1617,7 +1639,7 @@ export function TicketsPage() {
 
     const normalized = normalizeTicket(updatedTicket);
     setTickets((current) => current.map((ticket) => (ticket.recordId === recordId ? normalized : ticket)));
-    
+
     if (shouldAutoOpenRepairLog(normalized)) {
       setRepairLogSourceTicket(buildRepairLogSourceTicket(normalized));
       setIsRepairLogModalOpen(true);
@@ -1717,9 +1739,9 @@ export function TicketsPage() {
 
   // UI Helpers
   const getInitials = (name) => name.includes('Queue') ? 'Q' : name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  
+
   const getPriorityBadge = (priority) => {
-    switch(priority.toLowerCase()) {
+    switch (priority.toLowerCase()) {
       case 'high': return <span className="w-max px-2.5 py-1 bg-red-50 text-red-600 rounded-md text-[10px] font-black uppercase tracking-wider border border-red-100">High</span>;
       case 'medium': return <span className="w-max px-2.5 py-1 bg-amber-50 text-amber-600 rounded-md text-[10px] font-black uppercase tracking-wider border border-amber-100">Medium</span>;
       case 'low': return <span className="w-max px-2.5 py-1 bg-blue-50 text-blue-600 rounded-md text-[10px] font-black uppercase tracking-wider border border-blue-100">Low</span>;
@@ -1728,11 +1750,11 @@ export function TicketsPage() {
   };
 
   const getStatusBadge = (status) => {
-    switch(status.toLowerCase()) {
-      case 'resolved': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-green-50 text-green-600 border border-green-200 rounded-lg text-[10px] font-black uppercase tracking-wider"><CheckCircle2 size={12}/> Resolved</span>;
-      case 'in progress': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-[10px] font-black uppercase tracking-wider"><Clock size={12}/> In Progress</span>;
-      case 'open': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded-lg text-[10px] font-black uppercase tracking-wider"><AlertCircle size={12}/> Open (Raised)</span>;
-      case 'closed': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-[10px] font-black uppercase tracking-wider"><CheckSquare size={12}/> Closed</span>;
+    switch (status.toLowerCase()) {
+      case 'resolved': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-green-50 text-green-600 border border-green-200 rounded-lg text-[10px] font-black uppercase tracking-wider"><CheckCircle2 size={12} /> Resolved</span>;
+      case 'in progress': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-[10px] font-black uppercase tracking-wider"><Clock size={12} /> In Progress</span>;
+      case 'open': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded-lg text-[10px] font-black uppercase tracking-wider"><AlertCircle size={12} /> Open (Raised)</span>;
+      case 'closed': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-[10px] font-black uppercase tracking-wider"><CheckSquare size={12} /> Closed</span>;
       default: return null;
     }
   };
@@ -1746,311 +1768,310 @@ export function TicketsPage() {
       <PageFrame>
         {isInitialLoading && <TicketsSkeleton />}
         {!isInitialLoading && (
-        <div className="flex flex-col gap-4 text-slate-700 font-sans">
-          
-          {/* 1. HEADER */}
-          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
-            <div>
-              <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                 Tickets 
-              </h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">
-                {isEmployeeTicketProfile
-                  ? 'Employee workspace: accept department tickets, follow your assigned tickets, and review what you raised.'
-                  : isAdminTicketProfile
-                    ? 'Admin Control: Monitor assigned department tickets, route escalations, and manage follow-through.'
-                    : 'Founder God-Mode: Monitor escalations globally, track resolutions, and manage incident assignments.'}
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                setTicketForm(initialForm);
-                setIsCreateModalOpen(true);
-              }}
-              className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95 animate-in"
-            >
-              <Plus size={14} strokeWidth={3} /> RAISE TICKET
-            </button>
-          </div>
+          <div className="flex flex-col gap-4 text-slate-700 font-sans">
 
-          {errorMessage ? (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-600">
-              {errorMessage}
+            {/* 1. HEADER */}
+            <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+              <div>
+                <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+                  Tickets
+                </h2>
+                <p className="text-xs font-medium text-slate-500 mt-1">
+                  {isEmployeeTicketProfile
+                    ? 'Employee workspace: accept department tickets, follow your assigned tickets, and review what you raised.'
+                    : isAdminTicketProfile
+                      ? 'Admin Control: Monitor assigned department tickets, route escalations, and manage follow-through.'
+                      : 'Founder God-Mode: Monitor escalations globally, track resolutions, and manage incident assignments.'}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setTicketForm(initialForm);
+                  setIsCreateModalOpen(true);
+                }}
+                className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95 animate-in"
+              >
+                <Plus size={14} strokeWidth={3} /> RAISE TICKET
+              </button>
             </div>
-          ) : null}
 
-          {/* 2. DYNAMIC STATS */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="bg-gradient-to-br from-white/90 to-white/50 backdrop-blur-md p-3.5 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 group-hover:text-slate-600 transition-colors">Total Tickets</p>
-              <p className="text-[20px] font-black text-[#0F172A]">{statsBase.length}</p>
-            </div>
-            <div className="bg-gradient-to-br from-white/90 to-white/50 backdrop-blur-md p-3.5 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group">
-              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1 group-hover:text-amber-700 transition-colors">Open (Raised)</p>
-              <p className="text-[20px] font-black text-amber-500">{statsBase.filter(t => t.status === 'Open').length}</p>
-            </div>
-            <div className="bg-gradient-to-br from-white/90 to-white/50 backdrop-blur-md p-3.5 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group">
-              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1 group-hover:text-blue-700 transition-colors">In Progress</p>
-              <p className="text-[20px] font-black text-[#2563EB]">{statsBase.filter(t => t.status === 'In Progress').length}</p>
-            </div>
-            <div className="bg-gradient-to-br from-white/90 to-white/50 backdrop-blur-md p-3.5 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group">
-              <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest mb-1 group-hover:text-green-700 transition-colors">Resolved</p>
-              <p className="text-[20px] font-black text-emerald-500">{statsBase.filter(t => t.status === 'Resolved').length}</p>
-            </div>
-          </div>
+            {errorMessage ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-600">
+                {errorMessage}
+              </div>
+            ) : null}
 
-          {/* 3. WORKSPACE CONTROLS & TABLE */}
-          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-            
-            {/* Tier 1: Main Tabs & Search */}
-            <div className="p-4 border-b border-slate-100 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
-              
+            {/* 2. DYNAMIC STATS */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="bg-gradient-to-br from-white/90 to-white/50 backdrop-blur-md p-3.5 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 group-hover:text-slate-600 transition-colors">Total Tickets</p>
+                <p className="text-[20px] font-black text-[#0F172A]">{statsBase.length}</p>
+              </div>
+              <div className="bg-gradient-to-br from-white/90 to-white/50 backdrop-blur-md p-3.5 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group">
+                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1 group-hover:text-amber-700 transition-colors">Open (Raised)</p>
+                <p className="text-[20px] font-black text-amber-500">{statsBase.filter(t => t.status === 'Open').length}</p>
+              </div>
+              <div className="bg-gradient-to-br from-white/90 to-white/50 backdrop-blur-md p-3.5 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group">
+                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1 group-hover:text-blue-700 transition-colors">In Progress</p>
+                <p className="text-[20px] font-black text-[#2563EB]">{statsBase.filter(t => t.status === 'In Progress').length}</p>
+              </div>
+              <div className="bg-gradient-to-br from-white/90 to-white/50 backdrop-blur-md p-3.5 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group">
+                <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest mb-1 group-hover:text-green-700 transition-colors">Resolved</p>
+                <p className="text-[20px] font-black text-emerald-500">{statsBase.filter(t => t.status === 'Resolved').length}</p>
+              </div>
+            </div>
+
+            {/* 3. WORKSPACE CONTROLS & TABLE */}
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+
+              {/* Tier 1: Main Tabs & Search */}
+              <div className="p-4 border-b border-slate-100 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
+
                 {/* Main Navigation Tabs */}
                 <div className="flex bg-slate-100/50 p-1.5 rounded-[14px] border border-slate-200/50 w-full xl:w-auto overflow-x-auto [&::-webkit-scrollbar]:hidden">
                   {isAdminTicketProfile ? (
                     <>
-                      <button onClick={() => {setActiveTab('assigned_dept_tickets'); setStatusFilter('All');}} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'assigned_dept_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
+                      <button onClick={() => { setActiveTab('assigned_dept_tickets'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'assigned_dept_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
                         Assigned Dept Tickets <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[10px] border border-red-100 shadow-sm font-bold leading-none">{tickets.filter(t => isAdminDepartmentQueueTicket(t) && t.status === 'Open').length} Action</span>
                       </button>
-                      <button onClick={() => {setActiveTab('my_tickets'); setStatusFilter('All');}} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'my_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
+                      <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'my_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
                         My Assigned Tickets
                       </button>
-                      <button onClick={() => {setActiveTab('my_assigned_tickets'); setStatusFilter('All');}} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'my_assigned_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
+                      <button onClick={() => { setActiveTab('my_assigned_tickets'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'my_assigned_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
                         My Raised Tickets
                       </button>
                     </>
                   ) : isDepartmentManagerProfile ? (
                     <>
-                      <button onClick={() => {setActiveTab('department_tickets'); setStatusFilter('All');}} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'department_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
+                      <button onClick={() => { setActiveTab('department_tickets'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'department_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
                         Department Tickets
                       </button>
-                      <button onClick={() => {setActiveTab('my_tickets'); setStatusFilter('All');}} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all flex items-center gap-2 whitespace-nowrap min-w-max ${activeTab === 'my_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
+                      <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all flex items-center gap-2 whitespace-nowrap min-w-max ${activeTab === 'my_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
                         My Assigned Tickets <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[10px] border border-red-100 shadow-sm font-bold leading-none">{tickets.filter(t => isDepartmentMyTicket(t) && t.status === 'Open').length} Action</span>
                       </button>
-                      <button onClick={() => {setActiveTab('my_raised'); setStatusFilter('All');}} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'my_raised' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
+                      <button onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'my_raised' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
                         My Raised Tickets
                       </button>
                     </>
                   ) : isEmployeeTicketProfile ? (
                     <>
-                      <button onClick={() => {setActiveTab('department_tasks'); setStatusFilter('All');}} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all flex items-center gap-2 whitespace-nowrap min-w-max ${activeTab === 'department_tasks' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
+                      <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all flex items-center gap-2 whitespace-nowrap min-w-max ${activeTab === 'department_tasks' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
                         Department Tickets <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[10px] border border-red-100 shadow-sm font-bold leading-none">{tickets.filter(t => isEmployeeDepartmentTaskTicket(t) && t.status === 'Open').length} Action</span>
                       </button>
-                      <button onClick={() => {setActiveTab('my_tickets'); setStatusFilter('All');}} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'my_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
+                      <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'my_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
                         My Assigned Tickets
                       </button>
-                      <button onClick={() => {setActiveTab('my_raised_tickets'); setStatusFilter('All');}} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'my_raised_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
+                      <button onClick={() => { setActiveTab('my_raised_tickets'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'my_raised_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
                         My Raised Tickets
                       </button>
                     </>
                   ) : (
                     <>
-                      <button onClick={() => {setActiveTab('all'); setStatusFilter('All');}} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'all' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
+                      <button onClick={() => { setActiveTab('all'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'all' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
                         Company's Tickets
                       </button>
-                      <button onClick={() => {setActiveTab('my_received'); setStatusFilter('All');}} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all flex items-center gap-2 whitespace-nowrap min-w-max ${activeTab === 'my_received' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
+                      <button onClick={() => { setActiveTab('my_received'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all flex items-center gap-2 whitespace-nowrap min-w-max ${activeTab === 'my_received' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
                         My Assigned Tickets <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[10px] border border-red-100 shadow-sm font-bold leading-none">{tickets.filter(t => isMyReceivedTicket(t) && t.status === 'Open').length} Action</span>
                       </button>
-                      <button onClick={() => {setActiveTab('my_raised'); setStatusFilter('All');}} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'my_raised' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
+                      <button onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'my_raised' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
                         My Raised Tickets
                       </button>
                     </>
                   )}
                 </div>
 
-              <div className="relative w-full xl:w-80 shrink-0 group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#2563EB] transition-colors" size={16} />
-                <input 
-                  type="text" placeholder="Search Ticket ID or Name..." 
-                  className="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-white/60 backdrop-blur border border-slate-200/60 rounded-xl text-[13px] sm:text-[14px] font-medium text-[#0F172A] placeholder:text-slate-400 focus:ring-2 focus:ring-blue-100 focus:border-[#2563EB] outline-none transition-all shadow-sm" 
-                  value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                />
+                <div className="relative w-full xl:w-80 shrink-0 group">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#2563EB] transition-colors" size={16} />
+                  <input
+                    type="text" placeholder="Search Ticket ID or Name..."
+                    className="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-white/60 backdrop-blur border border-slate-200/60 rounded-xl text-[13px] sm:text-[14px] font-medium text-[#0F172A] placeholder:text-slate-400 focus:ring-2 focus:ring-blue-100 focus:border-[#2563EB] outline-none transition-all shadow-sm"
+                    value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
               </div>
-            </div>
 
-            {/* Tier 2: Sub-Filters */}
-            <div className="p-4 border-b border-slate-100/60 flex flex-col md:flex-row justify-between items-center gap-4 bg-white/40">
-              
-              <div className="flex gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden w-full md:w-auto pb-2 md:pb-0">
-                {['All', 'Open', 'In Progress', 'Resolved', 'Closed'].map((status) => (
-                  <button 
-                    key={status}
-                    onClick={() => setStatusFilter(status)}
-                    className={`px-4 sm:px-5 py-2 rounded-[10px] text-[11px] sm:text-[12px] font-bold transition-all min-w-max border ${
-                      statusFilter === status 
-                        ? 'bg-[#0F172A] text-white border-[#0F172A] shadow-sm' 
+              {/* Tier 2: Sub-Filters */}
+              <div className="p-4 border-b border-slate-100/60 flex flex-col md:flex-row justify-between items-center gap-4 bg-white/40">
+
+                <div className="flex gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden w-full md:w-auto pb-2 md:pb-0">
+                  {['All', 'Open', 'In Progress', 'Resolved', 'Closed'].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => setStatusFilter(status)}
+                      className={`px-4 sm:px-5 py-2 rounded-[10px] text-[11px] sm:text-[12px] font-bold transition-all min-w-max border ${statusFilter === status
+                        ? 'bg-[#0F172A] text-white border-[#0F172A] shadow-sm'
                         : 'bg-white text-slate-500 border-slate-200/60 hover:border-slate-300 hover:text-[#0F172A] hover:bg-slate-50'
-                    }`}
+                        }`}
+                    >
+                      {status === 'Open' ? 'Raised (Open)' : status}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative w-full md:w-64 shrink-0 focus-within:ring-2 ring-blue-100 rounded-xl transition-all">
+                  <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2563EB]" size={14} />
+                  <select
+                    className="w-full pl-10 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest outline-none transition-all cursor-pointer appearance-none shadow-sm"
+                    value={selectedDeptFilter} onChange={(e) => setSelectedDeptFilter(e.target.value)}
                   >
-                    {status === 'Open' ? 'Raised (Open)' : status}
-                  </button>
-                ))}
+                    <option value="All">{isAdminTicketProfile ? 'ALL ASSIGNED DEPARTMENTS' : 'ALL DEPARTMENTS'} &nbsp; ▾</option>
+                    {availableDepartments.map((dept) => <option key={dept} value={dept}>{dept} ONLY</option>)}
+                  </select>
+                </div>
               </div>
 
-              <div className="relative w-full md:w-64 shrink-0 focus-within:ring-2 ring-blue-100 rounded-xl transition-all">
-                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2563EB]" size={14} />
-                <select 
-                  className="w-full pl-10 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest outline-none transition-all cursor-pointer appearance-none shadow-sm"
-                  value={selectedDeptFilter} onChange={(e) => setSelectedDeptFilter(e.target.value)}
-                >
-                  <option value="All">{isAdminTicketProfile ? 'ALL ASSIGNED DEPARTMENTS' : 'ALL DEPARTMENTS'} &nbsp; ▾</option>
-                  {availableDepartments.map((dept) => <option key={dept} value={dept}>{dept} ONLY</option>)}
-                </select>
-              </div>
-            </div>
+              {/* Table (Desktop) / Cards (Mobile) */}
+              <div className="overflow-x-auto flex-1 [&::-webkit-scrollbar]:hidden bg-white/20">
 
-            {/* Table (Desktop) / Cards (Mobile) */}
-            <div className="overflow-x-auto flex-1 [&::-webkit-scrollbar]:hidden bg-white/20">
-              
-              {/* Desktop Table */}
-              <table className="hidden lg:table w-full text-left">
-                <thead className="bg-slate-50/50 text-[10px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100/60">
-                  <tr>
-                    <th className="px-5 sm:px-6 py-4 sm:py-5 font-semibold">Ticket Details</th>
-                    <th className="px-5 sm:px-6 py-4 sm:py-5 font-semibold">Routing & Assignment</th>
-                    <th className="px-5 sm:px-6 py-4 sm:py-5 font-semibold">Priority</th>
-                    <th className="px-5 sm:px-6 py-4 sm:py-5 font-semibold">Status</th>
-                    <th className="px-5 sm:px-6 py-4 sm:py-5 font-semibold">Updated</th>
-                    <th className="px-5 sm:px-6 py-4 sm:py-5 font-semibold text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100/60">
-                  {displayedTickets.map((ticket) => (
-                    <tr key={ticket.id} className="hover:bg-[#E0E7FF]/30 transition-all group">
-                      <td className="px-5 sm:px-6 py-4 sm:py-5 align-top max-w-[250px] xl:max-w-[400px]">
-                        <span className="font-mono text-[10px] font-bold text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded border border-blue-100 mb-1.5 inline-block">{ticket.id}</span>
-                        <div className="font-semibold text-[#0F172A] text-[13px] sm:text-[14px]" title={ticket.title}>{ticket.title}</div>
-                        <div className="text-[11px] sm:text-[12px] text-slate-500 mt-1 line-clamp-2">{ticket.description}</div>
-                      </td>
-                      <td className="px-5 sm:px-6 py-4 sm:py-5 align-top">
-                        <div className="text-[12px] sm:text-[13px] font-semibold text-[#0F172A] min-w-[200px]">
-                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">Raised By:</span>
-                          {formatPersonLabel(ticket.submittedBy, ticket.submittedByDept)}
-                          {getSubmittedByBadgeLabel(ticket.submittedByDept) ? (
-                            <span className={`mt-1 inline-flex w-max rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-widest ${getSubmittedByBadgeClass(ticket.submittedByDept)}`}>
-                              {getSubmittedByBadgeLabel(ticket.submittedByDept)}
-                            </span>
-                          ) : null}
-                          {getCompanyBadgeLabel(ticket) ? (
-                            <span className="mt-1 inline-flex w-max rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-blue-700">
-                              Tenant • {getCompanyBadgeLabel(ticket)}
-                            </span>
-                          ) : null}
+                {/* Desktop Table */}
+                <table className="hidden lg:table w-full text-left">
+                  <thead className="bg-slate-50/50 text-[10px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100/60">
+                    <tr>
+                      <th className="px-5 sm:px-6 py-4 sm:py-5 font-semibold">Ticket Details</th>
+                      <th className="px-5 sm:px-6 py-4 sm:py-5 font-semibold">Routing & Assignment</th>
+                      <th className="px-5 sm:px-6 py-4 sm:py-5 font-semibold">Priority</th>
+                      <th className="px-5 sm:px-6 py-4 sm:py-5 font-semibold">Status</th>
+                      <th className="px-5 sm:px-6 py-4 sm:py-5 font-semibold">Updated</th>
+                      <th className="px-5 sm:px-6 py-4 sm:py-5 font-semibold text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100/60">
+                    {displayedTickets.map((ticket) => (
+                      <tr key={ticket.id} className="hover:bg-[#E0E7FF]/30 transition-all group">
+                        <td className="px-5 sm:px-6 py-4 sm:py-5 align-top max-w-[250px] xl:max-w-[400px]">
+                          <span className="font-mono text-[10px] font-bold text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded border border-blue-100 mb-1.5 inline-block">{ticket.id}</span>
+                          <div className="font-semibold text-[#0F172A] text-[13px] sm:text-[14px]" title={ticket.title}>{ticket.title}</div>
+                          <div className="text-[11px] sm:text-[12px] text-slate-500 mt-1 line-clamp-2">{ticket.description}</div>
+                        </td>
+                        <td className="px-5 sm:px-6 py-4 sm:py-5 align-top">
+                          <div className="text-[12px] sm:text-[13px] font-semibold text-[#0F172A] min-w-[200px]">
+                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">Raised By:</span>
+                            {formatPersonLabel(ticket.submittedBy, ticket.submittedByDept)}
+                            {getSubmittedByBadgeLabel(ticket.submittedByDept) ? (
+                              <span className={`mt-1 inline-flex w-max rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-widest ${getSubmittedByBadgeClass(ticket.submittedByDept)}`}>
+                                {getSubmittedByBadgeLabel(ticket.submittedByDept)}
+                              </span>
+                            ) : null}
+                            {getCompanyBadgeLabel(ticket) ? (
+                              <span className="mt-1 inline-flex w-max rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-blue-700">
+                                Tenant • {getCompanyBadgeLabel(ticket)}
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="text-[12px] sm:text-[13px] font-semibold text-[#2563EB] min-w-[200px] mt-2.5">
+                            <span className="text-[9px] text-blue-400 font-bold uppercase tracking-wider block mb-0.5">Sent To:</span>
+                            <Building2 size={12} className="inline mr-1 -mt-0.5" />
+                            {ticket.department} {ticket.assignedTo !== ticket.department + ' Queue' ? `→ ${ticket.assignedTo}` : ''}
+                          </div>
+                          {ticket.acceptedBy && (
+                            <div className="text-[10px] font-bold text-indigo-600 mt-2 flex items-center gap-1 bg-indigo-50 w-max px-2 py-0.5 rounded border border-indigo-100">
+                              <User size={10} /> Accepted By: {ticket.acceptedBy}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-5 sm:px-6 py-4 sm:py-5 align-top">{getPriorityBadge(ticket.priority)}</td>
+                        <td className="px-5 sm:px-6 py-4 sm:py-5 align-top">
+                          {getStatusBadge(ticket.status)}
+                          {ticket.status === 'Resolved' && ticket.resolutionNote && (
+                            <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mt-1.5 flex items-center gap-1">
+                              <FileText size={10} strokeWidth={2.5} /> Note Attached
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-5 sm:px-6 py-4 sm:py-5 align-top font-semibold text-[12px] text-slate-500">{ticket.updated}</td>
+                        <td className="px-5 sm:px-6 py-4 sm:py-5 align-top text-center">
+                          <button
+                            onClick={() => setViewingTicket(ticket)}
+                            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5 mx-auto"
+                          >
+                            <Eye size={14} strokeWidth={2} /> View
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Mobile Card Grid */}
+                <div className="flex flex-col gap-3 lg:hidden p-3 bg-slate-50/30">
+                  {displayedTickets.map((ticket) => {
+                    const isTicketOpen = ticket.status === 'Open';
+                    return (
+                      <div key={ticket.id} className={`bg-white border p-4 rounded-[20px] shadow-sm flex flex-col gap-3 transition-all ${isTicketOpen ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200/60'}`}>
+                        <div className="flex justify-between items-start gap-3">
+                          <div className="flex-1 flex flex-col gap-1.5">
+                            <span className="font-mono text-[10px] font-bold text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded w-max border border-blue-100">{ticket.id}</span>
+                            <h3 className="font-semibold text-[#0F172A] text-[13px] sm:text-[14px]">
+                              {ticket.title}
+                            </h3>
+                            <p className="text-[12px] text-slate-500 line-clamp-2">{ticket.description}</p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            {getStatusBadge(ticket.status)}
+                            {getPriorityBadge(ticket.priority)}
+                          </div>
                         </div>
-                        <div className="text-[12px] sm:text-[13px] font-semibold text-[#2563EB] min-w-[200px] mt-2.5">
-                          <span className="text-[9px] text-blue-400 font-bold uppercase tracking-wider block mb-0.5">Sent To:</span>
-                          <Building2 size={12} className="inline mr-1 -mt-0.5"/> 
-                          {ticket.department} {ticket.assignedTo !== ticket.department + ' Queue' ? `→ ${ticket.assignedTo}` : ''}
+
+                        <div className="grid grid-cols-2 gap-3 bg-slate-55 p-3 rounded-xl border border-slate-100 mt-1">
+                          <div>
+                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">Raised By</span>
+                            <span className="text-[11px] font-semibold text-[#0F172A] truncate block" title={ticket.submittedBy}>{formatPersonLabel(ticket.submittedBy, ticket.submittedByDept)}</span>
+                            {getSubmittedByBadgeLabel(ticket.submittedByDept) ? (
+                              <span className={`mt-1 inline-flex w-max rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-widest ${getSubmittedByBadgeClass(ticket.submittedByDept)}`}>
+                                {getSubmittedByBadgeLabel(ticket.submittedByDept)}
+                              </span>
+                            ) : null}
+                            {getCompanyBadgeLabel(ticket) ? (
+                              <span className="mt-1 inline-flex w-max rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-blue-700">
+                                Tenant • {getCompanyBadgeLabel(ticket)}
+                              </span>
+                            ) : null}
+                          </div>
+                          <div>
+                            <span className="text-[9px] text-blue-400 font-bold uppercase tracking-wider block mb-0.5">Routed To</span>
+                            <span className="text-[11px] font-semibold text-[#2563EB] truncate block" title={ticket.department}>{ticket.department} {ticket.assignedTo !== ticket.department + ' Queue' ? `→ ${ticket.assignedTo.split(' ')[0]}` : ''}</span>
+                          </div>
                         </div>
+
                         {ticket.acceptedBy && (
-                          <div className="text-[10px] font-bold text-indigo-600 mt-2 flex items-center gap-1 bg-indigo-50 w-max px-2 py-0.5 rounded border border-indigo-100">
-                            <User size={10}/> Accepted By: {ticket.acceptedBy}
+                          <div className="flex items-center gap-1.5 bg-indigo-50/50 p-2 rounded-lg border border-indigo-100/50 mt-1">
+                            <span className="text-[10px] sm:text-[11px] font-bold text-indigo-700 flex items-center gap-1.5"><User size={12} strokeWidth={2.5} /> Accepted By: {ticket.acceptedBy}</span>
                           </div>
                         )}
-                      </td>
-                      <td className="px-5 sm:px-6 py-4 sm:py-5 align-top">{getPriorityBadge(ticket.priority)}</td>
-                      <td className="px-5 sm:px-6 py-4 sm:py-5 align-top">
-                        {getStatusBadge(ticket.status)}
-                        {ticket.status === 'Resolved' && ticket.resolutionNote && (
-                          <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mt-1.5 flex items-center gap-1">
-                            <FileText size={10} strokeWidth={2.5}/> Note Attached
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-5 sm:px-6 py-4 sm:py-5 align-top font-semibold text-[12px] text-slate-500">{ticket.updated}</td>
-                      <td className="px-5 sm:px-6 py-4 sm:py-5 align-top text-center">
-                        <button 
-                          onClick={() => setViewingTicket(ticket)}
-                          className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5 mx-auto"
-                        >
-                          <Eye size={14} strokeWidth={2}/> View
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
 
-              {/* Mobile Card Grid */}
-              <div className="flex flex-col gap-3 lg:hidden p-3 bg-slate-50/30">
-                {displayedTickets.map((ticket) => {
-                  const isTicketOpen = ticket.status === 'Open';
-                  return (
-                    <div key={ticket.id} className={`bg-white border p-4 rounded-[20px] shadow-sm flex flex-col gap-3 transition-all ${isTicketOpen ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200/60'}`}>
-                      <div className="flex justify-between items-start gap-3">
-                        <div className="flex-1 flex flex-col gap-1.5">
-                           <span className="font-mono text-[10px] font-bold text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded w-max border border-blue-100">{ticket.id}</span>
-                           <h3 className="font-semibold text-[#0F172A] text-[13px] sm:text-[14px]">
-                             {ticket.title}
-                           </h3>
-                           <p className="text-[12px] text-slate-500 line-clamp-2">{ticket.description}</p>
-                        </div>
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                           {getStatusBadge(ticket.status)}
-                           {getPriorityBadge(ticket.priority)}
+                        <div className="flex justify-between items-center mt-1 border-t border-slate-100/60 pt-3">
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-slate-700 text-[11px] sm:text-[12px] flex items-center gap-1.5"><Clock size={12} /> {ticket.updated}</span>
+                            {ticket.status === 'Resolved' && ticket.resolutionNote && (
+                              <span className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider flex items-center gap-1 mt-0.5"><FileText size={10} strokeWidth={2.5} /> Note Attached</span>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => setViewingTicket(ticket)}
+                            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
+                          >
+                            <Eye size={14} strokeWidth={2} /> View
+                          </button>
                         </div>
                       </div>
-                      
-                      <div className="grid grid-cols-2 gap-3 bg-slate-55 p-3 rounded-xl border border-slate-100 mt-1">
-                         <div>
-                           <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">Raised By</span>
-                           <span className="text-[11px] font-semibold text-[#0F172A] truncate block" title={ticket.submittedBy}>{formatPersonLabel(ticket.submittedBy, ticket.submittedByDept)}</span>
-                           {getSubmittedByBadgeLabel(ticket.submittedByDept) ? (
-                             <span className={`mt-1 inline-flex w-max rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-widest ${getSubmittedByBadgeClass(ticket.submittedByDept)}`}>
-                               {getSubmittedByBadgeLabel(ticket.submittedByDept)}
-                             </span>
-                           ) : null}
-                           {getCompanyBadgeLabel(ticket) ? (
-                             <span className="mt-1 inline-flex w-max rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-blue-700">
-                               Tenant • {getCompanyBadgeLabel(ticket)}
-                             </span>
-                           ) : null}
-                         </div>
-                         <div>
-                           <span className="text-[9px] text-blue-400 font-bold uppercase tracking-wider block mb-0.5">Routed To</span>
-                           <span className="text-[11px] font-semibold text-[#2563EB] truncate block" title={ticket.department}>{ticket.department} {ticket.assignedTo !== ticket.department + ' Queue' ? `→ ${ticket.assignedTo.split(' ')[0]}` : ''}</span>
-                         </div>
-                      </div>
-
-                      {ticket.acceptedBy && (
-                         <div className="flex items-center gap-1.5 bg-indigo-50/50 p-2 rounded-lg border border-indigo-100/50 mt-1">
-                           <span className="text-[10px] sm:text-[11px] font-bold text-indigo-700 flex items-center gap-1.5"><User size={12} strokeWidth={2.5}/> Accepted By: {ticket.acceptedBy}</span>
-                         </div>
-                      )}
-                      
-                      <div className="flex justify-between items-center mt-1 border-t border-slate-100/60 pt-3">
-                        <div className="flex flex-col">
-                           <span className="font-semibold text-slate-700 text-[11px] sm:text-[12px] flex items-center gap-1.5"><Clock size={12}/> {ticket.updated}</span>
-                           {ticket.status === 'Resolved' && ticket.resolutionNote && (
-                             <span className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider flex items-center gap-1 mt-0.5"><FileText size={10} strokeWidth={2.5}/> Note Attached</span>
-                           )}
-                        </div>
-                        <button 
-                          onClick={() => setViewingTicket(ticket)}
-                          className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
-                        >
-                          <Eye size={14} strokeWidth={2}/> View
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Empty State */}
-              {displayedTickets.length === 0 && (
-                <div className="text-center py-20 px-4">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 mb-4 border border-slate-100">
-                    <Search className="text-slate-400" size={24}/>
-                  </div>
-                  <p className="text-slate-500 font-semibold mb-1">No tickets found</p>
-                  <p className="text-slate-400 text-[13px]">Try adjusting your filters or search terms.</p>
+                    );
+                  })}
                 </div>
-              )}
-            </div>
-          </div>
 
-        </div>
+                {/* Empty State */}
+                {displayedTickets.length === 0 && (
+                  <div className="text-center py-20 px-4">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 mb-4 border border-slate-100">
+                      <Search className="text-slate-400" size={24} />
+                    </div>
+                    <p className="text-slate-500 font-semibold mb-1">No tickets found</p>
+                    <p className="text-slate-400 text-[13px]">Try adjusting your filters or search terms.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
         )}
 
         {/* ======================================================= */}
@@ -2060,22 +2081,22 @@ export function TicketsPage() {
           <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-2xl h-[92vh] sm:h-auto sm:max-h-[95vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300">
               <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0"></div>
-              
+
               <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
-                 <div>
-                   <h2 className="text-xl sm:text-2xl font-pmedium text-primary flex items-center gap-2">
-                      <div className="bg-blue-50 text-[#2563EB] p-2 rounded-xl">
-                        <AlertCircle size={20} strokeWidth={2.5}/>
-                      </div>
-                      Raise Master Ticket
-                   </h2>
-                   <p className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-widest mt-2">Request technical or facility assistance</p>
-                 </div>
-                 <button onClick={() => setIsCreateModalOpen(false)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm"><X size={18} strokeWidth={2.5}/></button>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-pmedium text-primary flex items-center gap-2">
+                    <div className="bg-blue-50 text-[#2563EB] p-2 rounded-xl">
+                      <AlertCircle size={20} strokeWidth={2.5} />
+                    </div>
+                    Raise Master Ticket
+                  </h2>
+                  <p className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-widest mt-2">Request technical or facility assistance</p>
+                </div>
+                <button onClick={() => setIsCreateModalOpen(false)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm"><X size={18} strokeWidth={2.5} /></button>
               </div>
-              
+
               <form onSubmit={handleCreateTicket} className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-1 space-y-6 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-5 bg-blue-50/50 p-4 sm:p-5 rounded-2xl sm:rounded-[20px] border border-blue-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-5 bg-blue-50/50 p-4 sm:p-5 rounded-2xl sm:rounded-[20px] border border-blue-100">
                   {requiresAssetSnapshotDepartment(ticketForm.department) && (
                     <div className="space-y-1.5 sm:col-span-2">
                       <label className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Related Asset *</label>
@@ -2123,126 +2144,126 @@ export function TicketsPage() {
 
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Target Department *</label>
-                     <select required className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer shadow-sm transition-all" value={ticketForm.department} onChange={e => {
-                        const nextDepartment = e.target.value;
+                    <select required className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer shadow-sm transition-all" value={ticketForm.department} onChange={e => {
+                      const nextDepartment = e.target.value;
 
-                        setTicketForm({
-                          ...ticketForm,
-                          department: nextDepartment,
-                          assetId: requiresAssetSnapshotDepartment(nextDepartment) ? ticketForm.assetId : '',
-                          assignee: '',
-                          assigneeUserId: '',
-                       });
-                     }}>
-                       <option value="">Select Dept</option>
-                       {ticketCreateDepartments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
-                     </select>
-                   </div>
-                   <div className="space-y-1.5">
-                     <label className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Direct Assignee (Optional)</label>
-                     <select className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer shadow-sm disabled:opacity-50 transition-all" disabled={!ticketForm.department} value={ticketForm.assigneeUserId || ''} onChange={e => {
-                       const selected = assigneeOptions.find(option => option.userId === e.target.value || option.id === e.target.value) || null;
-                       setTicketForm({
-                         ...ticketForm,
-                         assignee: selected?.name || '',
-                         assigneeUserId: selected?.userId || '',
-                       });
-                     }}>
-                       {!isSpecialRoutingDepartment(ticketForm.department) && <option value="">Dept General Queue</option>}
+                      setTicketForm({
+                        ...ticketForm,
+                        department: nextDepartment,
+                        assetId: requiresAssetSnapshotDepartment(nextDepartment) ? ticketForm.assetId : '',
+                        assignee: '',
+                        assigneeUserId: '',
+                      });
+                    }}>
+                      <option value="">Select Dept</option>
+                      {ticketCreateDepartments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Direct Assignee (Optional)</label>
+                    <select className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer shadow-sm disabled:opacity-50 transition-all" disabled={!ticketForm.department} value={ticketForm.assigneeUserId || ''} onChange={e => {
+                      const selected = assigneeOptions.find(option => option.userId === e.target.value || option.id === e.target.value) || null;
+                      setTicketForm({
+                        ...ticketForm,
+                        assignee: selected?.name || '',
+                        assigneeUserId: selected?.userId || '',
+                      });
+                    }}>
+                      {!isSpecialRoutingDepartment(ticketForm.department) && <option value="">Dept General Queue</option>}
                       {assigneeOptions.map(option => <option key={option.id} value={option.userId || option.id}>{option.label}</option>)}
-                     </select>
-                   </div>
-                 </div>
+                    </select>
+                  </div>
+                </div>
 
-                 <div className="space-y-1.5">
-                   <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Priority *</label>
-                   <select className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer shadow-sm transition-all" value={ticketForm.priority} onChange={e => setTicketForm({...ticketForm, priority: e.target.value})}>
-                     <option value="Low">Low</option>
-                     <option value="Medium">Medium</option>
-                     <option value="High">High</option>
-                   </select>
-                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Priority *</label>
+                  <select className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer shadow-sm transition-all" value={ticketForm.priority} onChange={e => setTicketForm({ ...ticketForm, priority: e.target.value })}>
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                  </select>
+                </div>
 
-                 <div className="space-y-1.5">
-                   <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Issue Title *</label>
-                   <input required type="text" placeholder="e.g. Server configuration needs approval" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none shadow-sm transition-all placeholder:text-slate-400" value={ticketForm.title} onChange={e => setTicketForm({...ticketForm, title: e.target.value})} />
-                   {ticketForm.department ? (
-                     <div className="rounded-2xl border border-blue-100 bg-white shadow-sm overflow-hidden">
-                       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-blue-50/40">
-                         <div>
-                           <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest">
-                             Issues for {ticketForm.department}
-                           </p>
-                           <p className="text-[11px] text-slate-500">
-                             Pick a saved issue or keep typing your own.
-                           </p>
-                         </div>
-                         {issueSuggestionsLoading ? (
-                           <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Searching...</span>
-                         ) : (
-                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                             {issueSuggestions.length} saved
-                           </span>
-                         )}
-                       </div>
-                       <div className="max-h-52 overflow-y-auto divide-y divide-slate-100">
-                         {issueSuggestions.length > 0 ? (
-                           issueSuggestions.map((issue) => (
-                             <button
-                               key={`${issue.departmentKey}-${issue.title}`}
-                               type="button"
-                               onClick={() => applyIssueSuggestion(issue)}
-                               className="w-full text-left px-4 py-3 hover:bg-blue-50/70 transition-colors"
-                             >
-                               <div className="flex items-start justify-between gap-4">
-                                 <div className="min-w-0">
-                                   <p className="text-[13px] font-bold text-[#0F172A] truncate">{issue.title}</p>
-                                   <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">
-                                     {issue.description || 'Use this as a starting point for the issue details.'}
-                                   </p>
-                                 </div>
-                                 <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-blue-700 bg-blue-50 border border-blue-100 px-2 py-1 rounded-full">
-                                   {issue.department}
-                                 </span>
-                               </div>
-                             </button>
-                           ))
-                         ) : (
-                           <div className="px-4 py-4 text-[12px] text-slate-400">
-                             Type a few words to search saved issues, or continue with a new issue title.
-                           </div>
-                         )}
-                       </div>
-                     </div>
-                   ) : null}
-                 </div>
-                 
-                 <div className="space-y-1.5">
-                   <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Detailed Description</label>
-                   <textarea required rows={4} placeholder="Provide issue details..." className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-600 focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none resize-none shadow-sm transition-all placeholder:text-slate-400" value={ticketForm.description} onChange={e => setTicketForm({...ticketForm, description: e.target.value})} />
-                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Issue Title *</label>
+                  <input required type="text" placeholder="e.g. Server configuration needs approval" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none shadow-sm transition-all placeholder:text-slate-400" value={ticketForm.title} onChange={e => setTicketForm({ ...ticketForm, title: e.target.value })} />
+                  {ticketForm.department ? (
+                    <div className="rounded-2xl border border-blue-100 bg-white shadow-sm overflow-hidden">
+                      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-blue-50/40">
+                        <div>
+                          <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest">
+                            Issues for {ticketForm.department}
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            Pick a saved issue or keep typing your own.
+                          </p>
+                        </div>
+                        {issueSuggestionsLoading ? (
+                          <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Searching...</span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            {issueSuggestions.length} saved
+                          </span>
+                        )}
+                      </div>
+                      <div className="max-h-52 overflow-y-auto divide-y divide-slate-100">
+                        {issueSuggestions.length > 0 ? (
+                          issueSuggestions.map((issue) => (
+                            <button
+                              key={`${issue.departmentKey}-${issue.title}`}
+                              type="button"
+                              onClick={() => applyIssueSuggestion(issue)}
+                              className="w-full text-left px-4 py-3 hover:bg-blue-50/70 transition-colors"
+                            >
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0">
+                                  <p className="text-[13px] font-bold text-[#0F172A] truncate">{issue.title}</p>
+                                  <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">
+                                    {issue.description || 'Use this as a starting point for the issue details.'}
+                                  </p>
+                                </div>
+                                <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-blue-700 bg-blue-50 border border-blue-100 px-2 py-1 rounded-full">
+                                  {issue.department}
+                                </span>
+                              </div>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-4 py-4 text-[12px] text-slate-400">
+                            Type a few words to search saved issues, or continue with a new issue title.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
 
-                 <div className="space-y-1.5">
-                   <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Attachments</label>
-                   <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-white hover:bg-slate-50 hover:border-[#2563EB] transition-colors cursor-pointer group">
-                     <div className="w-12 h-12 bg-blue-50 rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                       <Paperclip className="text-[#2563EB]" size={20}/>
-                     </div>
-                     <p className="text-[12px] sm:text-[13px] font-bold text-[#0F172A]">Upload screenshot or document</p>
-                     <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">PNG, JPG or PDF up to 10MB</p>
-                   </div>
-                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Detailed Description</label>
+                  <textarea required rows={4} placeholder="Provide issue details..." className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-600 focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none resize-none shadow-sm transition-all placeholder:text-slate-400" value={ticketForm.description} onChange={e => setTicketForm({ ...ticketForm, description: e.target.value })} />
+                </div>
 
-                 <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col-reverse sm:flex-row">
-                   <button type="button" onClick={() => setIsCreateModalOpen(false)} className="w-full sm:flex-1 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">CANCEL</button>
-                   <button
-                     type="submit"
-                     disabled={isSaving}
-                     className="w-full sm:flex-[2] py-3 bg-[#2563EB] text-white rounded-xl font-bold shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-70"
-                   >
-                     {isSaving ? 'SUBMITTING...' : 'SUBMIT TICKET'} <Plus size={16} strokeWidth={2.5}/>
-                   </button>
-                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Attachments</label>
+                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-white hover:bg-slate-50 hover:border-[#2563EB] transition-colors cursor-pointer group">
+                    <div className="w-12 h-12 bg-blue-50 rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                      <Paperclip className="text-[#2563EB]" size={20} />
+                    </div>
+                    <p className="text-[12px] sm:text-[13px] font-bold text-[#0F172A]">Upload screenshot or document</p>
+                    <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">PNG, JPG or PDF up to 10MB</p>
+                  </div>
+                </div>
+
+                <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col-reverse sm:flex-row">
+                  <button type="button" onClick={() => setIsCreateModalOpen(false)} className="w-full sm:flex-1 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">CANCEL</button>
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="w-full sm:flex-[2] py-3 bg-[#2563EB] text-white rounded-xl font-bold shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isSaving ? 'SUBMITTING...' : 'SUBMIT TICKET'} <Plus size={16} strokeWidth={2.5} />
+                  </button>
+                </div>
               </form>
             </div>
           </div>
@@ -2255,259 +2276,259 @@ export function TicketsPage() {
           <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white/95 backdrop-blur-xl w-full sm:max-w-2xl h-[92vh] sm:h-auto sm:max-h-[95vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col animate-in slide-in-from-bottom-8 sm:zoom-in-95 duration-300">
               <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0"></div>
-              
+
               <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-start shrink-0 relative">
-                 <div>
-                   <div className="flex items-center gap-2 mb-3 flex-wrap">
-                     <span className="font-mono text-[11px] font-bold text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{viewingTicket.id}</span>
-                     {getPriorityBadge(viewingTicket.priority)}
-                     {getStatusBadge(viewingTicket.status)}
-                   </div>
-                   <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] leading-tight pr-8">{viewingTicket.title}</h2>
-                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-1"><Calendar size={12}/> Raised: {viewingTicket.created}</p>
-                 </div>
-                 <button onClick={() => {setViewingTicket(null); setShowResolvePrompt(false);}} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-all absolute top-5 sm:top-6 md:top-8 right-5 sm:right-6 md:right-8"><X size={18} strokeWidth={2.5}/></button>
+                <div>
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
+                    <span className="font-mono text-[11px] font-bold text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{viewingTicket.id}</span>
+                    {getPriorityBadge(viewingTicket.priority)}
+                    {getStatusBadge(viewingTicket.status)}
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] leading-tight pr-8">{viewingTicket.title}</h2>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-1"><Calendar size={12} /> Raised: {viewingTicket.created}</p>
+                </div>
+                <button onClick={() => { setViewingTicket(null); setShowResolvePrompt(false); }} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-all absolute top-5 sm:top-6 md:top-8 right-5 sm:right-6 md:right-8"><X size={18} strokeWidth={2.5} /></button>
               </div>
 
               <div className="p-5 sm:p-6 md:p-8 space-y-6 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
-                 
-                 <div>
-                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText size={12}/> Issue Description</p>
-                   <p className="text-[13px] font-medium text-slate-700 leading-relaxed bg-white p-4 sm:p-5 rounded-xl border border-slate-100 shadow-sm whitespace-pre-wrap">{viewingTicket.description}</p>
-                 </div>
 
-                 {/* Resolution Note Display (If resolved) */}
-                 {viewingTicket.status === 'Resolved' && viewingTicket.resolutionNote && (
-                   <div className="bg-emerald-50 border border-emerald-100 p-4 sm:p-5 rounded-xl shadow-sm">
-                     <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider mb-1 flex items-center gap-1"><CheckCircle2 size={12}/> Official Resolution Note</p>
-                     <p className="text-[13px] font-semibold text-emerald-900 leading-relaxed">{viewingTicket.resolutionNote}</p>
-                   </div>
-                 )}
+                <div>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5"><FileText size={12} /> Issue Description</p>
+                  <p className="text-[13px] font-medium text-slate-700 leading-relaxed bg-white p-4 sm:p-5 rounded-xl border border-slate-100 shadow-sm whitespace-pre-wrap">{viewingTicket.description}</p>
+                </div>
 
-                 {/* Routing Meta Info (Rich Format) */}
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6 bg-blue-50/50 p-4 sm:p-5 rounded-2xl border border-blue-100 items-stretch">
-                   <div className="min-w-0 h-full">
-                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Raised By</p>
-                     <div className="flex items-start gap-3 bg-white p-3 rounded-xl border border-blue-100/50 shadow-sm h-full min-w-0">
-                       <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-black">{getInitials(viewingTicket.submittedBy)}</div>
-                       <div className="min-w-0 flex-1">
-                         <span className="font-bold text-[#0F172A] text-[13px] block wrap-break-word leading-snug">{viewingTicket.submittedBy}</span>
-                         {!viewingTicket.submittedBy?.includes('(Owner)') ? (
-                           <span className="mt-0.5 block text-[9px] font-black text-slate-500 uppercase tracking-wide wrap-break-word">{viewingTicket.submittedByDept}</span>
-                         ) : null}
-                         {getCompanyBadgeLabel(viewingTicket) ? (
-                           <span className="mt-1 inline-flex max-w-full rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-blue-700 wrap-break-word">
-                             Tenant • {getCompanyBadgeLabel(viewingTicket)}
-                           </span>
-                         ) : null}
+                {/* Resolution Note Display (If resolved) */}
+                {viewingTicket.status === 'Resolved' && viewingTicket.resolutionNote && (
+                  <div className="bg-emerald-50 border border-emerald-100 p-4 sm:p-5 rounded-xl shadow-sm">
+                    <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider mb-1 flex items-center gap-1"><CheckCircle2 size={12} /> Official Resolution Note</p>
+                    <p className="text-[13px] font-semibold text-emerald-900 leading-relaxed">{viewingTicket.resolutionNote}</p>
+                  </div>
+                )}
+
+                {/* Routing Meta Info (Rich Format) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6 bg-blue-50/50 p-4 sm:p-5 rounded-2xl border border-blue-100 items-stretch">
+                  <div className="min-w-0 h-full">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Raised By</p>
+                    <div className="flex items-start gap-3 bg-white p-3 rounded-xl border border-blue-100/50 shadow-sm h-full min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[10px] font-black">{getInitials(viewingTicket.submittedBy)}</div>
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-[#0F172A] text-[13px] block wrap-break-word leading-snug">{viewingTicket.submittedBy}</span>
+                        {!viewingTicket.submittedBy?.includes('(Owner)') ? (
+                          <span className="mt-0.5 block text-[9px] font-black text-slate-500 uppercase tracking-wide wrap-break-word">{viewingTicket.submittedByDept}</span>
+                        ) : null}
+                        {getCompanyBadgeLabel(viewingTicket) ? (
+                          <span className="mt-1 inline-flex max-w-full rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-blue-700 wrap-break-word">
+                            Tenant • {getCompanyBadgeLabel(viewingTicket)}
+                          </span>
+                        ) : null}
                         {getSubmittedByBadgeLabel(viewingTicket.submittedByDept) ? (
                           <span className={`mt-1 inline-flex max-w-full rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-widest wrap-break-word ${getSubmittedByBadgeClass(viewingTicket.submittedByDept)}`}>
                             {getSubmittedByBadgeLabel(viewingTicket.submittedByDept)}
                           </span>
                         ) : null}
-                       </div>
-                     </div>
-                   </div>
-                   <div className="min-w-0 h-full">
-                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Assigned To</p>
-                     <div className="flex items-start gap-3 bg-white p-3 rounded-xl border border-blue-100/50 shadow-sm h-full min-w-0">
-                       <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-black">{getInitials(viewingTicket.assignedTo)}</div>
-                       <div className="min-w-0 flex-1">
-                         <span className="font-bold text-[#0F172A] text-[13px] block wrap-break-word leading-snug">{viewingTicket.assignedTo}</span>
-                         <span className="mt-0.5 block text-[9px] font-black text-[#2563EB] uppercase tracking-wide wrap-break-word">{viewingTicket.department}</span>
-                       </div>
-                     </div>
-                   </div>
-                   
-                   {/* Accepted By Tracking */}
-                   {viewingTicket.acceptedBy && (
-                     <div className="col-span-1 sm:col-span-2 border-t border-blue-100 pt-3 mt-1">
-                       <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider flex flex-wrap items-center gap-1.5 bg-indigo-50 w-full px-3 py-1.5 rounded-lg border border-indigo-100"><User size={12} strokeWidth={2.5}/> Currently Accepted By: <span className="font-black text-indigo-900 wrap-break-word normal-case ml-0 sm:ml-1">{viewingTicket.acceptedBy}</span></p>
-                     </div>
-                   )}
-                 </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="min-w-0 h-full">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Assigned To</p>
+                    <div className="flex items-start gap-3 bg-white p-3 rounded-xl border border-blue-100/50 shadow-sm h-full min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-black">{getInitials(viewingTicket.assignedTo)}</div>
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-[#0F172A] text-[13px] block wrap-break-word leading-snug">{viewingTicket.assignedTo}</span>
+                        <span className="mt-0.5 block text-[9px] font-black text-[#2563EB] uppercase tracking-wide wrap-break-word">{viewingTicket.department}</span>
+                      </div>
+                    </div>
+                  </div>
 
-                 {((viewingTicket.assetName || viewingTicket.assetCode || viewingTicket.assetDepartment) && requiresAssetSnapshotDepartment(viewingTicket.department)) && (
-                   <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-sm">
-                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Asset Snapshot</p>
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
-                       <div>
-                         <p className="text-slate-400 font-semibold">Asset</p>
-                         <p className="font-bold text-slate-900">{viewingTicket.assetName || 'Asset'}</p>
-                       </div>
-                       <div>
-                         <p className="text-slate-400 font-semibold">Asset Code</p>
-                         <p className="font-bold text-slate-900">{viewingTicket.assetCode || viewingTicket.assetId || 'N/A'}</p>
-                       </div>
-                       <div>
-                         <p className="text-slate-400 font-semibold">Department</p>
-                         <p className="font-bold text-slate-900">{viewingTicket.assetDepartment || viewingTicket.department}</p>
-                       </div>
-                       <div>
-                         <p className="text-slate-400 font-semibold">Assigned To</p>
-                         <p className="font-bold text-slate-900">{viewingTicket.assetAssignedTo || 'Unassigned'}</p>
-                       </div>
-                       <div>
-                         <p className="text-slate-400 font-semibold">Due Date</p>
-                         <p className="font-bold text-slate-900">{viewingTicket.dueDate || 'Not set'}</p>
-                       </div>
-                     </div>
-                   </div>
-                 )}
+                  {/* Accepted By Tracking */}
+                  {viewingTicket.acceptedBy && (
+                    <div className="col-span-1 sm:col-span-2 border-t border-blue-100 pt-3 mt-1">
+                      <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider flex flex-wrap items-center gap-1.5 bg-indigo-50 w-full px-3 py-1.5 rounded-lg border border-indigo-100"><User size={12} strokeWidth={2.5} /> Currently Accepted By: <span className="font-black text-indigo-900 wrap-break-word normal-case ml-0 sm:ml-1">{viewingTicket.acceptedBy}</span></p>
+                    </div>
+                  )}
+                </div>
 
-                 {/* ================= ACTIONS AREA ================= */}
-                 
-                 {/* 1. Action - Accept Ticket (Automatically sets to In Progress) */}
-                  {(isDepartmentManagerProfile && isDepartmentQueueTicket(viewingTicket) && viewingTicket.status === 'Open') ||
+                {((viewingTicket.assetName || viewingTicket.assetCode || viewingTicket.assetDepartment) && requiresAssetSnapshotDepartment(viewingTicket.department)) && (
+                  <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-sm">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Asset Snapshot</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
+                      <div>
+                        <p className="text-slate-400 font-semibold">Asset</p>
+                        <p className="font-bold text-slate-900">{viewingTicket.assetName || 'Asset'}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 font-semibold">Asset Code</p>
+                        <p className="font-bold text-slate-900">{viewingTicket.assetCode || viewingTicket.assetId || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 font-semibold">Department</p>
+                        <p className="font-bold text-slate-900">{viewingTicket.assetDepartment || viewingTicket.department}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 font-semibold">Assigned To</p>
+                        <p className="font-bold text-slate-900">{viewingTicket.assetAssignedTo || 'Unassigned'}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 font-semibold">Due Date</p>
+                        <p className="font-bold text-slate-900">{viewingTicket.dueDate || 'Not set'}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ================= ACTIONS AREA ================= */}
+
+                {/* 1. Action - Accept Ticket (Automatically sets to In Progress) */}
+                {(isDepartmentManagerProfile && isDepartmentQueueTicket(viewingTicket) && viewingTicket.status === 'Open') ||
                   (isAdminTicketProfile && isAdminDepartmentQueueTicket(viewingTicket) && viewingTicket.status === 'Open') ||
                   ((isOwnerProfile || isSuperAdminProfile) && isDepartmentQueueTicket(viewingTicket) && viewingTicket.status === 'Open') ||
                   (isEmployeeTicketProfile && isEmployeeDepartmentTaskTicket(viewingTicket) && viewingTicket.status === 'Open') ? (
-                    <div className="bg-amber-50 border border-amber-200 p-4 sm:p-5 rounded-2xl flex flex-col gap-4 shadow-sm animate-in slide-in-from-bottom-4">
-                      <div>
-                        <h4 className="font-bold text-amber-900 text-[14px]">
-                          Accept Department Ticket
-                        </h4>
-                        <p className="text-[11px] text-amber-700 font-medium mt-0.5">
-                          {isEmployeeTicketProfile
-                            ? 'Accept this ticket for yourself only.'
-                            : 'Accept for yourself or assign it directly to a department member.'}
-                        </p>
+                  <div className="bg-amber-50 border border-amber-200 p-4 sm:p-5 rounded-2xl flex flex-col gap-4 shadow-sm animate-in slide-in-from-bottom-4">
+                    <div>
+                      <h4 className="font-bold text-amber-900 text-[14px]">
+                        Accept Department Ticket
+                      </h4>
+                      <p className="text-[11px] text-amber-700 font-medium mt-0.5">
+                        {isEmployeeTicketProfile
+                          ? 'Accept this ticket for yourself only.'
+                          : 'Accept for yourself or assign it directly to a department member.'}
+                      </p>
+                    </div>
+                    {isEmployeeTicketProfile ? null : (
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Accept as</label>
+                        <select
+                          className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all"
+                          value={ticketQueueAssigneeUserId || ''}
+                          onChange={(e) => setTicketQueueAssigneeUserId(e.target.value)}
+                        >
+                          <option value={currentUserId || ''}>Self</option>
+                          {canDelegateDepartmentQueueTicket ? (
+                            ticketQueueAcceptanceOptions.map((member) => (
+                              <option key={member.id} value={member.userId || member.id}>
+                                {member.name} ({member.role})
+                              </option>
+                            ))
+                          ) : null}
+                        </select>
                       </div>
-                      {isEmployeeTicketProfile ? null : (
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Accept as</label>
-                          <select
-                            className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all"
-                            value={ticketQueueAssigneeUserId || ''}
-                            onChange={(e) => setTicketQueueAssigneeUserId(e.target.value)}
-                          >
-                            <option value={currentUserId || ''}>Self</option>
-                            {canDelegateDepartmentQueueTicket ? (
-                              ticketQueueAcceptanceOptions.map((member) => (
-                                <option key={member.id} value={member.userId || member.id}>
-                                  {member.name} ({member.role})
-                                </option>
-                              ))
-                            ) : null}
-                          </select>
-                        </div>
+                    )}
+                    <button
+                      onClick={() => handleAcceptTicket(
+                        isEmployeeTicketProfile
+                          ? {}
+                          : (
+                            ticketQueueAssigneeUserId && String(ticketQueueAssigneeUserId) !== String(currentUserId)
+                              ? { assigneeUserId: ticketQueueAssigneeUserId }
+                              : {}
+                          ),
                       )}
-                      <button
-                        onClick={() => handleAcceptTicket(
-                          isEmployeeTicketProfile
-                            ? {}
-                            : (
-                              ticketQueueAssigneeUserId && String(ticketQueueAssigneeUserId) !== String(currentUserId)
-                                ? { assigneeUserId: ticketQueueAssigneeUserId }
-                                : {}
-                            ),
-                        )}
-                        disabled={isSaving}
-                        className="w-full py-3 sm:py-3.5 rounded-xl font-bold text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        {isSaving ? 'STARTING...' : 'Accept Ticket'}
+                      disabled={isSaving}
+                      className="w-full py-3 sm:py-3.5 rounded-xl font-bold text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {isSaving ? 'STARTING...' : 'Accept Ticket'}
+                    </button>
+                  </div>
+                ) : isMyReceivedTicket(viewingTicket) && viewingTicket.status === 'Open' && (
+                  <div className="bg-amber-50 border border-amber-200 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-in slide-in-from-bottom-4">
+                    <div>
+                      <h4 className="font-bold text-amber-900 text-[14px]">Acknowledge Ticket</h4>
+                      <p className="text-[11px] text-amber-700 font-medium mt-0.5">Accepting this will move it to "In Progress".</p>
+                    </div>
+                    <button onClick={() => handleAcceptTicket()} className="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-[11px] tracking-wider transition-colors shadow-sm w-full sm:w-auto uppercase">
+                      ACCEPT TICKET
+                    </button>
+                  </div>
+                )}
+
+                {/* 2. Action - Resolve Issue */}
+                {canCurrentUserChangeTicketStatus(viewingTicket) && viewingTicket.status === 'In Progress' && !showResolvePrompt && (
+                  <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="w-full sm:w-auto text-left">
+                      <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">Update Progress</h3>
+                      <p className="text-[12px] text-slate-500 font-medium mt-0.5">Is the issue completely fixed?</p>
+                    </div>
+                    <button onClick={() => handleUpdateStatus('Resolved')} className="w-full sm:w-auto px-6 py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-all flex items-center justify-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white shadow-sm">
+                      <CheckCircle2 size={16} strokeWidth={2.5} /> Resolve Issue
+                    </button>
+                  </div>
+                )}
+
+                {/* Mandatory Resolution Message Prompt */}
+                {showResolvePrompt && canCurrentUserChangeTicketStatus(viewingTicket) && (
+                  <div className="bg-emerald-50 border border-emerald-200 p-4 sm:p-5 rounded-2xl shadow-sm animate-in slide-in-from-bottom-4">
+                    <h3 className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider mb-3 flex items-center gap-2"><CheckSquare size={14} /> Resolution Requirements</h3>
+                    <textarea
+                      required rows={3}
+                      placeholder="Explain how this issue was resolved... (This will be sent to the raiser)"
+                      className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl font-medium text-slate-700 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none resize-none mb-3 shadow-sm placeholder:text-slate-400 text-[13px]"
+                      value={resolutionMessage} onChange={e => setResolutionMessage(e.target.value)}
+                    />
+                    <div className="flex flex-col-reverse sm:flex-row gap-3">
+                      <button onClick={() => setShowResolvePrompt(false)} className="px-5 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-slate-50 w-full sm:w-auto">Cancel</button>
+                      <button onClick={confirmResolution} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-[11px] uppercase tracking-wider shadow-[0_4px_12px_rgba(5,150,105,0.2)] transition-all">
+                        CONFIRM RESOLUTION
                       </button>
                     </div>
-                  ) : isMyReceivedTicket(viewingTicket) && viewingTicket.status === 'Open' && (
-                    <div className="bg-amber-50 border border-amber-200 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-in slide-in-from-bottom-4">
-                      <div>
-                        <h4 className="font-bold text-amber-900 text-[14px]">Acknowledge Ticket</h4>
-                        <p className="text-[11px] text-amber-700 font-medium mt-0.5">Accepting this will move it to "In Progress".</p>
-                     </div>
-                     <button onClick={() => handleAcceptTicket()} className="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-[11px] tracking-wider transition-colors shadow-sm w-full sm:w-auto uppercase">
-                       ACCEPT TICKET
-                     </button>
-                   </div>
-                 )}
+                  </div>
+                )}
 
-                 {/* 2. Action - Resolve Issue */}
-                 {canCurrentUserChangeTicketStatus(viewingTicket) && viewingTicket.status === 'In Progress' && !showResolvePrompt && (
-                   <div className="bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-                     <div className="w-full sm:w-auto text-left">
-                       <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">Update Progress</h3>
-                       <p className="text-[12px] text-slate-500 font-medium mt-0.5">Is the issue completely fixed?</p>
-                     </div>
-                     <button onClick={() => handleUpdateStatus('Resolved')} className="w-full sm:w-auto px-6 py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-all flex items-center justify-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white shadow-sm">
-                       <CheckCircle2 size={16} strokeWidth={2.5}/> Resolve Issue
-                     </button>
-                   </div>
-                 )}
+                {/* Raise Follow Up (If Owner raised it, and it was resolved but still broken) */}
+                {((activeTab === 'my_raised' || activeTab === 'my_raised_tickets') || isMyRaisedTicket(viewingTicket) || isEmployeeRaisedTicket(viewingTicket)) && viewingTicket.status === 'Resolved' && (
+                  <div className="bg-red-50 border border-red-100 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-in slide-in-from-bottom-4">
+                    <div className="w-full sm:w-auto">
+                      <h4 className="font-bold text-red-900 text-[14px]">Issue Not Fixed?</h4>
+                      <p className="text-[11px] text-red-700 font-medium mt-0.5">Re-open this loop with a linked follow-up ticket.</p>
+                    </div>
+                    <button onClick={handleRaiseFollowUp} className="px-5 py-3 bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white rounded-xl font-bold text-[11px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
+                      <Reply size={14} strokeWidth={2.5} /> Raise Follow-up
+                    </button>
+                  </div>
+                )}
 
-                 {/* Mandatory Resolution Message Prompt */}
-                 {showResolvePrompt && canCurrentUserChangeTicketStatus(viewingTicket) && (
-                   <div className="bg-emerald-50 border border-emerald-200 p-4 sm:p-5 rounded-2xl shadow-sm animate-in slide-in-from-bottom-4">
-                     <h3 className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider mb-3 flex items-center gap-2"><CheckSquare size={14}/> Resolution Requirements</h3>
-                     <textarea 
-                       required rows={3} 
-                       placeholder="Explain how this issue was resolved... (This will be sent to the raiser)" 
-                       className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl font-medium text-slate-700 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none resize-none mb-3 shadow-sm placeholder:text-slate-400 text-[13px]" 
-                       value={resolutionMessage} onChange={e => setResolutionMessage(e.target.value)} 
-                     />
-                     <div className="flex flex-col-reverse sm:flex-row gap-3">
-                       <button onClick={() => setShowResolvePrompt(false)} className="px-5 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-slate-50 w-full sm:w-auto">Cancel</button>
-                       <button onClick={confirmResolution} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-[11px] uppercase tracking-wider shadow-[0_4px_12px_rgba(5,150,105,0.2)] transition-all">
-                         CONFIRM RESOLUTION
-                       </button>
-                     </div>
-                   </div>
-                 )}
+                {canCurrentUserChangeTicketStatus(viewingTicket) && viewingTicket.status === 'Resolved' && (
+                  <div className="bg-slate-50 border border-slate-200 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+                    <div className="w-full sm:w-auto">
+                      <h4 className="font-bold text-slate-900 text-[14px]">Close Ticket</h4>
+                      <p className="text-[11px] text-slate-600 font-medium mt-0.5">Mark this resolved ticket as formally closed.</p>
+                    </div>
+                    <button onClick={() => handleUpdateStatus('Closed')} className="px-5 py-3 bg-slate-900 border border-slate-900 text-white hover:bg-black rounded-xl font-bold text-[11px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
+                      <CheckSquare size={14} strokeWidth={2.5} /> Close Ticket
+                    </button>
+                  </div>
+                )}
 
-                 {/* Raise Follow Up (If Owner raised it, and it was resolved but still broken) */}
-                 {((activeTab === 'my_raised' || activeTab === 'my_raised_tickets') || isMyRaisedTicket(viewingTicket) || isEmployeeRaisedTicket(viewingTicket)) && viewingTicket.status === 'Resolved' && (
-                   <div className="bg-red-50 border border-red-100 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-in slide-in-from-bottom-4">
-                     <div className="w-full sm:w-auto">
-                       <h4 className="font-bold text-red-900 text-[14px]">Issue Not Fixed?</h4>
-                       <p className="text-[11px] text-red-700 font-medium mt-0.5">Re-open this loop with a linked follow-up ticket.</p>
-                     </div>
-                     <button onClick={handleRaiseFollowUp} className="px-5 py-3 bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white rounded-xl font-bold text-[11px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
-                       <Reply size={14} strokeWidth={2.5}/> Raise Follow-up
-                     </button>
-                   </div>
-                 )}
-
-                 {canCurrentUserChangeTicketStatus(viewingTicket) && viewingTicket.status === 'Resolved' && (
-                   <div className="bg-slate-50 border border-slate-200 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
-                     <div className="w-full sm:w-auto">
-                       <h4 className="font-bold text-slate-900 text-[14px]">Close Ticket</h4>
-                       <p className="text-[11px] text-slate-600 font-medium mt-0.5">Mark this resolved ticket as formally closed.</p>
-                     </div>
-                     <button onClick={() => handleUpdateStatus('Closed')} className="px-5 py-3 bg-slate-900 border border-slate-900 text-white hover:bg-black rounded-xl font-bold text-[11px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
-                       <CheckSquare size={14} strokeWidth={2.5}/> Close Ticket
-                     </button>
-                   </div>
-                 )}
-
-                 {canCreateRepairLogForTicket(viewingTicket) && (
-                     <div className="bg-cyan-50 border border-cyan-100 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
-                       <div className="w-full sm:w-auto">
-                         <h4 className="font-bold text-cyan-950 text-[14px]">Create Repair Log</h4>
-                         <p className="text-[11px] text-cyan-800 font-medium mt-0.5">Push this IT or Maintenance ticket into the repair-log workflow.</p>
-                         {hasLinkedRepairLog ? (
-                           <div className="mt-2 space-y-2">
-                             <p className="inline-flex items-center gap-1 rounded-full border border-cyan-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wider text-cyan-700">
-                               Repair log added{linkedRepairLogCode ? ` • ${linkedRepairLogCode}` : ''}
-                             </p>
-                             <p className="text-[11px] font-semibold text-cyan-900">
-                               Assigned to <span className="font-black">{linkedRepairLogAssignee || 'Unassigned'}</span>
-                             </p>
-                             {linkedRepairLogStatus ? (
-                               <p className="text-[11px] font-semibold text-cyan-900">
-                                 Status <span className="font-black">{linkedRepairLogStatus}</span>
-                               </p>
-                             ) : null}
-                           </div>
-                         ) : null}
-                       </div>
-                     {!hasLinkedRepairLog ? (
-                       <button
-                         onClick={() => handleOpenRepairLog(viewingTicket)}
-                         className="px-5 py-3 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto bg-cyan-600 hover:bg-cyan-700 text-white"
-                       >
-                         <Wrench size={14} strokeWidth={2.5}/> Open Repair Log
-                       </button>
-                     ) : null}
-                   </div>
-                 )}
+                {canCreateRepairLogForTicket(viewingTicket) && (
+                  <div className="bg-cyan-50 border border-cyan-100 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
+                    <div className="w-full sm:w-auto">
+                      <h4 className="font-bold text-cyan-950 text-[14px]">Create Repair Log</h4>
+                      <p className="text-[11px] text-cyan-800 font-medium mt-0.5">Push this IT or Maintenance ticket into the repair-log workflow.</p>
+                      {hasLinkedRepairLog ? (
+                        <div className="mt-2 space-y-2">
+                          <p className="inline-flex items-center gap-1 rounded-full border border-cyan-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wider text-cyan-700">
+                            Repair log added{linkedRepairLogCode ? ` • ${linkedRepairLogCode}` : ''}
+                          </p>
+                          <p className="text-[11px] font-semibold text-cyan-900">
+                            Assigned to <span className="font-black">{linkedRepairLogAssignee || 'Unassigned'}</span>
+                          </p>
+                          {linkedRepairLogStatus ? (
+                            <p className="text-[11px] font-semibold text-cyan-900">
+                              Status <span className="font-black">{linkedRepairLogStatus}</span>
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                    {!hasLinkedRepairLog ? (
+                      <button
+                        onClick={() => handleOpenRepairLog(viewingTicket)}
+                        className="px-5 py-3 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto bg-cyan-600 hover:bg-cyan-700 text-white"
+                      >
+                        <Wrench size={14} strokeWidth={2.5} /> Open Repair Log
+                      </button>
+                    ) : null}
+                  </div>
+                )}
 
               </div>
             </div>
