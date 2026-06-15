@@ -63,7 +63,7 @@ const meetingRoomBookingSchema = new Schema<IMeetingRoomBooking>(
         },
         roomId: {
             type: Schema.Types.ObjectId,
-            ref: "MeetingRoom",
+            ref: "Resource",
             required: true,
             index: true,
         },

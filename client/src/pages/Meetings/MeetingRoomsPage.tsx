@@ -63,6 +63,7 @@ interface RoomDetails {
   type: string;
   floor: string;
   wing: string;
+  location: string;
   capacity: number;
   status: string;
   activationReady: boolean;
@@ -93,6 +94,7 @@ interface Booking {
   roomName: string;
   floor?: string;
   wing?: string;
+  location: string;
   roomType?: string;
   date: string;
   startTime: string;
@@ -156,7 +158,6 @@ const MEETING_ROOM_EXTENSION_RATES = {
   Cabin: 800,
 };
 
-const ROOM_TYPE_OPTIONS = ['Meeting Room', 'Conference Room'];
 const BOOKING_SLOT_STEP_MINUTES = 5;
 const BOOKING_MIN_DURATION_MINUTES = 30;
 function normalizeBookingFloor(value: string | number = '') {
@@ -196,6 +197,7 @@ function normalizeRoomEntry(room: any) {
     type: room.type || getMeetingRoomTypeFromName(room.name),
     floor: normalizeBookingFloor(room.floor),
     wing: normalizeBookingWing(room.wing),
+    location: String(room.location || '').trim(),
     capacity: Number(room.capacity || 0),
     status: room.status || 'Active',
     activationReady: room.activationReady !== false,
@@ -446,6 +448,7 @@ export function MeetingRoomsPage() {
     roomName: '',
     floor: '',
     wing: '',
+    location: '',
     roomType: '',
     date: '',
     startTime: '',
@@ -1740,21 +1743,27 @@ export function MeetingRoomsPage() {
   const bookingSuggestions = getSuggestedSlots(newBooking.roomName, newBooking.date, newBooking.startTime, newBooking.endTime);
   const roomDayStatus = getRoomDayStatus(newBooking.roomName, newBooking.date);
   const roomCatalog = useMemo(() => roomDetails.map((room: any) => normalizeRoomEntry(room)), [roomDetails]);
+  const availableRoomTypes = useMemo(() => Array.from(
+    new Set(roomCatalog.map((room) => room.type).filter(Boolean)),
+  ), [roomCatalog]);
+  const selectedBookingRoomType = newBooking.roomType || '';
   const availableFloors = useMemo(() => {
     const floors = Array.from(
       new Set(
         roomCatalog
+          .filter((room) => !selectedBookingRoomType || room.type === selectedBookingRoomType)
           .map((room) => room.floor)
           .filter(Boolean),
       ),
     );
     return floors;
-  }, [roomCatalog]);
+  }, [roomCatalog, selectedBookingRoomType]);
   const selectedBookingFloor = newBooking.floor ? normalizeBookingFloor(newBooking.floor) : '';
   const availableWings = useMemo(() => {
-    const sourceRooms = selectedBookingFloor
-      ? roomCatalog.filter((room) => room.floor === selectedBookingFloor)
-      : roomCatalog;
+    const sourceRooms = roomCatalog.filter((room) =>
+      (!selectedBookingRoomType || room.type === selectedBookingRoomType) &&
+      (!selectedBookingFloor || room.floor === selectedBookingFloor),
+    );
     return Array.from(
       new Set(
         sourceRooms
@@ -1762,13 +1771,17 @@ export function MeetingRoomsPage() {
           .filter(Boolean),
       ),
     );
-  }, [roomCatalog, selectedBookingFloor]);
+  }, [roomCatalog, selectedBookingFloor, selectedBookingRoomType]);
   const selectedBookingWing = newBooking.wing ? normalizeBookingWing(newBooking.wing) : '';
-  const selectedBookingRoomType = newBooking.roomType || '';
+
   const bookingRoomsOnFloor = useMemo(() => {
     if (!selectedBookingFloor) return [];
-    return roomCatalog.filter((room) => room.floor === selectedBookingFloor && isActiveRoom(room));
-  }, [roomCatalog, selectedBookingFloor]);
+    return roomCatalog.filter((room) =>
+      room.floor === selectedBookingFloor &&
+      (!selectedBookingRoomType || room.type === selectedBookingRoomType) &&
+      isActiveRoom(room),
+    );
+  }, [roomCatalog, selectedBookingFloor, selectedBookingRoomType]);
   const floorHasWingValues = useMemo(
     () => bookingRoomsOnFloor.some((room) => Boolean(normalizeBookingWing(room.wing))),
     [bookingRoomsOnFloor],
@@ -1781,6 +1794,13 @@ export function MeetingRoomsPage() {
     if (!selectedBookingRoomType) return [];
     return bookingRoomsOnSelectedFloorAndWing.filter((room) => room.type === selectedBookingRoomType);
   }, [bookingRoomsOnSelectedFloorAndWing, selectedBookingRoomType]);
+  const availableLocations = useMemo(() => Array.from(new Set(
+    bookingRoomsOnSelectedFloorAndType.map((room) => room.location).filter(Boolean),
+  )), [bookingRoomsOnSelectedFloorAndType]);
+  const bookingRoomsAtSelectedLocation = useMemo(() => {
+    if (!newBooking.location) return bookingRoomsOnSelectedFloorAndType;
+    return bookingRoomsOnSelectedFloorAndType.filter((room) => room.location === newBooking.location);
+  }, [bookingRoomsOnSelectedFloorAndType, newBooking.location]);
   const selectedFloorRoomTypeCount = bookingRoomsOnSelectedFloorAndWing.filter(
     (room) => room.type === selectedBookingRoomType,
   ).length;
@@ -1799,12 +1819,13 @@ export function MeetingRoomsPage() {
         ? normalizeBookingWing(prev.wing)
         : '';
       const nextType = prev.roomType || '';
+      const nextLocation = prev.location && availableLocations.includes(prev.location) ? prev.location : '';
       const nextRoomName =
         prev.roomName &&
-          roomCatalog.some((room) => room.name === prev.roomName && room.floor === nextFloor && (!nextWing || normalizeBookingWing(room.wing) === nextWing) && room.type === nextType)
+          roomCatalog.some((room) => room.name === prev.roomName && room.floor === nextFloor && (!nextWing || normalizeBookingWing(room.wing) === nextWing) && room.type === nextType && (!nextLocation || room.location === nextLocation))
           ? prev.roomName
           : '';
-      if (prev.floor === nextFloor && prev.wing === nextWing && prev.roomType === nextType && prev.roomName === nextRoomName) {
+      if (prev.floor === nextFloor && prev.wing === nextWing && prev.roomType === nextType && prev.location === nextLocation && prev.roomName === nextRoomName) {
         return prev;
       }
       return {
@@ -1812,10 +1833,11 @@ export function MeetingRoomsPage() {
         floor: nextFloor,
         wing: nextWing,
         roomType: nextType,
+        location: nextLocation,
         roomName: nextRoomName,
       };
     });
-  }, [availableFloors, availableWings, roomCatalog, showBookingDialog]);
+  }, [availableFloors, availableLocations, availableWings, roomCatalog, showBookingDialog]);
   const inviteDepartments = useMemo(() => {
     const grouped = new Map();
     const groupPriority = new Map([
@@ -1919,7 +1941,7 @@ export function MeetingRoomsPage() {
       return;
     }
 
-    setNewBooking({ roomName: '', floor: '', wing: '', roomType: '', date: '', startTime: '', endTime: '', purpose: '', inviteeUserIds: [] });
+    setNewBooking({ roomName: '', floor: '', wing: '', location: '', roomType: '', date: '', startTime: '', endTime: '', purpose: '', inviteeUserIds: [] });
     setShowBookingDialog(false);
     setIsSavingBooking(false);
   };
@@ -2757,10 +2779,10 @@ export function MeetingRoomsPage() {
                       <select
                         className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
                         value={newBooking.roomType}
-                        onChange={(e) => setNewBooking((prev) => ({ ...prev, roomType: e.target.value, roomName: '' }))}
+                        onChange={(e) => setNewBooking((prev) => ({ ...prev, roomType: e.target.value, floor: '', wing: '', location: '', roomName: '' }))}
                       >
                         <option value="" disabled>Select room type</option>
-                        {ROOM_TYPE_OPTIONS.map((type) => (
+                        {availableRoomTypes.map((type) => (
                           <option key={type} value={type}>{type}</option>
                         ))}
                       </select>
@@ -2774,7 +2796,7 @@ export function MeetingRoomsPage() {
                       <select
                         className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
                         value={newBooking.floor}
-                        onChange={(e) => setNewBooking((prev) => ({ ...prev, floor: e.target.value, roomName: '' }))}
+                        onChange={(e) => setNewBooking((prev) => ({ ...prev, floor: e.target.value, wing: '', location: '', roomName: '' }))}
                       >
                         <option value="" disabled>Select floor</option>
                         {availableFloors.map((floor) => (
@@ -2791,7 +2813,7 @@ export function MeetingRoomsPage() {
                       <select
                         className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
                         value={newBooking.wing}
-                        onChange={(e) => setNewBooking((prev) => ({ ...prev, wing: e.target.value, roomName: '' }))}
+                        onChange={(e) => setNewBooking((prev) => ({ ...prev, wing: e.target.value, location: '', roomName: '' }))}
                       >
                         <option value="">{floorHasWingValues ? 'Any wing' : 'No wing configured'}</option>
                         {availableWings.map((wing) => (
@@ -2816,6 +2838,23 @@ export function MeetingRoomsPage() {
                     <div className="relative">
                       <select
                         className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
+                        value={newBooking.location}
+                        onChange={(e) => setNewBooking((prev) => ({ ...prev, location: e.target.value, roomName: '' }))}
+                      >
+                        <option value="">Any location</option>
+                        {availableLocations.map((location) => (
+                          <option key={location} value={location}>{location}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meeting Room</label>
+                    <div className="relative">
+                      <select
+                        className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
                         value={newBooking.roomName}
                         onChange={(e) => {
                           const roomName = e.target.value;
@@ -2825,13 +2864,14 @@ export function MeetingRoomsPage() {
                             roomName,
                             floor: selectedRoom?.floor || prev.floor,
                             wing: selectedRoom?.wing || prev.wing,
+                            location: selectedRoom?.location || prev.location,
                             roomType: selectedRoom?.type || prev.roomType,
                           }));
                         }}
                       >
                         <option value="">-- Choose a Room --</option>
-                        {bookingRoomsOnSelectedFloorAndType.length > 0 ? (
-                          bookingRoomsOnSelectedFloorAndType.map((room) => (
+                        {bookingRoomsAtSelectedLocation.length > 0 ? (
+                          bookingRoomsAtSelectedLocation.map((room) => (
                             <option key={room.name} value={room.name} disabled={!isActiveRoom(room)}>
                               {getRoomOptionLabel(room.name)}
                             </option>

@@ -2,7 +2,7 @@
 import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 import { MeetingRoomBooking } from "../models/MeetingRoomBooking.js";
-import { MeetingRoom } from "../models/MeetingRoom.js";
+import { Resource } from "../models/Resource.js";
 import HostUser from "../models/HostUser.js";
 
 interface AuthenticatedRequest extends Request {
@@ -15,6 +15,12 @@ const getValidObjectId = (id: any): string | null =>
 
 const workspaceIdFor = (req: AuthenticatedRequest) => req.workspaceMembership?.workspace || "";
 const ACTIVE_BOOKING_STATUSES = { $nin: ["cancelled", "completed"] };
+const MEETING_ROOM_RESOURCE_FILTER = {
+    $or: [
+        { resourceCategory: { $in: ["meeting_room", "conference_room"] } },
+        { type: { $in: ["Meeting Room", "Conference Room"] } },
+    ],
+};
 
 const dateTimeParts = (date: Date) => {
     const parts = new Intl.DateTimeFormat("en-GB", {
@@ -77,7 +83,13 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
         if (!workspaceId || !req.user) return res.status(401).json({ message: "An active workspace is required" });
         if (!roomId || !purpose?.trim() || !range) return res.status(400).json({ message: "Room, valid start/end times, and purpose are required" });
 
-        const room = await MeetingRoom.findOne({ _id: roomId, workspaceId, isActive: true, status: "Active" }).lean().exec();
+        const room = await Resource.findOne({
+            _id: roomId,
+            workspaceId,
+            isActive: true,
+            status: "Active",
+            ...MEETING_ROOM_RESOURCE_FILTER,
+        }).lean().exec();
         if (!room) return res.status(404).json({ message: "Meeting room not found or inactive" });
         const attendeeCount = Math.max(1, Number(attendees || inviteeUserIds.length + 1));
         if (attendeeCount > Number(room.capacity || 0)) return res.status(400).json({ message: "Attendee count exceeds room capacity" });
@@ -119,13 +131,18 @@ export const getBookings = async (req: AuthenticatedRequest, res: Response, next
         if (!workspaceId || workspaceId !== req.params.workspaceId) return res.status(403).json({ message: "Workspace access denied" });
         const [bookings, rooms] = await Promise.all([
             MeetingRoomBooking.find({ workspaceId }).populate("roomId", "name type capacity floor wing").populate("ownerId", "name email").sort({ start: -1 }).lean().exec(),
-            MeetingRoom.find({ workspaceId, isActive: true }).sort({ sortOrder: 1, name: 1 }).lean().exec(),
+            Resource.find({
+                workspaceId,
+                isActive: true,
+                status: "Active",
+                ...MEETING_ROOM_RESOURCE_FILTER,
+            }).sort({ sortOrder: 1, name: 1 }).lean().exec(),
         ]);
         const transformedBookings = bookings.map((booking: any) => transformBooking(booking, req.user));
         const receivedInvites = transformedBookings.flatMap((booking: any) => (booking.invites || [])
             .filter((invite: any) => String(invite.invitedUserId || "") === String(req.user || ""))
             .map((invite: any) => ({ ...invite, bookingId: booking.recordId, roomName: booking.roomName, bookedByName: booking.bookedByName, date: booking.date, startTime: booking.startTime, endTime: booking.endTime })));
-        const roomDetails = rooms.map((room: any) => ({ ...room, credits: room.creditsPerHour || 0, pricePerHour: room.creditsPerHour || 0, pricePerDay: 0, activationReady: room.isActive && room.status === "Active" }));
+        const roomDetails = rooms.map((room: any) => ({ ...room, activationReady: room.isActive && room.status === "Active" }));
         return res.status(200).json({ message: "Bookings fetched successfully", data: { roomDetails, bookings: transformedBookings, receivedInvites } });
     } catch (error: any) { next(error); }
 };
