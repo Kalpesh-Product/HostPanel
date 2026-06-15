@@ -6,7 +6,7 @@ export interface IResource extends Document {
     resourceNumber: number;
     resourceCode: string;
     name: string;
-    type: "Desk" | "Meeting Room" | "Conference Room" | "Cabin" | "Virtual Office";
+    type: "Open Desk" | "Meeting Room" | "Conference Room" | "Cabin Desk" | "Virtual Office";
     resourceCategory: string;
     inventoryMode: string;
     assignedTenantCompanyId?: mongoose.Types.ObjectId | null;
@@ -84,7 +84,7 @@ const resourceSchema = new Schema<IResource>(
             type: String,
             required: true,
             trim: true,
-            enum: ["Desk", "Meeting Room", "Conference Room", "Cabin", "Virtual Office"],
+            enum: ["Open Desk", "Meeting Room", "Conference Room", "Cabin Desk", "Virtual Office"],
             index: true,
         },
         resourceCategory: {

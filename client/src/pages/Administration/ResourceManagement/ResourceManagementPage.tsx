@@ -193,10 +193,10 @@ function statusClass(status?: string): string {
 }
 
 function typeIcon(type?: string): React.ReactNode {
-  if (type === 'Desk') return <Monitor size={16} />;
+  if (type === 'Open Desk') return <Monitor size={16} />;
   if (type === 'Meeting Room') return <Users size={16} />;
   if (type === 'Conference Room') return <Mic size={16} />;
-  if (type === 'Cabin') return <Building2 size={16} />;
+  if (type === 'Cabin Desk') return <Building2 size={16} />;
   if (type === 'Virtual Office') return <Building2 size={16} />;
   return <LayoutGrid size={16} />;
 }
@@ -207,8 +207,8 @@ function getResourceCategoryLabel(value = ''): string {
 
 function deriveResourceTypeFromCategory(category = ''): string {
   if (!category) return '';
-  if (category === 'open_desk') return 'Desk';
-  if (category === 'cabin_desk') return 'Cabin';
+  if (category === 'open_desk') return 'Open Desk';
+  if (category === 'cabin_desk') return 'Cabin Desk';
   if (category === 'conference_room') return 'Conference Room';
   if (category === 'virtual_office') return 'Virtual Office';
   return 'Meeting Room';
@@ -447,7 +447,7 @@ class ResourceManagementErrorBoundary extends React.Component<ErrorBoundaryProps
     if (this.state.error) {
       return (
         <AppShell>
-      <div className="overflow-x-hidden p-2 lg:p-2.5">
+          <div className="overflow-x-hidden p-2 lg:p-2.5">
             <PageFrame>
               <div className="mx-auto max-w-4xl rounded-3xl border border-red-200 bg-white p-6 shadow-sm">
                 <div className="flex items-start gap-4">
@@ -1152,11 +1152,10 @@ function ResourceManagementPageInner() {
                           <td className="px-3.5 py-2 text-center text-sm font-bold text-slate-900 whitespace-nowrap">{getResourceCategoryLabel(resource.resourceCategory)}</td>
                           <td className="px-3.5 py-2 text-center">
                             {isDeskCategory(resource.resourceCategory) ? (
-                              <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.22em] ${
-                                resource.inventoryMode === 'single'
-                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                  : 'border-indigo-200 bg-indigo-50 text-indigo-700'
-                              }`}>
+                              <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.22em] ${resource.inventoryMode === 'single'
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                : 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                                }`}>
                                 {getInventoryModeLabel(resource.inventoryMode)}
                               </span>
                             ) : (

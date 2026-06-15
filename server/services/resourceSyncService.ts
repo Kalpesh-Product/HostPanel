@@ -9,7 +9,7 @@ export const resourceCategories = [
     "conference_room",
     "virtual_office",
 ];
-export const resourceTypes = ["Desk", "Meeting Room", "Conference Room", "Cabin", "Virtual Office"];
+export const resourceTypes = ["Open Desk", "Meeting Room", "Conference Room", "Cabin Desk", "Virtual Office"];
 export const resourceStatuses = ["Active", "Under Maintenance", "Disabled"];
 export const floorFallbacks = ["501", "601", "701"];
 export const wingFallbacks = ["A", "B"];
