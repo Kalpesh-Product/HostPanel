@@ -19,7 +19,10 @@ import {
   getStoredActingManagerContext,
   getStoredUser,
 } from '../../lib/auth-session';
-import { createTicket, getTickets } from '../../services/tickets';
+import { createTicket, getTickets, updateTicket } from '../../services/tickets';
+import { getOrganizationOverview } from '../../services/organization';
+import { getAssets } from '../../services/assets';
+import { axiosPrivate } from '../../utils/axios';
 
 // import { getWorkspaceMembers } from '@/services/auth';
 // import { getAssets } from '@/services/assets';
@@ -205,7 +208,10 @@ export function TicketsPage() {
   const [isInitialLoading, setIsInitialLoading] = useState(false);
   const location = useLocation();
 
-  const storedUser = getStoredUser();
+  // Stabilize storedUser to prevent infinite re-renders — getStoredUser() returns
+  // a new object reference on every call (JSON.parse), which would cause useEffect
+  // dependencies to trigger endlessly.
+  const [storedUser] = useState(() => getStoredUser());
   const actingContext = getStoredActingManagerContext(storedUser);
   const rawUserName =
     storedUser?.fullName ||
@@ -241,7 +247,7 @@ export function TicketsPage() {
     role: storedUser?.role || 'owner',
     dept: actingContext?.departmentName || (isOwnerProfile ? 'Founder' : isSuperAdminProfile ? 'Super Admin' : (storedUser?.workspaceMembership?.departments?.[0] || 'Executive')),
   };
-  const currentUserId = storedUser?._id || storedUser?.id || 'user-current';
+  const currentUserId = storedUser?._id || storedUser?.id || '';
   const currentUserDepartments = [
     ...(Array.isArray(storedUser?.workspaceMembership?.departments) ? storedUser.workspaceMembership.departments : []),
     storedUser?.workspaceMembership?.department,
@@ -1255,144 +1261,181 @@ export function TicketsPage() {
     };
   }, []);
 
-  // Syncing with mock directory
+  // Load real workspace members from organization overview API
   useEffect(() => {
     let isMounted = true;
 
     async function loadMembers() {
       if (!isMounted) return;
 
-      const members = [
-        { id: "mem-1", userId: "user-current", name: rawUserName, role: normalizedRole, departments: currentUserDepartments },
-        { id: "mem-2", userId: "user-bob", name: "Bob Johnson", role: "employee", departments: ["IT", "Maintenance"] },
-        { id: "mem-3", userId: "user-charlie", name: "Charlie Brown", role: "employee", departments: ["HR"] },
-        { id: "mem-4", userId: "user-dan", name: "Dan Green", role: "manager", departments: ["Sales"] },
-        { id: "mem-5", userId: "user-eve", name: "Eve White", role: "employee", departments: ["Finance"] },
-      ];
+      try {
+        const response = await getOrganizationOverview(axiosPrivate);
+        const data = response?.data?.data || response?.data || response;
+        const teamMembers = Array.isArray(data?.teamMembers) ? data.teamMembers : [];
+        const departments = Array.isArray(data?.departments) ? data.departments : [];
 
-      const canonicalById = members.reduce((acc, member) => {
-        const memberName = resolveMemberName(member);
-        if (!memberName) {
+        // Build canonical members from real team data
+        const members = teamMembers
+          .filter((member) => member.name || member.email)
+          .map((member) => ({
+            id: member.userId || member.id || '',
+            userId: member.userId || member.id || '',
+            name: member.name || member.email || '',
+            email: member.email || '',
+            role: normalizeRoleValue(member.role || 'employee'),
+            departments: Array.isArray(member.departmentNames) ? member.departmentNames.filter(Boolean) : [],
+          }));
+
+        // Always include current user if not already in the list
+        const currentUserIdStr = String(currentUserId || '').trim();
+        const currentUserInList = members.some((m) => String(m.userId) === currentUserIdStr);
+        if (!currentUserInList && currentUserIdStr) {
+          members.unshift({
+            id: currentUserIdStr,
+            userId: currentUserIdStr,
+            name: rawUserName,
+            email: storedUser?.email || '',
+            role: normalizeRoleValue(normalizedRole),
+            departments: currentUserDepartments,
+          });
+        }
+
+        if (!isMounted) return;
+
+        const canonicalById = members.reduce((acc, member) => {
+          const memberName = resolveMemberName(member);
+          if (!memberName) return acc;
+
+          const memberUserId = member?.userId ? String(member.userId) : '';
+          const key = memberUserId || `${normalizeIdentity(memberName)}::${normalizeIdentity(member?.email || '')}`;
+          if (!acc[key]) {
+            acc[key] = {
+              id: memberUserId || key,
+              userId: memberUserId || '',
+              name: memberName,
+              email: member?.email || '',
+              role: normalizeRoleValue(member?.role || 'employee'),
+              departments: Array.isArray(member?.departments) ? member.departments.filter(Boolean) : [],
+            };
+          }
           return acc;
-        }
+        }, {});
 
-        const memberUserId = member?.userId ? String(member.userId) : '';
-        const key = memberUserId || `${normalizeIdentity(memberName)}::${normalizeIdentity(member?.email || '')}`;
-        if (!acc[key]) {
-          acc[key] = {
-            id: memberUserId || key,
-            userId: memberUserId || '',
-            name: memberName,
-            role: normalizeRoleValue(member?.role || 'employee'),
-            departments: Array.isArray(member?.departments) ? member.departments.filter(Boolean) : [],
-          };
-        }
+        const canonicalMembers = Object.values(canonicalById);
+        setMemberDirectory(canonicalMembers);
 
-        return acc;
-      }, {});
+        const ownerNamesByRole = canonicalMembers
+          .filter((member) => member.role === 'owner' || member.departments.some((department) => normalizeRoleValue(department) === 'owner'))
+          .map((member) => member.name)
+          .filter(Boolean);
+        const superAdminNamesByRole = canonicalMembers
+          .filter((member) => member.role === 'super_admin' || member.departments.some((department) => normalizeRoleValue(department) === 'super_admin'))
+          .map((member) => member.name)
+          .filter(Boolean);
+        const adminNamesByRole = canonicalMembers
+          .filter((member) => member.role === 'admin' || member.departments.some((department) => normalizeRoleValue(department) === 'admin'))
+          .map((member) => member.name)
+          .filter(Boolean);
 
-      const canonicalMembers = Object.values(canonicalById);
-      setMemberDirectory(canonicalMembers);
+        // Build department list from organization data, fallback to workspace departments
+        const orgDeptNames = departments
+          .filter((d) => d.isActive !== false)
+          .map((d) => d.name)
+          .filter(Boolean);
+        const workspaceDepartments = orgDeptNames.length > 0
+          ? orgDeptNames
+          : Array.isArray(storedUser?.workspace?.departments)
+            ? storedUser.workspace.departments.filter(Boolean)
+            : [];
 
-      const ownerNamesByRole = canonicalMembers
-        .filter((member) => member.role === 'owner' || member.departments.some((department) => normalizeRoleValue(department) === 'owner'))
-        .map((member) => member.name)
-        .filter(Boolean);
-      const superAdminNamesByRole = canonicalMembers
-        .filter((member) => member.role === 'super_admin' || member.departments.some((department) => normalizeRoleValue(department) === 'super_admin'))
-        .map((member) => member.name)
-        .filter(Boolean);
-      const adminNamesByRole = canonicalMembers
-        .filter((member) => member.role === 'admin' || member.departments.some((department) => normalizeRoleValue(department) === 'admin'))
-        .map((member) => member.name)
-        .filter(Boolean);
+        const grouped = canonicalMembers.reduce((acc, member) => {
+          member.departments.forEach((department) => {
+            if (!department) return;
+            if (!acc[department]) acc[department] = [];
+            if (member.name && !acc[department].includes(member.name)) {
+              acc[department].push(member.name);
+            }
+          });
+          return acc;
+        }, {});
 
-      const workspaceDepartments = Array.isArray(storedUser?.workspace?.departments)
-        ? storedUser.workspace.departments.filter(Boolean)
-        : ["IT", "HR", "Sales", "Finance", "Maintenance"];
-
-      const grouped = canonicalMembers.reduce((acc, member) => {
-        member.departments.forEach((department) => {
-          if (!department) {
-            return;
-          }
-
-          if (!acc[department]) {
-            acc[department] = [];
-          }
-
-          if (member.name && !acc[department].includes(member.name)) {
-            acc[department].push(member.name);
-          }
+        workspaceDepartments.forEach((department) => {
+          if (!grouped[department]) grouped[department] = [];
         });
 
-        return acc;
-      }, {});
+        const ownerNamesByDepartment = Object.entries(grouped)
+          .filter(([department]) => normalizeRoleValue(department) === 'owner')
+          .flatMap(([, names]) => (Array.isArray(names) ? names : []))
+          .filter(Boolean);
 
-      workspaceDepartments.forEach((department) => {
-        if (!grouped[department]) {
-          grouped[department] = [];
+        const superAdminNamesByDepartment = Object.entries(grouped)
+          .filter(([department]) => normalizeRoleValue(department) === 'super_admin')
+          .flatMap(([, names]) => (Array.isArray(names) ? names : []))
+          .filter(Boolean);
+        const adminNamesByDepartment = Object.entries(grouped)
+          .filter(([department]) => normalizeRoleValue(department) === 'admin')
+          .flatMap(([, names]) => (Array.isArray(names) ? names : []))
+          .filter(Boolean);
+
+        const ownerNames = Array.from(new Set([...ownerNamesByRole, ...ownerNamesByDepartment]));
+        const superAdminNames = Array.from(new Set([...superAdminNamesByRole, ...superAdminNamesByDepartment]));
+        const adminNames = Array.from(new Set([...adminNamesByRole, ...adminNamesByDepartment]));
+
+        const roleMap = canonicalMembers.reduce((acc, member) => {
+          if (member?.name) acc[member.name] = roleLabel(member.role);
+          return acc;
+        }, {});
+
+        const idMap = canonicalMembers.reduce((acc, member) => {
+          if (member?.name && member?.userId) acc[member.name] = member.userId;
+          return acc;
+        }, {});
+
+        grouped.Founder = ownerNames;
+        grouped['Super Admin'] = superAdminNames;
+
+        setOrgData(grouped);
+        setMemberRoleByName(roleMap);
+        setMemberIdByName(idMap);
+
+        const ownerRoutingMembers = canonicalMembers.filter((member) => {
+          const memberRole = normalizeRoleValue(member?.role || '');
+          const memberDepartments = Array.isArray(member?.departments) ? member.departments : [];
+          return memberRole === 'owner' || memberDepartments.some((department) => normalizeRoleValue(department) === 'owner');
+        });
+
+        const superAdminRoutingMembers = canonicalMembers.filter((member) => {
+          const memberRole = normalizeRoleValue(member?.role || '');
+          const memberDepartments = Array.isArray(member?.departments) ? member.departments : [];
+          return memberRole === 'super_admin' || memberDepartments.some((department) => normalizeRoleValue(department) === 'super_admin');
+        });
+
+        setSpecialRoutingAssignees({
+          owner: ownerRoutingMembers.length > 0 ? ownerRoutingMembers : canonicalMembers.filter((member) => normalizeRoleValue(member?.role || '') === 'owner'),
+          superAdmin: superAdminRoutingMembers.length > 0 ? superAdminRoutingMembers : canonicalMembers.filter((member) => normalizeRoleValue(member?.role || '') === 'super_admin'),
+          admin: adminNames.length > 0
+            ? canonicalMembers.filter((member) => adminNames.includes(member.name))
+            : canonicalMembers.filter((member) => normalizeRoleValue(member?.role || '') === 'admin'),
+        });
+        setIsLoadingMembers(false);
+      } catch (error) {
+        console.error('Failed to load organization members:', error);
+        // Fallback: include only the current user
+        if (isMounted && currentUserId) {
+          const selfMember = {
+            id: currentUserId,
+            userId: currentUserId,
+            name: rawUserName,
+            email: storedUser?.email || '',
+            role: normalizeRoleValue(normalizedRole),
+            departments: currentUserDepartments,
+          };
+          setMemberDirectory([selfMember]);
+          setMemberRoleByName({ [rawUserName]: roleLabel(normalizedRole) });
+          setMemberIdByName({ [rawUserName]: currentUserId });
         }
-      });
-
-      const ownerNamesByDepartment = Object.entries(grouped)
-        .filter(([department]) => normalizeRoleValue(department) === 'owner')
-        .flatMap(([, names]) => (Array.isArray(names) ? names : []))
-        .filter(Boolean);
-
-      const superAdminNamesByDepartment = Object.entries(grouped)
-        .filter(([department]) => normalizeRoleValue(department) === 'super_admin')
-        .flatMap(([, names]) => (Array.isArray(names) ? names : []))
-        .filter(Boolean);
-      const adminNamesByDepartment = Object.entries(grouped)
-        .filter(([department]) => normalizeRoleValue(department) === 'admin')
-        .flatMap(([, names]) => (Array.isArray(names) ? names : []))
-        .filter(Boolean);
-
-      const ownerNames = Array.from(new Set([...ownerNamesByRole, ...ownerNamesByDepartment]));
-      const superAdminNames = Array.from(new Set([...superAdminNamesByRole, ...superAdminNamesByDepartment]));
-      const adminNames = Array.from(new Set([...adminNamesByRole, ...adminNamesByDepartment]));
-
-      const roleMap = canonicalMembers.reduce((acc, member) => {
-        if (member?.name) {
-          acc[member.name] = roleLabel(member.role);
-        }
-        return acc;
-      }, {});
-
-      const idMap = canonicalMembers.reduce((acc, member) => {
-        if (member?.name && member?.userId) {
-          acc[member.name] = member.userId;
-        }
-        return acc;
-      }, {});
-
-      grouped.Founder = ownerNames;
-      grouped['Super Admin'] = superAdminNames;
-
-      setOrgData(grouped);
-      setMemberRoleByName(roleMap);
-      setMemberIdByName(idMap);
-      const ownerRoutingMembers = canonicalMembers.filter((member) => {
-        const memberRole = normalizeRoleValue(member?.role || '');
-        const memberDepartments = Array.isArray(member?.departments) ? member.departments : [];
-        return memberRole === 'owner' || memberDepartments.some((department) => normalizeRoleValue(department) === 'owner');
-      });
-
-      const superAdminRoutingMembers = canonicalMembers.filter((member) => {
-        const memberRole = normalizeRoleValue(member?.role || '');
-        const memberDepartments = Array.isArray(member?.departments) ? member.departments : [];
-        return memberRole === 'super_admin' || memberDepartments.some((department) => normalizeRoleValue(department) === 'super_admin');
-      });
-
-      setSpecialRoutingAssignees({
-        owner: ownerRoutingMembers.length > 0 ? ownerRoutingMembers : canonicalMembers.filter((member) => normalizeRoleValue(member?.role || '') === 'owner'),
-        superAdmin: superAdminRoutingMembers.length > 0 ? superAdminRoutingMembers : canonicalMembers.filter((member) => normalizeRoleValue(member?.role || '') === 'super_admin'),
-        admin: adminNames.length > 0
-          ? canonicalMembers.filter((member) => adminNames.includes(member.name))
-          : canonicalMembers.filter((member) => normalizeRoleValue(member?.role || '') === 'admin'),
-      });
-      setIsLoadingMembers(false);
+        setIsLoadingMembers(false);
+      }
     }
 
     loadMembers();
@@ -1400,7 +1443,7 @@ export function TicketsPage() {
     return () => {
       isMounted = false;
     };
-  }, [storedUser]);
+  }, []); // Empty deps — runs once on mount (storedUser is stabilized via useState)
 
   // Mock Issue suggestions
   useEffect(() => {
@@ -1430,7 +1473,7 @@ export function TicketsPage() {
     };
   }, [isCreateModalOpen, ticketForm.department, ticketForm.title]);
 
-  // Mock Assets loading
+  // Load real assets from API when create modal opens
   useEffect(() => {
     if (!isCreateModalOpen) {
       return;
@@ -1439,14 +1482,18 @@ export function TicketsPage() {
     let isMounted = true;
 
     async function loadAssets() {
-      if (!isMounted) return;
-      const assets = [
-        { recordId: "asset-1", name: "Dell Latitude Laptop", assetCode: "AST-EQ-001", department: "IT", status: "Active" },
-        { recordId: "asset-2", name: "Office Chair Ergonomic", assetCode: "AST-FN-002", department: "HR", status: "Active" },
-        { recordId: "asset-3", name: "Conference Room Projector", assetCode: "AST-EQ-003", department: "IT", status: "Active" },
-        { recordId: "asset-4", name: "Breakroom Coffee Maker", assetCode: "AST-MC-004", department: "Maintenance", status: "Active" },
-      ];
-      setAssetOptions(assets.map(normalizeAsset).filter((asset) => asset.status !== 'Decommissioned'));
+      try {
+        const assets = await getAssets();
+        const assetList = Array.isArray(assets) ? assets : [];
+        if (isMounted) {
+          setAssetOptions(assetList.map(normalizeAsset).filter((asset) => asset.status !== 'Decommissioned'));
+        }
+      } catch (error) {
+        console.error('Failed to load assets:', error);
+        if (isMounted) {
+          setAssetOptions([]);
+        }
+      }
     }
 
     loadAssets();
@@ -1594,12 +1641,9 @@ export function TicketsPage() {
       assetDepartment: selectedAsset ? String(selectedAsset.department || '') : '',
       assetAssignedTo: selectedAsset ? String(selectedAsset.assignedTo || '') : '',
       dueDate: ticketForm.dueDate,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
       status: 'Open',
       submittedBy: displayUserName,
       submittedByDept: profile.dept,
-      requesterUserId: currentUserId,
     };
 
     try {
@@ -1616,7 +1660,7 @@ export function TicketsPage() {
     }
   };
 
-  const handleAcceptTicket = (payload = {}) => {
+  const handleAcceptTicket = async (payload = {}) => {
     if (!viewingTicket?.recordId) {
       return;
     }
@@ -1638,6 +1682,8 @@ export function TicketsPage() {
     };
 
     const normalized = normalizeTicket(updatedTicket);
+
+    // Optimistic local update
     setTickets((current) => current.map((ticket) => (ticket.recordId === recordId ? normalized : ticket)));
 
     if (shouldAutoOpenRepairLog(normalized)) {
@@ -1647,9 +1693,26 @@ export function TicketsPage() {
       setViewingTicket(normalized);
     }
     setErrorMessage('');
+
+    // Persist to backend
+    try {
+      const backendTicketId = viewingTicket._id || viewingTicket.recordId;
+      if (backendTicketId) {
+        await updateTicket(backendTicketId, {
+          status: 'In Progress',
+          assigneeUserId: targetUserId,
+          assignedTo: targetName,
+          acceptedBy: displayUserName,
+          acceptedByUserId: currentUserId,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to accept ticket on server:', error);
+      setErrorMessage(error?.response?.data?.message || 'Failed to accept ticket. Changes saved locally.');
+    }
   };
 
-  const handleUpdateStatus = (newStatus) => {
+  const handleUpdateStatus = async (newStatus) => {
     if (!viewingTicket?.recordId) {
       return;
     }
@@ -1675,9 +1738,20 @@ export function TicketsPage() {
     setTickets((current) => current.map((ticket) => (ticket.recordId === recordId ? normalized : ticket)));
     setViewingTicket(normalized);
     setErrorMessage('');
+
+    // Persist to backend
+    try {
+      const backendTicketId = viewingTicket._id || viewingTicket.recordId;
+      if (backendTicketId) {
+        await updateTicket(backendTicketId, { status: newStatus });
+      }
+    } catch (error) {
+      console.error('Failed to update ticket status on server:', error);
+      setErrorMessage(error?.response?.data?.message || 'Failed to update ticket status. Changes saved locally.');
+    }
   };
 
-  const confirmResolution = () => {
+  const confirmResolution = async () => {
     if (!resolutionMessage.trim() || !viewingTicket?.recordId) {
       return;
     }
@@ -1696,6 +1770,20 @@ export function TicketsPage() {
     setShowResolvePrompt(false);
     setResolutionMessage('');
     setErrorMessage('');
+
+    // Persist to backend
+    try {
+      const backendTicketId = viewingTicket._id || viewingTicket.recordId;
+      if (backendTicketId) {
+        await updateTicket(backendTicketId, {
+          status: 'Resolved',
+          resolutionNote: resolutionMessage.trim(),
+        });
+      }
+    } catch (error) {
+      console.error('Failed to resolve ticket on server:', error);
+      setErrorMessage(error?.response?.data?.message || 'Failed to resolve ticket. Changes saved locally.');
+    }
   };
 
   const handleRaiseFollowUp = () => {
