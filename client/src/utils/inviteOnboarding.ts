@@ -37,15 +37,21 @@ export const readInviteOnboardingState = (): InviteOnboardingState | null => {
       return null;
     }
 
-    if (!["basic", "professional", "custom"].includes(parsed.selectedPlan)) {
-      return null;
-    }
+    const normalizePlan = (plan: string): PlanType => {
+      const lower = String(plan || "").trim().toLowerCase();
+      if (lower === "basic") return "basic";
+      if (lower === "professional") return "professional";
+      if (lower === "custom" || lower === "customise" || lower === "customize" || lower === "customised" || lower === "customized") return "custom";
+      return "basic";
+    };
+
+    const normalizedPlan = normalizePlan(parsed.selectedPlan);
 
     return {
       source: "invite",
       email: parsed.email,
       fullName: parsed.fullName,
-      selectedPlan: parsed.selectedPlan as PlanType,
+      selectedPlan: normalizedPlan,
       businessName: parsed.businessName,
       inviteType: parsed.inviteType as InviteType,
       country: parsed.country,

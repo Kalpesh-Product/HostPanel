@@ -71,6 +71,13 @@ const decodeSignupInviteToken = (token) => {
   if (!secret) throw new Error("Invite secret not configured");
   return jwt.verify(token, secret);
 };
+const normalizePlan = (plan: string) => {
+  const lower = String(plan || "").trim().toLowerCase();
+  if (lower === "basic") return "basic";
+  if (lower === "professional") return "professional";
+  if (["custom", "customise", "customize", "customised", "customized"].includes(lower)) return "custom";
+  return "basic";
+};
 
 const extractInviteIdentity = (decoded: any) => {
   const inviteEmail =
@@ -88,11 +95,11 @@ const extractInviteIdentity = (decoded: any) => {
     combinedName ||
     "";
   const selectedPlan =
-    decoded?.selectedPlan ||
-    decoded?.goals ||
-    decoded?.userInfo?.selectedPlan ||
-    decoded?.userInfo?.goals ||
-    "basic";
+    normalizePlan(decoded?.selectedPlan ||
+      decoded?.goals ||
+      decoded?.userInfo?.selectedPlan ||
+      decoded?.userInfo?.goals ||
+      "basic");
   const businessName =
     decoded?.businessName ||
     decoded?.companyName ||
@@ -150,9 +157,9 @@ const extractInviteIdentity = (decoded: any) => {
   const businessTypes = Array.isArray(businessTypesRaw)
     ? businessTypesRaw.map((item: any) => String(item || "").trim()).filter(Boolean)
     : String(businessTypesRaw || "")
-        .split(/[,\|\/;]+/)
-        .map((item) => item.trim())
-        .filter(Boolean);
+      .split(/[,\|\/;]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
 
   return {
     inviteEmail,
@@ -187,10 +194,10 @@ const buildAuthUserPayload = (
   workspaceCount,
   workspaceMembership: workspaceMembership
     ? {
-        role: workspaceMembership.role,
-        isPrimary: workspaceMembership.isPrimary,
-        isActive: workspaceMembership.isActive,
-      }
+      role: workspaceMembership.role,
+      isPrimary: workspaceMembership.isPrimary,
+      isActive: workspaceMembership.isActive,
+    }
     : user?.workspaceMembership || null,
   accessibleWorkspaces,
 });
@@ -380,8 +387,8 @@ const enrichInviteLocationAndTypes = async ({
     if (!resolvedBusinessTypes.length) {
       resolvedBusinessTypes = Array.isArray(workspace.businessTypes)
         ? workspace.businessTypes
-            .map((item: any) => String(item || "").trim())
-            .filter(Boolean)
+          .map((item: any) => String(item || "").trim())
+          .filter(Boolean)
         : [];
     }
   }
@@ -789,8 +796,7 @@ export const resetPassword = async (req, res, next) => {
     const successMessage = `
       <p>Hi ${user.firstName || user.name || ""},</p>
       <p>Your password has been successfully reset.</p>
-      <p>You can now <a href="${
-        process.env.FRONTEND_PROD_LINK
+      <p>You can now <a href="${process.env.FRONTEND_PROD_LINK
       }" target="_blank">log in</a> with your new password.</p>
       <p>If you did not perform this action, please contact us immediately.</p>
       <br/>
