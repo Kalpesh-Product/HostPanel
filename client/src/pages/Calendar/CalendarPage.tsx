@@ -306,7 +306,7 @@ function UnifiedCalendar() {
         setIsLoading(true);
         const response = await getMyCalendar();
         if (!isMounted) return;
-        setCalendarFeed(response?.data || { events: [], summary: { total: 0, tasks: 0, tickets: 0, leaveRequests: 0, bookings: 0 } });
+        setCalendarFeed(response?.data || response || { events: [], summary: { total: 0, tasks: 0, tickets: 0, leaveRequests: 0, bookings: 0 } });
         setLoadError('');
       } catch (error: any) {
         if (isMounted) setLoadError(error.message || 'Unable to load calendar right now.');
@@ -467,18 +467,17 @@ function UnifiedCalendar() {
                     <button
                       key={type}
                       onClick={() => setFilterType(type)}
-                      className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
-                        filterType === type
+                      className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all ${filterType === type
                           ? 'bg-white text-slate-950 shadow-sm border border-slate-200/50'
                           : 'text-slate-500 hover:text-slate-950'
-                      }`}
+                        }`}
                     >
                       {type === 'all' ? 'All' : type === 'booking' ? 'Bookings' : type === 'task' ? 'Tasks' : type === 'ticket' ? 'Tickets' : 'Leave'}
                     </button>
                   ))}
                 </div>
 
-                
+
               </div>
             </div>
           </div>

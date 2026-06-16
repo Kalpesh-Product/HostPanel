@@ -31,6 +31,7 @@ import ticketRoutes from "./routes/ticketRoutes.js";
 import resourceRoutes from "./routes/resourceRoutes.js";
 import plansPricingRoutes from "./routes/plansPricing.routes.js";
 import tenantCompanyRoutes from "./routes/tenant-company.routes.js";
+import calendarRoutes from "./routes/calendarRoutes.js";
 
 const app = express();
 dotenv.config();
@@ -74,6 +75,7 @@ app.use("/api/tickets/support-tickets", verifyJwt, supportTicketRoutes);
 app.use("/api/v1/visitors", verifyJwt, visitorRoutes);
 app.use("/api/assets", verifyJwt, assetRoutes);
 app.use("/api/meeting-rooms", verifyJwt, meetingRoomRoutes);
+app.use("/api/calendar", verifyJwt, calendarRoutes);
 app.use("/api/tickets", verifyJwt, ticketRoutes);
 app.use("/api/v1/resources", verifyJwt, resourceRoutes);
 app.use("/api/v1/pricing-packages", verifyJwt, plansPricingRoutes);
