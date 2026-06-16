@@ -16,8 +16,12 @@ import {
   sendFounderSignupOtp,
   verifyRegisterOtpDirect,
   verifyRegisterOtpAndComplete,
+  getTenantRegisterPrefill,
+  registerTenantEmployee,
+  getTenantProfile,
 } from "../controllers/authControllers.js";
 import refreshTokenController from "../controllers/refreshTokenController.js";
+import verifyJwt from "../middlewares/verifyJwt.js";
 const router = Router();
 
 router.post("/login", login);
@@ -36,5 +40,13 @@ router.post("/register/:token/start", startRegisterWithOtp);
 router.post("/register/:token/verify-otp", verifyRegisterOtpAndComplete);
 router.post("/register/start", startRegisterDirect);
 router.post("/register/verify-otp", verifyRegisterOtpDirect);
+
+// Tenant employee registration (invite-based, raw token)
+router.get("/tenant-register/prefill", getTenantRegisterPrefill);
+router.post("/tenant-register/complete", registerTenantEmployee);
+
+// Tenant employee profile (authenticated)
+router.get("/tenant/profile", verifyJwt, getTenantProfile);
+
 export default router;
 

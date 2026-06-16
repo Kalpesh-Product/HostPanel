@@ -17,6 +17,7 @@ import logo from "../../assets/WONO_LOGO_Black_TP.png";
 import { readInviteOnboardingState } from "../../utils/inviteOnboarding";
 import { setAuthTabSessionActive } from "../../utils/authSession";
 import { setTabRefreshToken } from "../../utils/refreshTokenSession";
+import { setStoredTenantRole } from "../../lib/tenant-session";
 
 const LoginPage = () => {
   const { auth, setAuth } = useAuth();
@@ -104,6 +105,9 @@ const LoginPage = () => {
   //       .route
   //   : "/company-settings";
   const shouldGoToCreateWorkspace = (userData) => {
+    // Tenant employees should never go to create workspace
+    if (userData?.tenantRole) return false;
+
     const pendingInviteOnboarding = readInviteOnboardingState();
     if (
       pendingInviteOnboarding &&
@@ -171,14 +175,28 @@ const LoginPage = () => {
       });
       setTabRefreshToken(response?.data?.refreshToken || "");
       setAuthTabSessionActive();
-      console.log(hydratedUser);
       toast.success("Successfully logged in");
       const nextUser = hydratedUser;
+
+      // Store tenant role info if user is a tenant employee
+      const tenantRole = nextUser?.tenantRole || response?.data?.user?.tenantRole;
+      const tenantCompanyId = nextUser?.tenantCompanyId || response?.data?.user?.tenantCompanyId;
+      const tenantCompanyName = nextUser?.tenantCompanyName || response?.data?.user?.tenantCompanyName;
+      if (tenantRole) {
+        setStoredTenantRole(tenantRole);
+        try {
+          if (tenantCompanyId) localStorage.setItem("hostpanel_tenant_company_id", tenantCompanyId);
+          if (tenantCompanyName) localStorage.setItem("hostpanel_tenant_company_name", tenantCompanyName);
+        } catch { /* noop */ }
+      }
+
       const multiWorkspaceAccess =
         Array.isArray(nextUser?.accessibleWorkspaces) &&
         nextUser.accessibleWorkspaces.length > 1;
       if (shouldGoToCreateWorkspace(response?.data?.user)) {
         navigate("/create-workspace", { replace: true });
+      } else if (tenantRole) {
+        navigate("/dashboard/tenant", { replace: true });
       } else if (multiWorkspaceAccess) {
         navigate("/select-workspace", { replace: true });
       } else {

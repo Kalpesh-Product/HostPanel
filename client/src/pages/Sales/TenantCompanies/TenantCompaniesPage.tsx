@@ -6,17 +6,22 @@ import {
   Building, Search, Plus, Eye, Edit, CalendarDays, LayoutGrid,
   CheckCircle2, AlertTriangle, XCircle, Mail, Phone, Clock,
   CreditCard, X, ArrowRight, Save, RefreshCw, Briefcase,
-  FileText, FileDown, FileSpreadsheet, UserPlus, Download, UploadCloud
+  FileText, FileDown, FileSpreadsheet, UserPlus, Download, UploadCloud,
+  Users, History, MapPin, Building2
 } from 'lucide-react';
 import {
   addTenantCompanyEmployee,
   createTenantCompany,
+  deleteTenantCompanyEmployee,
   getTenantCompanies,
   getTenantCompanySectors,
   renewTenantCompany,
   uploadTenantCompanyAgreementDocuments,
   updateTenantCompanyCreditRequest,
   updateTenantCompany,
+  updateTenantCompanyEmployee,
+  updateTenantCompanyEmployeeStatus,
+  updateTenantCompanyManager,
 } from '../../../services/tenant-companies';
 import { getResources } from '../../../services/resources';
 import { getPricingPackages } from '../../../services/pricing-packages';
@@ -621,6 +626,83 @@ function calculateTenantBillingSummary(form = {}) {
   };
 }
 
+function formatDateTimeLabel(value) {
+  if (!value) return '';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function getTenantEmployeeStatusMeta(employee = {}) {
+  const employmentStatus = String(employee.status || '').toLowerCase();
+  const accountStatus = String(employee.accountStatus || employee.inviteStatus || '').toLowerCase();
+  if (employmentStatus === 'inactive') return { label: 'Inactive', className: 'bg-rose-100 text-rose-700 border-rose-200' };
+  if (accountStatus.includes('logged in')) return { label: 'Logged In', className: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+  if (accountStatus.includes('registered')) return { label: 'Registered', className: 'bg-blue-100 text-blue-700 border-blue-200' };
+  if (accountStatus.includes('invited')) return { label: 'Invited', className: 'bg-violet-100 text-violet-700 border-violet-200' };
+  if (accountStatus.includes('failed')) return { label: 'Invite Failed', className: 'bg-amber-100 text-amber-700 border-amber-200' };
+  return { label: employee.status || 'Pending Invite', className: 'bg-slate-100 text-slate-600 border-slate-200' };
+}
+
+function buildEmployeeName(employee = {}) {
+  return String(employee.name || employee.fullName || employee.email || 'Unnamed employee').trim();
+}
+
+function getEmployeeInitials(employee = {}) {
+  const source = buildEmployeeName(employee);
+  return source
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('') || 'E';
+}
+
+function normalizeTenantEmployees(employees = [], managerEmployeeId = '') {
+  const seen = new Set();
+  return (Array.isArray(employees) ? employees : [])
+    .map((employee) => ({
+      ...employee,
+      name: String(employee.name || employee.fullName || '').trim(),
+      email: String(employee.email || '').trim().toLowerCase(),
+      designation: String(employee.designation || '').trim(),
+      role: employee.role || (managerEmployeeId && String(managerEmployeeId) === String(employee.id) ? 'Manager' : 'Employee'),
+      status: employee.status || 'Active',
+      accountStatus: employee.accountStatus || employee.inviteStatus || '',
+      inviteStatus: employee.inviteStatus || '',
+      userId: employee.userId || '',
+      inviteId: employee.inviteId || '',
+      inviteSentAt: employee.inviteSentAt || null,
+      inviteAcceptedAt: employee.inviteAcceptedAt || null,
+      registeredAt: employee.registeredAt || null,
+      lastLoginAt: employee.lastLoginAt || null,
+      tenantRole: employee.tenantRole || '',
+      tenantCompanyName: employee.tenantCompanyName || '',
+    }))
+    .filter((employee) => employee.name || employee.email)
+    .filter((employee) => {
+      const key = employee.email
+        ? `email:${employee.email}`
+        : employee.userId
+          ? `user:${String(employee.userId)}`
+          : employee.inviteId
+            ? `invite:${String(employee.inviteId)}`
+            : employee.id
+              ? `employee:${String(employee.id)}`
+              : `name:${employee.name.toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
 export default function TenantCompaniesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -1146,8 +1228,12 @@ export default function TenantCompaniesPage() {
   const [bulkUploadError, setBulkUploadError] = useState('');
 
   const [employeeModalOpen, setEmployeeModalOpen] = useState(false);
+  const [activeDetailTab, setActiveDetailTab] = useState('summary');
   const [agreementFiles, setAgreementFiles] = useState([]);
   const [isAgreementUploading, setIsAgreementUploading] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [employeeEditForm, setEmployeeEditForm] = useState({ name: '', phone: '', designation: '', role: 'Employee' });
 
   const [tenants, setTenants] = useState([]);
   const [countries, setCountries] = useState([]);
@@ -2182,6 +2268,75 @@ export default function TenantCompaniesPage() {
     }
   };
 
+  const handleAssignManager = async (employeeId) => {
+    if (!selectedTenant || isSaving) return;
+    setIsSaving(true);
+    try {
+      const response = await updateTenantCompanyManager(selectedTenant.recordId || selectedTenant.id, { employeeId });
+      const payload = response?.data || {};
+      if (Array.isArray(payload.tenants)) setTenants(payload.tenants);
+      if (payload.tenant) setSelectedTenant((prev) => ({ ...prev, ...payload.tenant }));
+      toast.success('Manager updated successfully.');
+    } catch (error) {
+      toast.error(error.message || 'Unable to update manager.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeactivateEmployee = async (employeeId) => {
+    if (!selectedTenant || isSaving) return;
+    setIsSaving(true);
+    try {
+      const response = await updateTenantCompanyEmployeeStatus(selectedTenant.recordId || selectedTenant.id, employeeId, { status: 'Inactive' });
+      const payload = response?.data || {};
+      if (Array.isArray(payload.tenants)) setTenants(payload.tenants);
+      if (payload.tenant) setSelectedTenant((prev) => ({ ...prev, ...payload.tenant }));
+      toast.success('Employee status updated.');
+    } catch (error) {
+      toast.error(error.message || 'Unable to update employee status.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteEmployee = async (employeeId) => {
+    if (!selectedTenant || isSaving) return;
+    setIsSaving(true);
+    try {
+      const response = await deleteTenantCompanyEmployee(selectedTenant.recordId || selectedTenant.id, employeeId);
+      const payload = response?.data || {};
+      if (Array.isArray(payload.tenants)) setTenants(payload.tenants);
+      if (payload.tenant) setSelectedTenant((prev) => ({ ...prev, ...payload.tenant }));
+      toast.success('Employee removed successfully.');
+      setSelectedEmployee(null);
+    } catch (error) {
+      toast.error(error.message || 'Unable to remove employee.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleEmployeeEditSave = async (event) => {
+    event.preventDefault();
+    if (!selectedTenant || !editingEmployee || isSaving) return;
+    setIsSaving(true);
+    try {
+      const response = await updateTenantCompanyEmployee(selectedTenant.recordId || selectedTenant.id, editingEmployee.id || '', employeeEditForm);
+      const payload = response?.data || {};
+      if (Array.isArray(payload.tenants)) setTenants(payload.tenants);
+      if (payload.tenant) setSelectedTenant((prev) => ({ ...prev, ...payload.tenant }));
+      toast.success('Employee details updated successfully.');
+      setEditingEmployee(null);
+      setSelectedEmployee(null);
+      setEmployeeEditForm({ name: '', phone: '', designation: '', role: 'Employee' });
+    } catch (error) {
+      toast.error(error.message || 'Unable to update employee details.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const syncTenantCollections = (payload = {}, preferredTenantId = '') => {
     if (Array.isArray(payload.tenants)) {
       setTenants(payload.tenants);
@@ -2600,35 +2755,15 @@ export default function TenantCompaniesPage() {
             <button
               type="button"
               onClick={handleBulkUploadClick}
+              title="Bulk Upload"
               className="px-4 py-2.5 bg-white text-[#0F172A] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5"
             >
-              <UploadCloud size={14} /> BULK UPLOAD
+              <UploadCloud size={14} /> 
             </button>
-            <button
-              onClick={openAddCompanyModal}
-              className="px-4 py-2.5 bg-[#2563EB] text-white rounded-xl font-black text-[10px] hover:bg-blue-700 shadow-sm transition-all flex items-center justify-center gap-1.5"
-            >
-              <Plus size={14}/> ADD TENANT COMPANY
-            </button>
+            
           </div>
         </div>
         <input ref={bulkUploadInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleBulkFileSelected} className="hidden" />
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
-          {summaryCards.map((card) => {
-            const Icon = card.icon;
-
-            return (
-              <div key={card.key} className={card.cardClass}>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                  <p className="text-[15px] font-black text-slate-900">{card.value}</p>
-                </div>
-                <div className={`p-2 rounded-2xl ${card.iconClass}`}><Icon size={16}/></div>
-              </div>
-            );
-          })}
-        </div>
 
         <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
           <button
@@ -2647,6 +2782,23 @@ export default function TenantCompaniesPage() {
           </button>
         </div>
 
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          {summaryCards.map((card) => {
+            const Icon = card.icon;
+
+            return (
+              <div key={card.key} className={card.cardClass}>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                  <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                </div>
+                <div className={`p-2 rounded-2xl ${card.iconClass}`}><Icon size={16}/></div>
+              </div>
+            );
+          })}
+        </div>
+
+          
         <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col flex-1 min-h-110">
           
           <div className={`p-3 border-b border-slate-100 flex flex-col xl:flex-row justify-between items-center gap-3 shrink-0 bg-slate-50/50 ${activeTab === 'companies' ? '' : 'hidden'}`}>
@@ -2655,7 +2807,7 @@ export default function TenantCompaniesPage() {
               <input type="text" placeholder="Search company or contact person..." className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
             
-            <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto">
+            <div className="flex flex-wrap ml-auto items-center gap-2 w-full xl:w-auto">
               <select className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer" value={packageFilter} onChange={(e) => setPackageFilter(e.target.value)}>
                 <option>All Packages</option>
                 {tenantPackages.map((pkg) => <option key={pkg.recordId || pkg.id} value={pkg.name}>{pkg.name}</option>)}
@@ -2663,6 +2815,15 @@ export default function TenantCompaniesPage() {
               <select className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
                 <option>All Status</option><option>Active</option><option>Expiring Soon</option><option>Expired</option>
               </select>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1 w-10px xl:w-auto">
+              <button
+              onClick={openAddCompanyModal}
+              className="px-4 py-2.5 bg-[#2563EB] text-white rounded-xl font-black text-[10px] hover:bg-blue-700 shadow-sm transition-all flex items-end justify-center gap-1.5"
+            >
+              <Plus size={14}/> ADD TENANT COMPANY
+            </button>
             </div>
           </div>
 
@@ -2687,7 +2848,7 @@ export default function TenantCompaniesPage() {
                           {getInitials(tenant.companyName)}
                         </div>
                         <div>
-                          <p className="font-black text-slate-900 text-sm max-w-37.5 truncate" title={tenant.companyName}>{tenant.companyName}</p>
+                          <p className="font-pmedium text-primary text-sm max-w-37.5 truncate" title={tenant.companyName}>{tenant.companyName}</p>
                           <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">{tenant.id}</p>
                         </div>
                       </div>
@@ -3996,479 +4157,540 @@ export default function TenantCompaniesPage() {
                  </div>
               </div>
               
-              <div className="p-4 sm:p-5 overflow-y-auto flex-1 bg-white space-y-4">
-                
-                <div>
-                   <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-1"><Building size={12}/> Company Info</h3>
-                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <div className="col-span-2">
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Company Name</p>
-                        <p className="font-bold text-slate-900 text-[12px]">{selectedTenant.companyName}</p>
-                      </div>
-                      <div className="col-span-2">
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Contact Person</p>
-                        <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.contactName}</p>
-                      </div>
-                      <div className="col-span-2 sm:col-span-1">
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Phone</p>
-                        <p className="font-semibold text-slate-900 text-[12px] flex items-center gap-1"><Phone size={10} className="text-slate-400"/> {selectedTenant.phone}</p>
-                      </div>
-                      <div className="col-span-2 sm:col-span-1">
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Email</p>
-                        <p className="font-semibold text-slate-900 text-[12px] truncate flex items-center gap-1" title={selectedTenant.email}><Mail size={10} className="text-slate-400"/> {selectedTenant.email}</p>
-                      </div>
-                   </div>
-                </div>
+              <div className="flex gap-4 border-b border-slate-100 bg-white px-4 pt-3">
+                {[
+                  { id: 'summary', label: 'Company Summary', icon: <LayoutGrid size={16} /> },
+                  { id: 'employees', label: 'Employees', icon: <Users size={16} /> },
+                  { id: 'credits', label: 'Credit Usage', icon: <History size={16} /> },
+                  { id: 'space', label: 'Space Assignment', icon: <MapPin size={16} /> },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveDetailTab(tab.id)}
+                    className={`flex items-center gap-2 border-b-2 pb-4 text-sm font-bold transition-all ${
+                      activeDetailTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
 
-                <div>
-                   <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-1"><Building size={12}/> Customer Details</h3>
-                   <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                       <div>
-                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Client Name</p>
-                         <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.customerDetails?.clientName || '--'}</p>
-                       </div>
-                       <div>
-                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Sector</p>
-                         <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.customerDetails?.sector || '--'}</p>
-                       </div>
-                       <div>
-                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">HO Country</p>
-                         <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.customerDetails?.hoCountry || '--'}</p>
-                       </div>
-                       <div>
-                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">HO State</p>
-                         <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.customerDetails?.hoState || '--'}</p>
-                       </div>
-                       <div>
-                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">HO City</p>
-                         <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.customerDetails?.hoCity || '--'}</p>
-                       </div>
-                    </div>
-                </div>
-
-                <div>
-                   <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-1"><Building size={12}/> Company Details</h3>
-                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <div>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Building Name</p>
-                        <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.companyDetails?.buildingName || '--'}</p>
+              <div className="flex-1 overflow-y-auto bg-slate-50/30 p-4">
+                {activeDetailTab === 'summary' && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2 lg:grid-cols-7">
+                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">Contract Start</p>
+                        <p className="text-xs font-bold text-slate-900">{selectedTenant.contractStart || selectedTenant.agreementDetails?.startDate || 'N/A'}</p>
                       </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Unit No</p>
-                        <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.companyDetails?.unitNo || '--'}</p>
+                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">Contract End</p>
+                        <p className="text-xs font-bold text-slate-900">{selectedTenant.contractEnd || selectedTenant.agreementDetails?.endDate || 'N/A'}</p>
                       </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Open Desks</p>
-                        <p className="font-semibold text-slate-900 text-[12px]">{formatInteger(selectedTenant.companyDetails?.openDesks || 0)}</p>
+                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-blue-500">Base Credits</p>
+                        <p className="text-base font-black text-blue-600">{selectedTenant.packageDetails?.monthlyTotalCredits ?? selectedTenant.creditsTotal ?? selectedTenantBillingDisplay.credits ?? 0}</p>
                       </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Cabin Desks</p>
-                        <p className="font-semibold text-slate-900 text-[12px]">{formatInteger(selectedTenant.companyDetails?.cabinDesks || 0)}</p>
+                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-violet-500">Purchased</p>
+                        <p className="text-base font-black text-violet-600">+{selectedTenantBillingDisplay.purchasedCredits ?? 0}</p>
                       </div>
-                   </div>
-                </div>
-
-                <div>
-                   <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-1"><Briefcase size={12}/> POC Details</h3>
-                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <div>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Local POC</p>
-                        <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.pocDetails?.localPocName || '--'}</p>
-                        <p className="mt-1 text-[11px] font-medium text-slate-500">{selectedTenant.pocDetails?.localPocEmail || '--'}</p>
-                        <p className="mt-1 text-[11px] font-medium text-slate-500">{selectedTenant.pocDetails?.localPocPhone || '--'}</p>
+                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-500">Credits Used</p>
+                        <p className="text-base font-black text-emerald-600">{selectedTenantBillingDisplay.creditsUsed ?? 0}</p>
                       </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">HO POC</p>
-                        <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.pocDetails?.hoPocName || '--'}</p>
-                        <p className="mt-1 text-[11px] font-medium text-slate-500">{selectedTenant.pocDetails?.hoPocEmail || '--'}</p>
-                        <p className="mt-1 text-[11px] font-medium text-slate-500">{selectedTenant.pocDetails?.hoPocPhone || '--'}</p>
+                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Credits Remaining</p>
+                        <p className="text-base font-black text-slate-900">{Math.max(0, Number((selectedTenant.packageDetails?.monthlyTotalCredits ?? selectedTenant.creditsTotal ?? 0) || 0) - Number(selectedTenantBillingDisplay.creditsUsed ?? 0))}</p>
                       </div>
-                   </div>
-                </div>
-
-                <div>
-                   <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-1"><CalendarDays size={12}/> Agreement Details</h3>
-                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                       <div>
-                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Annual Increment</p>
-                         <p className="font-semibold text-slate-900 text-[12px]">{formatCurrency(selectedTenantBillingDisplay.annualIncrement || selectedTenant.agreementDetails?.annualIncrement || 0)}</p>
-                       </div>
-
-                       <div>
-                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Lock-in Period</p>
-                         <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.agreementDetails?.lockInPeriod || selectedTenant.contractDurationMonths || '--'} months</p>
-                       </div>
-                       <div>
-                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Start Date</p>
-                         <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.contractStart || selectedTenant.agreementDetails?.startDate || '--'}</p>
-                       </div>
-                       <div>
-                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">End Date</p>
-                         <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.contractEnd || selectedTenant.agreementDetails?.endDate || '--'}</p>
-                       </div>
-                   </div>
-                </div>
-
-                <div>
-                   <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-1"><CreditCard size={12}/> Billing Details</h3>
-                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                      <div>
-                        <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest mb-0.5">Contract Duration</p>
-                        <p className="font-bold text-emerald-950 text-sm">{selectedTenantBillingDisplay.durationMonths || '--'} months</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest mb-0.5">Monthly Rent</p>
-                        <p className="font-bold text-emerald-950 text-sm">{formatCurrency(selectedTenantBillingDisplay.monthlyRent || 0)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest mb-0.5">Total Contract Amount</p>
-                        <p className="font-bold text-emerald-950 text-sm">{formatCurrency(selectedTenantBillingDisplay.totalContractAmount || selectedTenant.packagePrice || 0)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest mb-0.5">Security Deposit Amount</p>
-                        <p className="font-bold text-emerald-950 text-sm">{formatCurrency(selectedTenantBillingDisplay.securityDepositAmount || 0)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest mb-0.5">Security Deposit Paid</p>
-                        <p className={`font-bold text-sm ${String(selectedTenant.billingDetails?.securityDepositPaidStatus || 'Pending').toLowerCase() === 'paid' ? 'text-emerald-600' : 'text-amber-600'}`}>{selectedTenant.billingDetails?.securityDepositPaidStatus || 'Pending'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest mb-0.5">Annual Increment</p>
-                        <p className="font-bold text-emerald-950 text-sm">{formatCurrency(selectedTenantBillingDisplay.annualIncrement || selectedTenant.agreementDetails?.annualIncrement || 0)}</p>
-                      </div>
-                   </div>
-                   <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                     <div className="flex items-start justify-between gap-3">
-                       <div>
-                         <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Security Deposit Invoice</p>
-                         <h4 className="mt-0.5 text-sm font-bold text-slate-900">{selectedTenant.invoiceNumber || 'Not generated yet'}</h4>
-                         <p className="mt-0.5 text-[11px] font-medium text-slate-500">
-                           {selectedTenant.invoiceStatus || 'Pending'}
-                           {selectedTenant.invoiceGeneratedAt ? ` - Generated ${selectedTenant.invoiceGeneratedAt}` : ''}
-                           {selectedTenant.invoiceSentAt ? ` - Sent ${selectedTenant.invoiceSentAt}` : ''}
-                         </p>
-                       </div>
-                       <div className={`rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-widest border ${
-                         String(selectedTenant.invoiceStatus || 'Pending').toLowerCase() === 'sent'
-                           ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                           : String(selectedTenant.invoiceStatus || 'Pending').toLowerCase() === 'generated'
-                             ? 'border-blue-200 bg-blue-50 text-blue-700'
-                             : 'border-amber-200 bg-amber-50 text-amber-700'
-                       }`}>
-                         {selectedTenant.invoiceStatus || 'Pending'}
-                       </div>
-                     </div>
-                     <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                       <div className="rounded-xl bg-slate-50 p-2">
-                         <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Invoice File</p>
-                         <p className="mt-0.5 text-[12px] font-semibold text-slate-900">{selectedTenant.invoiceFileName || 'Not available'}</p>
-                       </div>
-                       <div className="rounded-xl bg-slate-50 p-2">
-                         <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Sent To</p>
-                         <p className="mt-0.5 text-[12px] font-semibold text-slate-900 break-all">{selectedTenant.invoiceSentToEmail || 'Not sent yet'}</p>
-                       </div>
-                     </div>
-                     <div className="mt-3 flex flex-wrap gap-2">
-                       {selectedTenant.invoiceFileUrl ? (
-                         <a
-                           href={selectedTenant.invoiceFileUrl}
-                           target="_blank"
-                           rel="noreferrer"
-                           className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-700 shadow-sm transition-all hover:bg-slate-200"
-                         >
-                           <FileText size={11} />
-                           View Invoice
-                         </a>
-                       ) : (
-                         <p className="text-[11px] font-medium text-slate-500">The invoice will appear here once Finance generates it.</p>
-                       )}
-                     </div>
-                   </div>
-                </div>
-
-                <div>
-                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-1"><Briefcase size={12}/> Package & Pricing</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-indigo-50 p-3 rounded-xl border border-indigo-100">
-                       <div className="col-span-2">
-                         <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-0.5">Plan Selected</p>
-                         <span className="inline-block px-2 py-0.5 bg-white text-indigo-700 rounded-md text-[10px] font-bold uppercase tracking-wider shadow-sm border border-indigo-100">
-                           {selectedTenant.packageName || selectedTenant.package}
-                         </span>
-                       </div>
-                       <div>
-                         <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-0.5">Package Price</p>
-                         <p className="font-bold text-indigo-900 text-[13px]">{formatCurrency(selectedTenantBillingDisplay.totalContractAmount || selectedTenant.packagePrice || 0)}</p>
-                       </div>
-                       <div>
-                         <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-0.5">Package Duration</p>
-                         <p className="font-bold text-indigo-900 text-[13px]">{selectedTenantBillingDisplay.durationMonths || '--'} months</p>
-                       </div>
-                       <div className="col-span-2 pt-3 border-t border-indigo-100/50">
-                         <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-0.5">Open Desk Rate / Day</p>
-                         <p className="font-semibold text-indigo-900 text-[12px]">{formatCurrency(selectedTenantBillingDisplay.ratePerOpenDesk || 0)}</p>
-                       </div>
-                       <div className="col-span-2 pt-3 border-t border-indigo-100/50">
-                         <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-0.5">Cabin Desk Rate / Day</p>
-                         <p className="font-semibold text-red-600 text-[12px]">{formatCurrency(selectedTenantBillingDisplay.ratePerCabinDesk || 0)}</p>
-                       </div>
-                       <div className="col-span-2 pt-3 border-t border-indigo-100/50">
-                         <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-0.5">Open Desks</p>
-                         <p className="font-bold text-indigo-900 text-[13px]">{formatInteger(selectedTenantBillingDisplay.openDeskCount || 0)}</p>
-                       </div>
-                       <div className="col-span-2 pt-3 border-t border-indigo-100/50">
-                         <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-0.5">Cabin Desks</p>
-                         <p className="font-semibold text-indigo-900 text-[12px]">{formatInteger(selectedTenantBillingDisplay.cabinDeskCount || 0)}</p>
-                       </div>
-                       <div className="col-span-2 pt-3 border-t border-indigo-100/50">
-                         <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-0.5">Credits / Month</p>
-                         <p className="font-semibold text-indigo-900 text-[12px]">{formatInteger(selectedTenant.packageDetails?.monthlyTotalCredits || selectedTenant.creditsTotal || 0)}</p>
-                       </div>
-                       <div className="col-span-4 pt-3 border-t border-indigo-100/50">
-                         <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mb-0.5">Notes</p>
-                         <p className="text-[12px] font-medium text-indigo-900">{selectedTenant.notes || '--'}</p>
-                       </div>
-                    </div>
-                </div>
-
-                <div>
-                   <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-1"><LayoutGrid size={12}/> Assigned Package Space</h3>
-                   {((Array.isArray(selectedTenant.packageDetails?.locationMappings) && selectedTenant.packageDetails?.locationMappings?.length > 0) || (selectedTenant.packageLocationLabels || []).length > 0) ? (
-                      <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-emerald-600">Selected blocks are reserved for {selectedTenant.companyName}</p>
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {(Array.isArray(selectedTenant.packageDetails?.locationMappings) && selectedTenant.packageDetails?.locationMappings?.length > 0
-                            ? selectedTenant.packageDetails.locationMappings
-                            : (selectedTenant.packageLocationLabels || []).map((label) => ({ label }))).map((mapping, index) => (
-                              <span key={`${getLocationMappingKey(mapping)}-${mapping?.floor || ''}-${mapping?.wing || ''}-${index}`} className="rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest text-emerald-700 shadow-sm">
-                                <span className="block">{mapping?.label || mapping?.locationCode || '--'}</span>
-                                <span className="block text-[8px] font-bold text-emerald-500">
-                                  [{mapping?.locationCode || mapping?.label || '--'}]
-                                </span>
-                               <span className="block text-[8px] font-bold text-emerald-500">
-                                 {String(mapping?.seatType || '').trim() ? `${String(mapping.seatType).trim()} - ` : ''}{formatInteger(Number(mapping?.seatsAllocated || 0) || selectedTenant.spaceAssigned?.totalSeats || selectedTenantSeatLabels.length || selectedTenantBillingDisplay.totalSeats || 0)} seats
-                               </span>
-                             </span>
-                           ))}
-                        </div>
-                        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                          <div className="rounded-xl bg-white p-2 shadow-sm">
-                            <p className="text-[8px] font-bold uppercase tracking-widest text-slate-400">Open Desks</p>
-                            <p className="mt-0.5 text-sm font-bold text-slate-900">{formatInteger(selectedTenantBillingDisplay.openDeskCount || 0)}</p>
-                          </div>
-                          <div className="rounded-xl bg-white p-2 shadow-sm">
-                            <p className="text-[8px] font-bold uppercase tracking-widest text-slate-400">Cabin Desks</p>
-                            <p className="mt-0.5 text-sm font-bold text-slate-900">{formatInteger(selectedTenantBillingDisplay.cabinDeskCount || 0)}</p>
-                          </div>
-                          <div className="rounded-xl bg-white p-2 shadow-sm">
-                            <p className="text-[8px] font-bold uppercase tracking-widest text-slate-400">Monthly Credits</p>
-                            <p className="mt-0.5 text-sm font-bold text-slate-900">{formatInteger(selectedTenant.packageDetails?.monthlyTotalCredits || selectedTenant.creditsTotal || 0)}</p>
-                          </div>
-                        </div>
-                        <div className="mt-3 rounded-xl border border-emerald-200 bg-white p-3 shadow-sm">
-                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                              <p className="text-[8px] font-bold uppercase tracking-widest text-emerald-600">Scoped Architecture View</p>
-                              <p className="mt-0.5 text-[12px] font-semibold text-slate-900">
-                                Floor {selectedTenantArchitectureSnapshot.primaryFloor || '--'} {selectedTenantArchitectureSnapshot.primaryWing ? ` / Wing ${selectedTenantArchitectureSnapshot.primaryWing}` : ''}
-                              </p>
-                            </div>
-                            <Link
-                              to={selectedTenantArchitectureLink}
-                              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-emerald-700 transition-all hover:bg-emerald-100"
-                            >
-                              Open Sales Architecture <ArrowRight size={9} />
-                            </Link>
-                          </div>
-                        </div>
-                      </div>
-                   ) : (
-                      <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/30 p-3 text-[11px] font-medium text-emerald-700">
-                        No package blocks are attached yet.
-                      </div>
-                   )}
-                </div>
-
-                <div>
-                    <div className="flex justify-between items-end border-b border-slate-100 pb-2 mb-3">
-                       <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"><LayoutGrid size={12}/> Space Assignment</h3>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Link
-                          to={selectedTenantArchitectureLink}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest hover:text-emerald-800 flex items-center gap-1"
-                        >
-                          View Architecture <ArrowRight size={10}/>
-                        </Link>
+                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">Assigned Area</p>
+                        <p className="text-xs font-bold text-slate-900">{selectedTenantArchitectureSnapshot.primaryFloor || selectedTenant.spaceAssigned?.area || 'Unassigned'}</p>
                       </div>
                     </div>
-                    
-                         {selectedTenantArchitectureSnapshot.assignedResources.length > 0 ? (
-                      <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                           <div className="rounded-xl bg-white p-3 shadow-sm">
-                             <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Assigned Floor</p>
-                             <p className="mt-0.5 font-semibold text-slate-900 text-[12px]">{selectedTenantArchitectureSnapshot.primaryFloor || '--'}</p>
-                           </div>
-                           <div className="rounded-xl bg-white p-3 shadow-sm">
-                             <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Wing</p>
-                             <p className="mt-0.5 font-semibold text-slate-900 text-[12px]">{selectedTenantArchitectureSnapshot.primaryWing || '--'}</p>
-                           </div>
-                         <div className="rounded-xl bg-white p-3 shadow-sm">
-                           <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Assigned Seats</p>
-                           <p className="mt-0.5 font-semibold text-slate-900 text-[12px]">{formatInteger(selectedTenantSeatLabels.length || selectedTenant.spaceAssigned?.totalSeats || selectedTenant.packageDetails?.totalSeats || Number(selectedTenant.packageDetails?.openDesks || 0) + Number(selectedTenant.packageDetails?.cabinDesks || 0) || selectedTenantArchitectureSnapshot.assignedResources.length)}</p>
-                         </div>
-                         </div>
 
-                         <div className="rounded-xl bg-white p-3 shadow-sm">
-                           <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">Assigned Seats by Area</p>
-                           <div className="space-y-3">
-                             {selectedTenantArchitectureSnapshot.assignedAreaGroups.map((group) => (
-                               <div key={`${group.label}-${group.floor}-${group.wing}`} className="rounded-xl border border-orange-100 bg-orange-50/50 p-2.5">
-                                 <div className="flex items-center justify-between gap-3">
-                                   <p className="text-[9px] font-bold uppercase tracking-widest text-orange-600">{group.label}</p>
-                                   <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-orange-700 shadow-sm">
-                                   {formatInteger(group.seats.length || selectedTenantSeatLabels.length || selectedTenantBillingDisplay.totalSeats || 0)} seats
-                                   </span>
-                                 </div>
-                                 <div className="mt-2 flex flex-wrap gap-1.5">
-                                   {(group.seats.length > 0
-                                     ? group.seats.map((resource) => resource.name || resource.resourceCode || resource.id).filter(Boolean)
-                                     : selectedTenantSeatLabels).map((seatLabel) => (
-                                       <span key={seatLabel} className="rounded-lg border border-orange-200 bg-white px-2.5 py-1 text-[10px] font-bold text-orange-800 shadow-sm">
-                                         {seatLabel}
-                                       </span>
-                                     ))}
-                                 </div>
-                               </div>
-                             ))}
-                           </div>
-                         </div>
-
-                         <div className="rounded-xl bg-white p-3 shadow-sm">
-                           <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">Assigned Seats</p>
-                           <div className="flex flex-wrap gap-1.5">
-                             {(selectedTenantSeatLabels.length > 0
-                               ? selectedTenantSeatLabels
-                               : selectedTenantArchitectureSnapshot.assignedResources.map((resource) => resource.name || resource.resourceCode || resource.id).filter(Boolean)
-                             ).map((seatLabel) => (
-                               <span key={seatLabel} className="rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1 text-[10px] font-bold text-orange-800 shadow-sm">
-                                 {seatLabel}
-                               </span>
-                             ))}
-                           </div>
-                         </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-3 rounded-xl border border-dashed border-orange-200 bg-orange-50 p-3">
-                        <div className="text-center py-3">
-                          <AlertTriangle size={18} className="mx-auto text-orange-400 mb-1.5"/>
-                          <p className="text-[12px] font-bold text-orange-800">No architecture-linked unit assigned yet.</p>
-                          <p className="mt-1 text-[10px] font-medium text-orange-700">Assign desks from the package block in Sales Architecture. This page reads the live assignment from there.</p>
-                        </div>
-                        <div className="flex justify-center">
-                          <Link
-                            to={selectedTenantArchitectureLink}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-orange-600 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white transition-all hover:bg-orange-700"
-                          >
-                            Open Sales Architecture <ArrowRight size={9}/>
-                          </Link>
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-black uppercase tracking-wider text-slate-900">Sales Package Summary</h3>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Plan Type</p><p className="text-xs font-bold text-slate-900">{selectedTenant.packageName || selectedTenant.package || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Package Name</p><p className="text-xs font-bold text-slate-900">{selectedTenant.packageName || selectedTenant.packageDetails?.packageName || selectedTenant.package || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Location Blocks</p><p className="text-xs font-bold text-slate-900">{selectedTenant.packageLocationLabels?.length ? selectedTenant.packageLocationLabels.join(', ') : 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Total Seats</p><p className="text-xs font-bold text-slate-900">{formatInteger(selectedTenant.packageDetails?.totalSeats || 0)}</p></div>
                         </div>
                       </div>
-                    )}
-                </div>
 
-                 <div>
-                    <div className="flex justify-between items-end border-b border-slate-100 pb-2 mb-3">
-                      <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"><UserPlus size={12}/> Tenant Employees</h3>
-                      <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Managed by Administration</span>
+                      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-black uppercase tracking-wider text-slate-900">Billing Snapshot</h3>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Monthly Rent</p><p className="text-xs font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.monthlyRent || 0)}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Total Contract Amount</p><p className="text-xs font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.totalContractAmount || selectedTenant.packagePrice || 0)}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Security Deposit</p><p className="text-xs font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.securityDepositAmount || 0)}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Deposit Status</p><p className="text-xs font-bold text-slate-900">{selectedTenant.billingDetails?.securityDepositPaidStatus || 'Pending'}</p></div>
+                        </div>
+                      </div>
                     </div>
-                    {(selectedTenant.employees || []).length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {(selectedTenant.employees || []).map((employee) => (
-                          <div key={employee.id} className="p-3 rounded-xl border border-slate-200 bg-white shadow-sm">
-                            <p className="font-bold text-slate-900 text-[12px]">{employee.name}</p>
-                            <p className="text-[10px] font-semibold text-slate-500 mt-0.5">{employee.designation || 'Team Member'}</p>
-                            <p className="text-[10px] font-medium text-slate-400 mt-1.5 flex items-center gap-1"><Mail size={10}/> {employee.email}</p>
-                            <p className="text-[10px] font-medium text-slate-400 mt-0.5 flex items-center gap-1"><Phone size={10}/> {employee.phone || '--'}</p>
+
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-black uppercase tracking-wider text-slate-900">Customer Profile</h3>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Company Name</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.clientName || selectedTenant.companyName}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Sector</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.sector || selectedTenant.businessType || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">HO Country</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.hoCountry || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">HO State</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.hoState || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">HO City</p><p className="text-xs font-bold text-slate-900">{selectedTenant.customerDetails?.hoCity || 'N/A'}</p></div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-black uppercase tracking-wider text-slate-900">Manager Assignment</h3>
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400">Current Manager</p>
+                            <p className="text-xs font-bold text-slate-900">{selectedTenant.contactName || 'No manager assigned'}</p>
+                            <p className="text-[10px] text-slate-500">{selectedTenant.email || 'Assign one manager from the employee list below.'}</p>
                           </div>
-                        ))}
+                          <span className="inline-flex w-max rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-blue-600">
+                            {selectedTenant.contactName ? 'Manager Active' : 'Pending Assignment'}
+                          </span>
+                        </div>
                       </div>
-                    ) : (
-                      <div className="text-center py-6 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-slate-500 font-medium text-[12px]">No employees added yet.</div>
-                    )}
-                </div>
-
-                 <div>
-                    <div className="flex justify-between items-end border-b border-slate-100 pb-2 mb-3">
-                      <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"><FileText size={12}/> Agreement Documents</h3>
                     </div>
 
-                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 space-y-3">
-                      <div className="flex flex-col lg:flex-row lg:items-end gap-2">
-                        <div className="flex-1 space-y-1">
-                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Upload Agreement File(s)</label>
-                          <input
-                            type="file"
-                            multiple
-                            accept=".pdf,.doc,.docx,image/png,image/jpeg,image/jpg"
-                            onChange={handleAgreementFilesChange}
-                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-medium text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-white hover:file:bg-blue-700"
-                          />
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-black uppercase tracking-wider text-slate-900">Company Details</h3>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Building</p><p className="text-sm font-bold text-slate-900">{selectedTenant.companyDetails?.buildingName || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Unit No.</p><p className="text-sm font-bold text-slate-900">{selectedTenant.companyDetails?.unitNo || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Open Desks</p><p className="text-sm font-bold text-slate-900">{selectedTenantBillingDisplay.openDeskCount || selectedTenant.companyDetails?.openDesks || 0}</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Cabin Desks</p><p className="text-sm font-bold text-slate-900">{selectedTenantBillingDisplay.cabinDeskCount || selectedTenant.companyDetails?.cabinDesks || 0}</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Open Desk Rate</p><p className="text-sm font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.ratePerOpenDesk || 0)}</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Cabin Desk Rate</p><p className="text-sm font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.ratePerCabinDesk || 0)}</p></div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={handleUploadAgreementDocuments}
-                          disabled={!agreementFiles.length || isAgreementUploading}
-                          className="rounded-xl bg-blue-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {isAgreementUploading ? 'Uploading...' : 'Upload Documents'}
-                        </button>
                       </div>
 
+                      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-black uppercase tracking-wider text-slate-900">Package & Credits</h3>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Plan Type</p><p className="text-sm font-bold text-slate-900">{selectedTenant.packageName || selectedTenant.package || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Package Name</p><p className="text-sm font-bold text-slate-900">{selectedTenant.packageDetails?.packageName || selectedTenant.packageName || selectedTenant.package || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Monthly Credits</p><p className="text-sm font-bold text-slate-900">{selectedTenant.packageDetails?.monthlyTotalCredits || selectedTenant.creditsTotal || 0}</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Credits / Seat</p><p className="text-sm font-bold text-slate-900">{selectedTenant.packageDetails?.creditsPerSeat || 0}</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Credit Reset</p><p className="text-sm font-bold text-slate-900">Monthly</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Usage Tracking</p><p className="text-sm font-bold text-slate-900">Per Booking</p></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-black uppercase tracking-wider text-slate-900">POC Details</h3>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Local POC Name</p><p className="text-sm font-bold text-slate-900">{selectedTenant.pocDetails?.localPocName || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Local POC Email</p><p className="text-sm font-bold text-slate-900 break-all">{selectedTenant.pocDetails?.localPocEmail || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Local POC Phone</p><p className="text-sm font-bold text-slate-900">{selectedTenant.pocDetails?.localPocPhone || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">HO POC Name</p><p className="text-sm font-bold text-slate-900">{selectedTenant.pocDetails?.hoPocName || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">HO POC Email</p><p className="text-sm font-bold text-slate-900 break-all">{selectedTenant.pocDetails?.hoPocEmail || 'N/A'}</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">HO POC Phone</p><p className="text-sm font-bold text-slate-900">{selectedTenant.pocDetails?.hoPocPhone || 'N/A'}</p></div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-black uppercase tracking-wider text-slate-900">Agreement Details</h3>
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Annual Increment</p><p className="text-sm font-bold text-slate-900">{formatCurrency(selectedTenantBillingDisplay.annualIncrement || selectedTenant.agreementDetails?.annualIncrement || 0)}</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Meeting Credits</p><p className="text-sm font-bold text-slate-900">{selectedTenant.packageDetails?.monthlyTotalCredits || 0}</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Lock-in Period</p><p className="text-sm font-bold text-slate-900">{selectedTenant.agreementDetails?.lockInPeriod || selectedTenant.contractDurationMonths || 0} Months</p></div>
+                          <div><p className="mb-1 text-xs font-bold text-slate-400">Status</p><p className="text-sm font-bold text-slate-900">{selectedTenant.status}</p></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                      <div className="mb-3 flex flex-col gap-2 border-b border-slate-100 pb-2 lg:flex-row lg:items-end lg:justify-between">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">Agreement Documents</h3>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <label className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-700 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600">
+                            Choose File(s)
+                            <input type="file" multiple accept=".pdf,.doc,.docx,image/png,image/jpeg,image/jpg" className="hidden" onChange={handleAgreementFilesChange} />
+                          </label>
+                          <button type="button" onClick={handleUploadAgreementDocuments} disabled={!agreementFiles.length || isAgreementUploading}
+                            className="rounded-xl bg-blue-600 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >{isAgreementUploading ? 'Uploading...' : 'Upload'}</button>
+                        </div>
+                      </div>
                       {agreementFiles.length > 0 && (
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-blue-600">
-                          Selected {agreementFiles.length} file{agreementFiles.length > 1 ? 's' : ''}
-                        </p>
+                        <p className="mb-3 text-[9px] font-bold uppercase tracking-widest text-blue-600">Selected {agreementFiles.length} file{agreementFiles.length > 1 ? 's' : ''}</p>
                       )}
-
                       {(selectedTenant.agreementDocuments || []).length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                           {(selectedTenant.agreementDocuments || []).map((document) => (
-                            <a
-                              key={`${document.publicId || document.url || document.name}`}
-                              href={document.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:border-blue-200 hover:bg-blue-50/40"
+                            <a key={`${document.publicId || document.url || document.name}`} href={document.url} target="_blank" rel="noreferrer"
+                              className="rounded-xl border border-slate-200 bg-slate-50 p-3 transition-all hover:border-blue-200 hover:bg-blue-50/50"
                             >
-                              <div className="flex items-start gap-2.5">
-                                <div className="rounded-xl bg-blue-50 p-1.5 text-blue-600">
-                                  <FileText size={14} />
-                                </div>
+                              <div className="flex items-start gap-2">
+                                <div className="rounded-xl bg-blue-50 p-1.5 text-blue-600"><FileText size={14} /></div>
                                 <div className="min-w-0 flex-1">
-                                  <p className="truncate text-[12px] font-bold text-slate-900">{document.name}</p>
-                                  <p className="mt-0.5 text-[9px] font-bold uppercase tracking-widest text-slate-400">
-                                    {document.type || 'document'}{document.size ? ` | ${document.size}` : ''}
-                                  </p>
+                                  <p className="truncate text-xs font-bold text-slate-900">{document.name}</p>
+                                  <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">{document.type || 'document'}{document.size ? ` | ${document.size}` : ''}</p>
                                 </div>
                               </div>
                             </a>
                           ))}
                         </div>
                       ) : (
-                        <div className="rounded-xl border border-dashed border-slate-200 bg-white py-6 text-center text-slate-500 text-[12px] font-medium">
-                          No agreement documents uploaded yet.
+                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-xs font-medium text-slate-400">No agreement documents uploaded yet.</div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                      <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-bold text-slate-500">Contract details are view-only for administration.</span>
+                    </div>
+                  </div>
+                )}
+
+                {activeDetailTab === 'employees' && (
+                  <div className="space-y-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">Managed Employees</h3>
+                      <button onClick={() => setEmployeeModalOpen(true)} className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-600 transition-all hover:bg-blue-100">
+                        <Plus size={12} /> Add Employee
+                      </button>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Employee Directory</p>
+                          <p className="mt-0.5 text-xs font-bold text-slate-900">{normalizeTenantEmployees(selectedTenant.employees, selectedTenant.managerEmployeeId).length} managed {normalizeTenantEmployees(selectedTenant.employees, selectedTenant.managerEmployeeId).length === 1 ? 'employee' : 'employees'}</p>
+                        </div>
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-600"><Users size={11} /> Active roster</span>
+                      </div>
+
+                      {normalizeTenantEmployees(selectedTenant.employees, selectedTenant.managerEmployeeId).length > 0 ? (
+                        <div className="grid gap-2">
+                          {normalizeTenantEmployees(selectedTenant.employees, selectedTenant.managerEmployeeId).map((employee) => {
+                            const statusMeta = getTenantEmployeeStatusMeta(employee);
+                            const isManager = employee.role === 'Manager';
+                            return (
+                              <div key={employee.id || employee.email || employee.name} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:border-blue-200 hover:shadow-md">
+                                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                  <div className="flex min-w-0 items-start gap-2">
+                                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black ${isManager ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                                      {getEmployeeInitials(employee)}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="flex flex-wrap items-center gap-1.5">
+                                        <h4 className="text-xs font-black text-slate-950">{buildEmployeeName(employee)}</h4>
+                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${isManager ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{employee.role || 'Employee'}</span>
+                                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${statusMeta.className}`}>{statusMeta.label}</span>
+                                      </div>
+                                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-semibold text-slate-500">
+                                        <span className="inline-flex items-center gap-1"><Mail size={11} /> {employee.email || 'No email'}</span>
+                                        {employee.phone && <span className="inline-flex items-center gap-1"><Phone size={11} /> {employee.phone}</span>}
+                                        <span className="inline-flex items-center gap-1"><Briefcase size={11} /> {employee.designation || 'No designation'}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex flex-wrap justify-start gap-1.5 lg:justify-end">
+                                    <button onClick={() => setSelectedEmployee(employee)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">View Profile</button>
+                                    {employee.status === 'Active' && !isManager && (
+                                      <button onClick={() => handleAssignManager(employee.id)} className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-blue-700 transition-colors hover:bg-blue-100">Set Manager</button>
+                                    )}
+                                    {employee.status === 'Active' && isManager && (
+                                      <span className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-blue-700">Current Manager</span>
+                                    )}
+                                    {employee.status === 'Active' && (
+                                      <button onClick={() => handleDeactivateEmployee(employee.id)} className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-red-600 transition-colors hover:bg-red-100 hover:text-red-700">Deactivate</button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-slate-300 bg-white px-3 py-8 text-center">
+                          <Users className="mx-auto mb-2 text-slate-300" size={24} />
+                          <p className="text-xs font-bold text-slate-500">No employees found for this tenant company.</p>
                         </div>
                       )}
                     </div>
-                 </div>
+                  </div>
+                )}
 
+                {activeDetailTab === 'credits' && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
+                      <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-[9px] font-black uppercase text-slate-500">Base Allocated</p><p className="text-base font-black text-slate-900">{selectedTenant.packageDetails?.monthlyTotalCredits ?? selectedTenant.creditsTotal ?? selectedTenantBillingDisplay.credits ?? 0}</p></div>
+                      <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-[9px] font-black uppercase text-violet-500">Purchased Add-ons</p><p className="text-base font-black text-violet-600">+{selectedTenantBillingDisplay.purchasedCredits ?? 0}</p></div>
+                      <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-[9px] font-black uppercase text-blue-500">Credits Used</p><p className="text-base font-black text-blue-600">{selectedTenantBillingDisplay.creditsUsed ?? 0}</p></div>
+                      <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-[9px] font-black uppercase text-green-500">Remaining Balance</p><p className="text-base font-black text-green-600">{Math.max(0, Number((selectedTenant.packageDetails?.monthlyTotalCredits ?? selectedTenant.creditsTotal ?? 0) || 0) - Number(selectedTenantBillingDisplay.creditsUsed ?? 0))}</p></div>
+                    </div>
+
+                    {Array.isArray(selectedTenant.creditHistory) && selectedTenant.creditHistory.length > 0 && (
+                      <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-3 shadow-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-blue-500">Latest Credit Entry</p>
+                            <h4 className="mt-0.5 text-sm font-black text-blue-950">{selectedTenant.creditHistory[0]?.roomName || selectedTenant.creditHistory[0]?.resource || selectedTenant.creditHistory[0]?.type || 'Meeting Room Booking'}</h4>
+                          </div>
+                          <span className="rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">{selectedTenant.creditHistory[0]?.bookingCode || 'No code'}</span>
+                        </div>
+                        <div className="mt-2 grid gap-2 md:grid-cols-4 text-[10px] font-bold text-blue-900">
+                          <div className="rounded-xl bg-white px-2 py-1.5 border border-blue-100">Scheduled Date: {selectedTenant.creditHistory[0]?.scheduledDate || selectedTenant.creditHistory[0]?.date || '—'}</div>
+                          <div className="rounded-xl bg-white px-2 py-1.5 border border-blue-100">Booked By: {selectedTenant.creditHistory[0]?.bookedBy || '—'}</div>
+                          <div className="rounded-xl bg-white px-2 py-1.5 border border-blue-100">Schedule: {selectedTenant.creditHistory[0]?.startTime || '—'} - {selectedTenant.creditHistory[0]?.endTime || '—'}</div>
+                          <div className="rounded-xl bg-white px-2 py-1.5 border border-blue-100">Location: {selectedTenant.creditHistory[0]?.location || '—'}{selectedTenant.creditHistory[0]?.wing ? ` • Wing ${selectedTenant.creditHistory[0]?.wing}` : ''}</div>
+                          <div className="rounded-xl bg-white px-2 py-1.5 border border-blue-100">Credits: {selectedTenant.creditHistory[0]?.credited || selectedTenant.creditHistory[0]?.debited || 0}</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {Array.isArray(selectedTenant.creditHistory) && selectedTenant.creditHistory.length > 0 ? (
+                      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                        <table className="w-full text-left">
+                          <thead className="border-b border-slate-200 bg-slate-50 text-[9px] font-black uppercase text-slate-500">
+                            <tr>
+                              <th className="px-3 py-2">Booked On</th>
+                              <th className="px-3 py-2">Booking / Room</th>
+                              <th className="px-3 py-2">Scheduled For</th>
+                              <th className="px-3 py-2">Location / Wing</th>
+                              <th className="px-3 py-2">Status</th>
+                              <th className="px-3 py-2 text-right">Credits</th>
+                              <th className="px-3 py-2 text-right">Remaining</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {selectedTenant.creditHistory.map((history) => (
+                              <tr key={history.id}>
+                                <td className="px-3 py-2 text-[10px] font-bold text-slate-500">{history.date}</td>
+                                <td className="px-3 py-2">
+                                  <p className="text-xs font-bold text-slate-900">{history.roomName || history.resource || history.type}</p>
+                                  <p className="text-[10px] text-slate-500">{history.bookingCode || history.type}</p>
+                                  <p className="text-[10px] text-slate-400">{history.resource ? `Resource: ${history.resource}` : 'Meeting room credit entry'}</p>
+                                </td>
+                                <td className="px-3 py-2 text-[10px] font-medium text-slate-600">
+                                  <p className="font-semibold text-slate-800">{history.scheduledDate || history.date || '—'}</p>
+                                  <p className="font-semibold text-slate-800">{history.startTime || '—'} - {history.endTime || '—'}</p>
+                                  <p className="text-[10px] text-slate-500">{history.bookedBy || '—'}</p>
+                                </td>
+                                <td className="px-3 py-2 text-[10px] font-medium text-slate-600">{history.location || '—'}{history.wing ? ` • Wing ${history.wing}` : ''}</td>
+                                <td className="px-3 py-2">
+                                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-widest ${history.status === 'Active' || history.status === 'Completed' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : history.status === 'Cancelled' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>{history.status || 'Booked'}</span>
+                                </td>
+                                <td className={`px-3 py-2 text-right text-xs font-black ${Number(history.credited || 0) > 0 ? 'text-emerald-600' : 'text-red-500'}`}>{Number(history.credited || 0) > 0 ? `+${history.credited}` : history.credited || history.debited || 0}</td>
+                                <td className="px-3 py-2 text-right text-xs font-black text-emerald-600">{history.remainingCredits ?? Math.max(0, Number(selectedTenant.packageDetails?.monthlyTotalCredits || selectedTenant.creditsTotal || 0) - Number(selectedTenantBillingDisplay.creditsUsed || 0))}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-8 text-center"><p className="text-xs font-bold text-slate-500">No credit usage recorded yet.</p></div>
+                    )}
+                  </div>
+                )}
+
+                {activeDetailTab === 'space' && (
+                  <div className="space-y-3">
+                    <h3 className="mb-1 text-xs font-black uppercase tracking-wider text-slate-900">Tenant Occupied Area</h3>
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
+                      <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
+                        <MapPin className="mb-1 text-amber-500" size={18} />
+                        <p className="px-2 text-xs font-bold text-slate-900">{selectedTenantArchitectureSnapshot.primaryFloor || selectedTenant.spaceAssigned?.area || 'Unassigned'}</p>
+                        <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Area</p>
+                      </div>
+                      <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
+                        <LayoutGrid className="mb-1 text-blue-500" size={18} />
+                        <p className="text-2xl font-black text-slate-900">{selectedTenantBillingDisplay.openDeskCount ?? selectedTenant.spaceAssigned?.openDesks ?? 0}</p>
+                        <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Open Desks</p>
+                      </div>
+                      <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
+                        <Building2 className="mb-1 text-purple-500" size={18} />
+                        <p className="text-2xl font-black text-slate-900">{selectedTenantBillingDisplay.cabinDeskCount ?? selectedTenant.spaceAssigned?.cabinDesks ?? 0}</p>
+                        <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Cabin Desks</p>
+                      </div>
+                      <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
+                        <Users className="mb-1 text-sky-500" size={18} />
+                        <p className="text-2xl font-black text-slate-900">{selectedTenantBillingDisplay.totalSeats ?? selectedTenant.spaceAssigned?.totalSeats ?? 0}</p>
+                        <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Total Seats</p>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-black uppercase tracking-wider text-slate-900">Assigned Space Breakdown</h3>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Assigned Floor</p><p className="text-xs font-bold text-slate-900">{selectedTenantArchitectureSnapshot.primaryFloor || 'N/A'}</p></div>
+                          <div>
+                            <p className="mb-0.5 text-[10px] font-bold text-slate-400">Assigned Seats</p>
+                            <div className="mt-0.5 flex flex-wrap gap-1.5">
+                              {(selectedTenantSeatLabels.length > 0 ? selectedTenantSeatLabels : selectedTenantArchitectureSnapshot.assignedResources.map((r) => r.name || r.resourceCode || r.id).filter(Boolean)).length > 0 ? (selectedTenantSeatLabels.length > 0 ? selectedTenantSeatLabels : selectedTenantArchitectureSnapshot.assignedResources.map((r) => r.name || r.resourceCode || r.id).filter(Boolean)).map((seat) => (
+                                <span key={seat} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-700">{seat}</span>
+                              )) : (
+                                <span className="text-xs font-bold text-slate-300">N/A</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-black uppercase tracking-wider text-slate-900">Location Labels</h3>
+                        <div className="flex flex-wrap gap-1.5">
+                          {Array.isArray(selectedTenant.packageLocationLabels) && selectedTenant.packageLocationLabels.length > 0 ? selectedTenant.packageLocationLabels.map((label) => (
+                            <span key={label} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-600">{label}</span>
+                          )) : (
+                            <span className="text-xs font-medium text-slate-400">No assigned location labels.</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {selectedTenantArchitectureSnapshot.assignedResources.length > 0 && (
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <h3 className="mb-3 text-[9px] font-black uppercase tracking-widest text-slate-500">Assigned Seats by Area</h3>
+                        <div className="space-y-3">
+                          {selectedTenantArchitectureSnapshot.assignedAreaGroups.map((group) => (
+                            <div key={`${group.label}-${group.floor}-${group.wing}`} className="rounded-xl border border-orange-100 bg-orange-50/50 p-2.5">
+                              <div className="flex items-center justify-between gap-3">
+                                <p className="text-[9px] font-bold uppercase tracking-widest text-orange-600">{group.label}</p>
+                                <span className="rounded-full bg-white px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-orange-700 shadow-sm">
+                                  {formatInteger(group.seats.length || selectedTenantSeatLabels.length || selectedTenantBillingDisplay.totalSeats || 0)} seats
+                                </span>
+                              </div>
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                {(group.seats.length > 0 ? group.seats.map((r) => r.name || r.resourceCode || r.id).filter(Boolean) : selectedTenantSeatLabels).map((seatLabel) => (
+                                  <span key={seatLabel} className="rounded-lg border border-orange-200 bg-white px-2.5 py-1 text-[10px] font-bold text-orange-800 shadow-sm">{seatLabel}</span>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
+
+              {employeeModalOpen && (
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-[#0F172A]/40 backdrop-blur-sm">
+                  <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-white/70">
+                    <div className="flex items-center justify-between p-4 border-b border-slate-100">
+                      <h3 className="text-sm font-black text-slate-900">Add Employee</h3>
+                      <button onClick={() => { setEmployeeModalOpen(false); setEmployeeForm({ name: '', email: '', phone: '', designation: '' }); }} className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"><X size={14}/></button>
+                    </div>
+                    <form onSubmit={handleAddEmployee} className="p-4 space-y-4">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Name</label>
+                        <input type="text" value={employeeForm.name} onChange={(e) => setEmployeeForm({ ...employeeForm, name: e.target.value })} required
+                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Employee name" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email</label>
+                        <input type="email" value={employeeForm.email} onChange={(e) => setEmployeeForm({ ...employeeForm, email: e.target.value })} required
+                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="employee@company.com" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Phone</label>
+                        <input type="text" value={employeeForm.phone} onChange={(e) => setEmployeeForm({ ...employeeForm, phone: e.target.value })}
+                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Phone number" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Designation</label>
+                        <input type="text" value={employeeForm.designation} onChange={(e) => setEmployeeForm({ ...employeeForm, designation: e.target.value })}
+                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Designation" />
+                      </div>
+                      <div className="flex justify-end gap-2 pt-2">
+                        <button type="button" onClick={() => { setEmployeeModalOpen(false); setEmployeeForm({ name: '', email: '', phone: '', designation: '' }); }}
+                          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold text-slate-600 transition-all hover:bg-slate-50">Cancel</button>
+                        <button type="submit" disabled={isSaving}
+                          className="rounded-xl bg-blue-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                          {isSaving ? 'Adding...' : 'Add Employee'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {selectedEmployee && (
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
+                  <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+                    <div className="flex items-start justify-between border-b border-slate-100 bg-slate-50/70 p-4">
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Employee Profile</p>
+                        <h3 className="mt-0.5 text-xl font-black text-slate-900">{selectedEmployee.name}</h3>
+                        <p className="mt-0.5 text-xs font-bold text-slate-500">{selectedEmployee.designation || 'Tenant Employee'}</p>
+                      </div>
+                      <button onClick={() => { setSelectedEmployee(null); setEditingEmployee(null); }} className="rounded-xl border border-slate-200 bg-white p-1.5 text-slate-400 transition-colors hover:bg-slate-100"><X size={16} /></button>
+                    </div>
+
+                    <div className="grid gap-3 p-4 md:grid-cols-2">
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Email</p><p className="mt-0.5 break-all text-xs font-bold text-slate-900">{selectedEmployee.email}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Role</p><p className="mt-0.5 text-xs font-bold text-slate-900">{selectedEmployee.role || 'Employee'}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Account Status</p><p className="mt-0.5 text-xs font-bold text-slate-900">{getTenantEmployeeStatusMeta(selectedEmployee).label}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Current Access</p><p className="mt-0.5 text-xs font-bold text-slate-900">{selectedEmployee.status || 'Active'}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Invited At</p><p className="mt-0.5 text-xs font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.invitedAt || selectedEmployee.inviteSentAt) || 'N/A'}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Registered At</p><p className="mt-0.5 text-xs font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.registeredAt) || 'N/A'}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Last Login</p><p className="mt-0.5 text-xs font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.lastLoginAt) || 'Never'}</p></div>
+                      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Tenant Link</p><p className="mt-0.5 text-xs font-bold text-slate-900">{selectedEmployee.tenantCompanyName || selectedTenant?.companyName || 'Tenant Company'}</p></div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-white p-4">
+                      <button onClick={() => { setEditingEmployee(selectedEmployee); setEmployeeEditForm({ name: selectedEmployee?.name || '', phone: selectedEmployee?.phone || '', designation: selectedEmployee?.designation || '', role: selectedEmployee?.role || 'Employee' }); }} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-blue-600 transition-all hover:bg-blue-100">Edit</button>
+                      <button onClick={() => { if (selectedEmployee?.status === 'Active') handleDeactivateEmployee(selectedEmployee.id); }}
+                        disabled={selectedEmployee?.status !== 'Active'}
+                        className="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-red-600 transition-all hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >Deactivate</button>
+                      <button onClick={() => handleDeleteEmployee(selectedEmployee.id)} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-amber-700 transition-all hover:bg-amber-100">Delete</button>
+                      <button onClick={() => { setSelectedEmployee(null); setEditingEmployee(null); }} className="rounded-xl bg-slate-900 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-slate-800">Close</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {editingEmployee && (
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
+                  <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
+                    <div className="flex items-center justify-between border-b border-slate-100 p-5">
+                      <h3 className="text-lg font-black text-slate-900">Edit Employee</h3>
+                      <button onClick={() => { setEditingEmployee(null); setEmployeeEditForm({ name: '', phone: '', designation: '', role: 'Employee' }); }} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><X size={18} /></button>
+                    </div>
+                    <form onSubmit={handleEmployeeEditSave} className="space-y-4 p-6">
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Full Name</label>
+                        <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeEditForm.name} onChange={(e) => setEmployeeEditForm({ ...employeeEditForm, name: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Phone (Optional)</label>
+                        <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeEditForm.phone} onChange={(e) => setEmployeeEditForm({ ...employeeEditForm, phone: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Designation</label>
+                        <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeEditForm.designation} onChange={(e) => setEmployeeEditForm({ ...employeeEditForm, designation: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Tenant Role</label>
+                        <select className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeEditForm.role} onChange={(e) => setEmployeeEditForm({ ...employeeEditForm, role: e.target.value })}>
+                          <option value="Employee">Employee</option>
+                          <option value="Manager">Manager</option>
+                        </select>
+                      </div>
+                      <button type="submit" disabled={isSaving} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white transition-all hover:bg-blue-700"><Save size={16} /> Save Employee</button>
+                    </form>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
-
         </PageFrame>
       </div>
     </>

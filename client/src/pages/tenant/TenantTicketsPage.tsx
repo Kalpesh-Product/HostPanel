@@ -17,10 +17,7 @@ import {
 import { TicketsSkeleton } from '@/components/ui/Skeleton';
 import { getStoredTenantCompanyId, getStoredTenantCompanyName, getStoredUser } from '@/lib/auth-session';
 import { getStoredTenantRole, isTenantAdminRole, isTenantManagerRole } from '@/lib/tenant-session';
-import { MOCK_TICKETS, initMockTenantSession } from './mock-tenant-data';
-
-// ─── Backend service imports (uncomment when backend ready) ───
-// import { getTickets, createTicket, getTicketIssueSuggestions } from '@/services/tickets';
+import { getTickets, createTicket, getTicketIssueSuggestions } from '@/services/tickets';
 
 function normalizeText(value: unknown): string {
   return String(value ?? '').trim();
@@ -124,36 +121,24 @@ export default function TenantTicketsPage() {
     let active = true;
 
     const loadTickets = async () => {
-      initMockTenantSession();
       setIsLoading(true);
       setErrorMessage('');
       try {
-        // ─── Backend calls (uncomment when backend ready) ───
-        // const [ticketsResult, suggestionsResult] = await Promise.allSettled([
-        //   getTickets({ page: 1, limit: 50 }),
-        //   getTicketIssueSuggestions(),
-        // ]);
-        // if (!active) return;
-        // if (ticketsResult.status === 'fulfilled') {
-        //   const data = ticketsResult.value;
-        //   const list = Array.isArray(data) ? data : Array.isArray(data?.tickets) ? data.tickets : Array.isArray(data?.data) ? data.data : [];
-        //   setTickets(list as TicketItem[]);
-        // }
-        // if (suggestionsResult.status === 'fulfilled') {
-        //   const data = suggestionsResult.value;
-        //   const list = Array.isArray(data) ? data : Array.isArray(data?.suggestions) ? data.suggestions : [];
-        //   setIssueSuggestions(list as IssueSuggestion[]);
-        // }
-
-        // ⚠️ Placeholder
-        await new Promise((resolve) => setTimeout(resolve, 600));
-        if (!active) return;
-        setTickets(MOCK_TICKETS as TicketItem[]);
-        setIssueSuggestions([
-          { id: "sug-001", title: "AC not working", category: "Facilities" },
-          { id: "sug-002", title: "New hardware request", category: "IT" },
-          { id: "sug-003", title: "Access badge issue", category: "Security" },
+        const [ticketsResult, suggestionsResult] = await Promise.allSettled([
+          getTickets({ page: 1, limit: 50 }),
+          getTicketIssueSuggestions(),
         ]);
+        if (!active) return;
+        if (ticketsResult.status === 'fulfilled') {
+          const data = ticketsResult.value;
+          const list = Array.isArray(data) ? data : Array.isArray(data?.tickets) ? data.tickets : Array.isArray(data?.data) ? data.data : [];
+          setTickets(list as TicketItem[]);
+        }
+        if (suggestionsResult.status === 'fulfilled') {
+          const data = suggestionsResult.value;
+          const list = Array.isArray(data) ? data : Array.isArray(data?.suggestions) ? data.suggestions : [];
+          setIssueSuggestions(list as IssueSuggestion[]);
+        }
       } catch (error: any) {
         if (active) setErrorMessage(error?.message || 'Unable to load tickets.');
       } finally {

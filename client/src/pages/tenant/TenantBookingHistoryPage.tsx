@@ -19,11 +19,8 @@ import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { formatTime12h } from '@/utils/time';
 import { getStoredTenantCompanyId, getStoredTenantCompanyName, getStoredUser } from '@/lib/auth-session';
 import { getStoredTenantRole, isTenantAdminRole, isTenantManagerRole } from '@/lib/tenant-session';
-import { MOCK_BOOKINGS, MOCK_TENANT_COMPANIES, initMockTenantSession } from './mock-tenant-data';
-
-// ─── Backend service imports (uncomment when backend ready) ───
-// import { getTenantCompanies } from '@/services/tenant-companies';
-// import { getMeetingRoomBookings, respondToMeetingRoomInvite, updateMeetingRoomBooking } from '@/services/meeting-room-bookings';
+import { getTenantCompanies } from '@/services/tenant-companies';
+import { getMeetingRoomBookings, respondToMeetingRoomInvite, updateMeetingRoomBooking } from '@/services/meeting-room-bookings';
 
 const BOOKING_SLOT_STEP_MINUTES = 5;
 const BOOKING_MIN_DURATION_MINUTES = 30;
@@ -297,21 +294,14 @@ export default function TenantBookingHistoryPage() {
   );
 
   const loadBookings = async () => {
-    initMockTenantSession();
     setIsLoading(true);
     setErrorMessage('');
     try {
-      // ─── Backend calls (uncomment when backend ready) ───
-      // const [bookingsResponse, companiesResponse] = await Promise.allSettled([
-      //   getMeetingRoomBookings(), getTenantCompanies(),
-      // ]);
-      // const nextBookings = bookingsResponse.status === 'fulfilled' ? extractList(bookingsResponse.value, ['bookings', 'items']) : [];
-      // const nextCompanies = companiesResponse.status === 'fulfilled' ? extractList(companiesResponse.value, ['tenants', 'companies']) : [];
-
-      // ⚠️ Placeholder
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      const nextBookings: Record<string, any>[] = MOCK_BOOKINGS;
-      const nextCompanies: Record<string, any>[] = MOCK_TENANT_COMPANIES;
+      const [bookingsResponse, companiesResponse] = await Promise.allSettled([
+        getMeetingRoomBookings(), getTenantCompanies(),
+      ]);
+      const nextBookings = bookingsResponse.status === 'fulfilled' ? extractList(bookingsResponse.value, ['bookings', 'items']) : [];
+      const nextCompanies = companiesResponse.status === 'fulfilled' ? extractList(companiesResponse.value, ['tenants', 'companies']) : [];
 
       setBookings(nextBookings);
       setTenantCompanies(nextCompanies);

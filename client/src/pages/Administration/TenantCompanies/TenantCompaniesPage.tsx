@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+
 import { AppShell } from '@/components/layout/AppShell';
 import PageFrame from '@/components/Pages/PageFrame';
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
@@ -1211,11 +1212,11 @@ export default function AdministrationTenantCompaniesPage() {
             </div>
           </div>
 
-          <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5">
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md"><div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Tenants</p><p className="text-[15px] font-black text-slate-900">{stats.totalTenants}</p></div><div className="p-2 rounded-2xl bg-slate-100 text-slate-600"><Building2 size={20} /></div></div>
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-green-500"><div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Active Contracts</p><p className="text-[15px] font-black text-slate-900">{stats.activeContracts}</p></div><div className="p-2 rounded-2xl bg-green-50 text-green-600"><CheckCircle2 size={20} /></div></div>
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500"><div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Expiring Soon</p><p className="text-[15px] font-black text-slate-900">{stats.expiringSoon}</p></div><div className="p-2 rounded-2xl bg-amber-50 text-amber-600"><AlertTriangle size={20} /></div></div>
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500"><div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Credits Issued</p><p className="text-[15px] font-black text-slate-900">{stats.totalCreditsIssued}</p></div><div className="p-2 rounded-2xl bg-blue-50 text-blue-600"><CreditCard size={20} /></div></div>
+          <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
+            <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md"><div><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Total Tenants</p><p className="text-[13px] font-black text-slate-900">{stats.totalTenants}</p></div><div className="p-1.5 rounded-xl bg-slate-100 text-slate-600"><Building2 size={16} /></div></div>
+            <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-green-500"><div><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Active Contracts</p><p className="text-[13px] font-black text-slate-900">{stats.activeContracts}</p></div><div className="p-1.5 rounded-xl bg-green-50 text-green-600"><CheckCircle2 size={16} /></div></div>
+            <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500"><div><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Expiring Soon</p><p className="text-[13px] font-black text-slate-900">{stats.expiringSoon}</p></div><div className="p-1.5 rounded-xl bg-amber-50 text-amber-600"><AlertTriangle size={16} /></div></div>
+            <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500"><div><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Total Credits Issued</p><p className="text-[13px] font-black text-slate-900">{stats.totalCreditsIssued}</p></div><div className="p-1.5 rounded-xl bg-blue-50 text-blue-600"><CreditCard size={16} /></div></div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 mb-3">
@@ -1255,29 +1256,29 @@ export default function AdministrationTenantCompaniesPage() {
 
         {viewingCompany && (
           <div className="fixed inset-0 z-90 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
-            <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-              <div className="flex items-start justify-between border-b border-slate-100 bg-slate-50/70 p-6">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <Building2 className="text-blue-600" size={28} />
+            <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+              <div className="flex items-start justify-between border-b border-slate-100 bg-slate-50/70 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white shadow-sm">
+                    <Building2 className="text-blue-600" size={20} />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-pmedium text-primary">{viewingCompany.name}</h2>
-                    <div className="mt-1 flex items-center gap-3">
-                      <span className={`inline-flex rounded-md border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${getStatusBadge(viewingCompany.status)}`}>{viewingCompany.status}</span>
-                      <span className="flex items-center gap-1 text-xs font-bold text-slate-500"><Briefcase size={12} /> {viewingCompany.businessType || 'Tenant Company'}</span>
+                    <h2 className="text-xl font-pmedium text-primary">{viewingCompany.name}</h2>
+                    <div className="mt-0.5 flex items-center gap-2">
+                      <span className={`inline-flex rounded-md border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${getStatusBadge(viewingCompany.status)}`}>{viewingCompany.status}</span>
+                      <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500"><Briefcase size={10} /> {viewingCompany.businessType || 'Tenant Company'}</span>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <button
                 type="button"
                 onClick={() => handleExportCompaniesReport('PDF')}
                 disabled={Boolean(isExportingReport)}
                 title="Export PDF"
-                className="px-4 py-2.5 bg-white text-[#f10505] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+                className="px-3 py-2 bg-white text-[#f10505] rounded-xl font-black text-[9px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <FileDown size={14} /> {isExportingReport === 'PDF' ? 'Exporting...' : ''}
+                <FileDown size={12} /> {isExportingReport === 'PDF' ? '...' : ''}
                 
               </button>
               <button
@@ -1285,18 +1286,18 @@ export default function AdministrationTenantCompaniesPage() {
                 onClick={() => handleExportCompaniesReport('Excel')}
                 disabled={Boolean(isExportingReport)}
                 title="Export Excel"
-                className="px-4 py-2.5 bg-[#ffffff] text-[#1fd628] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+                className="px-3 py-2 bg-[#ffffff] text-[#1fd628] rounded-xl font-black text-[9px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <FileSpreadsheet size={14} /> {isExportingReport === 'Excel' ? 'Exporting...' : ''}
+                <FileSpreadsheet size={12} /> {isExportingReport === 'Excel' ? '...' : ''}
                 
               </button>
-                  <button onClick={() => { setViewingCompany(null); setSelectedEmployee(null); setEditingEmployee(null); setAgreementFiles([]); }} className="rounded-xl border border-slate-200 bg-red-500 p-2 text-white transition-colors hover:bg-red-600">
-                    <X size={20} />
+                  <button onClick={() => { setViewingCompany(null); setSelectedEmployee(null); setEditingEmployee(null); setAgreementFiles([]); }} className="rounded-xl border border-slate-200 bg-red-500 p-1.5 text-white transition-colors hover:bg-red-600">
+                    <X size={16} />
                   </button>
                 </div>
               </div>
 
-              <div className="flex gap-6 border-b border-slate-100 bg-white px-6 pt-4">
+              <div className="flex gap-4 border-b border-slate-100 bg-white px-4 pt-3">
                 {[
                   { id: 'summary', label: 'Company Summary', icon: <LayoutGrid size={16} /> },
                   { id: 'employees', label: 'Employees', icon: <Users size={16} /> },
@@ -1316,90 +1317,90 @@ export default function AdministrationTenantCompaniesPage() {
                 ))}
               </div>
 
-              <div className="flex-1 overflow-y-auto bg-slate-50/30 p-6">
+              <div className="flex-1 overflow-y-auto bg-slate-50/30 p-4">
                 {activeDetailTab === 'summary' && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4 lg:grid-cols-7">
-                      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Contract Start</p>
-                        <p className="text-sm font-bold text-slate-900">{viewingCompany.contractStart || 'N/A'}</p>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2 lg:grid-cols-7">
+                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">Contract Start</p>
+                        <p className="text-xs font-bold text-slate-900">{viewingCompany.contractStart || 'N/A'}</p>
                       </div>
-                      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Contract End</p>
-                        <p className="text-sm font-bold text-slate-900">{viewingCompany.contractEnd || 'N/A'}</p>
+                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">Contract End</p>
+                        <p className="text-xs font-bold text-slate-900">{viewingCompany.contractEnd || 'N/A'}</p>
                       </div>
-                      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-blue-500">Base Credits</p>
-                        <p className="text-xl font-black text-blue-600">{viewingCompany.baseCreditsAllocated ?? viewingCompany.creditConfiguration?.monthlyTotalCredits ?? viewingCompany.packageDetails?.monthlyTotalCredits ?? viewingCompany.creditsAllocated}</p>
+                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-blue-500">Base Credits</p>
+                        <p className="text-base font-black text-blue-600">{viewingCompany.baseCreditsAllocated ?? viewingCompany.creditConfiguration?.monthlyTotalCredits ?? viewingCompany.packageDetails?.monthlyTotalCredits ?? viewingCompany.creditsAllocated}</p>
                       </div>
-                      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-violet-500">Purchased</p>
-                        <p className="text-xl font-black text-violet-600">+{viewingCompany.purchasedCredits ?? viewingCompany.addOnCredits?.purchasedCredits ?? 0}</p>
+                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-violet-500">Purchased</p>
+                        <p className="text-base font-black text-violet-600">+{viewingCompany.purchasedCredits ?? viewingCompany.addOnCredits?.purchasedCredits ?? 0}</p>
                       </div>
-                      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-emerald-500">Credits Used</p>
-                        <p className="text-xl font-black text-emerald-600">{viewingCompany.creditsUsed}</p>
+                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-500">Credits Used</p>
+                        <p className="text-base font-black text-emerald-600">{viewingCompany.creditsUsed}</p>
                       </div>
-                      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Credits Remaining</p>
-                        <p className="text-xl font-black text-slate-900">{Math.max(0, Number((viewingCompany.totalCreditsAllocated ?? viewingCompany.creditsAllocated) || 0) - Number(viewingCompany.creditsUsed || 0))}</p>
+                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Credits Remaining</p>
+                        <p className="text-base font-black text-slate-900">{Math.max(0, Number((viewingCompany.totalCreditsAllocated ?? viewingCompany.creditsAllocated) || 0) - Number(viewingCompany.creditsUsed || 0))}</p>
                       </div>
-                      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                        <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-400">Assigned Area</p>
-                        <p className="text-sm font-bold text-slate-900">{viewingCompany.spaceAssigned?.area || viewingCompany.space?.floor || 'Unassigned'}</p>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-black uppercase tracking-wider text-slate-900">Sales Package Summary</h3>
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Plan Type</p><p className="text-sm font-bold text-slate-900">{viewingCompany.planType || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Package Name</p><p className="text-sm font-bold text-slate-900">{viewingCompany.packageName || viewingCompany.packageDetails?.packageName || viewingCompany.planType || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Location Blocks</p><p className="text-sm font-bold text-slate-900">{viewingCompany.packageLocationLabels?.length ? viewingCompany.packageLocationLabels.join(', ') : 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Total Seats</p><p className="text-sm font-bold text-slate-900">{formatInteger(viewingCompany.packageDetails?.totalSeats || 0)}</p></div>
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-black uppercase tracking-wider text-slate-900">Billing Snapshot</h3>
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Monthly Rent</p><p className="text-sm font-bold text-slate-900">{formatCurrency(viewingCompany.livePricingSummary?.monthlyRent || viewingCompany.billingDetails?.monthlyRent || 0)}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Total Contract Amount</p><p className="text-sm font-bold text-slate-900">{formatCurrency(viewingCompany.livePricingSummary?.totalContractAmount || viewingCompany.billingDetails?.totalContractAmount || 0)}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Security Deposit</p><p className="text-sm font-bold text-slate-900">{formatCurrency(viewingCompany.livePricingSummary?.securityDepositAmount || viewingCompany.billingDetails?.securityDepositAmount || 0)}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Deposit Status</p><p className="text-sm font-bold text-slate-900">{viewingCompany.billingDetails?.securityDepositPaidStatus || 'Pending'}</p></div>
-                        </div>
+                      <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                        <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">Assigned Area</p>
+                        <p className="text-xs font-bold text-slate-900">{viewingCompany.spaceAssigned?.area || viewingCompany.space?.floor || 'Unassigned'}</p>
                       </div>
                     </div>
 
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-black uppercase tracking-wider text-slate-900">Customer Profile</h3>
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Company Name</p><p className="text-sm font-bold text-slate-900">{viewingCompany.customerDetails?.clientName || viewingCompany.name}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Sector</p><p className="text-sm font-bold text-slate-900">{viewingCompany.customerDetails?.sector || viewingCompany.businessType || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">HO Country</p><p className="text-sm font-bold text-slate-900">{viewingCompany.customerDetails?.hoCountry || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">HO State</p><p className="text-sm font-bold text-slate-900">{viewingCompany.customerDetails?.hoState || 'N/A'}</p></div>
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">HO City</p><p className="text-sm font-bold text-slate-900">{viewingCompany.customerDetails?.hoCity || 'N/A'}</p></div>
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-black uppercase tracking-wider text-slate-900">Sales Package Summary</h3>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Plan Type</p><p className="text-xs font-bold text-slate-900">{viewingCompany.planType || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Package Name</p><p className="text-xs font-bold text-slate-900">{viewingCompany.packageName || viewingCompany.packageDetails?.packageName || viewingCompany.planType || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Location Blocks</p><p className="text-xs font-bold text-slate-900">{viewingCompany.packageLocationLabels?.length ? viewingCompany.packageLocationLabels.join(', ') : 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Total Seats</p><p className="text-xs font-bold text-slate-900">{formatInteger(viewingCompany.packageDetails?.totalSeats || 0)}</p></div>
                         </div>
                       </div>
 
-                      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-black uppercase tracking-wider text-slate-900">Manager Assignment</h3>
-                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-black uppercase tracking-wider text-slate-900">Billing Snapshot</h3>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Monthly Rent</p><p className="text-xs font-bold text-slate-900">{formatCurrency(viewingCompany.livePricingSummary?.monthlyRent || viewingCompany.billingDetails?.monthlyRent || 0)}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Total Contract Amount</p><p className="text-xs font-bold text-slate-900">{formatCurrency(viewingCompany.livePricingSummary?.totalContractAmount || viewingCompany.billingDetails?.totalContractAmount || 0)}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Security Deposit</p><p className="text-xs font-bold text-slate-900">{formatCurrency(viewingCompany.livePricingSummary?.securityDepositAmount || viewingCompany.billingDetails?.securityDepositAmount || 0)}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Deposit Status</p><p className="text-xs font-bold text-slate-900">{viewingCompany.billingDetails?.securityDepositPaidStatus || 'Pending'}</p></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-black uppercase tracking-wider text-slate-900">Customer Profile</h3>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Company Name</p><p className="text-xs font-bold text-slate-900">{viewingCompany.customerDetails?.clientName || viewingCompany.name}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Sector</p><p className="text-xs font-bold text-slate-900">{viewingCompany.customerDetails?.sector || viewingCompany.businessType || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">HO Country</p><p className="text-xs font-bold text-slate-900">{viewingCompany.customerDetails?.hoCountry || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">HO State</p><p className="text-xs font-bold text-slate-900">{viewingCompany.customerDetails?.hoState || 'N/A'}</p></div>
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">HO City</p><p className="text-xs font-bold text-slate-900">{viewingCompany.customerDetails?.hoCity || 'N/A'}</p></div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-black uppercase tracking-wider text-slate-900">Manager Assignment</h3>
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                           <div>
-                            <p className="text-xs font-bold text-slate-400">Current Manager</p>
-                            <p className="text-sm font-bold text-slate-900">{viewingCompany.managerEmployee?.name || 'No manager assigned'}</p>
-                            <p className="text-xs text-slate-500">{viewingCompany.managerEmployee?.email || 'Assign one manager from the employee list below.'}</p>
+                            <p className="text-[10px] font-bold text-slate-400">Current Manager</p>
+                            <p className="text-xs font-bold text-slate-900">{viewingCompany.managerEmployee?.name || 'No manager assigned'}</p>
+                            <p className="text-[10px] text-slate-500">{viewingCompany.managerEmployee?.email || 'Assign one manager from the employee list below.'}</p>
                           </div>
-                          <span className="inline-flex w-max rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-blue-600">
+                          <span className="inline-flex w-max rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-blue-600">
                             {viewingCompany.managerEmployeeId ? 'Manager Active' : 'Pending Assignment'}
                           </span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="grid gap-3 lg:grid-cols-2">
                       <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
                         <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-black uppercase tracking-wider text-slate-900">Company Details</h3>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1449,103 +1450,103 @@ export default function AdministrationTenantCompaniesPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                      <div className="mb-4 flex flex-col gap-3 border-b border-slate-100 pb-2 lg:flex-row lg:items-end lg:justify-between">
-                        <h3 className="text-sm font-black uppercase tracking-wider text-slate-900">Agreement Documents</h3>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <label className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-slate-700 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600">
+                    <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                      <div className="mb-3 flex flex-col gap-2 border-b border-slate-100 pb-2 lg:flex-row lg:items-end lg:justify-between">
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">Agreement Documents</h3>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <label className="cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-700 transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600">
                             Choose File(s)
                             <input type="file" multiple accept=".pdf,.doc,.docx,image/png,image/jpeg,image/jpg" className="hidden" onChange={handleAgreementFilesChange} />
                           </label>
                           <button type="button" onClick={handleUploadAgreementDocuments} disabled={!agreementFiles.length || isAgreementUploading}
-                            className="rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="rounded-xl bg-blue-600 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                           >{isAgreementUploading ? 'Uploading...' : 'Upload'}</button>
                         </div>
                       </div>
                       {agreementFiles.length > 0 && (
-                        <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-blue-600">Selected {agreementFiles.length} file{agreementFiles.length > 1 ? 's' : ''}</p>
+                        <p className="mb-3 text-[9px] font-bold uppercase tracking-widest text-blue-600">Selected {agreementFiles.length} file{agreementFiles.length > 1 ? 's' : ''}</p>
                       )}
                       {(viewingCompany.agreementDocuments || []).length > 0 ? (
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                           {(viewingCompany.agreementDocuments || []).map((document) => (
                             <a key={`${document.publicId || document.url || document.name}`} href={document.url} target="_blank" rel="noreferrer"
-                              className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition-all hover:border-blue-200 hover:bg-blue-50/50"
+                              className="rounded-xl border border-slate-200 bg-slate-50 p-3 transition-all hover:border-blue-200 hover:bg-blue-50/50"
                             >
-                              <div className="flex items-start gap-3">
-                                <div className="rounded-xl bg-blue-50 p-2 text-blue-600"><FileText size={16} /></div>
+                              <div className="flex items-start gap-2">
+                                <div className="rounded-xl bg-blue-50 p-1.5 text-blue-600"><FileText size={14} /></div>
                                 <div className="min-w-0 flex-1">
-                                  <p className="truncate text-sm font-bold text-slate-900">{document.name}</p>
-                                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">{document.type || 'document'}{document.size ? ` | ${document.size}` : ''}</p>
+                                  <p className="truncate text-xs font-bold text-slate-900">{document.name}</p>
+                                  <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">{document.type || 'document'}{document.size ? ` | ${document.size}` : ''}</p>
                                 </div>
                               </div>
                             </a>
                           ))}
                         </div>
                       ) : (
-                        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm font-medium text-slate-400">No agreement documents uploaded yet.</div>
+                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-xs font-medium text-slate-400">No agreement documents uploaded yet.</div>
                       )}
                     </div>
 
-                    <div className="flex gap-3 pt-4">
-                      <span className="rounded-xl border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-bold text-slate-500">Contract details are view-only for administration.</span>
+                    <div className="flex gap-2 pt-2">
+                      <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-bold text-slate-500">Contract details are view-only for administration.</span>
                     </div>
                   </div>
                 )}
 
                 {activeDetailTab === 'employees' && (
-                  <div className="space-y-4">
-                    <div className="mb-4 flex items-center justify-between">
-                      <h3 className="text-sm font-black uppercase tracking-wider text-slate-900">Managed Employees</h3>
-                      <button onClick={() => openAddEmployeeModal(viewingCompany)} className="flex items-center gap-2 rounded-lg bg-blue-50 px-4 py-2 text-xs font-bold text-blue-600 transition-all hover:bg-blue-100">
-                        <Plus size={14} /> Add Employee
+                  <div className="space-y-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">Managed Employees</h3>
+                      <button onClick={() => openAddEmployeeModal(viewingCompany)} className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-600 transition-all hover:bg-blue-100">
+                        <Plus size={12} /> Add Employee
                       </button>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-                      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <div>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Employee Directory</p>
-                          <p className="mt-1 text-sm font-bold text-slate-900">{viewingCompanyEmployees.length} managed {viewingCompanyEmployees.length === 1 ? 'employee' : 'employees'}</p>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Employee Directory</p>
+                          <p className="mt-0.5 text-xs font-bold text-slate-900">{viewingCompanyEmployees.length} managed {viewingCompanyEmployees.length === 1 ? 'employee' : 'employees'}</p>
                         </div>
-                        <span className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-600"><Users size={13} /> Active roster</span>
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-600"><Users size={11} /> Active roster</span>
                       </div>
 
                       {viewingCompanyEmployees.length > 0 ? (
-                        <div className="grid gap-3">
+                        <div className="grid gap-2">
                           {viewingCompanyEmployees.map((employee) => {
                             const statusMeta = getTenantEmployeeStatusMeta(employee);
                             const isManager = employee.role === 'Manager';
                             return (
-                              <div key={employee.id || employee.email || employee.name} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-blue-200 hover:shadow-md">
-                                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                                  <div className="flex min-w-0 items-start gap-3">
-                                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-black ${isManager ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                              <div key={employee.id || employee.email || employee.name} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:border-blue-200 hover:shadow-md">
+                                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                  <div className="flex min-w-0 items-start gap-2">
+                                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black ${isManager ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}>
                                       {getEmployeeInitials(employee)}
                                     </div>
                                     <div className="min-w-0">
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        <h4 className="text-sm font-black text-slate-950">{buildEmployeeName(employee)}</h4>
-                                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${isManager ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{employee.role || 'Employee'}</span>
-                                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${statusMeta.className}`}>{statusMeta.label}</span>
+                                      <div className="flex flex-wrap items-center gap-1.5">
+                                        <h4 className="text-xs font-black text-slate-950">{buildEmployeeName(employee)}</h4>
+                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${isManager ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{employee.role || 'Employee'}</span>
+                                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${statusMeta.className}`}>{statusMeta.label}</span>
                                       </div>
-                                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-slate-500">
-                                        <span className="inline-flex items-center gap-1.5"><Mail size={13} /> {employee.email || 'No email'}</span>
-                                        {employee.phone && <span className="inline-flex items-center gap-1.5"><Phone size={13} /> {employee.phone}</span>}
-                                        <span className="inline-flex items-center gap-1.5"><Briefcase size={13} /> {employee.designation || 'No designation'}</span>
+                                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-semibold text-slate-500">
+                                        <span className="inline-flex items-center gap-1"><Mail size={11} /> {employee.email || 'No email'}</span>
+                                        {employee.phone && <span className="inline-flex items-center gap-1"><Phone size={11} /> {employee.phone}</span>}
+                                        <span className="inline-flex items-center gap-1"><Briefcase size={11} /> {employee.designation || 'No designation'}</span>
                                       </div>
                                     </div>
                                   </div>
 
-                                  <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
-                                    <button onClick={() => setSelectedEmployee(employee)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">View Profile</button>
+                                  <div className="flex flex-wrap justify-start gap-1.5 lg:justify-end">
+                                    <button onClick={() => setSelectedEmployee(employee)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">View Profile</button>
                                     {employee.status === 'Active' && !isManager && (
-                                      <button onClick={() => handleAssignManager(employee.id!)} className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-blue-700 transition-colors hover:bg-blue-100">Set Manager</button>
+                                      <button onClick={() => handleAssignManager(employee.id!)} className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-blue-700 transition-colors hover:bg-blue-100">Set Manager</button>
                                     )}
                                     {employee.status === 'Active' && isManager && (
-                                      <span className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-blue-700">Current Manager</span>
+                                      <span className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-blue-700">Current Manager</span>
                                     )}
                                     {employee.status === 'Active' && (
-                                      <button onClick={() => handleDeactivateEmployee(employee.id!)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-red-600 transition-colors hover:bg-red-100 hover:text-red-700">Deactivate</button>
+                                      <button onClick={() => handleDeactivateEmployee(employee.id!)} className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-red-600 transition-colors hover:bg-red-100 hover:text-red-700">Deactivate</button>
                                     )}
                                   </div>
                                 </div>
@@ -1554,9 +1555,9 @@ export default function AdministrationTenantCompaniesPage() {
                           })}
                         </div>
                       ) : (
-                        <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center">
-                          <Users className="mx-auto mb-3 text-slate-300" size={28} />
-                          <p className="text-sm font-bold text-slate-500">No employees found for this tenant company.</p>
+                        <div className="rounded-xl border border-dashed border-slate-300 bg-white px-3 py-8 text-center">
+                          <Users className="mx-auto mb-2 text-slate-300" size={24} />
+                          <p className="text-xs font-bold text-slate-500">No employees found for this tenant company.</p>
                         </div>
                       )}
                     </div>
@@ -1564,29 +1565,29 @@ export default function AdministrationTenantCompaniesPage() {
                 )}
 
                 {activeDetailTab === 'credits' && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                      <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-black uppercase text-slate-500">Base Allocated</p><p className="text-lg font-black text-slate-900">{viewingCompany.baseCreditsAllocated ?? viewingCompany.creditConfiguration?.monthlyTotalCredits ?? viewingCompany.packageDetails?.monthlyTotalCredits ?? viewingCompany.creditsAllocated}</p></div>
-                      <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-black uppercase text-violet-500">Purchased Add-ons</p><p className="text-lg font-black text-violet-600">+{viewingCompany.purchasedCredits ?? viewingCompany.addOnCredits?.purchasedCredits ?? 0}</p></div>
-                      <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-black uppercase text-blue-500">Credits Used</p><p className="text-lg font-black text-blue-600">{viewingCompany.creditsUsed}</p></div>
-                      <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-[10px] font-black uppercase text-green-500">Remaining Balance</p><p className="text-lg font-black text-green-600">{Math.max(0, Number((viewingCompany.totalCreditsAllocated ?? viewingCompany.creditsAllocated) || 0) - Number(viewingCompany.creditsUsed || 0))}</p></div>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
+                      <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-[9px] font-black uppercase text-slate-500">Base Allocated</p><p className="text-base font-black text-slate-900">{viewingCompany.baseCreditsAllocated ?? viewingCompany.creditConfiguration?.monthlyTotalCredits ?? viewingCompany.packageDetails?.monthlyTotalCredits ?? viewingCompany.creditsAllocated}</p></div>
+                      <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-[9px] font-black uppercase text-violet-500">Purchased Add-ons</p><p className="text-base font-black text-violet-600">+{viewingCompany.purchasedCredits ?? viewingCompany.addOnCredits?.purchasedCredits ?? 0}</p></div>
+                      <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-[9px] font-black uppercase text-blue-500">Credits Used</p><p className="text-base font-black text-blue-600">{viewingCompany.creditsUsed}</p></div>
+                      <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-[9px] font-black uppercase text-green-500">Remaining Balance</p><p className="text-base font-black text-green-600">{Math.max(0, Number((viewingCompany.totalCreditsAllocated ?? viewingCompany.creditsAllocated) || 0) - Number(viewingCompany.creditsUsed || 0))}</p></div>
                     </div>
 
                     {Array.isArray(viewingCompany.creditHistory) && viewingCompany.creditHistory.length > 0 && (
-                      <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4 shadow-sm">
-                        <div className="flex items-center justify-between gap-3">
+                      <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-3 shadow-sm">
+                        <div className="flex items-center justify-between gap-2">
                           <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">Latest Credit Entry</p>
-                            <h4 className="mt-1 text-base font-black text-blue-950">{viewingCompany.creditHistory[0]?.roomName || viewingCompany.creditHistory[0]?.resource || viewingCompany.creditHistory[0]?.type || 'Meeting Room Booking'}</h4>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-blue-500">Latest Credit Entry</p>
+                            <h4 className="mt-0.5 text-sm font-black text-blue-950">{viewingCompany.creditHistory[0]?.roomName || viewingCompany.creditHistory[0]?.resource || viewingCompany.creditHistory[0]?.type || 'Meeting Room Booking'}</h4>
                           </div>
-                          <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">{viewingCompany.creditHistory[0]?.bookingCode || 'No code'}</span>
+                          <span className="rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">{viewingCompany.creditHistory[0]?.bookingCode || 'No code'}</span>
                         </div>
-                        <div className="mt-3 grid gap-3 md:grid-cols-4 text-xs font-bold text-blue-900">
-                          <div className="rounded-xl bg-white px-3 py-2 border border-blue-100">Scheduled Date: {viewingCompany.creditHistory[0]?.scheduledDate || viewingCompany.creditHistory[0]?.date || '—'}</div>
-                          <div className="rounded-xl bg-white px-3 py-2 border border-blue-100">Booked By: {viewingCompany.creditHistory[0]?.bookedBy || '—'}</div>
-                          <div className="rounded-xl bg-white px-3 py-2 border border-blue-100">Schedule: {viewingCompany.creditHistory[0]?.startTime || '—'} - {viewingCompany.creditHistory[0]?.endTime || '—'}</div>
-                          <div className="rounded-xl bg-white px-3 py-2 border border-blue-100">Location: {viewingCompany.creditHistory[0]?.location || '—'}{viewingCompany.creditHistory[0]?.wing ? ` • Wing ${viewingCompany.creditHistory[0]?.wing}` : ''}</div>
-                          <div className="rounded-xl bg-white px-3 py-2 border border-blue-100">Credits: {formatCreditDelta(viewingCompany.creditHistory[0])}</div>
+                        <div className="mt-2 grid gap-2 md:grid-cols-4 text-[10px] font-bold text-blue-900">
+                          <div className="rounded-xl bg-white px-2 py-1.5 border border-blue-100">Scheduled Date: {viewingCompany.creditHistory[0]?.scheduledDate || viewingCompany.creditHistory[0]?.date || '—'}</div>
+                          <div className="rounded-xl bg-white px-2 py-1.5 border border-blue-100">Booked By: {viewingCompany.creditHistory[0]?.bookedBy || '—'}</div>
+                          <div className="rounded-xl bg-white px-2 py-1.5 border border-blue-100">Schedule: {viewingCompany.creditHistory[0]?.startTime || '—'} - {viewingCompany.creditHistory[0]?.endTime || '—'}</div>
+                          <div className="rounded-xl bg-white px-2 py-1.5 border border-blue-100">Location: {viewingCompany.creditHistory[0]?.location || '—'}{viewingCompany.creditHistory[0]?.wing ? ` • Wing ${viewingCompany.creditHistory[0]?.wing}` : ''}</div>
+                          <div className="rounded-xl bg-white px-2 py-1.5 border border-blue-100">Credits: {formatCreditDelta(viewingCompany.creditHistory[0])}</div>
                         </div>
                       </div>
                     )}
@@ -1594,99 +1595,99 @@ export default function AdministrationTenantCompaniesPage() {
                     {Array.isArray(viewingCompany.creditHistory) && viewingCompany.creditHistory.length > 0 ? (
                       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
                         <table className="w-full text-left">
-                          <thead className="border-b border-slate-200 bg-slate-50 text-[10px] font-black uppercase text-slate-500">
+                          <thead className="border-b border-slate-200 bg-slate-50 text-[9px] font-black uppercase text-slate-500">
                             <tr>
-                              <th className="px-4 py-3">Booked On</th>
-                              <th className="px-4 py-3">Booking / Room</th>
-                              <th className="px-4 py-3">Scheduled For</th>
-                              <th className="px-4 py-3">Location / Wing</th>
-                              <th className="px-4 py-3">Status</th>
-                              <th className="px-4 py-3 text-right">Credits</th>
-                              <th className="px-4 py-3 text-right">Remaining</th>
+                              <th className="px-3 py-2">Booked On</th>
+                              <th className="px-3 py-2">Booking / Room</th>
+                              <th className="px-3 py-2">Scheduled For</th>
+                              <th className="px-3 py-2">Location / Wing</th>
+                              <th className="px-3 py-2">Status</th>
+                              <th className="px-3 py-2 text-right">Credits</th>
+                              <th className="px-3 py-2 text-right">Remaining</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
                             {viewingCompany.creditHistory.map((history) => (
                               <tr key={history.id}>
-                                <td className="px-4 py-3 text-xs font-bold text-slate-500">{history.date}</td>
-                                <td className="px-4 py-3">
-                                  <p className="text-sm font-bold text-slate-900">{history.roomName || history.resource || history.type}</p>
-                                  <p className="text-xs text-slate-500">{history.bookingCode || history.type}</p>
-                                  <p className="text-[11px] text-slate-400">{history.resource ? `Resource: ${history.resource}` : 'Meeting room credit entry'}</p>
+                                <td className="px-3 py-2 text-[10px] font-bold text-slate-500">{history.date}</td>
+                                <td className="px-3 py-2">
+                                  <p className="text-xs font-bold text-slate-900">{history.roomName || history.resource || history.type}</p>
+                                  <p className="text-[10px] text-slate-500">{history.bookingCode || history.type}</p>
+                                  <p className="text-[10px] text-slate-400">{history.resource ? `Resource: ${history.resource}` : 'Meeting room credit entry'}</p>
                                 </td>
-                                <td className="px-4 py-3 text-xs font-medium text-slate-600">
+                                <td className="px-3 py-2 text-[10px] font-medium text-slate-600">
                                   <p className="font-semibold text-slate-800">{history.scheduledDate || history.date || '—'}</p>
                                   <p className="font-semibold text-slate-800">{history.startTime || '—'} - {history.endTime || '—'}</p>
-                                  <p className="text-[11px] text-slate-500">{history.bookedBy || '—'}</p>
+                                  <p className="text-[10px] text-slate-500">{history.bookedBy || '—'}</p>
                                 </td>
-                                <td className="px-4 py-3 text-xs font-medium text-slate-600">{history.location || '—'}{history.wing ? ` • Wing ${history.wing}` : ''}</td>
-                                <td className="px-4 py-3">
-                                  <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[9px] font-black uppercase tracking-widest ${getCreditHistoryStatusBadge(history.status || '')}`}>{history.status || 'Booked'}</span>
+                                <td className="px-3 py-2 text-[10px] font-medium text-slate-600">{history.location || '—'}{history.wing ? ` • Wing ${history.wing}` : ''}</td>
+                                <td className="px-3 py-2">
+                                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-widest ${getCreditHistoryStatusBadge(history.status || '')}`}>{history.status || 'Booked'}</span>
                                 </td>
-                                <td className={`px-4 py-3 text-right text-sm font-black ${Number(history.credited || 0) > 0 ? 'text-emerald-600' : 'text-red-500'}`}>{formatCreditDelta(history)}</td>
-                                <td className="px-4 py-3 text-right text-sm font-black text-emerald-600">{history.remainingCredits ?? Math.max(0, Number(viewingCompany.creditsAllocated || 0) - Number(viewingCompany.creditsUsed || 0))}</td>
+                                <td className={`px-3 py-2 text-right text-xs font-black ${Number(history.credited || 0) > 0 ? 'text-emerald-600' : 'text-red-500'}`}>{formatCreditDelta(history)}</td>
+                                <td className="px-3 py-2 text-right text-xs font-black text-emerald-600">{history.remainingCredits ?? Math.max(0, Number(viewingCompany.creditsAllocated || 0) - Number(viewingCompany.creditsUsed || 0))}</td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
                     ) : (
-                      <div className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-10 text-center"><p className="text-sm font-bold text-slate-500">No credit usage recorded yet.</p></div>
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-8 text-center"><p className="text-xs font-bold text-slate-500">No credit usage recorded yet.</p></div>
                     )}
                   </div>
                 )}
 
                 {activeDetailTab === 'space' && (
-                  <div className="space-y-4">
-                    <h3 className="mb-2 text-sm font-black uppercase tracking-wider text-slate-900">Tenant Occupied Area</h3>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                      <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white p-6 text-center shadow-sm">
-                        <MapPin className="mb-2 text-amber-500" size={24} />
-                        <p className="px-2 text-sm font-bold text-slate-900">{viewingCompany.spaceAssigned?.area || 'Unassigned'}</p>
-                        <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Area</p>
+                  <div className="space-y-3">
+                    <h3 className="mb-1 text-xs font-black uppercase tracking-wider text-slate-900">Tenant Occupied Area</h3>
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
+                      <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
+                        <MapPin className="mb-1 text-amber-500" size={18} />
+                        <p className="px-2 text-xs font-bold text-slate-900">{viewingCompany.spaceAssigned?.area || 'Unassigned'}</p>
+                        <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Area</p>
                       </div>
-                      <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white p-6 text-center shadow-sm">
-                        <LayoutGrid className="mb-2 text-blue-500" size={24} />
-                        <p className="text-3xl font-black text-slate-900">{viewingCompany.spaceAssigned?.openDesks ?? 0}</p>
-                        <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Open Desks</p>
+                      <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
+                        <LayoutGrid className="mb-1 text-blue-500" size={18} />
+                        <p className="text-2xl font-black text-slate-900">{viewingCompany.spaceAssigned?.openDesks ?? 0}</p>
+                        <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Open Desks</p>
                       </div>
-                      <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white p-6 text-center shadow-sm">
-                        <Building2 className="mb-2 text-purple-500" size={24} />
-                        <p className="text-3xl font-black text-slate-900">{viewingCompany.spaceAssigned?.cabinDesks ?? 0}</p>
-                        <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Cabin Desks</p>
+                      <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
+                        <Building2 className="mb-1 text-purple-500" size={18} />
+                        <p className="text-2xl font-black text-slate-900">{viewingCompany.spaceAssigned?.cabinDesks ?? 0}</p>
+                        <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Cabin Desks</p>
                       </div>
-                      <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white p-6 text-center shadow-sm">
-                        <Users className="mb-2 text-sky-500" size={24} />
-                        <p className="text-3xl font-black text-slate-900">{viewingCompany.spaceAssigned?.totalSeats ?? 0}</p>
-                        <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Total Seats</p>
+                      <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white p-4 text-center shadow-sm">
+                        <Users className="mb-1 text-sky-500" size={18} />
+                        <p className="text-2xl font-black text-slate-900">{viewingCompany.spaceAssigned?.totalSeats ?? 0}</p>
+                        <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Total Seats</p>
                       </div>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-black uppercase tracking-wider text-slate-900">Assigned Space Breakdown</h3>
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <div><p className="mb-1 text-xs font-bold text-slate-400">Assigned Date</p><p className="text-sm font-bold text-slate-900">{viewingCompany.spaceAssigned?.assignedDate || 'N/A'}</p></div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-black uppercase tracking-wider text-slate-900">Assigned Space Breakdown</h3>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          <div><p className="mb-0.5 text-[10px] font-bold text-slate-400">Assigned Date</p><p className="text-xs font-bold text-slate-900">{viewingCompany.spaceAssigned?.assignedDate || 'N/A'}</p></div>
                           <div>
-                            <p className="mb-1 text-xs font-bold text-slate-400">Assigned Seats</p>
-                            <div className="mt-1 flex flex-wrap gap-2">
+                            <p className="mb-0.5 text-[10px] font-bold text-slate-400">Assigned Seats</p>
+                            <div className="mt-0.5 flex flex-wrap gap-1.5">
                               {Array.isArray(viewingCompany.spaceAssigned?.assignedSeats) && viewingCompany.spaceAssigned.assignedSeats.length > 0 ? viewingCompany.spaceAssigned.assignedSeats.map((seat) => (
-                                <span key={seat} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-700">{seat}</span>
+                                <span key={seat} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-700">{seat}</span>
                               )) : (
-                                <span className="text-sm font-bold text-slate-300">N/A</span>
+                                <span className="text-xs font-bold text-slate-300">N/A</span>
                               )}
                             </div>
                           </div>
                         </div>
                       </div>
 
-                      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-                        <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-black uppercase tracking-wider text-slate-900">Location Labels</h3>
-                        <div className="flex flex-wrap gap-2">
+                      <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+                        <h3 className="mb-3 border-b border-slate-100 pb-2 text-xs font-black uppercase tracking-wider text-slate-900">Location Labels</h3>
+                        <div className="flex flex-wrap gap-1.5">
                           {Array.isArray(viewingCompany.spaceAssigned?.locationLabels) && viewingCompany.spaceAssigned.locationLabels.length > 0 ? viewingCompany.spaceAssigned.locationLabels.map((label) => (
-                            <span key={label} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-600">{label}</span>
+                            <span key={label} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-600">{label}</span>
                           )) : (
-                            <span className="text-sm font-medium text-slate-400">No assigned location labels.</span>
+                            <span className="text-xs font-medium text-slate-400">No assigned location labels.</span>
                           )}
                         </div>
                       </div>
@@ -1700,35 +1701,35 @@ export default function AdministrationTenantCompaniesPage() {
 
         {selectedEmployee && (
           <div className="fixed inset-0 z-95 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
-            <div className="w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl">
-              <div className="flex items-start justify-between border-b border-slate-100 bg-slate-50/70 p-6">
+            <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+              <div className="flex items-start justify-between border-b border-slate-100 bg-slate-50/70 p-4">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Employee Profile</p>
-                  <h3 className="mt-1 text-2xl font-black text-slate-900">{selectedEmployee.name}</h3>
-                  <p className="mt-1 text-sm font-bold text-slate-500">{selectedEmployee.designation || 'Tenant Employee'}</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Employee Profile</p>
+                  <h3 className="mt-0.5 text-xl font-black text-slate-900">{selectedEmployee.name}</h3>
+                  <p className="mt-0.5 text-xs font-bold text-slate-500">{selectedEmployee.designation || 'Tenant Employee'}</p>
                 </div>
-                <button onClick={() => { setSelectedEmployee(null); setEditingEmployee(null); }} className="rounded-xl border border-slate-200 bg-white p-2 text-slate-400 transition-colors hover:bg-slate-100"><X size={20} /></button>
+                <button onClick={() => { setSelectedEmployee(null); setEditingEmployee(null); }} className="rounded-xl border border-slate-200 bg-white p-1.5 text-slate-400 transition-colors hover:bg-slate-100"><X size={16} /></button>
               </div>
 
-              <div className="grid gap-4 p-6 md:grid-cols-2">
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Email</p><p className="mt-1 break-all text-sm font-bold text-slate-900">{selectedEmployee.email}</p></div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Role</p><p className="mt-1 text-sm font-bold text-slate-900">{selectedEmployee.role || 'Employee'}</p></div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Account Status</p><p className="mt-1 text-sm font-bold text-slate-900">{getTenantEmployeeStatusMeta(selectedEmployee).label}</p></div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current Access</p><p className="mt-1 text-sm font-bold text-slate-900">{selectedEmployee.status || 'Active'}</p></div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Invited At</p><p className="mt-1 text-sm font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.invitedAt || selectedEmployee.inviteSentAt) || 'N/A'}</p></div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Registered At</p><p className="mt-1 text-sm font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.registeredAt) || 'N/A'}</p></div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Last Login</p><p className="mt-1 text-sm font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.lastLoginAt) || 'Never'}</p></div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tenant Link</p><p className="mt-1 text-sm font-bold text-slate-900">{selectedEmployee.tenantCompanyName || viewingCompany?.name || 'Tenant Company'}</p></div>
+              <div className="grid gap-3 p-4 md:grid-cols-2">
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Email</p><p className="mt-0.5 break-all text-xs font-bold text-slate-900">{selectedEmployee.email}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Role</p><p className="mt-0.5 text-xs font-bold text-slate-900">{selectedEmployee.role || 'Employee'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Account Status</p><p className="mt-0.5 text-xs font-bold text-slate-900">{getTenantEmployeeStatusMeta(selectedEmployee).label}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Current Access</p><p className="mt-0.5 text-xs font-bold text-slate-900">{selectedEmployee.status || 'Active'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Invited At</p><p className="mt-0.5 text-xs font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.invitedAt || selectedEmployee.inviteSentAt) || 'N/A'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Registered At</p><p className="mt-0.5 text-xs font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.registeredAt) || 'N/A'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Last Login</p><p className="mt-0.5 text-xs font-bold text-slate-900">{formatDateTimeLabel(selectedEmployee.lastLoginAt) || 'Never'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3"><p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Tenant Link</p><p className="mt-0.5 text-xs font-bold text-slate-900">{selectedEmployee.tenantCompanyName || viewingCompany?.name || 'Tenant Company'}</p></div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 border-t border-slate-100 bg-white p-6">
-                <button onClick={() => openEditEmployeeModal(selectedEmployee)} className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-blue-600 transition-all hover:bg-blue-100">Edit</button>
+              <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-white p-4">
+                <button onClick={() => openEditEmployeeModal(selectedEmployee)} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-blue-600 transition-all hover:bg-blue-100">Edit</button>
                 <button onClick={() => { if (selectedEmployee?.status === 'Active') handleDeactivateEmployee(selectedEmployee.id!); }}
                   disabled={selectedEmployee?.status !== 'Active'}
-                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-red-600 transition-all hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-red-600 transition-all hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >Deactivate</button>
-                <button onClick={() => handleDeleteEmployee(selectedEmployee.id!)} className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-amber-700 transition-all hover:bg-amber-100">Delete</button>
-                <button onClick={() => { setSelectedEmployee(null); setEditingEmployee(null); }} className="rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-slate-800">Close</button>
+                <button onClick={() => handleDeleteEmployee(selectedEmployee.id!)} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-amber-700 transition-all hover:bg-amber-100">Delete</button>
+                <button onClick={() => { setSelectedEmployee(null); setEditingEmployee(null); }} className="rounded-xl bg-slate-900 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-slate-800">Close</button>
               </div>
             </div>
           </div>
@@ -1769,29 +1770,29 @@ export default function AdministrationTenantCompaniesPage() {
 
         {renewingContract && (
           <div className="fixed inset-0 z-95 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
-            <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-100 p-5">
-                <h3 className="flex items-center gap-2 text-lg font-black text-slate-900"><RefreshCw size={18} className="text-blue-600" /> Renew Contract</h3>
-                <button onClick={closeRenewModal} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><X size={18} /></button>
+            <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-100 p-4">
+                <h3 className="flex items-center gap-2 text-base font-black text-slate-900"><RefreshCw size={16} className="text-blue-600" /> Renew Contract</h3>
+                <button onClick={closeRenewModal} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
               </div>
-              <form onSubmit={handleRenewSave} className="space-y-5 p-6">
-                <div className="flex items-start gap-2 rounded-lg bg-blue-50 p-3 text-xs font-bold text-blue-800">
-                  <ShieldCheck size={16} className="mt-0.5 shrink-0" />
+              <form onSubmit={handleRenewSave} className="space-y-4 p-4">
+                <div className="flex items-start gap-1.5 rounded-lg bg-blue-50 p-2.5 text-[10px] font-bold text-blue-800">
+                  <ShieldCheck size={14} className="mt-0.5 shrink-0" />
                   <p>Finance gets notified automatically upon saving. Contract dates will be updated from the tenant company API.</p>
                 </div>
                 <div>
-                  <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Extend Duration</label>
-                  <select className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold outline-none" value={renewForm.extendMonths} onChange={(event) => setRenewForm({ ...renewForm, extendMonths: event.target.value })}>
+                  <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Extend Duration</label>
+                  <select className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-bold outline-none" value={renewForm.extendMonths} onChange={(event) => setRenewForm({ ...renewForm, extendMonths: event.target.value })}>
                     <option value="6">6 Months</option>
                     <option value="12">12 Months (1 Year)</option>
                     <option value="24">24 Months (2 Years)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="mb-2 block text-xs font-black uppercase tracking-wider text-slate-500">Add More Credits</label>
-                  <input type="number" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm font-bold outline-none" value={renewForm.addCredits} onChange={(event) => setRenewForm({ ...renewForm, addCredits: event.target.value })} min="0" step="100" />
+                  <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Add More Credits</label>
+                  <input type="number" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-bold outline-none" value={renewForm.addCredits} onChange={(event) => setRenewForm({ ...renewForm, addCredits: event.target.value })} min="0" step="100" />
                 </div>
-                <button type="submit" className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white transition-all hover:bg-blue-700"><Save size={16} /> Update Contract</button>
+                <button type="submit" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white transition-all hover:bg-blue-700"><Save size={14} /> Update Contract</button>
               </form>
             </div>
           </div>
@@ -1799,36 +1800,36 @@ export default function AdministrationTenantCompaniesPage() {
 
         {addingEmployeeTo && (
           <div className="fixed inset-0 z-95 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
-            <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-100 p-5">
-                <h3 className="text-lg font-black text-slate-900">Add Employee</h3>
-                <button onClick={closeAddEmployeeModal} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><X size={18} /></button>
+            <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-100 p-4">
+                <h3 className="text-base font-black text-slate-900">Add Employee</h3>
+                <button onClick={closeAddEmployeeModal} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
               </div>
-              <form onSubmit={handleAddEmployee} className="space-y-4 p-6">
+              <form onSubmit={handleAddEmployee} className="space-y-3 p-4">
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Full Name</label>
-                  <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeForm.name} onChange={(event) => setEmployeeForm({ ...employeeForm, name: event.target.value })} />
+                  <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-slate-500">Full Name</label>
+                  <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={employeeForm.name} onChange={(event) => setEmployeeForm({ ...employeeForm, name: event.target.value })} />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Email Address</label>
-                  <input required type="email" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeForm.email} onChange={(event) => setEmployeeForm({ ...employeeForm, email: event.target.value })} />
+                  <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-slate-500">Email Address</label>
+                  <input required type="email" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={employeeForm.email} onChange={(event) => setEmployeeForm({ ...employeeForm, email: event.target.value })} />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Phone (Optional)</label>
-                  <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeForm.phone} onChange={(event) => setEmployeeForm({ ...employeeForm, phone: event.target.value })} />
+                  <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-slate-500">Phone (Optional)</label>
+                  <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={employeeForm.phone} onChange={(event) => setEmployeeForm({ ...employeeForm, phone: event.target.value })} />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Designation</label>
-                  <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeForm.designation} onChange={(event) => setEmployeeForm({ ...employeeForm, designation: event.target.value })} />
+                  <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-slate-500">Designation</label>
+                  <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={employeeForm.designation} onChange={(event) => setEmployeeForm({ ...employeeForm, designation: event.target.value })} />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Tenant Role</label>
-                  <select className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={employeeForm.role} onChange={(event) => setEmployeeForm({ ...employeeForm, role: event.target.value })}>
+                  <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-slate-500">Tenant Role</label>
+                  <select className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={employeeForm.role} onChange={(event) => setEmployeeForm({ ...employeeForm, role: event.target.value })}>
                     <option value="Employee">Employee</option>
                     <option value="Manager">Manager</option>
                   </select>
                 </div>
-                <button type="submit" className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white transition-all hover:bg-blue-700"><Mail size={16} /> Send Invite Link</button>
+                <button type="submit" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white transition-all hover:bg-blue-700"><Mail size={14} /> Send Invite Link</button>
               </form>
             </div>
           </div>
@@ -1836,19 +1837,19 @@ export default function AdministrationTenantCompaniesPage() {
 
         {editingCompany && editForm && (
           <div className="fixed inset-0 z-95 flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-md">
-            <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-5">
-                <h3 className="flex items-center gap-2 text-lg font-black text-slate-900"><Edit size={18} className="text-amber-500" /> Edit Company Record</h3>
-                <button onClick={closeEditModal} className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-400 hover:bg-slate-100"><X size={18} /></button>
+            <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-4">
+                <h3 className="flex items-center gap-2 text-base font-black text-slate-900"><Edit size={16} className="text-amber-500" /> Edit Company Record</h3>
+                <button onClick={closeEditModal} className="rounded-lg border border-slate-200 bg-white p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
               </div>
-              <form onSubmit={handleEditSave} className="flex-1 overflow-y-auto p-6">
-                <div className="grid gap-6">
-                  <section className="space-y-4">
-                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2">
-                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Customer Details</h4>
-                      <span className="rounded-full bg-blue-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-600">Client Profile</span>
+              <form onSubmit={handleEditSave} className="flex-1 overflow-y-auto p-4">
+                <div className="grid gap-4">
+                  <section className="space-y-3">
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
+                      <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400">Customer Details</h4>
+                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-600">Client Profile</span>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-3 md:grid-cols-2">
                       <div>
                         <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Company Name</label>
                         <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={editForm.customerDetails.clientName} onChange={(event) => updateEditSection('customerDetails', 'clientName', event.target.value)} />
@@ -1896,82 +1897,82 @@ export default function AdministrationTenantCompaniesPage() {
                     </div>
                   </section>
 
-                  <section className="space-y-4">
-                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2">
-                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">POC Details</h4>
-                      <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-600">Primary Contact</span>
+                  <section className="space-y-3">
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
+                      <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400">POC Details</h4>
+                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-600">Primary Contact</span>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-3 md:grid-cols-3">
                       <div className="md:col-span-3">
-                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Local POC Name</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={editForm.pocDetails.localPocName} onChange={(event) => updateEditSection('pocDetails', 'localPocName', event.target.value)} />
+                        <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-slate-500">Local POC Name</label>
+                        <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={editForm.pocDetails.localPocName} onChange={(event) => updateEditSection('pocDetails', 'localPocName', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Local POC Email</label>
-                        <input type="email" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={editForm.pocDetails.localPocEmail} onChange={(event) => updateEditSection('pocDetails', 'localPocEmail', event.target.value)} />
+                        <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-slate-500">Local POC Email</label>
+                        <input type="email" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={editForm.pocDetails.localPocEmail} onChange={(event) => updateEditSection('pocDetails', 'localPocEmail', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Local POC Phone</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={editForm.pocDetails.localPocPhone} onChange={(event) => updateEditSection('pocDetails', 'localPocPhone', event.target.value)} />
+                        <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-slate-500">Local POC Phone</label>
+                        <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={editForm.pocDetails.localPocPhone} onChange={(event) => updateEditSection('pocDetails', 'localPocPhone', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">HO POC Name</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={editForm.pocDetails.hoPocName} onChange={(event) => updateEditSection('pocDetails', 'hoPocName', event.target.value)} />
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className="space-y-4">
-                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2">
-                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Agreement Details</h4>
-                      <span className="rounded-full bg-amber-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-amber-600">Contract Timeline</span>
-                    </div>
-                    <div className="grid gap-4 md:grid-cols-3">
-                      <div>
-                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Start Date</label>
-                        <input type="date" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={editForm.agreementDetails.startDate} onChange={(event) => updateEditSection('agreementDetails', 'startDate', event.target.value)} />
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">End Date</label>
-                        <input type="date" className="w-full rounded-xl border border-slate-200 bg-slate-100 p-2.5 text-sm font-bold text-slate-500 outline-none" value={editForm.agreementDetails.endDate} readOnly />
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Lock-in Period</label>
-                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={editForm.agreementDetails.lockInPeriod} onChange={(event) => updateEditSection('agreementDetails', 'lockInPeriod', event.target.value)} />
+                        <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-slate-500">HO POC Name</label>
+                        <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={editForm.pocDetails.hoPocName} onChange={(event) => updateEditSection('pocDetails', 'hoPocName', event.target.value)} />
                       </div>
                     </div>
                   </section>
 
-                  <section className="space-y-4">
-                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 pb-2">
-                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Package & Credits</h4>
-                      <span className="rounded-full bg-violet-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-violet-600">Allocation</span>
+                  <section className="space-y-3">
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
+                      <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400">Agreement Details</h4>
+                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-amber-600">Contract Timeline</span>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-3 md:grid-cols-3">
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Package Name</label>
-                        <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={editForm.packageDetails.packageName} onChange={(event) => updateEditSection('packageDetails', 'packageName', event.target.value)} />
+                        <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-slate-500">Start Date</label>
+                        <input type="date" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={editForm.agreementDetails.startDate} onChange={(event) => updateEditSection('agreementDetails', 'startDate', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Monthly Total Credits</label>
-                        <input type="number" className="w-full rounded-xl border border-sky-200 bg-sky-50 p-2.5 text-sm font-black text-sky-700 outline-none" value={calculatePackageMonthlyCredits(editForm.packageDetails)} readOnly />
+                        <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-slate-500">End Date</label>
+                        <input type="date" className="w-full rounded-xl border border-slate-200 bg-slate-100 p-2 text-xs font-bold text-slate-500 outline-none" value={editForm.agreementDetails.endDate} readOnly />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Purchased Credits</label>
-                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-sm font-bold outline-none" value={editForm.addOnCredits.purchasedCredits} onChange={(event) => updateEditSection('addOnCredits', 'purchasedCredits', event.target.value)} />
+                        <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-slate-500">Lock-in Period</label>
+                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={editForm.agreementDetails.lockInPeriod} onChange={(event) => updateEditSection('agreementDetails', 'lockInPeriod', event.target.value)} />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="space-y-3">
+                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
+                      <h4 className="text-[10px] font-black uppercase tracking-wider text-slate-400">Package & Credits</h4>
+                      <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-violet-600">Allocation</span>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-slate-500">Package Name</label>
+                        <input type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={editForm.packageDetails.packageName} onChange={(event) => updateEditSection('packageDetails', 'packageName', event.target.value)} />
                       </div>
                       <div>
-                        <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Remaining Credits</label>
-                        <input type="number" className="w-full rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-sm font-black text-emerald-700 outline-none" value={calculateRemainingCredits(editForm)} readOnly />
+                        <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-slate-500">Monthly Total Credits</label>
+                        <input type="number" className="w-full rounded-xl border border-sky-200 bg-sky-50 p-2 text-xs font-black text-sky-700 outline-none" value={calculatePackageMonthlyCredits(editForm.packageDetails)} readOnly />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-slate-500">Purchased Credits</label>
+                        <input type="number" min="0" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2 text-xs font-bold outline-none" value={editForm.addOnCredits.purchasedCredits} onChange={(event) => updateEditSection('addOnCredits', 'purchasedCredits', event.target.value)} />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-slate-500">Remaining Credits</label>
+                        <input type="number" className="w-full rounded-xl border border-emerald-200 bg-emerald-50 p-2 text-xs font-black text-emerald-700 outline-none" value={calculateRemainingCredits(editForm)} readOnly />
                       </div>
                     </div>
                   </section>
                 </div>
 
-                <div className="mt-6 flex items-center justify-end gap-3 border-t border-slate-100 pt-4">
-                  <button type="button" onClick={closeEditModal} className="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:bg-slate-100">Cancel</button>
-                  <button type="submit" disabled={isSaving} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
-                    <Save size={16} /> Save Changes
+                <div className="mt-4 flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+                  <button type="button" onClick={closeEditModal} className="rounded-xl px-4 py-2 text-xs font-bold text-slate-600 transition-all hover:bg-slate-100">Cancel</button>
+                  <button type="submit" disabled={isSaving} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                    <Save size={14} /> Save Changes
                   </button>
                 </div>
               </form>

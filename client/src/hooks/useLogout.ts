@@ -4,6 +4,7 @@ import { api } from "../utils/axios";
 import { toast } from "sonner";
 import { clearAuthTabSession } from "../utils/authSession";
 import { clearTabRefreshToken, getTabRefreshToken } from "../utils/refreshTokenSession";
+import { clearStoredTenantRole } from "../lib/tenant-session";
 
 export default function useLogout() {
   const { setAuth, auth } = useAuth();
@@ -31,6 +32,11 @@ export default function useLogout() {
       });
       clearAuthTabSession();
       clearTabRefreshToken();
+      clearStoredTenantRole();
+      try {
+        localStorage.removeItem("hostpanel_tenant_company_id");
+        localStorage.removeItem("hostpanel_tenant_company_name");
+      } catch { /* noop */ }
 
       navigate("/", { replace: true });
       window.history.pushState(null, "", "/");

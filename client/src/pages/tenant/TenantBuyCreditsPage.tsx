@@ -11,7 +11,7 @@ import {
 import { CardsGridSkeleton } from '@/components/ui/Skeleton';
 import { getStoredTenantCompanyId, getStoredTenantCompanyName, getStoredUser } from '@/lib/auth-session';
 import { getStoredTenantRole, isTenantAdminRole, isTenantManagerRole } from '@/lib/tenant-session';
-import { MOCK_CREDIT_REQUESTS, MOCK_TENANT_COMPANIES, initMockTenantSession } from './mock-tenant-data';
+
 import PageFrame from '@/components/Pages/PageFrame';
 
 // ─── Backend service imports (uncomment when backend ready) ───
@@ -76,26 +76,12 @@ export default function TenantBuyCreditsPage() {
     let active = true;
 
     const loadRequests = async () => {
-      initMockTenantSession();
       setIsLoading(true);
       setErrorMessage('');
       try {
-        // ─── Backend call (uncomment when backend ready) ───
-        // if (tenantCompanyId) {
-        //   const requests = await getMyTenantCompanyCreditRequests(tenantCompanyId);
-        //   if (!active) return;
-        //   setCreditRequests(Array.isArray(requests) ? requests : []);
-        // }
-
-        // ⚠️ Placeholder
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        if (!active) return;
-        setCreditRequests(MOCK_CREDIT_REQUESTS as CreditRequest[]);
-        const company = MOCK_TENANT_COMPANIES[0];
-        if (company) {
-          setCompanyCreditsAllocated(Number(company.creditsAllocated || company.creditsTotal || 0));
-          setCompanyCreditsRemaining(Number(company.creditsRemaining || company.addOnCredits?.remainingCredits || 0));
-        }
+        // Credit request APIs (getMyTenantCompanyCreditRequests, etc.)
+        // are not yet implemented in the services layer.
+        // State will remain at default empty values until backend is ready.
       } catch (error: any) {
         if (active) setErrorMessage(error?.message || 'Unable to load credit requests.');
       } finally {
