@@ -1,5 +1,37 @@
 import { Request, Response } from "express";
-import { Ticket, ITicket } from "../models/Ticket.js";
+import mongoose from "mongoose";
+import { Ticket } from "../models/Ticket.js";
+
+const nullableObjectIdFields = [
+    "assigneeUserId",
+    "acceptedByUserId",
+    "repairLogAssignedToUserId",
+    "tenantCompanyId",
+    "followUpOfTicketId",
+] as const;
+
+const toNullableObjectId = (value: unknown): mongoose.Types.ObjectId | null | undefined => {
+    if (value === undefined) return undefined;
+    if (value === null || value === "") return null;
+
+    const normalizedValue = String(value);
+    return mongoose.Types.ObjectId.isValid(normalizedValue)
+        ? new mongoose.Types.ObjectId(normalizedValue)
+        : null;
+};
+
+const sanitizeTicketPayload = (payload: Record<string, any>) => {
+    const sanitizedPayload = { ...payload };
+
+    for (const field of nullableObjectIdFields) {
+        if (Object.prototype.hasOwnProperty.call(sanitizedPayload, field)) {
+            sanitizedPayload[field] = toNullableObjectId(sanitizedPayload[field]);
+        }
+    }
+
+    return sanitizedPayload;
+};
+
 
 // Create a new ticket
 export const createTicket = async (req: Request, res: Response): Promise<void> => {
@@ -9,7 +41,7 @@ export const createTicket = async (req: Request, res: Response): Promise<void> =
         const latestTicket = await Ticket.findOne({ ownerId }).sort({ ticketNumber: -1 }).select("ticketNumber").lean();
         const ticketNumber = Number(latestTicket?.ticketNumber || 0) + 1;
         const newTicket = new Ticket({
-            ...req.body,
+            ...sanitizeTicketPayload(req.body),
             ownerId,
             workspaceId,
             requesterUserId: ownerId,
@@ -36,7 +68,14 @@ export const getTickets = async (req: Request, res: Response): Promise<void> => 
 
         if (status) filter.status = status as any;
         if (department) filter.department = department as string;
-        if (assigneeUserId) filter.assigneeUserId = assigneeUserId as any;
+        if (assigneeUserId) {
+            const normalizedAssigneeUserId = String(assigneeUserId);
+            if (!mongoose.Types.ObjectId.isValid(normalizedAssigneeUserId)) {
+                res.status(400).json({ success: false, message: "Invalid assignee user id" });
+                return;
+            }
+            filter.assigneeUserId = new mongoose.Types.ObjectId(normalizedAssigneeUserId);
+        }
 
         const tickets = await Ticket.find(filter)
             .sort({ createdAt: -1 })
@@ -68,7 +107,7 @@ export const updateTicket = async (req: Request, res: Response): Promise<void> =
     try {
         const updatedTicket = await Ticket.findByIdAndUpdate(
             req.params.id,
-            { $set: req.body },
+            { $set: sanitizeTicketPayload(req.body) },
             { new: true, runValidators: true }
         );
 
