@@ -102,7 +102,8 @@ app.use((err, req, res, next) => {
 app.use((err, req, res, next) => {
   console.error("Unhandled API error:", err?.stack || err?.message || err);
   if (res.headersSent) return next(err);
-  return res.status(err?.status || 500).json({
+  const statusCode = err?.statusCode || err?.status || 500;
+  return res.status(statusCode).json({
     message: err?.message || "Internal server error",
   });
 });

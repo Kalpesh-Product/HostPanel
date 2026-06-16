@@ -10,6 +10,8 @@ const tenantEmployeeSchema = new Schema(
     designation: { type: String, default: "", trim: true, maxlength: 120 },
     userId: { type: Schema.Types.ObjectId, ref: "HostUser", default: null, index: true },
     inviteId: { type: Schema.Types.ObjectId, ref: "MemberInvite", default: null, index: true },
+    inviteToken: { type: String, default: null, trim: true, index: true },
+    inviteTokenExpiresAt: { type: Date, default: null },
     inviteStatus: { type: String, default: "Invited", trim: true, maxlength: 40 },
     invitedAt: { type: Date, default: null },
     inviteSentAt: { type: Date, default: null },
@@ -30,8 +32,9 @@ const tenantCustomerDetailsSchema = new Schema(
   {
     clientName: { type: String, default: "", trim: true, maxlength: 160 },
     sector: { type: String, default: "", trim: true, maxlength: 120 },
-    hoCity: { type: String, default: "", trim: true, maxlength: 120 },
+    hoCountry: { type: String, default: "", trim: true, maxlength: 120 },
     hoState: { type: String, default: "", trim: true, maxlength: 120 },
+    hoCity: { type: String, default: "", trim: true, maxlength: 120 },
   },
   { _id: false },
 );
@@ -56,8 +59,6 @@ const tenantAgreementDetailsSchema = new Schema(
     startDate: { type: Date, default: null },
     endDate: { type: Date, default: null },
     lockInPeriod: { type: Number, default: 0, min: 0 },
-    rentDate: { type: Date, default: null },
-    nextIncrement: { type: Date, default: null },
   },
   { _id: false },
 );

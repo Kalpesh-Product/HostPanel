@@ -614,7 +614,7 @@ export default function TenantMeetingRoomBookingPage() {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
           <h1 className="text-title font-pmedium text-primary uppercase mb-1">Meeting Room Booking</h1>
-          <p className="text-sm font-pmedium text-slate-500 leading-relaxed">
+          <p className="text-xs mb-4 font-medium text-slate-500 mt-1">
             View only active meeting rooms and conference rooms grouped by floor and wing, then book a slot directly from the tenant portal.
           </p>
         </div>
@@ -637,7 +637,7 @@ export default function TenantMeetingRoomBookingPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="grid mb-4 grid-cols-1 md:grid-cols-4 gap-3">
         <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
           <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Available Rooms</p>
           <p className="text-xl font-pbold text-slate-900">{summary.total}</p>

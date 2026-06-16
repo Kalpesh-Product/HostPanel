@@ -12,6 +12,7 @@ import {
   addTenantCompanyEmployee,
   createTenantCompany,
   getTenantCompanies,
+  getTenantCompanySectors,
   renewTenantCompany,
   uploadTenantCompanyAgreementDocuments,
   updateTenantCompanyCreditRequest,
@@ -19,6 +20,7 @@ import {
 } from '../../../services/tenant-companies';
 import { getResources } from '../../../services/resources';
 import { getPricingPackages } from '../../../services/pricing-packages';
+import { getCountries, getStates, getCities } from '../../../utils/locationApi';
 import { toast } from 'sonner';
 import { useFreshCurrentUser } from '../../../hooks/useFreshCurrentUser';
 import { createReport } from '../../../services/reports';
@@ -40,8 +42,9 @@ const BULK_TEMPLATE_HEADERS = [
   'Business Type',
   'Client Name',
   'Sector',
-  'HO City',
+  'HO Country',
   'HO State',
+  'HO City',
   'Building Name',
   'Unit No',
   'Local POC Name',
@@ -61,8 +64,9 @@ const BULK_COLUMN_ALIASES = {
   businessType: ['business type', 'industry', 'sector'],
   clientName: ['client name', 'customer name', 'legal name'],
   sector: ['sector', 'customer sector'],
-  hoCity: ['ho city', 'head office city', 'head office location city'],
+  hoCountry: ['ho country', 'head office country', 'country'],
   hoState: ['ho state', 'head office state'],
+  hoCity: ['ho city', 'head office city', 'head office location city'],
   buildingName: ['building name', 'building'],
   unitNo: ['unit no', 'unit number', 'unit', 'office no'],
   localPocName: ['local poc name', 'local contact', 'local point of contact'],
@@ -1099,13 +1103,13 @@ export default function TenantCompaniesPage() {
     companyName: '', contactName: '', email: '', phone: '', businessType: '',
     contractDuration: '', customDurationMonths: '',
     startDate: '', endDate: '', pricingPackageId: '', planType: 'Custom', creditsAllocated: 0,
-    customerDetails: { clientName: '', sector: '', hoCity: '', hoState: '' },
+    customerDetails: { clientName: '', sector: '', hoCountry: '', hoState: '', hoCity: '' },
     companyDetails: {
       buildingName: '', unitNo: '', cabinDesks: '', ratePerCabinDesk: '', openDesks: '', ratePerOpenDesk: '', status: 'Active',
     },
     agreementDetails: {
       annualIncrement: '', perDeskMeetingCredits: '', totalMeetingCredits: '',
-      startDate: '', endDate: '', lockInPeriod: '', rentDate: '', nextIncrement: '',
+      startDate: '', endDate: '', lockInPeriod: '',
     },
     pocDetails: {
       localPocName: '', localPocEmail: '', localPocPhone: '',
@@ -1146,6 +1150,77 @@ export default function TenantCompaniesPage() {
   const [isAgreementUploading, setIsAgreementUploading] = useState(false);
 
   const [tenants, setTenants] = useState([]);
+  const [countries, setCountries] = useState([]);
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [loadingCountries, setLoadingCountries] = useState(false);
+  const [loadingStates, setLoadingStates] = useState(false);
+  const [loadingCities, setLoadingCities] = useState(false);
+  const [availableSectors, setAvailableSectors] = useState([]);
+  const [showCustomSector, setShowCustomSector] = useState(false);
+
+  const SECTOR_OPTIONS = [
+    'Technology', 'Finance & Banking', 'Healthcare', 'Real Estate & Construction',
+    'Manufacturing', 'Education & Training', 'Retail & E-Commerce',
+    'Media & Entertainment', 'Consulting', 'Legal', 'Travel & Hospitality',
+    'Telecommunications', 'Energy & Utilities', 'Pharmaceuticals',
+    'Insurance', 'Logistics & Transportation', 'Non-Profit',
+  ];
+
+  const allSectorOptions = useMemo(() => {
+    const merged = new Set([...SECTOR_OPTIONS, ...availableSectors]);
+    return Array.from(merged).sort((a, b) => a.localeCompare(b));
+  }, [availableSectors]);
+
+  useEffect(() => {
+    if (activeModal === 'add' || activeModal === 'edit') {
+      setLoadingCountries(true);
+      getCountries()
+        .then(setCountries)
+        .catch(() => toast.error('Failed to load countries'))
+        .finally(() => setLoadingCountries(false));
+    }
+    if (activeModal !== 'add' && activeModal !== 'edit') {
+      setCountries([]);
+      setStates([]);
+      setCities([]);
+    }
+  }, [activeModal]);
+
+  useEffect(() => {
+    if (activeModal === 'add' || activeModal === 'edit') {
+      setShowCustomSector(false);
+      getTenantCompanySectors()
+        .then((res) => setAvailableSectors(res?.data?.sectors || []))
+        .catch(() => {});
+    }
+  }, [activeModal]);
+
+  useEffect(() => {
+    const country = companyForm.customerDetails?.hoCountry;
+    if (!country || !(activeModal === 'add' || activeModal === 'edit')) {
+      if (!country) { setStates([]); setCities([]); }
+      return;
+    }
+    setLoadingStates(true);
+    setCities([]);
+    setCompanyForm((prev) => ({ ...prev, customerDetails: { ...prev.customerDetails, hoState: '', hoCity: '' } }));
+    getStates(country)
+      .then(setStates)
+      .catch(() => toast.error('Failed to load states'))
+      .finally(() => setLoadingStates(false));
+  }, [companyForm.customerDetails?.hoCountry]);
+
+  useEffect(() => {
+    const country = companyForm.customerDetails?.hoCountry;
+    const state = companyForm.customerDetails?.hoState;
+    if (!country || !state || !(activeModal === 'add' || activeModal === 'edit')) { setCities([]); return; }
+    setLoadingCities(true);
+    getCities(country, state)
+      .then(setCities)
+      .catch(() => toast.error('Failed to load cities'))
+      .finally(() => setLoadingCities(false));
+  }, [companyForm.customerDetails?.hoState]);
 
   const syncCustomPackageCreditFields = (currentState, nextCreditsPerSeat, nextTotalSeats = null) => {
     const totalSeats = nextTotalSeats !== null
@@ -1749,8 +1824,6 @@ export default function TenantCompaniesPage() {
         || 3,
     ));
     const endDate = addDateOffset(startDate, monthsToAdd, -1);
-    const rentDate = addDateOffset(startDate, 1, 0);
-    const nextIncrement = addDateOffset(rentDate || startDate, 0, 7);
     const annualIncrement = billingSummary.monthlyRent > 0 ? String(Math.round(billingSummary.monthlyRent * 0.1)) : '';
 
     setCompanyForm((prev) => ({
@@ -1762,8 +1835,6 @@ export default function TenantCompaniesPage() {
           startDate: startDate,
           endDate,
           annualIncrement,
-          rentDate,
-          nextIncrement,
         },
     }));
   }, [ // eslint-disable-line react-hooks/exhaustive-deps
@@ -1950,8 +2021,9 @@ export default function TenantCompaniesPage() {
       { Field: 'Business Type', Requirement: 'Optional', Notes: 'Industry or business sector.' },
       { Field: 'Client Name', Requirement: 'Optional', Notes: 'Customer-facing company label.' },
       { Field: 'Sector', Requirement: 'Optional', Notes: 'Customer sector / vertical.' },
-      { Field: 'HO City', Requirement: 'Optional', Notes: 'Head office city.' },
+      { Field: 'HO Country', Requirement: 'Optional', Notes: 'Head office country.' },
       { Field: 'HO State', Requirement: 'Optional', Notes: 'Head office state.' },
+      { Field: 'HO City', Requirement: 'Optional', Notes: 'Head office city.' },
       { Field: 'Building Name', Requirement: 'Optional', Notes: 'Use Sunteck Kanaka for this template. Editable later in the manager screen.' },
       { Field: 'Unit No', Requirement: 'Optional', Notes: 'Use floors 701, 601, or 501 with A or B understood, for example 701 A or 601 B.' },
       { Field: 'Local POC Name', Requirement: 'Optional', Notes: 'Local point of contact name.' },
@@ -1971,8 +2043,9 @@ export default function TenantCompaniesPage() {
       { Field: 'Business Type', Format: 'Text', Example: 'Tech', Notes: 'Optional.' },
       { Field: 'Client Name', Format: 'Text', Example: 'TechTrove Innovations', Notes: 'Optional.' },
       { Field: 'Sector', Format: 'Text', Example: 'Technology', Notes: 'Optional.' },
-      { Field: 'HO City', Format: 'Text', Example: 'Mumbai', Notes: 'Optional.' },
+      { Field: 'HO Country', Format: 'Text', Example: 'India', Notes: 'Optional.' },
       { Field: 'HO State', Format: 'Text', Example: 'Maharashtra', Notes: 'Optional.' },
+      { Field: 'HO City', Format: 'Text', Example: 'Mumbai', Notes: 'Optional.' },
       { Field: 'Building Name', Format: 'Text', Example: 'Sunteck Kanaka', Notes: 'Use this building name for the template.' },
       { Field: 'Unit No', Format: 'Text', Example: '701 A', Notes: 'Use 701, 601, or 501 with A or B understood.' },
       { Field: 'Local POC Name', Format: 'Text', Example: '[sample person name]', Notes: 'Optional.' },
@@ -2334,8 +2407,6 @@ export default function TenantCompaniesPage() {
     const packageDefaults = buildTenantPackageDefaults(activePackage);
     const normalizedStartDate = parseDateForInput(tenant.agreementDetails?.startDate || tenant.contractStartAt || tenant.contractStart || tenant.startDate || '');
     const normalizedEndDate = parseDateForInput(tenant.agreementDetails?.endDate || tenant.contractEndAt || tenant.contractEnd || tenant.endDate || '');
-    const normalizedRentDate = parseDateForInput(tenant.agreementDetails?.rentDate || '');
-    const normalizedNextIncrement = parseDateForInput(tenant.agreementDetails?.nextIncrement || '');
     const annualIncrement = activePackage
       ? String(deriveAnnualIncrementAmount(packageDefaults.companyDetails, packageDefaults.packageDetails, activePackage.durationMonths || durationFields.durationMonths || 1))
       : String(tenant.agreementDetails?.annualIncrement || '');
@@ -2370,8 +2441,9 @@ export default function TenantCompaniesPage() {
       customerDetails: {
         clientName: tenant.customerDetails?.clientName || tenant.companyName || '',
         sector: tenant.customerDetails?.sector || tenant.businessType || '',
-        hoCity: tenant.customerDetails?.hoCity || '',
+        hoCountry: tenant.customerDetails?.hoCountry || '',
         hoState: tenant.customerDetails?.hoState || '',
+        hoCity: tenant.customerDetails?.hoCity || '',
         },
         agreementDetails: {
           ...(tenant.agreementDetails || {}),
@@ -2385,8 +2457,7 @@ export default function TenantCompaniesPage() {
           startDate: normalizedStartDate,
           endDate: normalizedEndDate,
           lockInPeriod: String(tenant.agreementDetails?.lockInPeriod || tenant.contractDurationMonths || 12),
-          rentDate: normalizedRentDate || addDateOffset(normalizedStartDate, 1, 0),
-          nextIncrement: normalizedNextIncrement || addDateOffset(normalizedStartDate, 1, 7),
+
         },
       pocDetails: {
         localPocName: tenant.pocDetails?.localPocName || tenant.contactName || '',
@@ -3190,36 +3261,106 @@ export default function TenantCompaniesPage() {
                   </div>
 
                   {activeModal !== 'renew' && (
-                   <div className="order-6 space-y-3">
-                     <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">6. Customer Details</h3>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                       <div className="space-y-1 md:col-span-2">
-                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HO POC Name</label>
-                         <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.hoPocName} onChange={(e) => updateCompanySection('pocDetails', 'hoPocName', e.target.value)} />
-                       </div>
-                       <div className="space-y-1">
-                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HO POC Email</label>
-                         <input type="email" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.hoPocEmail} onChange={(e) => updateCompanySection('pocDetails', 'hoPocEmail', e.target.value)} />
-                       </div>
-                       <div className="space-y-1">
-                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HO POC Phone</label>
-                         <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.hoPocPhone} onChange={(e) => updateCompanySection('pocDetails', 'hoPocPhone', e.target.value)} />
-                       </div>
-                       <div className="space-y-1">
-                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sector</label>
-                         <input required type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.customerDetails.sector} onChange={(e) => updateCompanySection('customerDetails', 'sector', e.target.value)} />
-                       </div>
-                       <div className="space-y-1">
-                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HO City</label>
-                         <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.customerDetails.hoCity} onChange={(e) => updateCompanySection('customerDetails', 'hoCity', e.target.value)} />
-                       </div>
-                       <div className="space-y-1">
-                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HO State</label>
-                         <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.customerDetails.hoState} onChange={(e) => updateCompanySection('customerDetails', 'hoState', e.target.value)} />
-                       </div>
-                     </div>
-                   </div>
-                 )}
+                    <div className="order-6 space-y-3">
+                      <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">6. Customer Details</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="space-y-1 md:col-span-2">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HO POC Name</label>
+                          <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.hoPocName} onChange={(e) => updateCompanySection('pocDetails', 'hoPocName', e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HO POC Email</label>
+                          <input type="email" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.hoPocEmail} onChange={(e) => updateCompanySection('pocDetails', 'hoPocEmail', e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HO POC Phone</label>
+                          <input type="text" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={companyForm.pocDetails.hoPocPhone} onChange={(e) => updateCompanySection('pocDetails', 'hoPocPhone', e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sector</label>
+                          {!showCustomSector ? (
+                            <div className="space-y-2">
+                              <select
+                                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                                value={allSectorOptions.includes(companyForm.customerDetails.sector) ? companyForm.customerDetails.sector : ''}
+                                onChange={(e) => {
+                                  setShowCustomSector(false);
+                                  updateCompanySection('customerDetails', 'sector', e.target.value);
+                                }}
+                              >
+                                <option value="">Select sector</option>
+                                {allSectorOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => { setShowCustomSector(true); updateCompanySection('customerDetails', 'sector', ''); }}
+                                className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
+                              >
+                                + Add custom sector
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <input
+                                required
+                                type="text"
+                                placeholder="Type new sector name"
+                                className="w-full px-3 py-2.5 bg-slate-50 border border-indigo-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                                value={companyForm.customerDetails.sector}
+                                onChange={(e) => updateCompanySection('customerDetails', 'sector', e.target.value)}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => { setShowCustomSector(false); updateCompanySection('customerDetails', 'sector', ''); }}
+                                className="text-[10px] font-bold text-slate-500 hover:text-slate-700 transition-colors"
+                              >
+                                Cancel &amp; pick from list
+                              </button>
+                            </div>
+                          )}
+                          {!showCustomSector && companyForm.customerDetails.sector === '' && (
+                            <p className="text-[9px] font-bold text-amber-600">Select or add a sector</p>
+                          )}
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HO Country</label>
+                          <select
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                            value={companyForm.customerDetails.hoCountry}
+                            onChange={(e) => updateCompanySection('customerDetails', 'hoCountry', e.target.value)}
+                            disabled={loadingCountries}
+                          >
+                            <option value="">{loadingCountries ? 'Loading countries...' : 'Select country'}</option>
+                            {countries.map((c) => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HO State</label>
+                          <select
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                            value={companyForm.customerDetails.hoState}
+                            onChange={(e) => updateCompanySection('customerDetails', 'hoState', e.target.value)}
+                            disabled={!companyForm.customerDetails.hoCountry || loadingStates}
+                          >
+                            <option value="">{loadingStates ? 'Loading states...' : companyForm.customerDetails.hoCountry ? 'Select state' : 'Select country first'}</option>
+                            {states.map((s) => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">HO City</label>
+                          <select
+                            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                            value={companyForm.customerDetails.hoCity}
+                            onChange={(e) => updateCompanySection('customerDetails', 'hoCity', e.target.value)}
+                            disabled={!companyForm.customerDetails.hoState || loadingCities}
+                          >
+                            <option value="">{loadingCities ? 'Loading cities...' : companyForm.customerDetails.hoState ? 'Select city' : 'Select state first'}</option>
+                            {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                  {activeModal !== 'renew' && (
                    <div className="order-4 space-y-3">
@@ -3316,14 +3457,7 @@ export default function TenantCompaniesPage() {
                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Lock-in Period</label>
                         <input type="number" min="0" readOnly className="w-full px-4 py-3.5 bg-slate-100 border-2 border-transparent rounded-xl font-bold text-slate-500 outline-none cursor-not-allowed" value={companyForm.agreementDetails.lockInPeriod} />
                        </div>
-                       <div className="space-y-1">
-                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rent Date</label>
-                          <input type="date" readOnly className="w-full px-4 py-3.5 bg-slate-100 border-2 border-transparent rounded-xl font-bold text-slate-500 outline-none cursor-not-allowed" value={companyForm.agreementDetails.rentDate} onChange={(e) => updateCompanySection('agreementDetails', 'rentDate', e.target.value)} />
-                       </div>
-                       <div className="space-y-1">
-                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Next Increment</label>
-                          <input type="date" readOnly className="w-full px-4 py-3.5 bg-slate-100 border-2 border-transparent rounded-xl font-bold text-slate-500 outline-none cursor-not-allowed" value={companyForm.agreementDetails.nextIncrement} onChange={(e) => updateCompanySection('agreementDetails', 'nextIncrement', e.target.value)} />
-                       </div>
+
                      </div>
                    </div>
                  )}
@@ -3839,21 +3973,25 @@ export default function TenantCompaniesPage() {
                  </div>
                  <div className="flex items-center gap-2">
                    <button
-                     type="button"
-                     onClick={() => handleExportCompanyReport(selectedTenant, 'PDF')}
-                     disabled={Boolean(isExportingReport)}
-                     className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-600 transition-all hover:border-blue-300 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                   >
-                     <FileDown size={11} className="text-red-500" /> PDF
-                   </button>
-                   <button
-                     type="button"
-                     onClick={() => handleExportCompanyReport(selectedTenant, 'Excel')}
-                     disabled={Boolean(isExportingReport)}
-                     className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                   >
-                     <FileSpreadsheet size={11} /> Excel
-                   </button>
+                type="button"
+                onClick={() => handleExportCompaniesReport('PDF')}
+                disabled={Boolean(isExportingReport)}
+                title="Export PDF"
+                className="px-4 py-2.5 bg-white text-[#f10505] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <FileDown size={14} /> {isExportingReport === 'PDF' ? 'Exporting...' : ''}
+                
+              </button>
+              <button
+                type="button"
+                onClick={() => handleExportCompaniesReport('Excel')}
+                disabled={Boolean(isExportingReport)}
+                title="Export Excel"
+                className="px-4 py-2.5 bg-[#ffffff] text-[#1fd628] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <FileSpreadsheet size={14} /> {isExportingReport === 'Excel' ? 'Exporting...' : ''}
+                
+              </button>
                    <button onClick={() => {setActiveModal(null); setSelectedTenant(null); setAgreementFiles([]);}} className="w-8 h-8 bg-white rounded-xl flex items-center justify-center text-slate-400 shadow-sm hover:text-red-500 transition-all"><X size={16}/></button>
                  </div>
               </div>
@@ -3884,24 +4022,28 @@ export default function TenantCompaniesPage() {
 
                 <div>
                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-3 flex items-center gap-1"><Building size={12}/> Customer Details</h3>
-                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <div>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Client Name</p>
-                        <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.customerDetails?.clientName || '--'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Sector</p>
-                        <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.customerDetails?.sector || '--'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">HO City</p>
-                        <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.customerDetails?.hoCity || '--'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">HO State</p>
-                        <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.customerDetails?.hoState || '--'}</p>
-                      </div>
-                   </div>
+                   <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                       <div>
+                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Client Name</p>
+                         <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.customerDetails?.clientName || '--'}</p>
+                       </div>
+                       <div>
+                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Sector</p>
+                         <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.customerDetails?.sector || '--'}</p>
+                       </div>
+                       <div>
+                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">HO Country</p>
+                         <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.customerDetails?.hoCountry || '--'}</p>
+                       </div>
+                       <div>
+                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">HO State</p>
+                         <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.customerDetails?.hoState || '--'}</p>
+                       </div>
+                       <div>
+                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">HO City</p>
+                         <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.customerDetails?.hoCity || '--'}</p>
+                       </div>
+                    </div>
                 </div>
 
                 <div>
@@ -3951,14 +4093,7 @@ export default function TenantCompaniesPage() {
                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Annual Increment</p>
                          <p className="font-semibold text-slate-900 text-[12px]">{formatCurrency(selectedTenantBillingDisplay.annualIncrement || selectedTenant.agreementDetails?.annualIncrement || 0)}</p>
                        </div>
-                       <div>
-                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Rent Date</p>
-                         <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.agreementDetails?.rentDate || '--'}</p>
-                       </div>
-                       <div>
-                         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Next Increment</p>
-                         <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.agreementDetails?.nextIncrement || '--'}</p>
-                       </div>
+
                        <div>
                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Lock-in Period</p>
                          <p className="font-semibold text-slate-900 text-[12px]">{selectedTenant.agreementDetails?.lockInPeriod || selectedTenant.contractDurationMonths || '--'} months</p>

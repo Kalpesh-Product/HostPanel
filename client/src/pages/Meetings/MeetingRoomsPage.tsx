@@ -2763,7 +2763,7 @@ export function MeetingRoomsPage() {
 
               <div className="px-6 py-4 md:p-8 flex justify-between items-center border-b border-slate-100/60 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
                 <div>
-                  <h2 className="text-xl md:text-2xl font-black text-[#0F172A] tracking-tight">Book Meeting Room</h2>
+                  <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">Book Meeting Room</h2>
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Host: {managerProfile.name}</p>
                 </div>
                 <button onClick={() => setShowBookingDialog(false)} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">

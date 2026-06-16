@@ -3,6 +3,7 @@ import express from "express";
 import multer from "multer";
 import {
   listTenantCompanies,
+  getTenantCompanySectors,
   getTenantCompany,
   createTenantCompany,
   updateTenantCompany,
@@ -27,6 +28,9 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 router.get("/my/credit-requests", getMyTenantCompanyCreditRequests);
 router.post("/my/credit-requests", createMyTenantCompanyCreditRequest);
 router.post("/my/credit-requests/:requestId/payment", upload.single("paymentProof"), submitMyTenantCompanyCreditRequestPayment);
+
+// Sectors
+router.get("/sectors", getTenantCompanySectors);
 
 // CRUD
 router.get("/", listTenantCompanies);
