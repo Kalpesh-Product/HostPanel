@@ -963,18 +963,12 @@ export function TicketsPage() {
         return hasDepartment;
       });
 
-    const topManagementMembers =
-      normalizedDepartment === 'owner' || normalizedDepartment === 'super_admin' || normalizedDepartment === 'admin'
-        ? []
-        : [
-          ...(Array.isArray(specialRoutingAssignees.owner) ? specialRoutingAssignees.owner : []),
-          ...(Array.isArray(specialRoutingAssignees.superAdmin) ? specialRoutingAssignees.superAdmin : []),
-        ];
+
 
     const combinedMembers = [];
     const seenMemberKeys = new Set();
 
-    [...selectedMembers, ...topManagementMembers].forEach((member) => {
+    selectedMembers.forEach((member) => {
       const memberKey = String(member?.userId || member?.id || member?.name || '').trim().toLowerCase();
       if (!memberKey || seenMemberKeys.has(memberKey)) {
         return;
@@ -1028,6 +1022,18 @@ export function TicketsPage() {
     return !String(value || '').trim() && !String(assigneeUserId || '').trim();
   }
 
+  function normalizeNullableUserId(value) {
+    if (!value) {
+      return '';
+    }
+
+    if (typeof value === 'object') {
+      return String(value._id || value.id || value.userId || '').trim();
+    }
+
+    return String(value).trim();
+  }
+
   function formatCreatedLabel(value) {
     if (!value) {
       return '-';
@@ -1079,12 +1085,23 @@ export function TicketsPage() {
   }
 
   function normalizeTicket(ticket) {
+    const normalizedAssigneeUserId = normalizeNullableUserId(ticket.assigneeUserId);
+    const normalizedRequesterUserId = normalizeNullableUserId(ticket.requesterUserId);
+    const normalizedAcceptedByUserId = normalizeNullableUserId(ticket.acceptedByUserId);
+    const normalizedRepairLogAssignedToUserId = normalizeNullableUserId(ticket.repairLogAssignedToUserId);
+    const populatedAssigneeName = typeof ticket.assigneeUserId === 'object'
+      ? String(ticket.assigneeUserId?.name || ticket.assigneeUserId?.email || '').trim()
+      : '';
+
     return {
       ...ticket,
       recordId: String(ticket.recordId || ticket._id || ''),
       id: ticket.id || ticket.ticketCode || '',
       ticketCode: ticket.ticketCode || ticket.id || '',
-      assignedTo: ticket.assignedTo || ticket.assignee || '',
+      assignedTo: ticket.assignedTo || populatedAssigneeName || ticket.assignee || '',
+      assigneeUserId: normalizedAssigneeUserId,
+      requesterUserId: normalizedRequesterUserId,
+      acceptedByUserId: normalizedAcceptedByUserId,
       tenantCompanyId: ticket.tenantCompanyId || '',
       tenantCompanyName: ticket.tenantCompanyName || '',
       assetId: ticket.assetId || '',
@@ -1099,7 +1116,7 @@ export function TicketsPage() {
       hasRepairLog: Boolean(ticket.hasRepairLog || ticket.repairLogCode || ticket.repairLogId),
       repairLogCode: ticket.repairLogCode || '',
       repairLogAssignedTo: ticket.repairLogAssignedTo || '',
-      repairLogAssignedToUserId: ticket.repairLogAssignedToUserId || null,
+      repairLogAssignedToUserId: normalizedRepairLogAssignedToUserId || null,
       repairLogStatus: ticket.repairLogStatus || '',
     };
   }
