@@ -40,7 +40,7 @@ const hostUserSchema = new mongoose.Schema(
     },
     companyId: {
       type: String,
-      unique: true,
+      // unique: true,
       required: true,
       trim: true,
     },
@@ -58,6 +58,9 @@ const hostUserSchema = new mongoose.Schema(
     },
     email: {
       type: String,
+      unique: true,
+      lowercase: true,
+      trim: true,
     },
     phone: {
       type: String,
