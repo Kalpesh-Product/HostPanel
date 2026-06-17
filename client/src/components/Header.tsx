@@ -122,8 +122,8 @@ const Header = ({
   const roleSource = auth?.user?.role ?? storedUser?.role;
   const roleArrayTitles = Array.isArray(roleSource)
     ? roleSource
-        .map((entry) => entry?.roleTitle || entry?.title || entry?.name)
-        .filter(Boolean)
+      .map((entry) => entry?.roleTitle || entry?.title || entry?.name)
+      .filter(Boolean)
     : [];
 
   const roleCandidates = [
@@ -154,13 +154,13 @@ const Header = ({
   });
   const isFounderByFlag = Boolean(
     auth?.user?.isOwner ||
-      auth?.user?.isFounder ||
-      auth?.user?.workspaceMembership?.isOwner ||
-      auth?.user?.workspaceMembership?.isFounder ||
-      storedUser?.isOwner ||
-      storedUser?.isFounder ||
-      storedUser?.workspaceMembership?.isOwner ||
-      storedUser?.workspaceMembership?.isFounder,
+    auth?.user?.isFounder ||
+    auth?.user?.workspaceMembership?.isOwner ||
+    auth?.user?.workspaceMembership?.isFounder ||
+    storedUser?.isOwner ||
+    storedUser?.isFounder ||
+    storedUser?.workspaceMembership?.isOwner ||
+    storedUser?.workspaceMembership?.isFounder,
   );
   const isFounderRole = roleCandidates.some((role) => {
     if (role === "owner" || role === "founder") {
@@ -187,13 +187,16 @@ const Header = ({
     } catch { return null; }
   })();
   const hasTenantRole = Boolean(storedTenantRole || auth?.user?.tenantRole);
-  const roleLabel = hasTenantRole
-    ? (storedTenantRole === "tenant-manager" || auth?.user?.tenantRole === "tenant-manager"
-        ? "Tenant Manager"
-        : "Tenant Employee")
-    : isFounderRole || isFounderByFlag || hasFounderPermission
-      ? "Founder"
-      : roleLabelMap[normalizedRole] || "Team Member";
+  // const roleLabel = hasTenantRole
+  //   ? (storedTenantRole === "tenant-manager" || auth?.user?.tenantRole === "tenant-manager"
+  //       ? "Tenant Manager"
+  //       : "Tenant Employee")
+  //   : isFounderRole || isFounderByFlag || hasFounderPermission
+  //     ? "Founder"
+  //     : roleLabelMap[normalizedRole] || "Team Member";
+  const roleLabel = auth?.user?.workspaceMembership?.role;
+  const normalizeRole = roleLabel?.replace(/_/g, " ");
+  const capitalizeRole = normalizeRole?.charAt(0).toUpperCase() + normalizeRole?.slice(1);
 
   return (
     <>
@@ -251,7 +254,7 @@ const Header = ({
                   {auth?.user?.name?.split(" ")[0] || ""}
                 </h1>
                 <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
-                  {roleLabel}
+                  {capitalizeRole}
                 </p>
               </div>
             )}

@@ -219,7 +219,7 @@ export function TicketsPage() {
     storedUser?.name ||
     'User';
   const normalizedRole = (storedUser?.workspaceMembership?.role || storedUser?.role || 'owner').toLowerCase();
-  const isOwnerProfile = normalizedRole === 'owner';
+  const isOwnerProfile = normalizedRole === 'founder' || normalizedRole === 'owner';
   const isSuperAdminProfile = normalizedRole === 'super_admin' || normalizedRole === 'super-admin';
   const isAdminTicketProfile = canAccessAdminDashboard(storedUser);
   const displayUserName = isOwnerProfile
