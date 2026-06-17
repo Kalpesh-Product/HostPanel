@@ -21,13 +21,10 @@ import { DashboardSkeleton } from '@/components/ui/Skeleton';
 import PageFrame from '@/components/Pages/PageFrame';
 import { getStoredTenantCompanyId, getStoredTenantCompanyName, getStoredUser } from '@/lib/auth-session';
 import { getStoredTenantRole, isTenantAdminRole, isTenantManagerRole } from '@/lib/tenant-session';
-import { MOCK_BOOKINGS, MOCK_TICKETS, MOCK_ROOMS, MOCK_TENANT_COMPANIES, initMockTenantSession } from './mock-tenant-data';
-
-// ─── Backend service imports (uncomment when backend ready) ───
-// import { getMeetingRoomBookings } from '@/services/meeting-room-bookings';
-// import { getResources } from '@/services/resources';
-// import { getTenantCompanies } from '@/services/tenant-companies';
-// import { getTickets } from '@/services/tickets';
+import { getMeetingRoomBookings } from '@/services/meeting-room-bookings';
+import { getResources } from '@/services/resources';
+import { getTenantCompanies } from '@/services/tenant-companies';
+import { getTickets } from '@/services/tickets';
 
 const LOW_CREDIT_WARNING_THRESHOLD = 10;
 
@@ -275,37 +272,26 @@ export default function TenantDashboardPage() {
     let active = true;
 
     const loadDashboard = async () => {
-      initMockTenantSession();
       setIsRefreshing(true);
       setLoadError('');
 
       try {
-        // ─── Backend calls (uncomment when backend ready) ───
-        // const [bookingsResult, ticketsResult, resourcesResult, companiesResult] = await Promise.allSettled([
-        //   getMeetingRoomBookings({ page: 1, limit: 20 }),
-        //   getTickets({ page: 1, limit: 20 }),
-        //   getResources(),
-        //   getTenantCompanies({ page: 1, limit: 20 }),
-        // ]);
-        // const bookingPayload = bookingsResult.status === 'fulfilled' ? bookingsResult.value : null;
-        // const ticketPayload = ticketsResult.status === 'fulfilled' ? ticketsResult.value : null;
-        // const resourcePayload = resourcesResult.status === 'fulfilled' ? resourcesResult.value : null;
-        // const companiesPayload = companiesResult.status === 'fulfilled' ? companiesResult.value : null;
-        // if (!active) return;
-        // setBookings(extractList(bookingPayload, ['bookings', 'items']));
-        // setTickets(extractList(ticketPayload, ['tickets', 'items']));
-        // setRooms(extractList(resourcePayload, ['resources', 'items']).map(normalizeRoom));
-        // setTenantCompanies(extractList(companiesPayload, ['tenants', 'companies']));
-        // setTenantSummary(companiesPayload?.summary || companiesPayload?.data?.summary || null);
-
-        // ⚠️ Placeholder: remove when backend is connected
-        await new Promise((resolve) => setTimeout(resolve, 600));
+        const [bookingsResult, ticketsResult, resourcesResult, companiesResult] = await Promise.allSettled([
+          getMeetingRoomBookings({ page: 1, limit: 20 }),
+          getTickets({ page: 1, limit: 20 }),
+          getResources(),
+          getTenantCompanies({ page: 1, limit: 20 }),
+        ]);
+        const bookingPayload = bookingsResult.status === 'fulfilled' ? bookingsResult.value : null;
+        const ticketPayload = ticketsResult.status === 'fulfilled' ? ticketsResult.value : null;
+        const resourcePayload = resourcesResult.status === 'fulfilled' ? resourcesResult.value : null;
+        const companiesPayload = companiesResult.status === 'fulfilled' ? companiesResult.value : null;
         if (!active) return;
-        setBookings(MOCK_BOOKINGS);
-        setTickets(MOCK_TICKETS);
-        setRooms(MOCK_ROOMS.map(normalizeRoom));
-        setTenantCompanies(MOCK_TENANT_COMPANIES);
-        setTenantSummary({ totalTenants: 12, activeContracts: 8 });
+        setBookings(extractList(bookingPayload, ['bookings', 'items']));
+        setTickets(extractList(ticketPayload, ['tickets', 'items']));
+        setRooms(extractList(resourcePayload, ['resources', 'items']).map(normalizeRoom));
+        setTenantCompanies(extractList(companiesPayload, ['tenants', 'companies']));
+        setTenantSummary(companiesPayload?.summary || companiesPayload?.data?.summary || null);
 
       } catch (error: any) {
         if (!active) return;

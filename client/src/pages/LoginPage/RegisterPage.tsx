@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { CheckCircle, Eye, EyeOff, Lock, XCircle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { CheckCircle, CheckCircle2, Eye, EyeOff, Lock, XCircle } from "lucide-react";
 import type { AxiosError } from "axios";
 import {
   Box,
@@ -31,6 +31,16 @@ interface PrefillState {
   businessTypes: string[];
 }
 
+interface TenantPrefillState {
+  fullName: string;
+  email: string;
+  role: string;
+  tenantRole: string;
+  companyName: string;
+  tenantCompanyId: string;
+  inviteToken: string;
+}
+
 const parseBusinessTypes = (payload: Record<string, unknown>): string[] => {
   const raw =
     payload.businessTypes ??
@@ -56,6 +66,7 @@ const parseBusinessTypes = (payload: Record<string, unknown>): string[] => {
 
 export default function RegisterPage() {
   const { token } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [prefill, setPrefill] = useState<PrefillState>({
     fullName: "",
@@ -68,14 +79,18 @@ export default function RegisterPage() {
     city: "",
     businessTypes: [],
   });
+  const [tenantPrefill, setTenantPrefill] = useState<TenantPrefillState | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoadingPrefill, setIsLoadingPrefill] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
-  const isTokenMissing = useMemo(() => !token, [token]);
+  const inviteToken = searchParams.get("inviteToken");
+  const isTenantInvite = Boolean(inviteToken);
+  const isTokenMissing = useMemo(() => !token && !isTenantInvite, [token, isTenantInvite]);
   const passwordChecks = [
     {
       key: "length",
@@ -101,16 +116,39 @@ export default function RegisterPage() {
     hasConfirmValue &&
     isPasswordMatch &&
     Boolean(password) &&
-    !(isSubmitting || (!isTokenMissing && isLoadingPrefill));
+    !(isSubmitting || (!isTokenMissing && isLoadingPrefill)) &&
+    !registrationSuccess;
 
+  // Redirect to sign in after successful registration
   useEffect(() => {
-    const loadPrefill = async () => {
-      if (!token) {
-        setIsLoadingPrefill(false);
-        return;
-      }
-      try {
-        setIsLoadingPrefill(true);
+    if (!registrationSuccess) return;
+    const timer = setTimeout(() => {
+      navigate("/", { replace: true });
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [navigate, registrationSuccess]);
+
+  const loadPrefill = useCallback(async () => {
+    if (!token && !isTenantInvite) {
+      setIsLoadingPrefill(false);
+      return;
+    }
+    try {
+      setIsLoadingPrefill(true);
+      if (isTenantInvite) {
+        const response = await api.get("/api/auth/tenant-register/prefill", {
+          params: { inviteToken },
+        });
+        setTenantPrefill({
+          fullName: response.data.fullName || "",
+          email: response.data.email || "",
+          role: response.data.role || "Employee",
+          tenantRole: response.data.tenantRole || "tenant-employee",
+          companyName: response.data.companyName || "",
+          tenantCompanyId: response.data.tenantCompanyId || "",
+          inviteToken: response.data.inviteToken || inviteToken,
+        });
+      } else {
         const response = await api.get(`/api/auth/register/${token}/prefill`);
         setPrefill({
           fullName: response.data.fullName || "",
@@ -123,46 +161,59 @@ export default function RegisterPage() {
           city: response.data.city || "",
           businessTypes: parseBusinessTypes(response.data as Record<string, unknown>),
         });
-      } catch (error) {
-        const message = (error as AxiosError<{ message?: string }>).response?.data?.message;
-        toast.error(message || "Invalid or expired invite link.");
-      } finally {
-        setIsLoadingPrefill(false);
       }
-    };
+    } catch (error) {
+      const message = (error as AxiosError<{ message?: string }>).response?.data?.message;
+      toast.error(message || "Invalid or expired invite link.");
+    } finally {
+      setIsLoadingPrefill(false);
+    }
+  }, [token, isTenantInvite, inviteToken]);
+
+  useEffect(() => {
     loadPrefill();
-  }, [token]);
+  }, [loadPrefill]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     try {
       setIsSubmitting(true);
-      const endpoint = token
-        ? `/api/auth/register/${token}/start`
-        : "/api/auth/register/start";
-      const response = await api.post(endpoint, {
-        fullName: prefill.fullName,
-        email: prefill.email,
-        password,
-        confirmPassword,
-      });
-      toast.success(response.data?.message || "OTP sent.");
-      navigate(token ? `/register/${token}/verify` : "/register/verify", {
-        state: {
-          email: prefill.email,
+      if (isTenantInvite && tenantPrefill) {
+        const response = await api.post("/api/auth/tenant-register/complete", {
+          inviteToken: tenantPrefill.inviteToken,
+          password,
+          confirmPassword,
+        });
+        toast.success(response.data?.message || "Registration completed successfully.");
+        setRegistrationSuccess(true);
+      } else {
+        const endpoint = token
+          ? `/api/auth/register/${token}/start`
+          : "/api/auth/register/start";
+        const response = await api.post(endpoint, {
           fullName: prefill.fullName,
-          selectedPlan: prefill.selectedPlan,
-          businessName: prefill.businessName,
-          inviteType: prefill.inviteType,
-          country: prefill.country,
-          state: prefill.state,
-          city: prefill.city,
-          businessTypes: prefill.businessTypes,
-        },
-      });
+          email: prefill.email,
+          password,
+          confirmPassword,
+        });
+        toast.success(response.data?.message || "OTP sent.");
+        navigate(token ? `/register/${token}/verify` : "/register/verify", {
+          state: {
+            email: prefill.email,
+            fullName: prefill.fullName,
+            selectedPlan: prefill.selectedPlan,
+            businessName: prefill.businessName,
+            inviteType: prefill.inviteType,
+            country: prefill.country,
+            state: prefill.state,
+            city: prefill.city,
+            businessTypes: prefill.businessTypes,
+          },
+        });
+      }
     } catch (error) {
       const message = (error as AxiosError<{ message?: string }>).response?.data?.message;
-      toast.error(message || "Failed to start registration.");
+      toast.error(message || "Failed to complete registration.");
     } finally {
       setIsSubmitting(false);
     }
@@ -179,7 +230,33 @@ export default function RegisterPage() {
       </header>
 
       <div className="login-section loginTopPadding loginBottomPadding poppinsRegular heightPadding">
-        <h1 className="text-center text-4xl font-bold">REGISTER YOURSELF!</h1>
+        {registrationSuccess ? (
+          <div className="w-full max-w-2xl mx-auto min-h-[58vh] flex items-center justify-center px-4">
+            <div className="w-full rounded-[24px] border border-[#d9e6ff] bg-[linear-gradient(180deg,#ffffff_0%,#f5f9ff_100%)] shadow-[0_16px_50px_rgba(23,73,182,0.14)] px-5 md:px-8 py-8 md:py-9 text-center">
+              <div className="w-14 h-14 md:w-16 md:h-16 mx-auto rounded-full bg-[#e8f1ff] flex items-center justify-center mb-4">
+                <CheckCircle2 className="text-[#2d67f0]" size={30} strokeWidth={2.5} />
+              </div>
+              <h1 className="text-[22px] md:text-[26px] leading-tight font-bold text-[#102a56] mb-2 text-center">
+                Registration Successful
+              </h1>
+              <p className="text-[14px] md:text-[15px] leading-relaxed text-[#4b5e80] max-w-[520px] mx-auto">
+                {isTenantInvite
+                  ? `You are now registered as a team member of ${tenantPrefill?.companyName || "your company"}. Use the same credentials to sign in.`
+                  : "Redirecting to Sign In page. Use the same credentials to sign in."}
+              </p>
+              <p className="mt-4 text-[12px] text-[#6b7fa7] font-medium">
+                Redirecting in a few seconds...
+              </p>
+            </div>
+          </div>
+        ) : (
+        <>
+        <h1 className="text-center text-4xl font-bold">{isTenantInvite ? "JOIN YOUR COMPANY" : "REGISTER YOURSELF!"}</h1>
+        {isTenantInvite && tenantPrefill && (
+          <p className="text-center text-sm text-gray-600 mt-2">
+            You've been invited to join <strong>{tenantPrefill.companyName}</strong> as a <strong>{tenantPrefill.role}</strong>
+          </p>
+        )}
         <div className="loginDividingContainer shrink-container">
           <div className="w-5/6 md:w-2/3">
             <Container maxWidth="lg" style={{ padding: "3rem 0 0" }}>
@@ -189,10 +266,10 @@ export default function RegisterPage() {
                     <TextField
                       label="Full Name"
                       variant="standard"
-                      value={prefill.fullName}
-                      disabled={!isTokenMissing}
+                      value={isTenantInvite ? (tenantPrefill?.fullName || "") : prefill.fullName}
+                      disabled={!isTokenMissing || isTenantInvite}
                       InputProps={
-                        !isTokenMissing
+                        (!isTokenMissing || isTenantInvite)
                           ? {
                               endAdornment: (
                                 <InputAdornment position="end">
@@ -203,7 +280,7 @@ export default function RegisterPage() {
                           : undefined
                       }
                       onChange={(e) =>
-                        isTokenMissing && setPrefill((prev) => ({ ...prev, fullName: e.target.value }))
+                        isTokenMissing && !isTenantInvite && setPrefill((prev) => ({ ...prev, fullName: e.target.value }))
                       }
                       fullWidth
                     />
@@ -213,10 +290,10 @@ export default function RegisterPage() {
                       label="Email"
                       variant="standard"
                       type="email"
-                      value={prefill.email}
-                      disabled={!isTokenMissing}
+                      value={isTenantInvite ? (tenantPrefill?.email || "") : prefill.email}
+                      disabled={!isTokenMissing || isTenantInvite}
                       InputProps={
-                        !isTokenMissing
+                        (!isTokenMissing || isTenantInvite)
                           ? {
                               endAdornment: (
                                 <InputAdornment position="end">
@@ -227,7 +304,7 @@ export default function RegisterPage() {
                           : undefined
                       }
                       onChange={(e) =>
-                        isTokenMissing && setPrefill((prev) => ({ ...prev, email: e.target.value }))
+                        isTokenMissing && !isTenantInvite && setPrefill((prev) => ({ ...prev, email: e.target.value }))
                       }
                       fullWidth
                     />
@@ -318,7 +395,7 @@ export default function RegisterPage() {
                           type="submit"
                           className="loginButtonStyling text-decoration-none text-subtitle w-40"
                         >
-                          {isSubmitting ? <CircularProgress size={20} color="white" /> : "CONTINUE"}
+                          {isSubmitting ? <CircularProgress size={20} color="inherit" /> : "CONTINUE"}
                         </button>
                       </div>
                     </Grid>
@@ -334,8 +411,9 @@ export default function RegisterPage() {
             </Container>
           </div>
         </div>
+      </>
+      )}
       </div>
-
       <Footer />
     </div>
   );

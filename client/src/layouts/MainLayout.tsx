@@ -44,7 +44,12 @@ const MainLayout = () => {
     }
   }, [location.pathname, auth, navigate]);
 
-  const isTenantRoute = location.pathname.startsWith("/dashboard/tenant");
+  const storedTenantRole = (() => {
+    try { return localStorage.getItem("hostpanel_tenant_role") || null; }
+    catch { return null; }
+  })();
+  const hasTenantRole = Boolean(storedTenantRole || auth?.user?.tenantRole);
+  const isTenantRoute = location.pathname.startsWith("/dashboard/tenant") || (hasTenantRole && location.pathname.startsWith("/profile/"));
   const isMobile = useMediaQuery("(max-width: 768px)");
   const outletKey = `${location.pathname}${location.search}`;
 

@@ -369,7 +369,7 @@ export const routes = createBrowserRouter([
                       { path: "booking-history", element: <TenantBookingHistoryPage /> },
                       { path: "buy-credits", element: <TenantBuyCreditsPage /> },
                       { path: "tickets", element: <TenantTicketsPage /> },
-                      { path: "profile", element: <Navigate to="/profile/company-profile" replace /> },
+                      { path: "profile", element: <Navigate to="/profile/my-profile" replace /> },
                     ],
                   },
                 ],

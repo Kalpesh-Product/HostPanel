@@ -7,12 +7,9 @@ import {
 import { CardsGridSkeleton } from '@/components/ui/Skeleton';
 import { formatTime12h } from '@/utils/time';
 import { getStoredTenantCompanyId, getStoredTenantCompanyName, getStoredUser } from '@/lib/auth-session';
-import { MOCK_ROOMS, MOCK_BOOKINGS, MOCK_EMPLOYEES, MOCK_TENANT_COMPANIES, initMockTenantSession } from './mock-tenant-data';
-
-// ─── Backend service imports (uncomment when backend ready) ───
-// import { getMeetingRoomBookings, createMeetingRoomBooking } from '@/services/meeting-room-bookings';
-// import { getTenantCompanies } from '@/services/tenant-companies';
-// import { getResources } from '@/services/resources';
+import { getMeetingRoomBookings, createMeetingRoomBooking } from '@/services/meeting-room-bookings';
+import { getTenantCompanies } from '@/services/tenant-companies';
+import { getResources } from '@/services/resources';
 
 const ROOM_TYPE_OPTIONS = ['All', 'Meeting Room', 'Conference Room'];
 const BOOKING_SLOT_STEP_MINUTES = 5;
@@ -270,34 +267,18 @@ export default function TenantMeetingRoomBookingPage() {
     let isMounted = true;
 
     async function loadRooms() {
-      initMockTenantSession();
       setIsLoading(true);
       try {
-        // ─── Backend calls (uncomment when backend ready) ───
-        // const [resourcesResponse, bookingsResponse] = await Promise.all([
-        //   getResources(),
-        //   getMeetingRoomBookings({ page: 1, limit: 100 }),
-        // ]);
-        // if (!isMounted) return;
-        // const resourceRooms = Array.isArray(resourcesResponse?.data?.resources) ? resourcesResponse.data.resources : [];
-        // const normalized = resourceRooms
-        //   .map(normalizeResourceRoom)
-        //   .filter(Boolean)
-        //   .filter((room) => {
-        //     if (!isBookableRoom(room)) return false;
-        //     if (tenantCompanyId && room.assignedTenantCompanyId && room.assignedTenantCompanyId !== tenantCompanyId) return false;
-        //     if (tenantCompanyId && room.assignedDepartmentId) return false;
-        //     return true;
-        //   }) as NormalizedRoom[];
-        // setRooms(normalized);
-        // setBookings(Array.isArray(bookingsResponse?.data?.bookings) ? bookingsResponse.data.bookings : []);
-
-        // ⚠️ Placeholder
-        await new Promise((resolve) => setTimeout(resolve, 600));
+        const [resourcesResponse, bookingsResponse] = await Promise.all([
+          getResources(),
+          // getMeetingRoomBookings expects a query string parameter
+          getMeetingRoomBookings('page=1&limit=100'),
+        ]);
         if (!isMounted) return;
-        const normalized = MOCK_ROOMS
+        const resourceRooms = Array.isArray(resourcesResponse?.data?.resources) ? resourcesResponse.data.resources : [];
+        const normalized = resourceRooms
           .map(normalizeResourceRoom)
-          .filter((room): room is NormalizedRoom => room !== null)
+          .filter(Boolean)
           .filter((room) => {
             if (!isBookableRoom(room)) return false;
             if (tenantCompanyId && room.assignedTenantCompanyId && room.assignedTenantCompanyId !== tenantCompanyId) return false;
@@ -305,7 +286,7 @@ export default function TenantMeetingRoomBookingPage() {
             return true;
           }) as NormalizedRoom[];
         setRooms(normalized);
-        setBookings(MOCK_BOOKINGS);
+        setBookings(Array.isArray(bookingsResponse?.data?.bookings) ? bookingsResponse.data.bookings : []);
         setErrorMessage('');
       } catch (error: any) {
         if (isMounted) setErrorMessage(error.message || 'Unable to load meeting rooms right now.');
@@ -346,24 +327,11 @@ export default function TenantMeetingRoomBookingPage() {
       }
 
       try {
-        // ─── Backend call (uncomment when backend ready) ───
-        // const response = await getTenantCompanies();
-        // if (!isMounted) return;
-        // const tenants = Array.isArray(response?.data?.tenants) ? response.data.tenants : [];
-        // setTenantCompanies(tenants);
-        // ... employee extraction logic
-
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        const response = await getTenantCompanies();
         if (!isMounted) return;
-        const employees = MOCK_EMPLOYEES.map((emp) => ({
-          userId: emp.id,
-          fullName: emp.fullName,
-          role: emp.role,
-          designation: emp.designation,
-          status: emp.status,
-        }));
-        setInviteeOptions(employees);
-        setTenantCompanies(MOCK_TENANT_COMPANIES);
+        const tenants = Array.isArray(response?.data?.tenants) ? response.data.tenants : [];
+        setTenantCompanies(tenants);
+        // Employee extraction from tenant data not yet implemented
       } catch {
         if (isMounted) setInviteeOptions([]);
       } finally {

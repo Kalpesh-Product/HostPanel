@@ -181,8 +181,17 @@ const Header = ({
     manager: "Department Manager",
     employee: "Employee",
   };
-  const roleLabel =
-    isFounderRole || isFounderByFlag || hasFounderPermission
+  const storedTenantRole = (() => {
+    try {
+      return localStorage.getItem("hostpanel_tenant_role") || null;
+    } catch { return null; }
+  })();
+  const hasTenantRole = Boolean(storedTenantRole || auth?.user?.tenantRole);
+  const roleLabel = hasTenantRole
+    ? (storedTenantRole === "tenant-manager" || auth?.user?.tenantRole === "tenant-manager"
+        ? "Tenant Manager"
+        : "Tenant Employee")
+    : isFounderRole || isFounderByFlag || hasFounderPermission
       ? "Founder"
       : roleLabelMap[normalizedRole] || "Team Member";
 

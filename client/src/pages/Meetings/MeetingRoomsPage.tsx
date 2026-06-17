@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Search, ChevronDown, Clock, Users, Building,
-  Eye, Plus, X, CheckCircle2, AlertCircle, CalendarClock, XCircle, ChevronLeft, ChevronRight, Calendar as CalIcon, Building2
+  Eye, Plus, X, CheckCircle2, AlertCircle, CalendarClock, XCircle, ChevronLeft, ChevronRight, Calendar as CalIcon, Building2,
+  AlertTriangle, Briefcase, UserCheck, CreditCard, DollarSign, Phone, Mail, FileText, BarChart3, UserPlus, Globe
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageFrame from '../../components/Pages/PageFrame';
@@ -22,6 +23,7 @@ import {
   getStoredUser,
 } from '../../lib/auth-session';
 import { getWorkspaceMembers } from '../../services/auth';
+import { getTenantCompanies } from '../../services/tenant-companies';
 import {
   createMeetingRoomBooking,
   getMeetingRoomBookings,
@@ -222,6 +224,405 @@ function resolveBookingRoomName(booking: any) {
   return String(booking.roomName || booking.resourceName || booking.resource || booking.roomDescription || '').trim();
 }
 
+function normalizeIdentity(value?: string) {
+  return (value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function normalizeRole(value?: string) {
+  return (value || '').toString().trim().toLowerCase().replace(/[\s_]+/g, '-');
+}
+
+function stringifyId(value?: any) {
+  if (!value) {
+    return '';
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    return String(value).trim();
+  }
+
+  if (typeof value === 'object') {
+    return String(value?._id || value?.id || value?.userId || '').trim();
+  }
+
+  return '';
+}
+
+function resolveMemberUserId(member?: any) {
+  return (
+    stringifyId(member?.userId) ||
+    stringifyId(member?.user?.id) ||
+    stringifyId(member?.user?._id) ||
+    stringifyId(member?.workspaceMembership?.userId) ||
+    stringifyId(member?.workspaceMembership?.memberUserId) ||
+    stringifyId(member?.memberUserId) ||
+    stringifyId(member?.linkedUserId) ||
+    stringifyId(member?.id) ||
+    stringifyId(member?._id)
+  );
+}
+
+function bookingScopeKey(value?: string) {
+  const role = normalizeRole(value);
+  if (role === 'owner') {
+    return 'owner';
+  }
+  if (role === 'super-admin') {
+    return 'super-admin';
+  }
+  return 'department';
+}
+
+function bookingScopeLabel(value?: string) {
+  const scope = bookingScopeKey(value);
+  if (scope === 'owner') {
+    return 'Founder booking';
+  }
+  if (scope === 'super-admin') {
+    return 'Super admin booking';
+  }
+  return 'Department booking';
+}
+
+function getBookingTagLabel(booking?: any) {
+  const bookingType = normalize(booking?.bookingType);
+  if (bookingType === 'external') {
+    return 'External booking';
+  }
+
+  if (bookingType === 'tenant') {
+    return 'Tenant booking';
+  }
+
+  return bookingScopeLabel(booking?.bookingScope);
+}
+
+function getBookingTagBadge(booking?: any) {
+  const bookingType = normalize(booking?.bookingType);
+  if (bookingType === 'external') {
+    return 'bg-amber-50 text-amber-700 border-amber-200';
+  }
+
+  if (bookingType === 'tenant') {
+    return 'bg-blue-50 text-blue-700 border-blue-200';
+  }
+
+  const scope = bookingScopeKey(booking?.bookingScope);
+  return bookingScopeBadge(scope);
+}
+
+function bookingScopeBadge(scope?: string) {
+  if (scope === 'owner') {
+    return 'bg-violet-50 text-violet-700 border-violet-200';
+  }
+  if (scope === 'super-admin') {
+    return 'bg-blue-50 text-blue-700 border-blue-200';
+  }
+  return 'bg-slate-100 text-slate-700 border-slate-200';
+}
+
+function normalize(value?: string) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function statusLabel(value?: string) {
+  const normalized = normalize(value);
+  if (normalized.includes('pending')) return 'Pending';
+  if (normalized === 'in progress') return 'In Progress';
+  if (normalized === 'completed') return 'Completed';
+  if (normalized === 'cancelled' || normalized === 'canceled') return 'Cancelled';
+  if (normalized === 'rescheduled' || normalized === 'reschedules') return 'Reschedules';
+  if (normalized === 'accepted') return 'Accepted';
+  if (normalized === 'rejected') return 'Rejected';
+  if (normalized === 'declined') return 'Rejected';
+  if (normalized === 'active') return 'Active';
+  return 'Booked';
+}
+
+function statusBadge(status?: string) {
+  const normalized = statusLabel(status);
+  if (normalized === 'In Progress') return 'bg-amber-50 text-amber-700 border-amber-200';
+  if (normalized === 'Pending') return 'bg-yellow-50 text-yellow-700 border-yellow-200';
+  if (normalized === 'Accepted') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  if (normalized === 'Rejected') return 'bg-red-50 text-red-700 border-red-200';
+  if (normalized === 'Completed') return 'bg-blue-50 text-blue-700 border-blue-200';
+  if (normalized === 'Cancelled') return 'bg-red-50 text-red-700 border-red-200';
+  if (normalized === 'Reschedules') return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+  if (normalized === 'Active') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  return 'bg-slate-50 text-slate-700 border-slate-200';
+}
+
+function getMeetingTimeZoneDateParts(value?: any) {
+  if (!value) {
+    return null;
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+
+  const normalized = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  if (!normalized.year || !normalized.month || !normalized.day) {
+    return null;
+  }
+
+  return {
+    year: normalized.year,
+    month: normalized.month,
+    day: normalized.day,
+  };
+}
+
+function getMeetingClockParts(now: Date = new Date()) {
+  const date = now instanceof Date ? now : new Date(now);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+
+  const normalized = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  if (!normalized.year || !normalized.month || !normalized.day || !normalized.hour || !normalized.minute) {
+    return null;
+  }
+
+  return {
+    dateKey: `${normalized.year}-${normalized.month}-${normalized.day}`,
+    minutes: Number(normalized.hour) * 60 + Number(normalized.minute),
+  };
+}
+
+function timeToMinutes(value?: string) {
+  if (!value || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) {
+    return null;
+  }
+
+  const [hours, minutes] = value.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+function minutesToTimeString(value: number) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return '';
+  }
+
+  const normalized = ((Number(value) % 1440) + 1440) % 1440;
+  const hours = Math.floor(normalized / 60);
+  const minutes = normalized % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+}
+
+function roundUpToStepTime(value: string = '', stepMinutes: number = BOOKING_SLOT_STEP_MINUTES) {
+  const totalMinutes = timeToMinutes(value);
+  if (totalMinutes === null) {
+    return '';
+  }
+
+  const roundedMinutes = Math.ceil(totalMinutes / stepMinutes) * stepMinutes;
+  if (roundedMinutes >= 24 * 60) {
+    return '23:55';
+  }
+
+  return minutesToTimeString(roundedMinutes);
+}
+
+function buildTimeOptions(minTime: string = '00:00', maxTime: string = '23:55', stepMinutes: number = BOOKING_SLOT_STEP_MINUTES) {
+  const minMinutes = Math.max(0, timeToMinutes(minTime) ?? 0);
+  const maxMinutes = Math.min((24 * 60) - stepMinutes, timeToMinutes(maxTime) ?? ((24 * 60) - stepMinutes));
+  const options: string[] = [];
+
+  for (let minutes = minMinutes; minutes <= maxMinutes; minutes += stepMinutes) {
+    options.push(minutesToTimeString(minutes));
+  }
+
+  return options;
+}
+
+function isAlignedToStep(totalMinutes: number, stepMinutes: number = BOOKING_SLOT_STEP_MINUTES) {
+  return Number.isInteger(totalMinutes) && totalMinutes % stepMinutes === 0;
+}
+
+function getBookingTimeValidation(dateValue: any, startTimeValue: any, endTimeValue: any) {
+  if (!dateValue || !startTimeValue) {
+    return { valid: true, reason: '' };
+  }
+
+  const bookingDateParts = getMeetingTimeZoneDateParts(dateValue);
+  const currentClock = getMeetingClockParts();
+  const startMinutes = timeToMinutes(startTimeValue);
+
+  if (!bookingDateParts || !currentClock || startMinutes === null) {
+    return { valid: false, reason: 'Choose a valid future booking date and time.' };
+  }
+
+  const bookingDateKey = `${bookingDateParts.year}-${bookingDateParts.month}-${bookingDateParts.day}`;
+  if (bookingDateKey < currentClock.dateKey) {
+    return { valid: false, reason: 'Backdated bookings are not allowed. Choose a future date.' };
+  }
+
+  if (bookingDateKey === currentClock.dateKey && startMinutes <= currentClock.minutes) {
+    return { valid: false, reason: 'That time has already passed. Choose another slot for today.' };
+  }
+
+  if (!isAlignedToStep(startMinutes)) {
+    return { valid: false, reason: 'Use 5-minute slots only (for example 12:20, 12:25, 12:30).' };
+  }
+
+  if (endTimeValue) {
+    const endMinutes = timeToMinutes(endTimeValue);
+    if (endMinutes === null) {
+      return { valid: false, reason: 'Choose a valid end time.' };
+    }
+
+    if (!isAlignedToStep(endMinutes)) {
+      return { valid: false, reason: 'Use 5-minute slots only (for example 12:20, 12:25, 12:30).' };
+    }
+
+    if (endMinutes <= startMinutes) {
+      return { valid: false, reason: 'End time must be after start time.' };
+    }
+
+    if (endMinutes - startMinutes < BOOKING_MIN_DURATION_MINUTES) {
+      return { valid: false, reason: 'Minimum booking duration is 30 minutes.' };
+    }
+  }
+
+  return { valid: true, reason: '' };
+}
+
+function deriveLiveMeetingStatus(booking: any, now: Date = new Date()) {
+  if (!booking) {
+    return 'booked';
+  }
+
+  const storedStatus = booking.storedStatus || booking.status || 'booked';
+  if (storedStatus === 'cancelled') {
+    return 'cancelled';
+  }
+
+  const bookingDateParts = getMeetingTimeZoneDateParts(booking.date);
+  const currentClock = getMeetingClockParts(now);
+  const startMinutes = timeToMinutes(booking.startTime);
+  const endMinutes = timeToMinutes(booking.endTime);
+
+  if (!bookingDateParts || !currentClock || startMinutes === null || endMinutes === null) {
+    return storedStatus;
+  }
+
+  const bookingDateKey = `${bookingDateParts.year}-${bookingDateParts.month}-${bookingDateParts.day}`;
+
+  if (currentClock.dateKey < bookingDateKey) {
+    return 'booked';
+  }
+
+  if (currentClock.dateKey > bookingDateKey) {
+    return 'completed';
+  }
+
+  if (currentClock.minutes < startMinutes) {
+    return 'booked';
+  }
+
+  if (currentClock.minutes < endMinutes) {
+    return 'in progress';
+  }
+
+  return 'completed';
+}
+
+function normalizeBooking(booking: any, currentUserId: string): Booking {
+  const roomName = resolveBookingRoomName(booking);
+  const invites = Array.isArray(booking.invites)
+    ? booking.invites.map((invite: any) => ({
+      ...invite,
+      invitedUserId: invite?.invitedUserId ? String(invite.invitedUserId) : '',
+    }))
+    : [];
+  const currentInvite = invites.find((invite: any) => invite.invitedUserId === String(currentUserId)) || null;
+  const liveStatus = booking.liveStatus || booking.bookingStatus || deriveLiveMeetingStatus(booking);
+
+  return {
+    ...booking,
+    recordId: String(booking.recordId || booking._id || booking.id || ''),
+    id: String(booking.id || booking._id || booking.recordId || ''),
+    checkIn: booking.checkIn || booking.startTime,
+    checkOut: booking.checkOut || booking.endTime,
+    previousDate: booking.previousDate || '',
+    previousStartTime: booking.previousStartTime || '',
+    previousEndTime: booking.previousEndTime || '',
+    scheduleChangeType: booking.scheduleChangeType || '',
+    cancelReason: booking.cancelReason || '',
+    extensionAmount: Number(booking.extensionAmount || 0),
+    baseAmount: Number(booking.baseAmount || 0),
+    gstAmount: Number(booking.gstAmount || 0),
+    totalAmount: Number(booking.totalAmount || 0),
+    isMe: Boolean(booking.isMe),
+    isInvitedMeeting: Boolean(booking.isInvitedMeeting || currentInvite),
+    currentInviteStatus: booking.currentInviteStatus || currentInvite?.status || null,
+    inviteResponseReason: booking.inviteResponseReason || currentInvite?.responseReason || '',
+    invites,
+    bookedByRole: booking.bookedByRole || '',
+    bookingScope: booking.bookingScope || bookingScopeKey(booking.bookedByRole),
+    roomName,
+    startTime: booking.startTime,
+    endTime: booking.endTime,
+    status: booking.status || 'booked',
+    liveStatus,
+    storedStatus: booking.storedStatus || booking.status || '',
+  };
+}
+
+function getBookingAttendeeCount(data: any) {
+  const inviteCount = Array.isArray(data?.inviteeUserIds) ? data.inviteeUserIds.length : 0;
+  const explicitCount = Number(data?.attendees || 0);
+
+  if (explicitCount > 0) {
+    return explicitCount;
+  }
+
+  return inviteCount + 1;
+}
+
+function getBookingDisplayStatus(booking: any) {
+  if (!booking) {
+    return 'booked';
+  }
+
+  return booking.liveStatus || booking.status || 'booked';
+}
+
+function isRescheduledBooking(booking: any) {
+  return normalize(booking?.status) === 'rescheduled' || normalize(booking?.storedStatus) === 'rescheduled';
+}
+
+function isPendingCurrentUserInvite(booking: any) {
+  return booking?.currentInviteStatus === 'pending';
+}
+
+function isAcceptedCurrentUserInvite(booking: any) {
+  return booking?.currentInviteStatus === 'accepted';
+}
+
+function isRejectedCurrentUserInvite(booking: any) {
+  return booking?.currentInviteStatus === 'rejected';
+}
+
 export function MeetingRoomsPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -252,7 +653,6 @@ export function MeetingRoomsPage() {
     !isTechManagerProfile &&
     !isITManagerProfile &&
     !isMaintenanceManagerProfile;
-  const canSeeCalendarBookingDetails = isAdministrationManagerProfile;
   const isDepartmentManagerProfile =
     isHrManagerProfile ||
     isAdministrationManagerProfile ||
@@ -361,7 +761,6 @@ export function MeetingRoomsPage() {
     isDepartmentManagerProfile,
     isAdminProfile,
     isHrManagerProfile,
-    isAdministrationManagerProfile,
     isSalesManagerProfile,
     isFinanceManagerProfile,
     isTechManagerProfile,
@@ -383,10 +782,10 @@ export function MeetingRoomsPage() {
   );
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [isLoadingBookings, setIsLoadingBookings] = useState<boolean>(false); // false = skip skeleton in frontend preview
+  const [isLoadingBookings, setIsLoadingBookings] = useState<boolean>(false);
   const [isSavingBooking, setIsSavingBooking] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const [isInitialLoading, setIsInitialLoading] = useState<boolean>(false); // false = render immediately
+  const [isInitialLoading, setIsInitialLoading] = useState<boolean>(false);
 
 
   // Calendar State
@@ -466,634 +865,39 @@ export function MeetingRoomsPage() {
   const [inviteRejectReason, setInviteRejectReason] = useState<string>('');
 
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
-  const formatCurrency = (value: any) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value || 0));
 
-  function normalizeIdentity(value?: string) {
-    return (value || '').trim().toLowerCase().replace(/\s+/g, ' ');
-  }
+  // ─── MAIN BOOKING TABS ───
+  const [mainBookingTab, setMainBookingTab] = useState<'my_bookings' | 'internal_booking' | 'external_booking' | 'tenant_bookings'>('my_bookings');
 
-  function normalizeRole(value?: string) {
-    return (value || '').toString().trim().toLowerCase().replace(/[\s_]+/g, '-');
-  }
+  // ─── TENANT COMPANIES ───
+  const [tenantCompanies, setTenantCompanies] = useState<Record<string, any>[]>([]);
+  const [isLoadingTenants, setIsLoadingTenants] = useState(false);
 
-  function stringifyId(value?: any) {
-    if (!value) {
-      return '';
-    }
+  // ─── FORMS ───
+  const [showExternalBookingDialog, setShowExternalBookingDialog] = useState(false);
+  const [showInternalBookingDialog, setShowInternalBookingDialog] = useState(false);
+  const [showTenantBookingDialog, setShowTenantBookingDialog] = useState(false);
+  const [tenantBookingError, setTenantBookingError] = useState('');
 
-    if (typeof value === 'string' || typeof value === 'number') {
-      return String(value).trim();
-    }
-
-    if (typeof value === 'object') {
-      return String(value?._id || value?.id || value?.userId || '').trim();
-    }
-
-    return '';
-  }
-
-  function resolveMemberUserId(member?: any) {
-    return (
-      stringifyId(member?.userId) ||
-      stringifyId(member?.user?.id) ||
-      stringifyId(member?.user?._id) ||
-      stringifyId(member?.workspaceMembership?.userId) ||
-      stringifyId(member?.workspaceMembership?.memberUserId) ||
-      stringifyId(member?.memberUserId) ||
-      stringifyId(member?.linkedUserId) ||
-      stringifyId(member?.id) ||
-      stringifyId(member?._id)
-    );
-  }
-
-  function resolveMemberName(member?: any) {
-    return getEmployeeDisplayName(member).toString().trim();
-  }
-
-  function resolveMemberRole(member?: any) {
-    return String(member?.role || member?.workspaceRole || member?.membershipRole || 'Employee').trim();
-  }
-
-  function resolveMemberDepartments(member?: any) {
-    const directDepartments = Array.isArray(member?.departments)
-      ? member.departments
-      : Array.isArray(member?.workspaceMembership?.departments)
-        ? member.workspaceMembership.departments
-        : [];
-
-    if (directDepartments.length > 0) {
-      return directDepartments
-        .map((department: any) => {
-          if (!department) return '';
-          if (typeof department === 'string') return department;
-          return department?.name || department?.label || department?.department || department?.value || '';
-        })
-        .filter(Boolean);
-    }
-
-    const singleDepartment =
-      member?.department ||
-      member?.workspaceMembership?.department ||
-      member?.workspaceDepartment;
-
-    if (singleDepartment) {
-      if (typeof singleDepartment === 'string') {
-        return [singleDepartment].filter(Boolean);
-      }
-
-      return [
-        singleDepartment?.name ||
-        singleDepartment?.label ||
-        singleDepartment?.department ||
-        singleDepartment?.value ||
-        '',
-      ].filter(Boolean);
-    }
-
-    return [];
-  }
-
-  function bookingScopeKey(value?: string) {
-    const role = normalizeRole(value);
-    if (role === 'owner') {
-      return 'owner';
-    }
-    if (role === 'super-admin') {
-      return 'super-admin';
-    }
-    return 'department';
-  }
-
-  function bookingScopeLabel(value?: string) {
-    const scope = bookingScopeKey(value);
-    if (scope === 'owner') {
-      return 'Founder booking';
-    }
-    if (scope === 'super-admin') {
-      return 'Super admin booking';
-    }
-    return 'Department booking';
-  }
-
-  function getBookingTagLabel(booking?: any) {
-    const bookingType = normalize(booking?.bookingType);
-    if (bookingType === 'external') {
-      return 'External booking';
-    }
-
-    if (bookingType === 'tenant') {
-      return 'Tenant booking';
-    }
-
-    return bookingScopeLabel(booking?.bookingScope);
-  }
-
-  function getBookingTagBadge(booking?: any) {
-    const bookingType = normalize(booking?.bookingType);
-    if (bookingType === 'external') {
-      return 'bg-amber-50 text-amber-700 border-amber-200';
-    }
-
-    if (bookingType === 'tenant') {
-      return 'bg-blue-50 text-blue-700 border-blue-200';
-    }
-
-    const scope = bookingScopeKey(booking?.bookingScope);
-    return bookingScopeBadge(scope);
-  }
-
-  function bookingScopeBadge(scope?: string) {
-    if (scope === 'owner') {
-      return 'bg-violet-50 text-violet-700 border-violet-200';
-    }
-    if (scope === 'super-admin') {
-      return 'bg-blue-50 text-blue-700 border-blue-200';
-    }
-    return 'bg-slate-100 text-slate-700 border-slate-200';
-  }
-
-  function formatInviteGroupLabel(value?: string) {
-    return (value || '')
-      .toString()
-      .trim()
-      .replace(/[_-]+/g, ' ')
-      .replace(/\b\w/g, (char) => char.toUpperCase()) || 'General';
-  }
-
-  function normalize(value?: string) {
-    return String(value || '').trim().toLowerCase();
-  }
-
-  function statusLabel(value?: string) {
-    const normalized = normalize(value);
-    if (normalized.includes('pending')) return 'Pending';
-    if (normalized === 'in progress') return 'In Progress';
-    if (normalized === 'completed') return 'Completed';
-    if (normalized === 'cancelled' || normalized === 'canceled') return 'Cancelled';
-    if (normalized === 'rescheduled' || normalized === 'reschedules') return 'Reschedules';
-    if (normalized === 'accepted') return 'Accepted';
-    if (normalized === 'rejected') return 'Rejected';
-    if (normalized === 'declined') return 'Rejected';
-    if (normalized === 'active') return 'Active';
-    return 'Booked';
-  }
-
-  function statusBadge(status?: string) {
-    const normalized = statusLabel(status);
-    if (normalized === 'In Progress') return 'bg-amber-50 text-amber-700 border-amber-200';
-    if (normalized === 'Pending') return 'bg-yellow-50 text-yellow-700 border-yellow-200';
-    if (normalized === 'Accepted') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    if (normalized === 'Rejected') return 'bg-red-50 text-red-700 border-red-200';
-    if (normalized === 'Completed') return 'bg-blue-50 text-blue-700 border-blue-200';
-    if (normalized === 'Cancelled') return 'bg-red-50 text-red-700 border-red-200';
-    if (normalized === 'Reschedules') return 'bg-indigo-50 text-indigo-700 border-indigo-200';
-    if (normalized === 'Active') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    return 'bg-slate-50 text-slate-700 border-slate-200';
-  }
-
-  function formatDisplayDate(value?: any) {
-    if (!value) {
-      return '';
-    }
-
-    if (typeof value === 'string') {
-      const text = value.trim();
-      const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/);
-      if (isoMatch) {
-        const [, year, month, day] = isoMatch;
-        const parsed = new Date(Number(year), Number(month) - 1, Number(day));
-        return parsed.toLocaleDateString('en-US', {
-          month: 'short',
-          day: '2-digit',
-          year: 'numeric',
-        });
-      }
-    }
-
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return String(value);
-    }
-
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: '2-digit',
-      year: 'numeric',
-    });
-  }
-
-  function formatTimeSlot(startTime?: string, endTime?: string) {
-    const start = formatTime12h(startTime || '');
-    const end = formatTime12h(endTime || '');
-
-    if (!startTime && !endTime) {
-      return '--:--';
-    }
-
-    if (!startTime) {
-      return end;
-    }
-
-    if (!endTime) {
-      return start;
-    }
-
-    return `${start} - ${end}`;
-  }
-
-  function getScheduleChangeLabel(value?: string) {
-    const normalized = normalize(value);
-    if (normalized === 'extended') return 'Extended';
-    if (normalized === 'rescheduled') return 'Rescheduled';
-    return '';
-  }
-
-  function renderScheduleSummary(row: any, options: any = {}) {
-    const showDate = options.showDate !== false;
-    const currentDateLabel = showDate ? formatDisplayDate(row.date) : '';
-    const currentTimeLabel = row.checkIn && row.checkOut ? `${row.checkIn} - ${row.checkOut}` : formatTimeSlot(row.startTime, row.endTime);
-    const previousDateLabel = showDate ? formatDisplayDate(row.previousDate) : '';
-    const previousTimeLabel = formatTimeSlot(row.previousStartTime, row.previousEndTime);
-    const changeLabel = getScheduleChangeLabel(row.scheduleChangeType);
-    const hasHistory =
-      Boolean(row.previousDate || row.previousStartTime || row.previousEndTime) &&
-      Boolean(previousTimeLabel);
-
-    if (!hasHistory) {
-      return showDate ? (
-        <div className="text-[12px] font-semibold text-slate-600 flex flex-col gap-0.5">
-          <span className="font-bold text-[#0F172A]">{currentDateLabel}</span>
-          <span className="whitespace-nowrap">{currentTimeLabel}</span>
-        </div>
-      ) : (
-        <div className="text-[12px] font-semibold text-slate-600">
-          <span className="whitespace-nowrap">{currentTimeLabel}</span>
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex flex-col gap-1.5">
-        <div className="flex flex-col gap-0.5 text-[11px] font-semibold text-slate-400">
-          {showDate && (
-            <span className="line-through decoration-slate-300 decoration-2">{previousDateLabel || currentDateLabel}</span>
-          )}
-          <span className="line-through decoration-slate-300 decoration-2 whitespace-nowrap">{previousTimeLabel}</span>
-        </div>
-        <div className="flex flex-col gap-0.5 text-[12px] font-semibold text-slate-600">
-          {showDate && <span className="font-bold text-[#0F172A]">{currentDateLabel}</span>}
-          <span className="whitespace-nowrap">{currentTimeLabel}</span>
-        </div>
-        {changeLabel && (
-          <span className="inline-flex w-fit px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200">
-            {changeLabel}
-          </span>
-        )}
-      </div>
-    );
-  }
-
-  function stripRoleSuffix(value?: string) {
-    return (value || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
-  }
-
-  function getMeetingTimeZoneDateParts(value?: any) {
-    if (!value) {
-      return null;
-    }
-
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return null;
-    }
-
-    const parts = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Asia/Kolkata',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).formatToParts(date);
-
-    const normalized = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-    if (!normalized.year || !normalized.month || !normalized.day) {
-      return null;
-    }
-
-    return {
-      year: normalized.year,
-      month: normalized.month,
-      day: normalized.day,
-    };
-  }
-
-  function getMeetingClockParts(now: Date = new Date()) {
-    const date = now instanceof Date ? now : new Date(now);
-    if (Number.isNaN(date.getTime())) {
-      return null;
-    }
-
-    const parts = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Asia/Kolkata',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).formatToParts(date);
-
-    const normalized = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-    if (!normalized.year || !normalized.month || !normalized.day || !normalized.hour || !normalized.minute) {
-      return null;
-    }
-
-    return {
-      dateKey: `${normalized.year}-${normalized.month}-${normalized.day}`,
-      minutes: Number(normalized.hour) * 60 + Number(normalized.minute),
-    };
-  }
-
-  function timeToMinutes(value?: string) {
-    if (!value || !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) {
-      return null;
-    }
-
-    const [hours, minutes] = value.split(':').map(Number);
-    return hours * 60 + minutes;
-  }
-
-  function minutesToTimeString(value: number) {
-    if (value === null || value === undefined || Number.isNaN(Number(value))) {
-      return '';
-    }
-
-    const normalized = ((Number(value) % 1440) + 1440) % 1440;
-    const hours = Math.floor(normalized / 60);
-    const minutes = normalized % 60;
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-  }
-
-  function roundUpToStepTime(value: string = '', stepMinutes: number = BOOKING_SLOT_STEP_MINUTES) {
-    const totalMinutes = timeToMinutes(value);
-    if (totalMinutes === null) {
-      return '';
-    }
-
-    const roundedMinutes = Math.ceil(totalMinutes / stepMinutes) * stepMinutes;
-    if (roundedMinutes >= 24 * 60) {
-      return '23:55';
-    }
-
-    return minutesToTimeString(roundedMinutes);
-  }
-
-  function buildTimeOptions(minTime: string = '00:00', maxTime: string = '23:55', stepMinutes: number = BOOKING_SLOT_STEP_MINUTES) {
-    const minMinutes = Math.max(0, timeToMinutes(minTime) ?? 0);
-    const maxMinutes = Math.min((24 * 60) - stepMinutes, timeToMinutes(maxTime) ?? ((24 * 60) - stepMinutes));
-    const options: string[] = [];
-
-    for (let minutes = minMinutes; minutes <= maxMinutes; minutes += stepMinutes) {
-      options.push(minutesToTimeString(minutes));
-    }
-
-    return options;
-  }
-
-  function formatTimeOptionLabel(value: string = '') {
-    return formatTime12h(value) || value;
-  }
-
-  function isAlignedToStep(totalMinutes: number, stepMinutes: number = BOOKING_SLOT_STEP_MINUTES) {
-    return Number.isInteger(totalMinutes) && totalMinutes % stepMinutes === 0;
-  }
-
-  function getBookingTimeValidation(dateValue: any, startTimeValue: any, endTimeValue: any) {
-    if (!dateValue || !startTimeValue) {
-      return { valid: true, reason: '' };
-    }
-
-    const bookingDateParts = getMeetingTimeZoneDateParts(dateValue);
-    const currentClock = getMeetingClockParts();
-    const startMinutes = timeToMinutes(startTimeValue);
-
-    if (!bookingDateParts || !currentClock || startMinutes === null) {
-      return { valid: false, reason: 'Choose a valid future booking date and time.' };
-    }
-
-    const bookingDateKey = `${bookingDateParts.year}-${bookingDateParts.month}-${bookingDateParts.day}`;
-    if (bookingDateKey < currentClock.dateKey) {
-      return { valid: false, reason: 'Backdated bookings are not allowed. Choose a future date.' };
-    }
-
-    if (bookingDateKey === currentClock.dateKey && startMinutes <= currentClock.minutes) {
-      return { valid: false, reason: 'That time has already passed. Choose another slot for today.' };
-    }
-
-    if (!isAlignedToStep(startMinutes)) {
-      return { valid: false, reason: 'Use 5-minute slots only (for example 12:20, 12:25, 12:30).' };
-    }
-
-    if (endTimeValue) {
-      const endMinutes = timeToMinutes(endTimeValue);
-      if (endMinutes === null) {
-        return { valid: false, reason: 'Choose a valid end time.' };
-      }
-
-      if (!isAlignedToStep(endMinutes)) {
-        return { valid: false, reason: 'Use 5-minute slots only (for example 12:20, 12:25, 12:30).' };
-      }
-
-      if (endMinutes <= startMinutes) {
-        return { valid: false, reason: 'End time must be after start time.' };
-      }
-
-      if (endMinutes - startMinutes < BOOKING_MIN_DURATION_MINUTES) {
-        return { valid: false, reason: 'Minimum booking duration is 30 minutes.' };
-      }
-    }
-
-    return { valid: true, reason: '' };
-  }
-
-  function deriveLiveMeetingStatus(booking: any, now: Date = new Date()) {
-    if (!booking) {
-      return 'booked';
-    }
-
-    const storedStatus = booking.storedStatus || booking.status || 'booked';
-    if (storedStatus === 'cancelled') {
-      return 'cancelled';
-    }
-
-    const bookingDateParts = getMeetingTimeZoneDateParts(booking.date);
-    const currentClock = getMeetingClockParts(now);
-    const startMinutes = timeToMinutes(booking.startTime);
-    const endMinutes = timeToMinutes(booking.endTime);
-
-    if (!bookingDateParts || !currentClock || startMinutes === null || endMinutes === null) {
-      return storedStatus;
-    }
-
-    const bookingDateKey = `${bookingDateParts.year}-${bookingDateParts.month}-${bookingDateParts.day}`;
-
-    if (currentClock.dateKey < bookingDateKey) {
-      return 'booked';
-    }
-
-    if (currentClock.dateKey > bookingDateKey) {
-      return 'completed';
-    }
-
-    if (currentClock.minutes < startMinutes) {
-      return 'booked';
-    }
-
-    if (currentClock.minutes < endMinutes) {
-      return 'in progress';
-    }
-
-    return 'completed';
-  }
-
-  function isCurrentUserName(name?: string) {
-    if (!name) {
-      return false;
-    }
-
-    const candidates = [
-      normalizeIdentity(managerProfile.name),
-      normalizeIdentity(storedUser?.fullName || ''),
-      normalizeIdentity(stripRoleSuffix(managerProfile.name)),
-      normalizeIdentity(stripRoleSuffix(storedUser?.fullName || '')),
-    ];
-    const normalizedName = normalizeIdentity(name);
-    const normalizedNameBase = normalizeIdentity(stripRoleSuffix(name));
-
-    return candidates.includes(normalizedName) || candidates.includes(normalizedNameBase);
-  }
-
-  function normalizeBooking(booking: any): Booking {
-    const roomName = resolveBookingRoomName(booking);
-    const invites = Array.isArray(booking.invites)
-      ? booking.invites.map((invite: any) => ({
-        ...invite,
-        invitedUserId: invite?.invitedUserId ? String(invite.invitedUserId) : '',
-      }))
-      : [];
-    const currentInvite = invites.find((invite: any) => invite.invitedUserId === String(currentUserId)) || null;
-    const liveStatus = booking.liveStatus || booking.bookingStatus || deriveLiveMeetingStatus(booking);
-
-    return {
-      ...booking,
-      recordId: String(booking.recordId || booking._id || booking.id || ''),
-      id: String(booking.id || booking._id || booking.recordId || ''),
-      checkIn: booking.checkIn || booking.startTime,
-      checkOut: booking.checkOut || booking.endTime,
-      previousDate: booking.previousDate || '',
-      previousStartTime: booking.previousStartTime || '',
-      previousEndTime: booking.previousEndTime || '',
-      scheduleChangeType: booking.scheduleChangeType || '',
-      cancelReason: booking.cancelReason || '',
-      extensionAmount: Number(booking.extensionAmount || 0),
-      baseAmount: Number(booking.baseAmount || 0),
-      gstAmount: Number(booking.gstAmount || 0),
-      totalAmount: Number(booking.totalAmount || 0),
-      isMe: Boolean(booking.isMe),
-      isInvitedMeeting: Boolean(booking.isInvitedMeeting || currentInvite),
-      currentInviteStatus: booking.currentInviteStatus || currentInvite?.status || null,
-      inviteResponseReason: booking.inviteResponseReason || currentInvite?.responseReason || '',
-      invites,
-      bookedByRole: booking.bookedByRole || '',
-      bookingScope: booking.bookingScope || bookingScopeKey(booking.bookedByRole),
-      roomName,
-      startTime: booking.startTime,
-      endTime: booking.endTime,
-      status: booking.status || 'booked',
-      liveStatus,
-      storedStatus: booking.storedStatus || booking.status || '',
-    };
-  }
-
-  function isRescheduledBooking(booking: any) {
-    return normalize(booking?.status) === 'rescheduled' || normalize(booking?.storedStatus) === 'rescheduled';
-  }
-
-  function isInviteResponseOpen(booking: any) {
-    const liveStatus = getBookingDisplayStatus(booking);
-    return liveStatus !== 'completed' && liveStatus !== 'cancelled';
-  }
-
-  function canManageOwnBooking(booking: any) {
-    const liveStatus = getBookingDisplayStatus(booking);
-    return liveStatus !== 'completed' && liveStatus !== 'cancelled';
-  }
-
-  function canExtendOwnBooking(booking: any) {
-    return getBookingDisplayStatus(booking) === 'in progress';
-  }
-
-  function canRescheduleOwnBooking(booking: any) {
-    return getBookingDisplayStatus(booking) === 'booked';
-  }
-
-  function getBookingDisplayStatus(booking: any) {
-    if (!booking) {
-      return 'booked';
-    }
-
-    return booking.liveStatus || booking.status || 'booked';
-  }
-
-  function getInviteMeetingLabel(booking: any) {
-    const inviteStatus = booking?.currentInviteStatus;
-
-    if (!inviteStatus) {
-      return booking?.isInvitedMeeting ? 'Invited Meeting' : '';
-    }
-
-    if (inviteStatus === 'accepted') {
-      return 'Invited Meeting';
-    }
-
-    if (inviteStatus === 'rejected') {
-      return 'Rejected Invite';
-    }
-
-    if (inviteStatus === 'cancelled') {
-      return 'Cancelled Invite';
-    }
-
-    if (inviteStatus === 'pending') {
-      return 'Pending Invite';
-    }
-
-    return inviteStatus;
-  }
-
-  function isMyBooking(booking: any) {
+  const isMyBooking = useCallback((booking: any) => {
     const bookedByUserId = booking?.bookedByUserId ? String(booking.bookedByUserId) : '';
     const currentInviteStatus = booking?.currentInviteStatus || '';
-    const hasCurrentInvite = Boolean(currentInviteStatus);
     const isAcceptedInvite = currentInviteStatus === 'accepted';
-
-    if (isDepartmentManagerProfile) {
-      return Boolean(
-        (bookedByUserId && currentUserId && bookedByUserId === String(currentUserId)) ||
-        isAcceptedInvite
-      );
-    }
-
     return Boolean(
       (bookedByUserId && currentUserId && bookedByUserId === String(currentUserId)) ||
-      isAcceptedInvite,
+      isAcceptedInvite
     );
-  }
+  }, [currentUserId]);
 
-  function getCurrentUserInvite(booking: any) {
+  const getCurrentUserInvite = useCallback((booking: any) => {
     return (booking?.invites || []).find((invite: any) => invite.invitedUserId === String(currentUserId)) || null;
-  }
+  }, [currentUserId]);
 
-  function matchesDepartmentScope(bookingDepartment: string = '') {
+  const hasCurrentUserInvite = useCallback((booking: any) => {
+    return Boolean(getCurrentUserInvite(booking));
+  }, [getCurrentUserInvite]);
+
+  const matchesDepartmentScope = useCallback((bookingDepartment: string = '') => {
     if (!isDepartmentManagerProfile) {
       return true;
     }
@@ -1108,25 +912,9 @@ export function MeetingRoomsPage() {
       normalizedBookingDepartment.includes(departmentName) ||
       departmentName.includes(normalizedBookingDepartment)
     ));
-  }
+  }, [isDepartmentManagerProfile, departmentScopeNames]);
 
-  function hasCurrentUserInvite(booking: any) {
-    return Boolean(getCurrentUserInvite(booking));
-  }
-
-  function isPendingCurrentUserInvite(booking: any) {
-    return booking?.currentInviteStatus === 'pending';
-  }
-
-  function isAcceptedCurrentUserInvite(booking: any) {
-    return booking?.currentInviteStatus === 'accepted';
-  }
-
-  function isRejectedCurrentUserInvite(booking: any) {
-    return booking?.currentInviteStatus === 'rejected';
-  }
-
-  function isAssignedDeptBooking(booking: any) {
+  const isAssignedDeptBooking = useCallback((booking: any) => {
     if (!isAdminProfile || !booking) {
       return false;
     }
@@ -1152,12 +940,10 @@ export function MeetingRoomsPage() {
       return false;
     }
 
-    // Assigned department meetings should stay visible here unless the
-    // admin accepted the invite, in which case they move to My Bookings.
     return !isAcceptedCurrentUserInvite(booking);
-  }
+  }, [isAdminProfile, matchesDepartmentScope, isMyBooking]);
 
-  function isDepartmentBooking(booking: any) {
+  const isDepartmentBooking = useCallback((booking: any) => {
     if (!booking) {
       return false;
     }
@@ -1171,9 +957,9 @@ export function MeetingRoomsPage() {
     }
 
     return matchesDepartmentScope(booking.department) && !isMyBooking(booking) && !hasCurrentUserInvite(booking);
-  }
+  }, [isDepartmentManagerProfile, isMyBooking, hasCurrentUserInvite, matchesDepartmentScope]);
 
-  function isCompanyBooking(booking: any) {
+  const isCompanyBooking = useCallback((booking: any) => {
     if (!booking) {
       return false;
     }
@@ -1195,9 +981,9 @@ export function MeetingRoomsPage() {
     }
 
     return !hasCurrentUserInvite(booking);
-  }
+  }, [isMyBooking, isDepartmentManagerProfile, matchesDepartmentScope, hasCurrentUserInvite]);
 
-  function isBookingInActiveTab(booking: any, tab: string = activeTab) {
+  const isBookingInActiveTab = useCallback((booking: any, tab: string = activeTab) => {
     if (tab === 'my_bookings') {
       return isMyBooking(booking);
     }
@@ -1215,65 +1001,19 @@ export function MeetingRoomsPage() {
     }
 
     return false;
-  }
+  }, [activeTab, isMyBooking, isAssignedDeptBooking, isCompanyBooking, isDepartmentBooking]);
 
-  function getRoomCapacity(roomName?: string) {
+  const getRoomCatalogEntry = useCallback((roomName?: string) => {
+    const roomCatalog = roomDetails.map((room: any) => normalizeRoomEntry(room));
+    return roomCatalog.find((entry) => entry.name === roomName) || roomDetails.find((entry) => entry.name === roomName) || null;
+  }, [roomDetails]);
+
+  const getRoomCapacity = useCallback((roomName?: string) => {
     const room = roomDetails.find((entry) => entry.name === roomName);
     return room?.capacity || null;
-  }
+  }, [roomDetails]);
 
-  function getRoomCatalogEntry(roomName?: string) {
-    return roomCatalog.find((entry) => entry.name === roomName) || roomDetails.find((entry) => entry.name === roomName) || null;
-  }
-
-  function getRoomOptionLabel(roomName?: string) {
-    const room = getRoomCatalogEntry(roomName);
-    if (!room) {
-      return roomName;
-    }
-    const normalizedStatus = String(room.status || '').toLowerCase();
-    const hasPricing = Number(room.pricePerHour || 0) > 0 || Number(room.pricePerDay || 0) > 0;
-    const hasCredits = Number(room.credits || 0) > 0;
-
-    if (normalizedStatus === 'under maintenance') {
-      return `${roomName} - Under Maintenance`;
-    }
-
-    if (normalizedStatus === 'disabled' || room.isActive === false) {
-      return `${roomName} - Disabled`;
-    }
-
-    if (room.activationReady === false || !hasPricing || !hasCredits) {
-      return `${roomName} - Pricing/Credits Pending`;
-    }
-
-    return `${roomName}${room.floor ? ` - ${room.floor}` : ''}${room.wing ? ` ${room.wing}` : ''}${room.capacity ? ` - ${room.capacity} seats` : ''}`;
-  }
-
-  function isRoomOptionDisabled(roomName?: string) {
-    const room = getRoomCatalogEntry(roomName);
-    if (!room) {
-      return true;
-    }
-    return !isActiveRoom(room);
-  }
-
-  function getBookingAttendeeCount(data: any) {
-    const inviteCount = Array.isArray(data?.inviteeUserIds) ? data.inviteeUserIds.length : 0;
-    const explicitCount = Number(data?.attendees || 0);
-
-    if (explicitCount > 0) {
-      return explicitCount;
-    }
-
-    return inviteCount + 1;
-  }
-
-  function getBookingDisplayCount() {
-    return 1;
-  }
-
-  function getRoomTimeWindows(roomName: string, date: string, excludeRecordId: string | null = null) {
+  const getRoomTimeWindows = useCallback((roomName: string, date: string, excludeRecordId: string | null = null) => {
     if (!roomName || !date) {
       return [];
     }
@@ -1312,33 +1052,9 @@ export function MeetingRoomsPage() {
     }
 
     return windows.filter((window) => toMinutes(window.end) - toMinutes(window.start) >= BOOKING_MIN_DURATION_MINUTES);
-  }
+  }, [allBookings]);
 
-  function getRoomDayStatus(roomName: string, date: string) {
-    if (!roomName || !date) {
-      return 'pending';
-    }
-
-    const bookings = allBookings.filter(
-      (booking) =>
-        booking.roomName === roomName &&
-        booking.date === date &&
-        booking.status !== 'cancelled',
-    );
-
-    if (bookings.length === 0) {
-      return 'available';
-    }
-
-    const windows = getRoomTimeWindows(roomName, date);
-    if (windows.length === 0) {
-      return 'full';
-    }
-
-    return 'partial';
-  }
-
-  function getSuggestedSlots(roomName: string, date: string, desiredStartTime: string, desiredEndTime: string, excludeRecordId: string | null = null) {
+  const getSuggestedSlots = useCallback((roomName: string, date: string, desiredStartTime: string, desiredEndTime: string, excludeRecordId: string | null = null) => {
     const duration = (() => {
       if (!desiredStartTime || !desiredEndTime) {
         return 0;
@@ -1355,265 +1071,9 @@ export function MeetingRoomsPage() {
         return (endHour * 60 + endMinute) - (startHour * 60 + startMinute) >= duration;
       })
       .slice(0, 3);
-  }
+  }, [getRoomTimeWindows]);
 
-  const [workspaceId, setWorkspaceId] = useState<string>('');
-  // Load initial room and booking data from the backend.
-  useEffect(() => {
-    const user = getStoredUser();
-
-    // Better workspaceId extraction
-    let wsId = user?.workspaceMembership?.workspaceId ||
-      user?.workspaceMembership?.workspace ||
-      user?.primaryWorkspace ||
-      user?.workspace?.id ||
-      user?.workspaceId ||
-      user?.workspace?.workspaceId ||
-      user?.accessibleWorkspaces?.[0]?.id;
-
-    if (!wsId) {
-      console.warn("⚠️ No workspaceId found in user object");
-      setErrorMessage("No unit found. Please check login or user data.");
-      setIsLoading(false);
-      return;
-    }
-
-    setWorkspaceId(wsId);
-    console.log("✅ Using workspaceId:", wsId);
-
-    async function loadData() {
-      setIsLoading(true);
-      setErrorMessage('');
-
-      try {
-        const response = await getMeetingRoomBookings(wsId!);
-        console.log("📡 API Response:", response);
-
-        const rawData = response?.data?.data || response?.data || response || {};
-
-        const details = (rawData.roomDetails || rawData.rooms || []).map((room: any) =>
-          normalizeRoomEntry(room)
-        );
-
-        const bookingsData = rawData.bookings || rawData.data?.bookings || rawData || [];
-
-        setRoomDetails(details);
-
-        const activeRoomNames = details
-          .filter((room: any) => isActiveRoom(room) && isMeetingCalendarRoom(room))
-          .map((room: any) => room.name);
-
-        setAvailableRooms(activeRoomNames);
-        setCalendarRoomFilter((current) => activeRoomNames.includes(current) ? current : (activeRoomNames[0] || ''));
-
-        setAllBookings(bookingsData.map((b: any) => normalizeBooking(b)));
-        setReceivedInvites(rawData.receivedInvites || []);
-
-        // Load workspace members - NO ARGUMENT
-        try {
-          const membersResponse = await getWorkspaceMembers();   // ← No (wsId) here
-          setWorkspaceMembers(
-            membersResponse?.data?.members ||
-            membersResponse?.members ||
-            membersResponse ||
-            []
-          );
-        } catch (mErr) {
-          console.warn("Failed to load workspace members:", mErr);
-        }
-
-      } catch (err: any) {
-        console.error("Failed to load meeting rooms/bookings:", err);
-        setErrorMessage(`Failed to load data: ${err.response?.data?.message || err.message}`);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadData();
-  }, []);
-
-  // TODO: Uncomment background polling when backend is ready
-  // useEffect(() => {
-  //   const timerId = setInterval(async () => {
-  //     try {
-  //       const response = await getMeetingRoomBookings();
-  //       const details = (response?.data?.roomDetails || []).map((room: any) => normalizeRoomEntry(room));
-  //       const activeRoomNames = details.filter((room: any) => isActiveRoom(room) && isMeetingCalendarRoom(room)).map((room: any) => room.name);
-  //       const bookings = response?.data?.bookings || [];
-  //       const invites = response?.data?.receivedInvites || [];
-  //       if (details.length > 0) setRoomDetails(details);
-  //       if (activeRoomNames.length > 0) { setAvailableRooms(activeRoomNames); setCalendarRoomFilter((c) => activeRoomNames.includes(c) ? c : activeRoomNames[0]); } else { setAvailableRooms([]); }
-  //       setAllBookings(bookings.map((b: any) => normalizeBooking(b)));
-  //       setReceivedInvites(invites);
-  //     } catch { /* Keep current bookings if background sync fails */ }
-  //   }, 20000);
-  //   return () => clearInterval(timerId);
-  // }, []);
-
-  // --- LOGIC: TABLE DATA ---
-  const visibleBookings = useMemo(() => {
-    if (isEmployeeProfile) {
-      return allBookings.filter((booking) => isMyBooking(booking));
-    }
-
-    if (!isAdminProfile) {
-      return allBookings;
-    }
-
-    return allBookings.filter((booking) => isAssignedDeptBooking(booking) || isMyBooking(booking));
-  }, [allBookings, isAdminProfile, departmentScopeNames, currentUserId, isEmployeeProfile]);
-
-  const displayedBookings = useMemo(() => {
-    if (activeTab === 'invites') {
-      return [];
-    }
-
-    return visibleBookings.filter((booking) => {
-      const matchesTab = isBookingInActiveTab(booking);
-      const matchesSearch =
-        (booking.roomName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (booking.bookedByName || '').toLowerCase().includes(searchQuery.toLowerCase());
-      const displayStatus = getBookingDisplayStatus(booking);
-      const matchesStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'rescheduled' ? isRescheduledBooking(booking) : displayStatus === statusFilter);
-      return matchesTab && matchesSearch && matchesStatus;
-    });
-  }, [visibleBookings, activeTab, searchQuery, statusFilter, currentUserId, departmentScopeNames, isAdminProfile]);
-
-  const scopedBookings = useMemo(() => {
-    return visibleBookings;
-  }, [visibleBookings]);
-
-  const inviteCandidates = useMemo(
-    () => workspaceMembers.filter((member) => {
-      const memberId = resolveMemberUserId(member);
-      return memberId && memberId !== String(currentUserId);
-    }),
-    [workspaceMembers, currentUserId],
-  );
-
-  const memberDirectoryById = useMemo(() => {
-    const directory = new Map();
-    workspaceMembers.forEach((member: any) => {
-      const memberId = resolveMemberUserId(member);
-      if (memberId) {
-        directory.set(memberId, member);
-      }
-    });
-    return directory;
-  }, [workspaceMembers]);
-
-  const resolveInviteDisplayName = (invite: any) => {
-    const inviteUserId = String(invite?.invitedUserId || invite?.userId || invite?.id || '').trim();
-    const member = inviteUserId ? memberDirectoryById.get(inviteUserId) : null;
-    return (
-      invite?.invitedName ||
-      member?.fullName ||
-      member?.name ||
-      member?.email ||
-      'Member'
-    );
-  };
-
-  const resolveInviteDisplayRole = (invite: any) => {
-    const inviteUserId = String(invite?.invitedUserId || invite?.userId || invite?.id || '').trim();
-    const member = inviteUserId ? memberDirectoryById.get(inviteUserId) : null;
-    return invite?.invitedRole || member?.role || 'Member';
-  };
-
-  const displayedInvites = useMemo(() => {
-    return receivedInvites.filter((invite) => {
-      if (isEmployeeProfile && invite.status === 'accepted') {
-        return false;
-      }
-
-      const inviteName = resolveInviteDisplayName(invite);
-      const matchesSearch =
-        (invite.roomName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (invite.bookedByName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        inviteName.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus =
-        statusFilter === 'all' || invite.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [receivedInvites, searchQuery, statusFilter, isEmployeeProfile, memberDirectoryById]);
-
-  // --- LOGIC: CALENDAR ---
-  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const currentMonth = calendarDate.getMonth();
-  const currentYear = calendarDate.getFullYear();
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
-
-  const handlePrevMonth = () => {
-    const nextDate = new Date(currentYear, currentMonth - 1, 1);
-    setCalendarDate(nextDate);
-    setSelectedCalendarDateKey(`${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-01`);
-  };
-  const handleNextMonth = () => {
-    const nextDate = new Date(currentYear, currentMonth + 1, 1);
-    setCalendarDate(nextDate);
-    setSelectedCalendarDateKey(`${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-01`);
-  };
-
-  const getDayColor = (day: number) => {
-    const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const bookingsOnDay = allBookings.filter(b => b.roomName === calendarRoomFilter && b.date === dateStr && b.status !== 'cancelled');
-
-    if (bookingsOnDay.length === 0) return 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200';
-    if (bookingsOnDay.length < 3) return 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200';
-    return 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200';
-  };
-
-  const selectedCalendarBookings = useMemo(() => {
-    return allBookings
-      .filter((booking) => booking.roomName === calendarRoomFilter && booking.date === selectedCalendarDateKey && booking.status !== 'cancelled')
-      .sort((left, right) => {
-        const leftMinutes = timeToMinutes(left.checkIn || left.startTime || '00:00') ?? 0;
-        const rightMinutes = timeToMinutes(right.checkIn || right.startTime || '00:00') ?? 0;
-        return leftMinutes - rightMinutes;
-      });
-  }, [allBookings, calendarRoomFilter, selectedCalendarDateKey]);
-
-  const selectedCalendarHasExternalBookings = useMemo(
-    () => selectedCalendarBookings.some((booking) => normalize(booking.bookingType) === 'external'),
-    [selectedCalendarBookings],
-  );
-
-  const selectedCalendarDateLabel = useMemo(() => {
-    if (!selectedCalendarDateKey) {
-      return 'Pick a date';
-    }
-
-    const parsed = new Date(`${selectedCalendarDateKey}T00:00:00`);
-    if (Number.isNaN(parsed.getTime())) {
-      return selectedCalendarDateKey;
-    }
-
-    return parsed.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'short',
-      day: '2-digit',
-      year: 'numeric',
-    });
-  }, [selectedCalendarDateKey]);
-
-  // --- LOGIC: UPCOMING RESERVATIONS WIDGET ---
-  const upcomingReservations = useMemo(() => {
-    return visibleBookings
-      .filter(b => {
-        const matchesTab = isBookingInActiveTab(b);
-        const displayStatus = getBookingDisplayStatus(b);
-        return matchesTab && displayStatus !== 'cancelled' && displayStatus !== 'completed' && b.date >= todayStr;
-      })
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(0, 4);
-  }, [visibleBookings, activeTab, todayStr, currentUserId, departmentScopeNames, isAdminProfile]);
-
-  // --- LOGIC: AVAILABILITY CHECKER ---
-  const checkAvailability = (data: any, excludeRecordId: string | null = null) => {
+  const checkAvailability = useCallback((data: any, excludeRecordId: string | null = null) => {
     if (!data.roomName || !data.date || !data.startTime || !data.endTime) return 'pending';
     const attendeeCount = getBookingAttendeeCount(data);
     if (!attendeeCount) return 'pending';
@@ -1643,259 +1103,113 @@ export function MeetingRoomsPage() {
       return 'conflict';
     }
     return 'available';
-  };
+  }, [allBookings, getRoomCapacity, getSuggestedSlots]);
 
-  const extendBookingPreview = useMemo(() => {
-    if (!extendBooking) {
-      return null;
-    }
-
-    const extraMinutes = Number(extendForm.extraMinutes || 0);
-    const currentEndMinutes = timeToMinutes(extendBooking.endTime);
-    if (!currentEndMinutes || !extraMinutes || extraMinutes <= 0) {
-      return {
-        available: false,
-        reason: 'Choose how long to extend the booking.',
-      };
-    }
-
-    const nextEndMinutes = currentEndMinutes + extraMinutes;
-    if (nextEndMinutes > 24 * 60) {
-      return {
-        available: false,
-        reason: 'This extension would go past midnight.',
-      };
-    }
-
-    const nextEndTime = minutesToTimeString(nextEndMinutes);
-    const roomType = getMeetingRoomTypeFromName(extendBooking.roomName);
-    const hourlyRate = MEETING_ROOM_EXTENSION_RATES[roomType] || MEETING_ROOM_EXTENSION_RATES['Meeting Room'];
-    const extensionAmount = (extraMinutes / 60) * hourlyRate;
-    const gstAmount = extensionAmount * 0.18;
-    const extensionTotal = extensionAmount + gstAmount;
-    const currentTotalAmount = Number(extendBooking.totalAmount || 0);
-    const nextTotalAmount = currentTotalAmount + extensionTotal;
-    const availability = checkAvailability(
-      {
-        ...extendBooking,
-        endTime: nextEndTime,
-      },
-      extendBooking.recordId || null,
-    );
-
-    return {
-      available: availability === 'available',
-      reason:
-        availability === 'available'
-          ? 'This booking can be extended.'
-          : availability === 'conflict'
-            ? 'The extended time overlaps with another booking. Choose a shorter extension.'
-            : availability === 'full'
-              ? 'No room is available for the extended time.'
-              : 'Choose a valid extension.',
-      nextEndTime,
-      extensionAmount,
-      extensionTotal,
-      nextTotalAmount,
-      hourlyRate,
-      mode: 'extend',
-    };
-  }, [checkAvailability, extendBooking, extendForm.extraMinutes]);
-
-  const bookingTimeValidation = useMemo(
-    () => getBookingTimeValidation(newBooking.date, newBooking.startTime, newBooking.endTime),
-    [newBooking.date, newBooking.endTime, newBooking.startTime],
-  );
-  const rescheduleTimeValidation = useMemo(
-    () => getBookingTimeValidation(rescheduleData.date, rescheduleData.startTime, rescheduleData.endTime),
-    [rescheduleData.date, rescheduleData.endTime, rescheduleData.startTime],
-  );
-  const currentMeetingClock = getMeetingClockParts();
-  const currentMeetingTime = currentMeetingClock ? minutesToTimeString(currentMeetingClock.minutes) : '';
-  const roundedCurrentMeetingTime = roundUpToStepTime(currentMeetingTime);
-  const createStartTimeOptions = useMemo(
-    () => buildTimeOptions(newBooking.date === todayStr ? roundedCurrentMeetingTime : '00:00'),
-    [newBooking.date, roundedCurrentMeetingTime, todayStr],
-  );
-  const createEndTimeOptions = useMemo(
-    () => buildTimeOptions(
-      newBooking.startTime
-        ? minutesToTimeString((timeToMinutes(newBooking.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES)
-        : '00:00',
-    ),
-    [newBooking.startTime],
-  );
-  const rescheduleStartTimeOptions = useMemo(
-    () => buildTimeOptions(rescheduleData.date === todayStr ? roundedCurrentMeetingTime : '00:00'),
-    [rescheduleData.date, roundedCurrentMeetingTime, todayStr],
-  );
-  const rescheduleEndTimeOptions = useMemo(
-    () => buildTimeOptions(
-      rescheduleData.startTime
-        ? minutesToTimeString((timeToMinutes(rescheduleData.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES)
-        : '00:00',
-    ),
-    [rescheduleData.startTime],
-  );
-  const bookingStatus = bookingTimeValidation.valid ? checkAvailability(newBooking) : 'past';
-  const rescheduleStatus = rescheduleTimeValidation.valid ? checkAvailability(rescheduleData, rescheduleData.recordId || null) : 'past';
-  const selectedRoomCapacity = getRoomCapacity(newBooking.roomName);
-  const bookingSuggestions = getSuggestedSlots(newBooking.roomName, newBooking.date, newBooking.startTime, newBooking.endTime);
-  const roomDayStatus = getRoomDayStatus(newBooking.roomName, newBooking.date);
-  const roomCatalog = useMemo(() => roomDetails.map((room: any) => normalizeRoomEntry(room)), [roomDetails]);
-  const availableRoomTypes = useMemo(() => Array.from(
-    new Set(roomCatalog.map((room) => room.type).filter(Boolean)),
-  ), [roomCatalog]);
-  const selectedBookingRoomType = newBooking.roomType || '';
-  const availableFloors = useMemo(() => {
-    const floors = Array.from(
-      new Set(
-        roomCatalog
-          .filter((room) => !selectedBookingRoomType || room.type === selectedBookingRoomType)
-          .map((room) => room.floor)
-          .filter(Boolean),
-      ),
-    );
-    return floors;
-  }, [roomCatalog, selectedBookingRoomType]);
-  const selectedBookingFloor = newBooking.floor ? normalizeBookingFloor(newBooking.floor) : '';
-  const availableWings = useMemo(() => {
-    const sourceRooms = roomCatalog.filter((room) =>
-      (!selectedBookingRoomType || room.type === selectedBookingRoomType) &&
-      (!selectedBookingFloor || room.floor === selectedBookingFloor),
-    );
-    return Array.from(
-      new Set(
-        sourceRooms
-          .map((room) => normalizeBookingWing(room.wing))
-          .filter(Boolean),
-      ),
-    );
-  }, [roomCatalog, selectedBookingFloor, selectedBookingRoomType]);
-  const selectedBookingWing = newBooking.wing ? normalizeBookingWing(newBooking.wing) : '';
-
-  const bookingRoomsOnFloor = useMemo(() => {
-    if (!selectedBookingFloor) return [];
-    return roomCatalog.filter((room) =>
-      room.floor === selectedBookingFloor &&
-      (!selectedBookingRoomType || room.type === selectedBookingRoomType) &&
-      isActiveRoom(room),
-    );
-  }, [roomCatalog, selectedBookingFloor, selectedBookingRoomType]);
-  const floorHasWingValues = useMemo(
-    () => bookingRoomsOnFloor.some((room) => Boolean(normalizeBookingWing(room.wing))),
-    [bookingRoomsOnFloor],
-  );
-  const bookingRoomsOnSelectedFloorAndWing = useMemo(() => {
-    if (!selectedBookingWing) return bookingRoomsOnFloor;
-    return bookingRoomsOnFloor.filter((room) => normalizeBookingWing(room.wing) === selectedBookingWing);
-  }, [bookingRoomsOnFloor, selectedBookingWing]);
-  const bookingRoomsOnSelectedFloorAndType = useMemo(() => {
-    if (!selectedBookingRoomType) return [];
-    return bookingRoomsOnSelectedFloorAndWing.filter((room) => room.type === selectedBookingRoomType);
-  }, [bookingRoomsOnSelectedFloorAndWing, selectedBookingRoomType]);
-  const availableLocations = useMemo(() => Array.from(new Set(
-    bookingRoomsOnSelectedFloorAndType.map((room) => room.location).filter(Boolean),
-  )), [bookingRoomsOnSelectedFloorAndType]);
-  const bookingRoomsAtSelectedLocation = useMemo(() => {
-    if (!newBooking.location) return bookingRoomsOnSelectedFloorAndType;
-    return bookingRoomsOnSelectedFloorAndType.filter((room) => room.location === newBooking.location);
-  }, [bookingRoomsOnSelectedFloorAndType, newBooking.location]);
-  const selectedFloorRoomTypeCount = bookingRoomsOnSelectedFloorAndWing.filter(
-    (room) => room.type === selectedBookingRoomType,
-  ).length;
-  const canShowRoomTypeCount = Boolean(selectedBookingFloor && selectedBookingRoomType);
+  const [workspaceId, setWorkspaceId] = useState<string>('');
 
   useEffect(() => {
-    if (!showBookingDialog) {
+    const user = getStoredUser();
+    let wsId = user?.workspaceMembership?.workspaceId ||
+      user?.workspaceMembership?.workspace ||
+      user?.primaryWorkspace ||
+      user?.workspace?.id ||
+      user?.workspaceId ||
+      user?.workspace?.workspaceId ||
+      user?.accessibleWorkspaces?.[0]?.id;
+
+    if (!wsId) {
+      setErrorMessage("No unit found. Please check login or user data.");
+      setIsLoading(false);
       return;
     }
 
-    setNewBooking((prev) => {
-      const nextFloor = prev.floor && availableFloors.includes(normalizeBookingFloor(prev.floor))
-        ? normalizeBookingFloor(prev.floor)
-        : '';
-      const nextWing = prev.wing && availableWings.includes(normalizeBookingWing(prev.wing))
-        ? normalizeBookingWing(prev.wing)
-        : '';
-      const nextType = prev.roomType || '';
-      const nextLocation = prev.location && availableLocations.includes(prev.location) ? prev.location : '';
-      const nextRoomName =
-        prev.roomName &&
-          roomCatalog.some((room) => room.name === prev.roomName && room.floor === nextFloor && (!nextWing || normalizeBookingWing(room.wing) === nextWing) && room.type === nextType && (!nextLocation || room.location === nextLocation))
-          ? prev.roomName
-          : '';
-      if (prev.floor === nextFloor && prev.wing === nextWing && prev.roomType === nextType && prev.location === nextLocation && prev.roomName === nextRoomName) {
-        return prev;
-      }
-      return {
-        ...prev,
-        floor: nextFloor,
-        wing: nextWing,
-        roomType: nextType,
-        location: nextLocation,
-        roomName: nextRoomName,
-      };
+    setWorkspaceId(wsId);
+    const localCurrentUserId = String(
+      user?.workspaceMembership?.userId ||
+      user?.workspaceMembership?.memberUserId ||
+      user?.workspaceMembership?.memberId ||
+      user?.id ||
+      user?._id ||
+      '',
+    ).trim();
+
+    async function loadData() {
+      setIsLoading(true);
+      try {
+        const response = await getMeetingRoomBookings(wsId!);
+        const rawData = response?.data?.data || response?.data || response || {};
+        const details = (rawData.roomDetails || rawData.rooms || []).map((room: any) => normalizeRoomEntry(room));
+        const bookingsData = rawData.bookings || rawData.data?.bookings || rawData || [];
+        setRoomDetails(details);
+        const activeRoomNames = details.filter((room: any) => isActiveRoom(room) && isMeetingCalendarRoom(room)).map((room: any) => room.name);
+        setAvailableRooms(activeRoomNames);
+        setCalendarRoomFilter((current) => activeRoomNames.includes(current) ? current : (activeRoomNames[0] || ''));
+        setAllBookings(bookingsData.map((b: any) => normalizeBooking(b, localCurrentUserId)));
+        setReceivedInvites(rawData.receivedInvites || []);
+        try {
+          const membersResponse = await getWorkspaceMembers();
+          setWorkspaceMembers(membersResponse?.data?.members || membersResponse?.members || membersResponse || []);
+        } catch (mErr) { console.warn("Failed to load workspace members:", mErr); }
+      } catch (err: any) {
+        setErrorMessage(`Failed to load data: ${err.response?.data?.message || err.message}`);
+      } finally { setIsLoading(false); }
+    }
+    loadData();
+  }, []);
+
+  const visibleBookings = useMemo(() => {
+    if (isEmployeeProfile) return allBookings.filter((booking) => isMyBooking(booking));
+    if (!isAdminProfile) return allBookings;
+    return allBookings.filter((booking) => isAssignedDeptBooking(booking) || isMyBooking(booking));
+  }, [allBookings, isAdminProfile, isAssignedDeptBooking, isMyBooking, isEmployeeProfile]);
+
+  const displayedBookings = useMemo(() => {
+    if (activeTab === 'invites') return [];
+    return visibleBookings.filter((booking) => {
+      const matchesTab = isBookingInActiveTab(booking);
+      const matchesSearch = (booking.roomName || '').toLowerCase().includes(searchQuery.toLowerCase()) || (booking.bookedByName || '').toLowerCase().includes(searchQuery.toLowerCase());
+      const displayStatus = getBookingDisplayStatus(booking);
+      const matchesStatus = statusFilter === 'all' || (statusFilter === 'rescheduled' ? isRescheduledBooking(booking) : displayStatus === statusFilter);
+      return matchesTab && matchesSearch && matchesStatus;
     });
-  }, [availableFloors, availableLocations, availableWings, roomCatalog, showBookingDialog]);
-  const inviteDepartments = useMemo(() => {
-    const grouped = new Map();
-    const groupPriority = new Map([
-      ['Founder', 0],
-      ['Super Admin', 1],
-      ['Admin', 2],
-    ]);
+  }, [visibleBookings, activeTab, searchQuery, statusFilter, isBookingInActiveTab]);
 
-    const getInviteGroupName = (member: any) => {
-      const role = normalizeRole(member?.role || member?.workspaceRole || member?.membershipRole || '');
-
-      if (role === 'owner') {
-        return 'Founder';
-      }
-
-      if (role === 'super-admin' || role === 'super_admin') {
-        return 'Super Admin';
-      }
-
-      if (role === 'admin' || role === 'admin-manager' || role === 'admin_manager') {
-        return 'Admin';
-      }
-
-      const departmentName = member.departments?.[0] || '';
-      return departmentName ? String(departmentName) : 'General';
-    };
-
-    inviteCandidates.forEach((member: any) => {
-      const departmentName = getInviteGroupName(member);
-      if (!grouped.has(departmentName)) {
-        grouped.set(departmentName, []);
-      }
-      grouped.get(departmentName).push(member);
+  const memberDirectoryById = useMemo(() => {
+    const directory = new Map();
+    workspaceMembers.forEach((member: any) => {
+      const memberId = resolveMemberUserId(member);
+      if (memberId) directory.set(memberId, member);
     });
+    return directory;
+  }, [workspaceMembers]);
 
-    return Array.from(grouped.entries())
-      .sort(([leftName], [rightName]) => {
-        const leftPriority = groupPriority.get(leftName) ?? 10;
-        const rightPriority = groupPriority.get(rightName) ?? 10;
-        if (leftPriority !== rightPriority) {
-          return leftPriority - rightPriority;
-        }
+  const resolveInviteDisplayName = useCallback((invite: any) => {
+    const inviteUserId = String(invite?.invitedUserId || invite?.userId || invite?.id || '').trim();
+    const member = inviteUserId ? memberDirectoryById.get(inviteUserId) : null;
+    return invite?.invitedName || member?.fullName || member?.name || member?.email || 'Member';
+  }, [memberDirectoryById]);
 
-        return leftName.localeCompare(rightName);
+  const displayedInvites = useMemo(() => {
+    return receivedInvites.filter((invite) => {
+      if (isEmployeeProfile && invite.status === 'accepted') return false;
+      const inviteName = resolveInviteDisplayName(invite);
+      const matchesSearch = (invite.roomName || '').toLowerCase().includes(searchQuery.toLowerCase()) || (invite.bookedByName || '').toLowerCase().includes(searchQuery.toLowerCase()) || inviteName.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || invite.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [receivedInvites, searchQuery, statusFilter, isEmployeeProfile, resolveInviteDisplayName]);
+
+  const upcomingReservations = useMemo(() => {
+    return visibleBookings
+      .filter(b => {
+        const matchesTab = isBookingInActiveTab(b);
+        const displayStatus = getBookingDisplayStatus(b);
+        return matchesTab && displayStatus !== 'cancelled' && displayStatus !== 'completed' && b.date >= todayStr;
       })
-      .map(([department, members]) => ({
-        department,
-        members: members.slice().sort((left: any, right: any) => {
-          const leftName = (left?.fullName || '').toString().toLowerCase();
-          const rightName = (right?.fullName || '').toString().toLowerCase();
-          return leftName.localeCompare(rightName);
-        }),
-      }));
-  }, [inviteCandidates]);
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 4);
+  }, [visibleBookings, todayStr, isBookingInActiveTab]);
 
-  // --- ACTION HANDLERS ---
-  const buildBookingDateTime = (date: string = '', time: string = '') => `${date}T${time}:00+05:30`;
-  const selectedRoom = (roomName: string = '') => roomCatalog.find((room: any) => room.name === roomName);
   const reloadBookings = async () => {
     if (!workspaceId) return;
     const response = await getMeetingRoomBookings(workspaceId);
@@ -1903,16 +1217,381 @@ export function MeetingRoomsPage() {
     const details = (data.roomDetails || data.rooms || []).map((room: any) => normalizeRoomEntry(room));
     const bookings = data.bookings || data.data?.bookings || [];
     setRoomDetails(details);
-    setAllBookings(bookings.map((booking: any) => normalizeBooking(booking)));
+    setAllBookings(bookings.map((booking: any) => normalizeBooking(booking, currentUserId)));
     setReceivedInvites(data.receivedInvites || []);
     const roomNames = details.filter((room: any) => isActiveRoom(room) && isMeetingCalendarRoom(room)).map((room: any) => room.name);
     setAvailableRooms(roomNames);
     setCalendarRoomFilter((current) => roomNames.includes(current) ? current : (roomNames[0] || ''));
   };
 
+  // ─── MISSING FORM STATES ───
+  const [externalBookingForm, setExternalBookingForm] = useState({
+    name: '', phone: '', email: '', company: '', roomName: '', date: '',
+    startTime: '', endTime: '', attendees: 1, purpose: '', paymentMode: 'Cash',
+    transactionId: '', discountType: 'amount', discountValue: '', notes: '',
+  });
+  const [isSavingExternalBooking, setIsSavingExternalBooking] = useState(false);
+
+  const [internalBookingForm, setInternalBookingForm] = useState({
+    bookedForName: '', bookedForUserId: '', department: '', roomName: '', date: '',
+    startTime: '', endTime: '', attendees: 1, purpose: '', inviteParticipantIds: [] as string[], notes: '',
+  });
+  const [isSavingInternalBooking, setIsSavingInternalBooking] = useState(false);
+
+  const [tenantBookingForm, setTenantBookingForm] = useState({
+    tenantCompanyId: '', tenantCompanyName: '', bookedByName: '', bookedByEmail: '', bookedByPhone: '',
+    roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', notes: '', creditsToDeduct: 0,
+  });
+  const [isSavingTenantBooking, setIsSavingTenantBooking] = useState(false);
+
+  // ─── ROOM CATALOG (normalized list) ───
+  const roomCatalog = useMemo(() => roomDetails.map((room: any) => normalizeRoomEntry(room)), [roomDetails]);
+
+  // ─── CALENDAR STATE ───
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+  const currentMonth = calendarDate.getMonth();
+  const currentYear = calendarDate.getFullYear();
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const handlePrevMonth = () => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+  const handleNextMonth = () => setCalendarDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+
+  const selectedCalendarBookings = useMemo(() => {
+    return allBookings.filter(b => b.roomName === calendarRoomFilter && b.date === selectedCalendarDateKey && b.status !== 'cancelled');
+  }, [allBookings, calendarRoomFilter, selectedCalendarDateKey]);
+
+  const selectedCalendarDateLabel = useMemo(() => {
+    if (!selectedCalendarDateKey) return '';
+    const [y, m, d] = selectedCalendarDateKey.split('-');
+    const date = new Date(Number(y), Number(m) - 1, Number(d));
+    return date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  }, [selectedCalendarDateKey]);
+
+  const selectedCalendarHasExternalBookings = useMemo(() => {
+    return selectedCalendarBookings.some(b => normalize(b.bookingType) === 'external');
+  }, [selectedCalendarBookings]);
+
+  const canSeeCalendarBookingDetails = isOwnerProfile || isSuperAdminProfile || isAdministrationManagerProfile;
+
+  // ─── FORMATTING HELPERS ───
+  const formatCurrency = (amount?: number | null) => {
+    const value = Number(amount || 0);
+    return `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  };
+
+  const formatTimeSlot = (startTime?: string, endTime?: string) => {
+    const fmt = (t?: string) => formatTime12h(t || '');
+    if (!startTime && !endTime) return '';
+    if (!endTime) return fmt(startTime);
+    return `${fmt(startTime)} – ${fmt(endTime)}`;
+  };
+
+  const formatTimeOptionLabel = (timeValue: string) => formatTime12h(timeValue);
+
+  const renderScheduleSummary = (booking: any, opts?: { showDate?: boolean }) => {
+    const showDate = opts?.showDate !== false;
+    return (
+      <div className="text-[12px] font-semibold text-slate-600 flex flex-col gap-0.5">
+        {showDate && <span className="font-bold text-[#0F172A]">{booking.date || ''}</span>}
+        <span className="whitespace-nowrap">{formatTimeSlot(booking.startTime, booking.endTime)}</span>
+        {isRescheduledBooking(booking) && booking.previousDate && (
+          <span className="text-[10px] font-bold text-purple-500 line-through">
+            {booking.previousDate} {formatTimeSlot(booking.previousStartTime, booking.previousEndTime)}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  const buildBookingDateTime = (date?: string, time?: string) => {
+    if (!date || !time) return '';
+    return `${date}T${time}:00`;
+  };
+
+  const selectedRoom = (roomName?: string) => {
+    return roomCatalog.find(r => r.name === roomName) || roomDetails.find((r: any) => r.name === roomName) || null;
+  };
+
+  const isInviteResponseOpen = (booking: any) => {
+    if (!booking) return false;
+    const status = getBookingDisplayStatus(booking);
+    return status === 'booked' || status === 'in progress';
+  };
+
+  const isRoomOptionDisabled = (roomName: string) => {
+    const room = roomCatalog.find(r => r.name === roomName);
+    if (!room) return false;
+    return !isActiveRoom(room);
+  };
+
+  const getRoomOptionLabel = (roomName: string) => {
+    const room = roomCatalog.find(r => r.name === roomName);
+    if (!room) return roomName;
+    const parts = [roomName];
+    if (room.floor) parts.push(`Floor ${room.floor}`);
+    if (room.wing) parts.push(`Wing ${room.wing}`);
+    if (room.capacity) parts.push(`${room.capacity} seats`);
+    if (!isActiveRoom(room)) parts.push('(Unavailable)');
+    return parts.join(' • ');
+  };
+
+  // ─── MANAGE OWN BOOKING PERMISSIONS ───
+  const canManageOwnBooking = (booking: any) => {
+    const status = getBookingDisplayStatus(booking);
+    return status === 'booked' || status === 'in progress';
+  };
+
+  const canRescheduleOwnBooking = (booking: any) => {
+    return getBookingDisplayStatus(booking) === 'booked';
+  };
+
+  const canExtendOwnBooking = (booking: any) => {
+    return getBookingDisplayStatus(booking) === 'in progress';
+  };
+
+  const getBookingDisplayCount = () => {
+    return displayedBookings.length;
+  };
+
+  const getInviteMeetingLabel = (booking: any) => {
+    if (!booking?.isInvitedMeeting) return '';
+    const status = booking.currentInviteStatus;
+    if (status === 'accepted') return 'Invited – Accepted';
+    if (status === 'rejected') return 'Invited – Rejected';
+    return 'Invited';
+  };
+
+  // ─── BOOKING TIME VALIDATION ───
+  const bookingTimeValidation = useMemo(() => {
+    return getBookingTimeValidation(newBooking.date, newBooking.startTime, newBooking.endTime);
+  }, [newBooking.date, newBooking.startTime, newBooking.endTime]);
+
+  const bookingStatus = useMemo(() => {
+    if (!newBooking.roomName || !newBooking.date || !newBooking.startTime || !newBooking.endTime) return 'pending';
+    return checkAvailability(newBooking);
+  }, [newBooking, checkAvailability]);
+
+  const roomDayStatus = useMemo(() => {
+    if (!newBooking.roomName || !newBooking.date) return 'pending';
+    const dayBookings = allBookings.filter(b =>
+      b.roomName === newBooking.roomName && b.date === newBooking.date && b.status !== 'cancelled'
+    );
+    if (dayBookings.length === 0) return 'available';
+    const windows = getRoomTimeWindows(newBooking.roomName, newBooking.date);
+    if (windows.length === 0) return 'full';
+    return 'partial';
+  }, [newBooking.roomName, newBooking.date, allBookings, getRoomTimeWindows]);
+
+  const bookingSuggestions = useMemo(() => {
+    if (!newBooking.roomName || !newBooking.date) return [];
+    return getSuggestedSlots(newBooking.roomName, newBooking.date, newBooking.startTime, newBooking.endTime);
+  }, [newBooking.roomName, newBooking.date, newBooking.startTime, newBooking.endTime, getSuggestedSlots]);
+
+  // ─── RESCHEDULE TIME VALIDATION ───
+  const rescheduleTimeValidation = useMemo(() => {
+    return getBookingTimeValidation(rescheduleData.date, rescheduleData.startTime, rescheduleData.endTime);
+  }, [rescheduleData.date, rescheduleData.startTime, rescheduleData.endTime]);
+
+  const rescheduleStatus = useMemo(() => {
+    if (!rescheduleData.roomName || !rescheduleData.date || !rescheduleData.startTime || !rescheduleData.endTime) return 'pending';
+    return checkAvailability(rescheduleData, rescheduleData.recordId || null);
+  }, [rescheduleData, checkAvailability]);
+
+  // ─── EXTEND BOOKING PREVIEW ───
+  const extendBookingPreview = useMemo(() => {
+    if (!extendBooking || !extendForm.extraMinutes) return { available: false, reason: 'No booking selected.' };
+    const extraMinutes = Number(extendForm.extraMinutes);
+    const currentEndMinutes = timeToMinutes(extendBooking.endTime);
+    if (currentEndMinutes === null) return { available: false, reason: 'Invalid booking times.' };
+    const nextEndMinutes = currentEndMinutes + extraMinutes;
+    const nextEndTime = minutesToTimeString(nextEndMinutes);
+
+    const hasConflict = allBookings.some(b =>
+      b.roomName === extendBooking.roomName &&
+      b.date === extendBooking.date &&
+      b.status !== 'cancelled' &&
+      b.recordId !== extendBooking.recordId &&
+      extendBooking.endTime < b.endTime &&
+      nextEndTime > b.startTime
+    );
+    if (hasConflict) {
+      return { available: false, reason: 'A conflicting booking exists in that time slot.' };
+    }
+
+    const roomType = getMeetingRoomTypeFromName(extendBooking.roomName) as keyof typeof MEETING_ROOM_EXTENSION_RATES;
+    const ratePerHour = MEETING_ROOM_EXTENSION_RATES[roomType] || 500;
+    const extensionAmount = Math.round((ratePerHour / 60) * extraMinutes);
+    const gst = Math.round(extensionAmount * 0.18);
+    const extensionTotal = extensionAmount + gst;
+    const nextTotalAmount = (extendBooking.totalAmount || 0) + extensionTotal;
+
+    return {
+      available: true,
+      reason: `Room is free for an additional ${extraMinutes} minutes.`,
+      nextEndTime,
+      extensionAmount,
+      extensionTotal,
+      nextTotalAmount,
+    };
+  }, [extendBooking, extendForm.extraMinutes, allBookings]);
+
+  // ─── SCOPED BOOKINGS (for summary cards) ───
+  const scopedBookings = useMemo(() => {
+    return allBookings.filter(b => isMyBooking(b));
+  }, [allBookings, isMyBooking]);
+
+  // ─── BOOKING FORM: room filter state ───
+  const [selectedBookingLocation, setSelectedBookingLocation] = useState('');
+  const [selectedBookingFloor, setSelectedBookingFloor] = useState('');
+  const [selectedBookingWing, setSelectedBookingWing] = useState('');
+  const [selectedBookingRoomType, setSelectedBookingRoomType] = useState('');
+
+  const availableLocations = useMemo(() => {
+    return [...new Set(roomCatalog.filter(isActiveRoom).map(r => r.location).filter(Boolean))];
+  }, [roomCatalog]);
+
+  const availableRoomTypes = useMemo(() => {
+    const filtered = roomCatalog.filter(r => isActiveRoom(r) && (!selectedBookingLocation || r.location === selectedBookingLocation));
+    return [...new Set(filtered.map(r => r.type).filter(Boolean))];
+  }, [roomCatalog, selectedBookingLocation]);
+
+  const availableFloors = useMemo(() => {
+    const filtered = roomCatalog.filter(r =>
+      isActiveRoom(r) &&
+      (!selectedBookingLocation || r.location === selectedBookingLocation) &&
+      (!selectedBookingRoomType || r.type === selectedBookingRoomType)
+    );
+    return [...new Set(filtered.map(r => r.floor).filter(Boolean))];
+  }, [roomCatalog, selectedBookingLocation, selectedBookingRoomType]);
+
+  const floorHasWingValues = useMemo(() => {
+    const filtered = roomCatalog.filter(r =>
+      isActiveRoom(r) &&
+      (!selectedBookingLocation || r.location === selectedBookingLocation) &&
+      (!selectedBookingRoomType || r.type === selectedBookingRoomType) &&
+      (!selectedBookingFloor || r.floor === selectedBookingFloor)
+    );
+    return filtered.some(r => Boolean(r.wing));
+  }, [roomCatalog, selectedBookingLocation, selectedBookingRoomType, selectedBookingFloor]);
+
+  const availableWings = useMemo(() => {
+    const filtered = roomCatalog.filter(r =>
+      isActiveRoom(r) &&
+      (!selectedBookingLocation || r.location === selectedBookingLocation) &&
+      (!selectedBookingRoomType || r.type === selectedBookingRoomType) &&
+      (!selectedBookingFloor || r.floor === selectedBookingFloor)
+    );
+    return [...new Set(filtered.map(r => r.wing).filter(Boolean))];
+  }, [roomCatalog, selectedBookingLocation, selectedBookingRoomType, selectedBookingFloor]);
+
+  const bookingRoomsAtSelectedLocation = useMemo(() => {
+    return roomCatalog.filter(r =>
+      isActiveRoom(r) &&
+      (!selectedBookingLocation || r.location === selectedBookingLocation) &&
+      (!selectedBookingRoomType || r.type === selectedBookingRoomType) &&
+      (!selectedBookingFloor || r.floor === selectedBookingFloor) &&
+      (!selectedBookingWing || !r.wing || r.wing === selectedBookingWing)
+    );
+  }, [roomCatalog, selectedBookingLocation, selectedBookingRoomType, selectedBookingFloor, selectedBookingWing]);
+
+  const selectedFloorRoomTypeCount = useMemo(() => {
+    return roomCatalog.filter(r =>
+      isActiveRoom(r) &&
+      (!selectedBookingLocation || r.location === selectedBookingLocation) &&
+      (!selectedBookingRoomType || r.type === selectedBookingRoomType) &&
+      (!selectedBookingFloor || r.floor === selectedBookingFloor) &&
+      (!selectedBookingWing || !r.wing || r.wing === selectedBookingWing)
+    ).length;
+  }, [roomCatalog, selectedBookingLocation, selectedBookingRoomType, selectedBookingFloor, selectedBookingWing]);
+
+  const canShowRoomTypeCount = Boolean(selectedBookingRoomType || selectedBookingFloor);
+
+  const selectedRoomCapacity = useMemo(() => {
+    return getRoomCapacity(newBooking.roomName);
+  }, [newBooking.roomName, getRoomCapacity]);
+
+  // ─── TIME OPTIONS ───
+  const createStartTimeOptions = useMemo(() => {
+    const now = getMeetingClockParts();
+    if (!now || !newBooking.date) return buildTimeOptions('09:00', '22:00');
+    const parts = getMeetingTimeZoneDateParts(newBooking.date);
+    const todayKey = now.dateKey;
+    const bookingDateKey = parts ? `${parts.year}-${parts.month}-${parts.day}` : '';
+    if (bookingDateKey === todayKey) {
+      const minTime = minutesToTimeString(Math.ceil((now.minutes + 5) / BOOKING_SLOT_STEP_MINUTES) * BOOKING_SLOT_STEP_MINUTES);
+      return buildTimeOptions(minTime, '22:00');
+    }
+    return buildTimeOptions('09:00', '22:00');
+  }, [newBooking.date]);
+
+  const createEndTimeOptions = useMemo(() => {
+    if (!newBooking.startTime) return buildTimeOptions('09:30', '23:55');
+    const minEnd = minutesToTimeString((timeToMinutes(newBooking.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
+    return buildTimeOptions(minEnd, '23:55');
+  }, [newBooking.startTime]);
+
+  // ─── INVITE MEMBER HELPERS ───
+  const resolveMemberName = (member: any) => {
+    return getEmployeeDisplayName(member) || member?.fullName || member?.name || member?.email || '';
+  };
+
+  const formatInviteGroupLabel = (role?: string) => {
+    if (!role) return 'Member';
+    return role.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  };
+
+  const resolveInviteDisplayRole = (invite: any) => {
+    const userId = String(invite?.invitedUserId || '').trim();
+    const member = userId ? memberDirectoryById.get(userId) : null;
+    return invite?.invitedRole || member?.role || member?.departments?.[0] || '';
+  };
+
+  const inviteDepartments = useMemo(() => {
+    const filteredMembers = workspaceMembers.filter(member => {
+      const memberId = resolveMemberUserId(member);
+      return memberId && memberId !== currentUserId;
+    });
+    const departmentMap = new Map<string, any[]>();
+    filteredMembers.forEach(member => {
+      const depts = (member as any).departments || [(member as any).department] || ['General'];
+      (depts as string[]).filter(Boolean).forEach((dept: string) => {
+        if (!departmentMap.has(dept)) departmentMap.set(dept, []);
+        departmentMap.get(dept)!.push(member);
+      });
+    });
+    return Array.from(departmentMap.entries()).map(([department, members]) => ({ department, members }));
+  }, [workspaceMembers, currentUserId]);
+
+  // ─── RESCHEDULE TIME OPTIONS ───
+  const rescheduleStartTimeOptions = useMemo(() => {
+    const now = getMeetingClockParts();
+    if (!now || !rescheduleData.date) return buildTimeOptions('09:00', '22:00');
+    const parts = getMeetingTimeZoneDateParts(rescheduleData.date);
+    const todayKey = now.dateKey;
+    const bookingDateKey = parts ? `${parts.year}-${parts.month}-${parts.day}` : '';
+    if (bookingDateKey === todayKey) {
+      const minTime = minutesToTimeString(Math.ceil((now.minutes + 5) / BOOKING_SLOT_STEP_MINUTES) * BOOKING_SLOT_STEP_MINUTES);
+      return buildTimeOptions(minTime, '22:00');
+    }
+    return buildTimeOptions('09:00', '22:00');
+  }, [rescheduleData.date]);
+
+  const rescheduleEndTimeOptions = useMemo(() => {
+    if (!rescheduleData.startTime) return buildTimeOptions('09:30', '23:55');
+    const minEnd = minutesToTimeString((timeToMinutes(rescheduleData.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
+    return buildTimeOptions(minEnd, '23:55');
+  }, [rescheduleData.startTime]);
+
+  // ─── ALL NORMALIZED ROOMS (flat list for booking dialogs) ───
+  const allNormalizedRooms = useMemo(() => {
+    return roomCatalog.filter(isActiveRoom).map(room => ({
+      ...room,
+      roomId: String(room._id || room.id || ''),
+    }));
+  }, [roomCatalog]);
+
   const handleCreateBooking = async () => {
-    if (!newBooking.roomType) { setErrorMessage('Select a room type to continue.'); return; }
-    if (!newBooking.floor) { setErrorMessage('Select a floor to continue.'); return; }
     if (!newBooking.roomName) { setErrorMessage('Select a meeting room to continue.'); return; }
     if (!newBooking.purpose.trim()) { setErrorMessage('Purpose / Agenda is required.'); return; }
     if (!bookingTimeValidation.valid) { setErrorMessage(bookingTimeValidation.reason); return; }
@@ -2093,6 +1772,176 @@ export function MeetingRoomsPage() {
       default: return 'bg-slate-50 text-slate-700 border-slate-200';
     }
   };
+
+  // ─── LOAD TENANT COMPANIES for Tenant Booking tab ───
+  useEffect(() => {
+    if (mainBookingTab !== 'tenant_bookings') return;
+    let isMounted = true;
+    setIsLoadingTenants(true);
+    getTenantCompanies()
+      .then((response) => {
+        if (!isMounted) return;
+        const list = Array.isArray(response?.data?.tenants) ? response.data.tenants : [];
+        setTenantCompanies(list);
+      })
+      .catch(() => {})
+      .finally(() => { if (isMounted) setIsLoadingTenants(false); });
+    return () => { isMounted = false; };
+  }, [mainBookingTab]);
+
+  // ─── SUMMARY CARDS (change per mainBookingTab) ───
+  const meetingSummaryCards = useMemo(() => {
+    const upcomingCount = scopedBookings.filter(b => getBookingDisplayStatus(b) === 'booked').length;
+    const inProgressCount = scopedBookings.filter(b => getBookingDisplayStatus(b) === 'in progress').length;
+    const completedCount = scopedBookings.filter(b => getBookingDisplayStatus(b) === 'completed').length;
+    const cancelledCount = scopedBookings.filter(b => getBookingDisplayStatus(b) === 'cancelled').length;
+    const externalBookings = allBookings.filter(b => normalize(b.bookingType) === 'external');
+    const tenantBookings = allBookings.filter(b => normalize(b.bookingType) === 'tenant');
+
+    if (mainBookingTab === 'external_booking') {
+      return [
+        { key: 'ext-total', icon: Globe, label: 'Total External', value: externalBookings.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', iconClass: 'bg-amber-50 text-amber-600' },
+        { key: 'ext-upcoming', icon: CalendarClock, label: 'Upcoming', value: externalBookings.filter(b => getBookingDisplayStatus(b) === 'booked').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', iconClass: 'bg-blue-50 text-blue-600' },
+        { key: 'ext-progress', icon: Clock, label: 'In Progress', value: externalBookings.filter(b => getBookingDisplayStatus(b) === 'in progress').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600' },
+        { key: 'ext-completed', icon: CheckCircle2, label: 'Completed', value: externalBookings.filter(b => getBookingDisplayStatus(b) === 'completed').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
+      ];
+    }
+    if (mainBookingTab === 'tenant_bookings') {
+      return [
+        { key: 'ten-total', icon: Building2, label: 'Total Tenant Bookings', value: tenantBookings.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', iconClass: 'bg-blue-50 text-blue-600' },
+        { key: 'ten-upcoming', icon: CalendarClock, label: 'Upcoming', value: tenantBookings.filter(b => getBookingDisplayStatus(b) === 'booked').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', iconClass: 'bg-blue-50 text-blue-600' },
+        { key: 'ten-progress', icon: Clock, label: 'In Progress', value: tenantBookings.filter(b => getBookingDisplayStatus(b) === 'in progress').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600' },
+        { key: 'ten-companies', icon: Briefcase, label: 'Tenant Companies', value: tenantCompanies.filter(t => t.status === 'Active').length || tenantCompanies.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-indigo-500', iconClass: 'bg-indigo-50 text-indigo-600' },
+      ];
+    }
+    if (mainBookingTab === 'internal_booking') {
+      const internalBookings = allBookings.filter(b => normalize(b.bookingType) !== 'external' && normalize(b.bookingType) !== 'tenant');
+      return [
+        { key: 'int-upcoming', icon: CalendarClock, label: 'Upcoming', value: internalBookings.filter(b => getBookingDisplayStatus(b) === 'booked').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', iconClass: 'bg-blue-50 text-blue-600' },
+        { key: 'int-progress', icon: Clock, label: 'In Progress', value: internalBookings.filter(b => getBookingDisplayStatus(b) === 'in progress').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600' },
+        { key: 'int-done', icon: CheckCircle2, label: 'Completed', value: internalBookings.filter(b => getBookingDisplayStatus(b) === 'completed').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
+        { key: 'int-cancelled', icon: XCircle, label: 'Cancelled', value: internalBookings.filter(b => getBookingDisplayStatus(b) === 'cancelled').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-red-500', iconClass: 'bg-red-50 text-red-600' },
+      ];
+    }
+    // my_bookings (default)
+    return [
+      { key: 'my-upcoming', icon: CalendarClock, label: 'Upcoming', value: upcomingCount, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', iconClass: 'bg-blue-50 text-blue-600' },
+      { key: 'my-progress', icon: Clock, label: 'In Progress', value: inProgressCount, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600' },
+      { key: 'my-done', icon: CheckCircle2, label: 'Completed', value: completedCount, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
+      { key: 'my-cancelled', icon: XCircle, label: 'Cancelled', value: cancelledCount, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-red-500', iconClass: 'bg-red-50 text-red-600' },
+    ];
+  }, [mainBookingTab, scopedBookings, allBookings, tenantCompanies]);
+
+  // ─── HANDLERS for new booking modals ───
+  const handleSubmitExternalBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!externalBookingForm.name.trim()) return setErrorMessage('Client name is required.');
+    if (!externalBookingForm.phone.trim()) return setErrorMessage('Phone number is required.');
+    if (!externalBookingForm.roomName) return setErrorMessage('Please select a room.');
+    if (!externalBookingForm.date) return setErrorMessage('Date is required.');
+    if (!externalBookingForm.startTime) return setErrorMessage('Start time is required.');
+    if (!externalBookingForm.endTime) return setErrorMessage('End time is required.');
+    setIsSavingExternalBooking(true);
+    setErrorMessage('');
+    try {
+      await createMeetingRoomBooking({
+        bookingType: 'External',
+        bookingSource: 'Admin Panel',
+        bookedByName: externalBookingForm.name,
+        bookedByPhone: externalBookingForm.phone,
+        bookedByEmail: externalBookingForm.email,
+        clientCompany: externalBookingForm.company,
+        roomName: externalBookingForm.roomName,
+        date: externalBookingForm.date,
+        startTime: externalBookingForm.startTime,
+        endTime: externalBookingForm.endTime,
+        attendees: externalBookingForm.attendees,
+        purpose: externalBookingForm.purpose || 'External Booking',
+        paymentMode: externalBookingForm.paymentMode,
+        transactionId: externalBookingForm.transactionId,
+        bookingNotes: externalBookingForm.notes,
+      } as any);
+      await reloadBookings();
+      setShowExternalBookingDialog(false);
+      setExternalBookingForm({ name: '', phone: '', email: '', company: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', paymentMode: 'Cash', transactionId: '', discountType: 'amount', discountValue: '', notes: '' });
+    } catch (error: any) {
+      setErrorMessage(error?.response?.data?.message || error?.message || 'Failed to create external booking.');
+    } finally {
+      setIsSavingExternalBooking(false);
+    }
+  };
+
+  const handleSubmitInternalBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!internalBookingForm.bookedForName.trim() && !internalBookingForm.department.trim()) return setErrorMessage('Member name or department is required.');
+    if (!internalBookingForm.roomName) return setErrorMessage('Please select a room.');
+    if (!internalBookingForm.date) return setErrorMessage('Date is required.');
+    if (!internalBookingForm.startTime) return setErrorMessage('Start time is required.');
+    if (!internalBookingForm.endTime) return setErrorMessage('End time is required.');
+    setIsSavingInternalBooking(true);
+    setErrorMessage('');
+    try {
+      await createMeetingRoomBooking({
+        bookingType: 'Internal',
+        bookingSource: 'Admin Panel',
+        bookedByName: managerProfile.name,
+        bookedForName: internalBookingForm.bookedForName,
+        department: internalBookingForm.department || managerProfile.department,
+        roomName: internalBookingForm.roomName,
+        date: internalBookingForm.date,
+        startTime: internalBookingForm.startTime,
+        endTime: internalBookingForm.endTime,
+        attendees: internalBookingForm.attendees,
+        purpose: internalBookingForm.purpose || 'Internal Meeting',
+        inviteeUserIds: internalBookingForm.inviteParticipantIds,
+        bookingNotes: internalBookingForm.notes,
+      } as any);
+      await reloadBookings();
+      setShowInternalBookingDialog(false);
+      setInternalBookingForm({ bookedForName: '', bookedForUserId: '', department: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', inviteParticipantIds: [], notes: '' });
+    } catch (error: any) {
+      setErrorMessage(error?.response?.data?.message || error?.message || 'Failed to create internal booking.');
+    } finally {
+      setIsSavingInternalBooking(false);
+    }
+  };
+
+  const handleSubmitTenantBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tenantBookingForm.tenantCompanyId) { setTenantBookingError('Please select a tenant company.'); return; }
+    if (!tenantBookingForm.roomName) { setTenantBookingError('Please select a room.'); return; }
+    if (!tenantBookingForm.date) { setTenantBookingError('Date is required.'); return; }
+    if (!tenantBookingForm.startTime) { setTenantBookingError('Start time is required.'); return; }
+    if (!tenantBookingForm.endTime) { setTenantBookingError('End time is required.'); return; }
+    setIsSavingTenantBooking(true);
+    setTenantBookingError('');
+    try {
+      await createMeetingRoomBooking({
+        bookingType: 'Tenant',
+        bookingSource: 'Admin Panel',
+        bookedByName: tenantBookingForm.bookedByName || managerProfile.name,
+        bookedByEmail: tenantBookingForm.bookedByEmail,
+        bookedByPhone: tenantBookingForm.bookedByPhone,
+        clientCompany: tenantBookingForm.tenantCompanyName,
+        sourceReference: `tenant-room-booking:${tenantBookingForm.tenantCompanyId}`,
+        roomName: tenantBookingForm.roomName,
+        date: tenantBookingForm.date,
+        startTime: tenantBookingForm.startTime,
+        endTime: tenantBookingForm.endTime,
+        attendees: tenantBookingForm.attendees,
+        purpose: tenantBookingForm.purpose || 'Tenant Meeting',
+        bookingNotes: tenantBookingForm.notes,
+      } as any);
+      await reloadBookings();
+      setShowTenantBookingDialog(false);
+      setTenantBookingForm({ tenantCompanyId: '', tenantCompanyName: '', bookedByName: '', bookedByEmail: '', bookedByPhone: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', notes: '', creditsToDeduct: 0 });
+    } catch (error: any) {
+      setTenantBookingError(error?.response?.data?.message || error?.message || 'Failed to create tenant booking.');
+    } finally {
+      setIsSavingTenantBooking(false);
+    }
+  };
+
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
@@ -2104,28 +1953,49 @@ export function MeetingRoomsPage() {
             <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
               <div>
                 <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-
                   Meeting Rooms Booking
                 </h2>
                 <p className="text-xs font-medium text-slate-500 mt-1">
                   Reserve campus workspaces and monitor department availability.
                 </p>
               </div>
-              <button
-                onClick={() => {
-                  setNewBooking((prev) => ({
-                    ...prev,
-                    floor: '',
-                    wing: '',
-                    roomType: '',
-                    roomName: '',
-                  }));
-                  setShowBookingDialog(true);
-                }}
-                className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
-              >
-                <Plus size={14} strokeWidth={3} /> BOOK A ROOM
-              </button>
+              <div className="flex items-center gap-2">
+                {mainBookingTab === 'my_bookings' && (
+                  <button
+                    onClick={() => {
+                      setNewBooking((prev) => ({ ...prev, floor: '', wing: '', roomType: '', roomName: '' }));
+                      setShowBookingDialog(true);
+                    }}
+                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
+                  >
+                    <Plus size={14} strokeWidth={3} /> BOOK A ROOM
+                  </button>
+                )}
+                {mainBookingTab === 'internal_booking' && (
+                  <button
+                    onClick={() => setShowInternalBookingDialog(true)}
+                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
+                  >
+                    <UserPlus size={14} strokeWidth={3} /> BOOK FOR MEMBER
+                  </button>
+                )}
+                {mainBookingTab === 'external_booking' && (
+                  <button
+                    onClick={() => setShowExternalBookingDialog(true)}
+                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
+                  >
+                    <Globe size={14} strokeWidth={3} /> WALK-IN BOOKING
+                  </button>
+                )}
+                {mainBookingTab === 'tenant_bookings' && (
+                  <button
+                    onClick={() => setShowTenantBookingDialog(true)}
+                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-indigo-700 active:scale-95"
+                  >
+                    <Building2 size={14} strokeWidth={3} /> TENANT BOOKING
+                  </button>
+                )}
+              </div>
             </div>
 
             {errorMessage ? (
@@ -2134,23 +2004,39 @@ export function MeetingRoomsPage() {
               </div>
             ) : null}
 
-            {/* 2. LIVE STATS */}
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
+            {/* 2. MAIN TABS (TenantCompanies style) */}
+            <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               {[
-                { label: 'Upcoming', val: scopedBookings.filter(b => getBookingDisplayStatus(b) === 'booked').length, color: 'text-primary', bg: 'bg-blue-50', icon: <CalendarClock size={16} /> },
-                { label: 'In Progress', val: scopedBookings.filter(b => getBookingDisplayStatus(b) === 'in progress').length, color: 'text-amber-500', bg: 'bg-amber-50', icon: <Clock size={16} className="animate-spin-slow" /> },
-                { label: 'Completed', val: scopedBookings.filter(b => getBookingDisplayStatus(b) === 'completed').length, color: 'text-emerald-600', bg: 'bg-emerald-50', icon: <CheckCircle2 size={16} /> },
-                { label: 'Cancelled', val: scopedBookings.filter(b => getBookingDisplayStatus(b) === 'cancelled').length, color: 'text-red-500', bg: 'bg-red-50', icon: <XCircle size={16} /> },
-                { label: 'Rescheduled', val: scopedBookings.filter((b) => isRescheduledBooking(b)).length, color: 'text-purple-600', bg: 'bg-purple-50', icon: <Clock size={16} /> },
-              ].map((stat, i) => (
-                <div key={i} className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 truncate">{stat.label}</p>
-                    <p className={`text-[15px] font-black ${stat.color}`}>{stat.val}</p>
-                  </div>
-                  <div className={`p-2 rounded-2xl ${stat.bg} ${stat.color} shrink-0`}>{stat.icon}</div>
-                </div>
+                { key: 'my_bookings', label: 'My Bookings' },
+                { key: 'internal_booking', label: 'Internal Booking' },
+                { key: 'external_booking', label: 'External Booking' },
+                { key: 'tenant_bookings', label: 'Tenant Bookings' },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setMainBookingTab(tab.key as any)}
+                  className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${mainBookingTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                >
+                  {tab.label}
+                </button>
               ))}
+            </div>
+
+            {/* 3. SUMMARY CARDS (4-card grid, changes per tab) */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+              {meetingSummaryCards.map((card) => {
+                const Icon = card.icon;
+                return (
+                  <div key={card.key} className={card.cardClass}>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                      <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                    </div>
+                    <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}><Icon size={16}/></div>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
@@ -3527,7 +3413,364 @@ export function MeetingRoomsPage() {
         )}
       </AnimatePresence>
 
+      {/* ─── EXTERNAL BOOKING DIALOG ─── */}
+      <AnimatePresence>
+        {showExternalBookingDialog && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-[#0F172A]/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-[32px] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="p-6 md:p-7 bg-amber-600 flex justify-between items-start shrink-0">
+                <div>
+                  <p className="text-[10px] font-black text-amber-200 uppercase tracking-widest">Walk-in / External</p>
+                  <h2 className="text-xl font-black text-white mt-1 flex items-center gap-2"><Globe size={20} /> External Booking</h2>
+                  <p className="text-amber-100 text-xs mt-1">Book for a walk-in client or external visitor. Collect payment before confirming.</p>
+                </div>
+                <button onClick={() => setShowExternalBookingDialog(false)} className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-all text-white">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitExternalBooking} className="overflow-y-auto flex-1 p-6 md:p-7 space-y-5 bg-white">
+                {/* Client Details */}
+                <div className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4 space-y-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Client Information</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Full Name *</label>
+                      <input type="text" value={externalBookingForm.name} onChange={e => setExternalBookingForm(f => ({ ...f, name: e.target.value }))} placeholder="Client name" className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Phone *</label>
+                      <input type="tel" value={externalBookingForm.phone} onChange={e => setExternalBookingForm(f => ({ ...f, phone: e.target.value }))} placeholder="+91..." className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Email</label>
+                      <input type="email" value={externalBookingForm.email} onChange={e => setExternalBookingForm(f => ({ ...f, email: e.target.value }))} placeholder="client@email.com" className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Company / Agency</label>
+                      <input type="text" value={externalBookingForm.company} onChange={e => setExternalBookingForm(f => ({ ...f, company: e.target.value }))} placeholder="Optional" className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Room & Schedule */}
+                <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Room & Schedule</p>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Select Room *</label>
+                    <select value={externalBookingForm.roomName} onChange={e => setExternalBookingForm(f => ({ ...f, roomName: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400">
+                      <option value="">Choose a meeting room</option>
+                      {allNormalizedRooms.map((room) => (
+                        <option key={room.roomId || room.name} value={room.name}>{room.name} {room.floor ? `— ${room.floor}` : ''} {room.capacity ? `(${room.capacity} seats)` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Date *</label>
+                      <input type="date" value={externalBookingForm.date} onChange={e => setExternalBookingForm(f => ({ ...f, date: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Start Time *</label>
+                      <select value={externalBookingForm.startTime} onChange={e => setExternalBookingForm(f => ({ ...f, startTime: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400">
+                        <option value="">Select time</option>
+                        {buildTimeOptions('08:00', '20:00', 30).map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">End Time *</label>
+                      <select value={externalBookingForm.endTime} onChange={e => setExternalBookingForm(f => ({ ...f, endTime: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400">
+                        <option value="">Select time</option>
+                        {buildTimeOptions(externalBookingForm.startTime || '08:30', '21:00', 30).map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Attendees</label>
+                      <input type="number" min="1" value={externalBookingForm.attendees} onChange={e => setExternalBookingForm(f => ({ ...f, attendees: Number(e.target.value) }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Purpose</label>
+                      <input type="text" value={externalBookingForm.purpose} onChange={e => setExternalBookingForm(f => ({ ...f, purpose: e.target.value }))} placeholder="Meeting, Training, etc." className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment */}
+                <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Payment Collection</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['Cash', 'GPay (UPI)'].map(mode => (
+                      <button key={mode} type="button" onClick={() => setExternalBookingForm(f => ({ ...f, paymentMode: mode, transactionId: mode === 'Cash' ? '' : f.transactionId }))}
+                        className={`py-2.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${externalBookingForm.paymentMode === mode ? 'border-amber-600 bg-amber-600 text-white shadow-sm' : 'border-gray-200 text-gray-600 hover:border-amber-300'}`}>
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
+                  {externalBookingForm.paymentMode !== 'Cash' && (
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Transaction / UTR Number</label>
+                      <input type="text" value={externalBookingForm.transactionId} onChange={e => setExternalBookingForm(f => ({ ...f, transactionId: e.target.value }))} placeholder="Enter GPay reference" className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400" />
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Notes (optional)</label>
+                    <textarea rows={2} value={externalBookingForm.notes} onChange={e => setExternalBookingForm(f => ({ ...f, notes: e.target.value }))} placeholder="Any internal notes..." className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400 resize-none" />
+                  </div>
+                </div>
+              </form>
+
+              <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-3 shrink-0">
+                <button type="button" onClick={() => setShowExternalBookingDialog(false)} className="flex-1 py-3 bg-white border border-gray-200 rounded-2xl font-black text-xs text-gray-500 hover:text-gray-900 transition-all">CANCEL</button>
+                <button type="button" disabled={isSavingExternalBooking} onClick={(e: any) => handleSubmitExternalBooking(e)} className="flex-[2] py-3 bg-amber-600 text-white rounded-2xl font-black text-xs shadow-md shadow-amber-200 hover:bg-amber-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-gray-300 disabled:shadow-none">
+                  <CreditCard size={14} /> {isSavingExternalBooking ? 'CONFIRMING...' : 'COLLECT PAYMENT & CONFIRM'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── INTERNAL BOOKING DIALOG ─── */}
+      <AnimatePresence>
+        {showInternalBookingDialog && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-[#0F172A]/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-[32px] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="p-6 md:p-7 bg-[#2563EB] flex justify-between items-start shrink-0">
+                <div>
+                  <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest">Internal</p>
+                  <h2 className="text-xl font-black text-white mt-1 flex items-center gap-2"><UserPlus size={20} /> Internal Booking</h2>
+                  <p className="text-blue-100 text-xs mt-1">Book on behalf of a team member or department. Invite additional participants.</p>
+                </div>
+                <button onClick={() => setShowInternalBookingDialog(false)} className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-all text-white">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitInternalBooking} className="overflow-y-auto flex-1 p-6 md:p-7 space-y-5 bg-white">
+                {/* Booking For */}
+                <div className="rounded-2xl border border-blue-100 bg-blue-50/40 p-4 space-y-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Booking For</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Member Name *</label>
+                      <input type="text" value={internalBookingForm.bookedForName} onChange={e => setInternalBookingForm(f => ({ ...f, bookedForName: e.target.value }))} placeholder="Employee name" className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Department</label>
+                      <input type="text" value={internalBookingForm.department} onChange={e => setInternalBookingForm(f => ({ ...f, department: e.target.value }))} placeholder="e.g. Sales, IT, HR" className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400" />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Invite Participants (optional)</label>
+                    <select multiple value={internalBookingForm.inviteParticipantIds} onChange={e => setInternalBookingForm(f => ({ ...f, inviteParticipantIds: Array.from(e.target.selectedOptions).map(o => o.value) }))}
+                      className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400 h-24">
+                      {workspaceMembers.map((m: any) => <option key={m.id || m._id} value={m.id || m._id}>{getEmployeeDisplayName(m)}</option>)}
+                    </select>
+                    <p className="text-[10px] text-gray-400 font-medium">Hold Ctrl / Cmd to select multiple participants.</p>
+                  </div>
+                </div>
+
+                {/* Room & Schedule */}
+                <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Room & Schedule</p>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Select Room *</label>
+                    <select value={internalBookingForm.roomName} onChange={e => setInternalBookingForm(f => ({ ...f, roomName: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400">
+                      <option value="">Choose a meeting room</option>
+                      {allNormalizedRooms.map((room) => (
+                        <option key={room.roomId || room.name} value={room.name}>{room.name} {room.floor ? `— ${room.floor}` : ''} {room.capacity ? `(${room.capacity} seats)` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Date *</label>
+                      <input type="date" value={internalBookingForm.date} onChange={e => setInternalBookingForm(f => ({ ...f, date: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Start Time *</label>
+                      <select value={internalBookingForm.startTime} onChange={e => setInternalBookingForm(f => ({ ...f, startTime: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400">
+                        <option value="">Select time</option>
+                        {buildTimeOptions('08:00', '20:00', 30).map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">End Time *</label>
+                      <select value={internalBookingForm.endTime} onChange={e => setInternalBookingForm(f => ({ ...f, endTime: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400">
+                        <option value="">Select time</option>
+                        {buildTimeOptions(internalBookingForm.startTime || '08:30', '21:00', 30).map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Attendees</label>
+                      <input type="number" min="1" value={internalBookingForm.attendees} onChange={e => setInternalBookingForm(f => ({ ...f, attendees: Number(e.target.value) }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Purpose</label>
+                      <input type="text" value={internalBookingForm.purpose} onChange={e => setInternalBookingForm(f => ({ ...f, purpose: e.target.value }))} placeholder="Team meeting, review, etc." className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400" />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Notes (optional)</label>
+                    <textarea rows={2} value={internalBookingForm.notes} onChange={e => setInternalBookingForm(f => ({ ...f, notes: e.target.value }))} placeholder="Any additional context..." className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400 resize-none" />
+                  </div>
+                </div>
+              </form>
+
+              <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-3 shrink-0">
+                <button type="button" onClick={() => setShowInternalBookingDialog(false)} className="flex-1 py-3 bg-white border border-gray-200 rounded-2xl font-black text-xs text-gray-500 hover:text-gray-900 transition-all">CANCEL</button>
+                <button type="button" disabled={isSavingInternalBooking} onClick={(e: any) => handleSubmitInternalBooking(e)} className="flex-[2] py-3 bg-[#2563EB] text-white rounded-2xl font-black text-xs shadow-md shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-gray-300 disabled:shadow-none">
+                  <CheckCircle2 size={14} /> {isSavingInternalBooking ? 'BOOKING...' : 'CONFIRM INTERNAL BOOKING'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── TENANT BOOKING DIALOG ─── */}
+      <AnimatePresence>
+        {showTenantBookingDialog && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-[#0F172A]/70 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-[32px] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="p-6 md:p-7 bg-indigo-600 flex justify-between items-start shrink-0">
+                <div>
+                  <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest">Tenant</p>
+                  <h2 className="text-xl font-black text-white mt-1 flex items-center gap-2"><Building2 size={20} /> Tenant Booking</h2>
+                  <p className="text-indigo-100 text-xs mt-1">Book a meeting room for a tenant company. Credits may be deducted from their balance.</p>
+                </div>
+                <button onClick={() => setShowTenantBookingDialog(false)} className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-all text-white">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitTenantBooking} className="overflow-y-auto flex-1 p-6 md:p-7 space-y-5 bg-white">
+                {tenantBookingError && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-600">
+                    {tenantBookingError}
+                  </div>
+                )}
+
+                {/* Tenant Company */}
+                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4 space-y-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-indigo-700">Select Tenant Company</p>
+                  {isLoadingTenants ? (
+                    <div className="py-4 text-center text-xs font-bold text-gray-400">Loading tenant companies...</div>
+                  ) : (
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Company *</label>
+                      <select value={tenantBookingForm.tenantCompanyId} onChange={e => {
+                        const selected = tenantCompanies.find(t => String(t.id || t._id) === e.target.value);
+                        setTenantBookingForm(f => ({ ...f, tenantCompanyId: e.target.value, tenantCompanyName: selected?.companyName || selected?.name || '' }));
+                      }} className="w-full px-3 py-2.5 bg-white border border-indigo-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-500">
+                        <option value="">Select a tenant company</option>
+                        {tenantCompanies.map(t => (
+                          <option key={t.id || t._id} value={t.id || t._id}>{t.companyName || t.name} {t.credits != null ? `— ${t.credits} credits` : ''}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {tenantBookingForm.tenantCompanyId && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Booked By (name)</label>
+                        <input type="text" value={tenantBookingForm.bookedByName} onChange={e => setTenantBookingForm(f => ({ ...f, bookedByName: e.target.value }))} placeholder="Tenant representative name" className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Phone</label>
+                        <input type="tel" value={tenantBookingForm.bookedByPhone} onChange={e => setTenantBookingForm(f => ({ ...f, bookedByPhone: e.target.value }))} placeholder="+91..." className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400" />
+                      </div>
+                      <div className="space-y-1 col-span-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Email</label>
+                        <input type="email" value={tenantBookingForm.bookedByEmail} onChange={e => setTenantBookingForm(f => ({ ...f, bookedByEmail: e.target.value }))} placeholder="contact@tenantcompany.com" className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Room & Schedule */}
+                <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Room & Schedule</p>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Select Room *</label>
+                    <select value={tenantBookingForm.roomName} onChange={e => setTenantBookingForm(f => ({ ...f, roomName: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400">
+                      <option value="">Choose a meeting room</option>
+                      {allNormalizedRooms.map((room) => (
+                        <option key={room.roomId || room.name} value={room.name}>{room.name} {room.floor ? `— ${room.floor}` : ''} {room.capacity ? `(${room.capacity} seats)` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Date *</label>
+                      <input type="date" value={tenantBookingForm.date} onChange={e => setTenantBookingForm(f => ({ ...f, date: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Start Time *</label>
+                      <select value={tenantBookingForm.startTime} onChange={e => setTenantBookingForm(f => ({ ...f, startTime: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400">
+                        <option value="">Select time</option>
+                        {buildTimeOptions('08:00', '20:00', 30).map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">End Time *</label>
+                      <select value={tenantBookingForm.endTime} onChange={e => setTenantBookingForm(f => ({ ...f, endTime: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400">
+                        <option value="">Select time</option>
+                        {buildTimeOptions(tenantBookingForm.startTime || '08:30', '21:00', 30).map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Attendees</label>
+                      <input type="number" min="1" value={tenantBookingForm.attendees} onChange={e => setTenantBookingForm(f => ({ ...f, attendees: Number(e.target.value) }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Purpose</label>
+                      <input type="text" value={tenantBookingForm.purpose} onChange={e => setTenantBookingForm(f => ({ ...f, purpose: e.target.value }))} placeholder="Client meeting, board meeting, etc." className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400" />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Notes (optional)</label>
+                    <textarea rows={2} value={tenantBookingForm.notes} onChange={e => setTenantBookingForm(f => ({ ...f, notes: e.target.value }))} placeholder="Any internal notes or requirements..." className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400 resize-none" />
+                  </div>
+                </div>
+              </form>
+
+              <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-3 shrink-0">
+                <button type="button" onClick={() => { setShowTenantBookingDialog(false); setTenantBookingError(''); }} className="flex-1 py-3 bg-white border border-gray-200 rounded-2xl font-black text-xs text-gray-500 hover:text-gray-900 transition-all">CANCEL</button>
+                <button type="button" disabled={isSavingTenantBooking || !tenantBookingForm.tenantCompanyId} onClick={(e: any) => handleSubmitTenantBooking(e)} className="flex-[2] py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-gray-300 disabled:shadow-none">
+                  <Building2 size={14} /> {isSavingTenantBooking ? 'BOOKING...' : 'CONFIRM TENANT BOOKING'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
+}
+function setErrorMessage(arg0: any) {
+  throw new Error('Function not implemented.');
 }
 

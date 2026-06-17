@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import PageFrame from "../../components/Pages/PageFrame";
 import PrimaryButton from "../../components/PrimaryButton";
 import SecondaryButton from "../../components/SecondaryButton";
+import { getStoredTenantRole } from "../../lib/tenant-session";
 
 const UserDetails = () => {
   const axios = useAxiosPrivate();
@@ -78,6 +79,7 @@ const UserDetails = () => {
     designation: auth?.user?.designation || "",
     avatarColor: "#1976d2",
     workLocation: auth?.user?.address || workspaceProfile?.workspace?.address || "",
+    phone: auth?.user?.phone || "",
   };
   const normalizeRole = (value: unknown) =>
     String(value || "")
@@ -121,9 +123,15 @@ const UserDetails = () => {
     manager: "Department Manager",
     employee: "Employee",
   };
-  const resolvedRoleLabel = isFounder
-    ? "Founder"
-    : roleLabelMap[roleCandidates[0] || ""] || "Team Member";
+  const storedTenantRole = getStoredTenantRole();
+  const hasTenantRole = Boolean(storedTenantRole || auth?.user?.tenantRole);
+  const resolvedRoleLabel = hasTenantRole
+    ? (storedTenantRole === "tenant-manager" || auth?.user?.tenantRole === "tenant-manager"
+        ? "Tenant Manager"
+        : "Tenant Employee")
+    : isFounder
+      ? "Founder"
+      : roleLabelMap[roleCandidates[0] || ""] || "Team Member";
 
   const mutation = useMutation({
     mutationFn: async (updatedData) =>
@@ -146,12 +154,15 @@ const UserDetails = () => {
       event?.preventDefault();
       return;
     }
-    mutation.mutate({ name: data.name, address: data.address });
+    mutation.mutate({ name: data.name, address: data.address, ...(hasTenantRole ? { phone: data.phone } : {}) });
   };
 
+  const tenantPhone = hasTenantRole ? user.phone : "";
   const fields = [
     { name: "name", label: "Full Name", disabled: false },
     { name: "email", label: "Email", disabled: true },
+    ...(hasTenantRole ? [{ name: "designation", label: "Designation", disabled: true }] : []),
+    ...(hasTenantRole ? [{ name: "phone", label: "Phone", disabled: true }] : []),
     { name: "address", label: "Address", disabled: false },
   ];
 
@@ -183,11 +194,13 @@ const UserDetails = () => {
               <div className="flex flex-col gap-4 text-gray-600 min-w-20">
                 <span>Email :</span>
                 <span>Role :</span>
+                {hasTenantRole && <span>Designation :</span>}
                 <span>Work Location :</span>
               </div>
               <div className="flex flex-col gap-4 text-gray-500">
                 <span>{user.email}</span>
                 <span>{resolvedRoleLabel}</span>
+                {hasTenantRole && <span>{user.designation || "—"}</span>}
                 <span>{user.workLocation}</span>
               </div>
             </div>

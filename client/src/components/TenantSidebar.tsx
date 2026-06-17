@@ -15,6 +15,7 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSidebar } from "../context/SideBarContext";
 import { getStoredTenantRole, isTenantManagerRole } from "../lib/tenant-session";
+import useLogout from "../hooks/useLogout";
 
 interface NavNode {
   id: string;
@@ -31,6 +32,18 @@ interface TenantSidebarProps {
   onCloseDrawer?: () => void;
 }
 
+interface NavItemProps {
+  icon?: ElementType;
+  label: string;
+  collapsed: boolean;
+  depth?: number;
+  hasChildren?: boolean;
+  isOpen?: boolean;
+  onClick?: () => void;
+  isRed?: boolean;
+  isActive?: boolean;
+}
+
 const NavItem = ({
   icon: Icon,
   label,
@@ -41,21 +54,11 @@ const NavItem = ({
   onClick,
   isRed,
   isActive,
-}: {
-  icon?: ElementType;
-  label: string;
-  collapsed: boolean;
-  depth?: number;
-  hasChildren?: boolean;
-  isOpen?: boolean;
-  onClick?: () => void;
-  isRed?: boolean;
-  isActive?: boolean;
-}) => (
+}: NavItemProps) => (
   <button
     type="button"
     className={`w-full flex items-center justify-between py-2 px-3 select-none rounded-md transition-colors ${
-      isActive ? "bg-blue-100 font-medium" : "hover:bg-gray-200"
+      isActive ? "bg-gray-200 font-medium" : "hover:bg-gray-200"
     } ${isRed ? "text-red-500 hover:text-red-600" : "text-gray-700 hover:text-gray-900"} cursor-pointer`}
     style={{ paddingLeft: `${depth * 1.25 + 0.75}rem` }}
     onClick={onClick}
@@ -77,9 +80,13 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate }: {
   pathname: string;
   onNavigate: (item: NavNode) => void;
 }) => {
-  const [isOpen, setIsOpen] = useState(item.id === "tenant-dashboard");
+  const [isOpen, setIsOpen] = useState(depth === 0);
   const hasChildren = Boolean(item.children?.length);
-  const isActive = item.route ? pathname.startsWith(item.route) : false;
+  const isActive = item.route
+    ? item.id === "tenant-dashboard"
+      ? pathname === "/dashboard/tenant"
+      : pathname.startsWith(item.route)
+    : false;
 
   const handleClick = () => {
     if (hasChildren) {
@@ -102,8 +109,8 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate }: {
         isRed={item.isRed}
         isActive={isActive}
       />
-      {hasChildren && isOpen && item.children && (
-        <div>
+      {hasChildren && isOpen && !collapsed && item.children && (
+        <div className="mt-1 flex flex-col gap-1">
           {item.children.map((child) => (
             <NavGroup
               key={child.id}
@@ -120,25 +127,34 @@ const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate }: {
   );
 };
 
-const allNavNodes: NavNode[] = [
+const tenantNavNodes: NavNode[] = [
   { id: "tenant-dashboard", label: "Dashboard", icon: LayoutDashboard, route: "/dashboard/tenant" },
   { id: "tenant-meeting-room-booking", label: "Meeting Room Booking", icon: CalendarCheck, route: "/dashboard/tenant/meeting-room-booking" },
   { id: "tenant-booking-history", label: "Booking History", icon: Clock, route: "/dashboard/tenant/booking-history" },
   { id: "tenant-buy-credits", label: "Buy Credits", icon: HandCoins, route: "/dashboard/tenant/buy-credits", rolesAllowed: ["manager", "admin"] },
   { id: "tenant-tickets", label: "Tickets", icon: Ticket, route: "/dashboard/tenant/tickets" },
-  { id: "tenant-profile", label: "Profile", icon: User, route: "/profile/company-profile" },
 ];
+
+const generalData: NavNode[] = [
+  { id: "tenant-profile", label: "Profile", icon: User, route: "/profile/my-profile" },
+  { id: "logout", label: "Sign Out", icon: LogOut, isRed: true },
+];
+
+const SECTION_ABBR: Record<string, string> = {
+  tenant: "TNT",
+};
 
 const TenantSidebar = ({ drawerOpen, onCloseDrawer }: TenantSidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isSidebarOpen } = useSidebar();
+  const logout = useLogout();
   const collapsed = !isSidebarOpen;
 
   const tenantRole = getStoredTenantRole();
   const isManager = isTenantManagerRole(tenantRole);
 
-  const visibleNavNodes = allNavNodes.filter((node) => {
+  const visibleNavNodes = tenantNavNodes.filter((node) => {
     if (!node.rolesAllowed) return true;
     if (node.rolesAllowed.includes("admin") && tenantRole === "tenant-admin") return true;
     if (node.rolesAllowed.includes("manager") && isManager) return true;
@@ -146,6 +162,11 @@ const TenantSidebar = ({ drawerOpen, onCloseDrawer }: TenantSidebarProps) => {
   });
 
   const onNavigate = (item: NavNode) => {
+    if (item.id === "logout") {
+      void logout();
+      onCloseDrawer?.();
+      return;
+    }
     if (item.route) {
       navigate(item.route);
       onCloseDrawer?.();
@@ -153,31 +174,67 @@ const TenantSidebar = ({ drawerOpen, onCloseDrawer }: TenantSidebarProps) => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white border-r border-gray-200">
-      <div className={`flex items-center gap-2 px-3 py-4 border-b border-gray-100 ${collapsed ? "justify-center" : ""}`}>
-        <Building2 size={20} className="text-blue-600 shrink-0" />
-        {!collapsed && <span className="text-sm font-pbold text-gray-800">Tenant Portal</span>}
-      </div>
+    <div
+      className={`${
+        collapsed ? "w-16" : "w-64"
+      } h-[90vh] bg-[#f3f4f6] flex flex-col border-r border-gray-200 shadow-sm overflow-hidden transition-all duration-100`}
+    >
+      <div className="flex-1 overflow-y-auto px-2 py-2 space-y-5 hideScrollBar">
+        {/* Tenant section */}
+        <div>
+          {!collapsed ? (
+            <div className="flex items-center justify-center px-3 mb-2">
+              <div className="h-px bg-gray-300 flex-1" />
+              <span className="text-[10px] font-pbold text-gray-500 tracking-wider px-2">Tenant</span>
+              <div className="h-px bg-gray-300 flex-1" />
+            </div>
+          ) : (
+            <div className="px-2 pt-1 pb-2">
+              <div className="text-[10px] font-pbold tracking-wider text-gray-500 uppercase text-center">
+                {SECTION_ABBR.tenant}
+              </div>
+              <div className="mt-2 h-px bg-gray-300" />
+            </div>
+          )}
+          <div className="space-y-1">
+            {visibleNavNodes.map((item) => (
+              <NavGroup
+                key={item.id}
+                item={item}
+                collapsed={collapsed}
+                pathname={location.pathname}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </div>
+        </div>
 
-      <div className="flex-1 overflow-y-auto py-2 px-1.5 space-y-1">
-        {visibleNavNodes.map((item) => (
-          <NavGroup
-            key={item.id}
-            item={item}
-            collapsed={collapsed}
-            pathname={location.pathname}
-            onNavigate={onNavigate}
-          />
-        ))}
-      </div>
-
-      <div className="border-t border-gray-100 py-2 px-1.5">
-        <NavGroup
-          item={{ id: "tenant-signout", label: "Sign Out", icon: LogOut, isRed: true, route: "/sign-out" }}
-          collapsed={collapsed}
-          pathname={location.pathname}
-          onNavigate={onNavigate}
-        />
+        {/* General section */}
+        <div>
+          {!collapsed ? (
+            <div className="flex items-center justify-center px-3 mb-2">
+              <div className="h-px bg-gray-300 flex-1" />
+              <span className="text-[10px] font-pbold text-gray-500 tracking-wider px-2">General</span>
+              <div className="h-px bg-gray-300 flex-1" />
+            </div>
+          ) : (
+            <div className="px-2 pt-1 pb-2">
+              <div className="text-[10px] font-pbold tracking-wider text-gray-500 uppercase text-center">GEN</div>
+              <div className="mt-2 h-px bg-gray-300" />
+            </div>
+          )}
+          <div className="space-y-1">
+            {generalData.map((item) => (
+              <NavGroup
+                key={item.id}
+                item={item}
+                collapsed={collapsed}
+                pathname={location.pathname}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import HostUser from "../models/HostUser.js";
 import Company from "../models/Company.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
+import { TenantCompany } from "../models/TenantCompany.js";
 
 const buildAuthUserPayload = (
   user: any,
@@ -56,6 +57,9 @@ const getAccessibleWorkspaces = async (userId: any) => {
       };
     });
 };
+
+const normalizeInviteEmail = (email: string) =>
+  String(email || "").trim().toLowerCase();
 
 const getFounderEmailForWorkspace = async (workspaceId: any) => {
   if (!workspaceId) return "";
@@ -199,6 +203,32 @@ const refreshTokenController = async (req, res, next) => {
     if (!user) {
       return res.sendStatus(401);
     }
+    // Check if user is a tenant employee
+    let tenantRole = null;
+    let tenantCompanyId = null;
+    let tenantCompanyName = null;
+    let tenantLastLoginAt = null;
+    if (user?.email) {
+      const tenantCompany = await TenantCompany.findOne({
+        "employees.email": normalizeInviteEmail(user.email),
+        "employees.status": "Active",
+      })
+        .lean()
+        .exec();
+      if (tenantCompany) {
+        const emp = Array.isArray(tenantCompany.employees)
+          ? tenantCompany.employees.find(
+              (e) => normalizeInviteEmail(e.email || "") === normalizeInviteEmail(user.email),
+            )
+          : null;
+        if (emp && emp.status === "Active") {
+          tenantRole = emp.tenantRole || (emp.role === "Manager" ? "tenant-manager" : "tenant-employee");
+          tenantCompanyId = String(tenantCompany._id);
+          tenantCompanyName = tenantCompany.companyName || "";
+          tenantLastLoginAt = emp.lastLoginAt || null;
+        }
+      }
+    }
     const workspaceCount = await WorkspaceMember.countDocuments({
       user: user._id,
       isActive: true,
@@ -220,14 +250,20 @@ const refreshTokenController = async (req, res, next) => {
         delete user.password;
         delete user.refreshToken;
         res.status(200).json({
-          user: buildAuthUserPayload(
-            user,
-            company,
-            workspaceCount,
-            workspaceMembership,
-            accessibleWorkspaces,
-            hasCompletedWorkspaceSetupForSession,
-          ),
+          user: {
+            ...buildAuthUserPayload(
+              user,
+              company,
+              workspaceCount,
+              workspaceMembership,
+              accessibleWorkspaces,
+              hasCompletedWorkspaceSetupForSession,
+            ),
+            tenantRole,
+            tenantCompanyId,
+            tenantCompanyName,
+            tenantLastLoginAt,
+          },
           accessToken,
           refreshToken,
         });
