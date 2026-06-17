@@ -3117,7 +3117,7 @@ export default function VisitorsManagementPage() {
     if (normalized === 'checked in' || normalized === 'checked-in' || normalized === 'confirmed (paid)') return 'bg-green-50 text-green-600 border-green-200';
     if (normalized === 'in progress') return 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse';
     if (normalized === 'booked') return 'bg-blue-50 text-blue-600 border-blue-200';
-    if (normalized === 'checked out' || normalized === 'completed') return 'bg-gray-100 text-gray-500 border-gray-200';
+    if (normalized === 'checked out' || normalized === 'completed') return 'bg-slate-100 text-slate-500 border-slate-200';
     if (normalized === 'pending payment' || normalized === 'unpaid') return 'bg-amber-50 text-amber-600 border-amber-200 animate-pulse';
     if (normalized === 'cancelled' || normalized === 'canceled') return 'bg-red-50 text-red-600 border-red-200';
     return 'bg-blue-50 text-blue-600 border-blue-200';
@@ -3126,138 +3126,170 @@ export default function VisitorsManagementPage() {
   return (
     <>
       <PageFrame>
-      <div className="p-2 lg:p-2.5 min-h-full text-[#1E293B] font-sans text-[13px]">
+      <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+
+        <div className="flex flex-col gap-4">
 
         {/* 1. HEADER */}
-        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
           <div>
-            <h2 className="text-title font-pmedium text-primary uppercase mt-1.5">Visitor Management</h2>
-            <p className="mt-1 max-w-2xl text-xs font-semibold text-slate-500">Daily visitors, walk-in bookings, client conversion, payment proof, and invoice handoff in one front desk unit.</p>
+            <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">Visitor Management</h2>
+            <p className="text-xs font-medium text-slate-500 mt-1">Daily visitors, walk-in bookings, client conversion, payment proof, and invoice handoff in one front desk unit.</p>
           </div>
+        </div>
+
+        {/* 2. MAIN PILL TABS */}
+        <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
           <button
             type="button"
-            disabled={!canOpenFrontdeskAction}
-            title={!canOpenFrontdeskAction ? 'You do not have permission for frontdesk action tabs.' : undefined}
-            onClick={() => { setVisitorMode('standard'); setWalkInStep(1); setForm(getDefaultVisitorForm()); setVerifiedBooking(null); setBookingConfirmation(null); setIsLoggingVisitor(true); }}
-            className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-xs font-black shadow-md transition-all ${
-              canOpenFrontdeskAction
-                ? 'bg-[#2563EB] text-white shadow-blue-100 hover:bg-blue-700'
-                : 'bg-slate-200 text-slate-500 cursor-not-allowed shadow-none'
-            }`}
+            disabled={!visitorAccess.tabs.daily}
+            title={!visitorAccess.tabs.daily ? 'You do not have permission for Daily Visitors.' : undefined}
+            onClick={() => setActiveTab('daily')}
+            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+              activeTab === 'daily' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+            } ${!visitorAccess.tabs.daily ? 'cursor-not-allowed opacity-60' : ''}`}
           >
-            <UserPlus size={14} /> New Frontdesk Action
+            DAILY VISITORS {trackedVisitors.length > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-md flex items-center gap-1 ${activeTab === 'daily' ? 'bg-white/20 text-white' : 'bg-red-100 text-red-600'}`}>
+                <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>{trackedVisitors.length}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            disabled={!visitorAccess.tabs.history}
+            title={!visitorAccess.tabs.history ? 'You do not have permission for Visitor History.' : undefined}
+            onClick={() => setActiveTab('history')}
+            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+              activeTab === 'history' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+            } ${!visitorAccess.tabs.history ? 'cursor-not-allowed opacity-60' : ''}`}
+          >
+            VISITOR HISTORY
+          </button>
+          <button
+            type="button"
+            disabled={!visitorAccess.tabs.bookings}
+            title={!visitorAccess.tabs.bookings ? 'You do not have permission for Bookings.' : undefined}
+            onClick={() => setActiveTab('bookings')}
+            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+              activeTab === 'bookings' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+            } ${!visitorAccess.tabs.bookings ? 'text-slate-300 cursor-not-allowed' : ''}`}
+          >
+            {!visitorAccess.tabs.bookings && <Lock size={12} />} BOOKINGS
+          </button>
+          <button
+            type="button"
+            disabled={!visitorAccess.tabs.clients}
+            title={!visitorAccess.tabs.clients ? 'You do not have permission for Clients.' : undefined}
+            onClick={() => setActiveTab('clients')}
+            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+              activeTab === 'clients' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+            } ${!visitorAccess.tabs.clients ? 'text-slate-300 cursor-not-allowed' : ''}`}
+          >
+            {!visitorAccess.tabs.clients && <Lock size={12} />} CLIENTS
           </button>
         </div>
 
-        {/* 2. STATS OVERVIEW */}
-        <div className="mb-4 grid grid-cols-2 gap-2.5 md:grid-cols-4 xl:gap-3">
-          <div className="flex items-center justify-between rounded-xl border border-blue-100 bg-white p-3 shadow-sm">
-            <div><p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-1">Currently Inside</p><p className="text-2xl font-black text-gray-900">{liveVisitors.filter((v) => normalizeText(v.status || v.statusKey || '').replace(/[_-]+/g, ' ') === 'checked in').length}</p></div>
-            <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600"><User size={20} /></div>
+        {/* 3. STATS OVERVIEW */}
+        <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
+            <div className="min-w-0"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Currently Inside</p><p className="text-[15px] font-black text-slate-900">{liveVisitors.filter((v) => normalizeText(v.status || v.statusKey || '').replace(/[_-]+/g, ' ') === 'checked in').length}</p></div>
+            <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><User size={16} /></div>
           </div>
-          <div className="flex items-center justify-between rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
-            <div><p className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1">Daily Bookings</p><p className="text-2xl font-black text-amber-600">{dailyBookings.length}</p></div>
-            <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600"><CalendarDays size={20} /></div>
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
+            <div className="min-w-0"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Daily Bookings</p><p className="text-[15px] font-black text-slate-900">{dailyBookings.length}</p></div>
+            <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><CalendarDays size={16} /></div>
           </div>
-          <div className="flex items-center justify-between rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
-            <div><p className="text-[9px] font-black text-green-500 uppercase tracking-widest mb-1"> Payments Due</p><p className="text-2xl font-black text-green-600">{dailyBookings.filter((booking) => booking.paymentStatus === 'Pending Payment').length}</p></div>
-            <div className="p-2.5 rounded-xl bg-green-50 text-green-600"><Wallet size={20} /></div>
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
+            <div className="min-w-0"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Payments Due</p><p className="text-[15px] font-black text-slate-900">{dailyBookings.filter((booking) => booking.paymentStatus === 'Pending Payment').length}</p></div>
+            <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><Wallet size={16} /></div>
           </div>
-          <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div><p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Total Checked Out</p><p className="text-2xl font-black text-gray-700">{totalCheckedOutCount}</p></div>
-            <div className="p-2.5 rounded-xl bg-gray-50 text-gray-600"><LogOut size={20} /></div>
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-slate-500">
+            <div className="min-w-0"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Checked Out</p><p className="text-[15px] font-black text-slate-900">{totalCheckedOutCount}</p></div>
+            <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><LogOut size={16} /></div>
           </div>
         </div>
 
-        {/* 3. WORKSPACE TABS & CONTROLS */}
-        <div className="flex min-h-[620px] flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+        {/* 4. TABLE WORKSPACE */}
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
 
-          <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex flex-col xl:flex-row justify-between items-center gap-4">
+          <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
 
-            <div className="flex bg-gray-100 p-1.5 rounded-2xl w-full xl:w-auto overflow-x-auto">
-              <button
-                type="button"
-                disabled={!visitorAccess.tabs.daily}
-                title={!visitorAccess.tabs.daily ? 'You do not have permission for Daily Visitors.' : undefined}
-                onClick={() => setActiveTab('daily')}
-                className={`flex-1 px-6 py-2.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-all flex items-center justify-center gap-2 ${
-                  activeTab === 'daily' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'
-                } ${!visitorAccess.tabs.daily ? 'cursor-not-allowed opacity-60' : ''}`}
-              >
-                DAILY VISITORS <span className="bg-red-100 text-red-600 px-1.5 py-0.5 rounded-md flex items-center gap-1"><span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>{trackedVisitors.length}</span>
-              </button>
-              <button
-                type="button"
-                disabled={!visitorAccess.tabs.history}
-                title={!visitorAccess.tabs.history ? 'You do not have permission for Visitor History.' : undefined}
-                onClick={() => setActiveTab('history')}
-                className={`flex-1 px-6 py-2.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-all ${
-                  activeTab === 'history' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'
-                } ${!visitorAccess.tabs.history ? 'cursor-not-allowed opacity-60' : ''}`}
-              >
-                VISITOR HISTORY
-              </button>
-              <button
-                type="button"
-                disabled={!visitorAccess.tabs.bookings}
-                title={!visitorAccess.tabs.bookings ? 'You do not have permission for Bookings.' : undefined}
-                onClick={() => setActiveTab('bookings')}
-                className={`flex-1 px-6 py-2.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-all flex items-center justify-center gap-2 ${
-                  activeTab === 'bookings' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'
-                } ${!visitorAccess.tabs.bookings ? 'text-gray-300 cursor-not-allowed' : ''}`}
-              >
-                {!visitorAccess.tabs.bookings && <Lock size={12} />} BOOKINGS
-              </button>
-              <button
-                type="button"
-                disabled={!visitorAccess.tabs.clients}
-                title={!visitorAccess.tabs.clients ? 'You do not have permission for Clients.' : undefined}
-                onClick={() => setActiveTab('clients')}
-                className={`flex-1 px-6 py-2.5 rounded-xl text-[11px] font-black whitespace-nowrap transition-all flex items-center justify-center gap-2 ${
-                  activeTab === 'clients' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'
-                } ${!visitorAccess.tabs.clients ? 'text-gray-300 cursor-not-allowed' : ''}`}
-              >
-                {!visitorAccess.tabs.clients && <Lock size={12} />} CLIENTS
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+            <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
               {activeTab === 'history' && (
                 <>
-                  <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 outline-none cursor-pointer" value={historyMonth} onChange={(e) => setHistoryMonth(e.target.value)}>
+                  <select className="px-3 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none cursor-pointer transition-all" value={historyMonth} onChange={(e) => setHistoryMonth(e.target.value)}>
                     {historyMonthOptions.map((month) => <option key={month} value={month}>{month}</option>)}
                   </select>
-                  <select className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 outline-none cursor-pointer" value={historyYear} onChange={(e) => setHistoryYear(e.target.value)}>
+                  <select className="px-3 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none cursor-pointer transition-all" value={historyYear} onChange={(e) => setHistoryYear(e.target.value)}>
                     {historyYearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
                   </select>
                 </>
               )}
-              {(activeTab === 'daily' || activeTab === 'history') && (
-                <div className="relative w-full sm:w-56">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-                  <input type="text" placeholder="Search records..." className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-[#2563EB] outline-none" onChange={(e) => setSearchQuery(e.target.value)} />
+              {activeTab === 'bookings' && (
+                <div className="flex items-center gap-1 rounded-2xl bg-slate-100/70 p-1">
+                  {[
+                    ['upcoming', 'Upcoming', bookingCollections.upcoming.length],
+                    ['completed', 'Completed', bookingCollections.completed.length],
+                    ['cancelled', 'Cancelled', bookingCollections.cancelled.length],
+                  ].map(([key, label, count]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setBookingStatusTab(key)}
+                      className={`rounded-xl px-3 py-1.5 text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                        bookingStatusTab === key
+                          ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                          : 'bg-transparent text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                      }`}
+                    >
+                      {label} <span className={`rounded px-1.5 py-0.5 text-[8px] font-bold ${bookingStatusTab === key ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'}`}>{count}</span>
+                    </button>
+                  ))}
                 </div>
               )}
+            </div>
+
+            <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+              {(activeTab === 'daily' || activeTab === 'history' || activeTab === 'bookings' || activeTab === 'clients') && (
+                <div className="relative flex-1 min-w-[160px]">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input type="text" placeholder="Search records..." className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" onChange={(e) => setSearchQuery(e.target.value)} />
+                </div>
+              )}
+              <button
+                type="button"
+                disabled={!canOpenFrontdeskAction}
+                title={!canOpenFrontdeskAction ? 'You do not have permission for frontdesk action tabs.' : undefined}
+                onClick={() => { setVisitorMode('standard'); setWalkInStep(1); setForm(getDefaultVisitorForm()); setVerifiedBooking(null); setBookingConfirmation(null); setIsLoggingVisitor(true); }}
+                className={`inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-[10px] font-bold shadow-sm transition-all whitespace-nowrap ${
+                  canOpenFrontdeskAction
+                    ? 'bg-[#2563EB] text-white hover:bg-blue-700 active:scale-95'
+                    : 'bg-slate-200 text-slate-500 cursor-not-allowed shadow-none'
+                }`}
+              >
+                <UserPlus size={13} strokeWidth={3} /> NEW FRONTDESK ACTION
+              </button>
             </div>
           </div>
 
           {/* --- TAB: DAILY VISITORS --- */}
           {activeTab === 'daily' && (
             <div className="overflow-x-auto flex-1">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
-                    <th className="px-4 py-3">Badge ID</th>
-                    <th className="px-4 py-3">Visitor Info</th>
-                    <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3">Purpose</th>
-                    <th className="px-4 py-3">Host</th>
-                    <th className="px-4 py-3">Check-In / Out</th>
-                    <th className="px-4 py-3 text-center">Status</th>
-                    <th className="px-4 py-3 text-center">Actions</th>
+                    <th className="px-5 py-4">Badge ID</th>
+                    <th className="px-5 py-4">Visitor Info</th>
+                    <th className="px-5 py-4">Date</th>
+                    <th className="px-5 py-4">Purpose</th>
+                    <th className="px-5 py-4">Host</th>
+                    <th className="px-5 py-4">Check-In / Out</th>
+                    <th className="px-5 py-4 text-center">Status</th>
+                    <th className="px-5 py-4 text-center">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-slate-100/60">
                   {trackedVisitors.filter((v) => String(v.name || '').toLowerCase().includes(searchQuery.toLowerCase())).map((vis) => {
                     const visitorId = vis.recordId || vis.id;
                     const normalizedStatus = normalizeText(vis.status || '').replace(/[_-]+/g, ' ');
@@ -3270,67 +3302,67 @@ export default function VisitorsManagementPage() {
                     const isCheckedOut = isVisitorCheckedOut(vis);
 
                     return (
-                      <tr key={visitorId} className="hover:bg-blue-50/30 transition-all group">
-                        <td className="px-4 py-3">
+                      <tr key={visitorId} className="hover:bg-slate-50/50 transition-colors group">
+                        <td className="px-5 py-4 align-top">
                           <div className="font-black text-blue-600 bg-blue-50 px-3 py-2 rounded inline-flex items-center gap-1 border border-blue-100 whitespace-nowrap">
                             <BadgeCheck size={14} /> {vis.badgeNo || 'N/A'}
                           </div>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="font-bold text-gray-900 text-sm whitespace-nowrap truncate max-w-[180px]">{vis.name}</div>
-                          <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-0.5 flex items-center gap-1 whitespace-nowrap">
+                        <td className="px-5 py-4 align-top">
+                          <div className="font-bold text-[#0F172A] text-[13px] whitespace-nowrap truncate max-w-[180px]">{vis.name}</div>
+                          <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5 flex items-center gap-1 whitespace-nowrap">
                             <Building size={10} /> {vis.company}
                           </div>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="font-bold text-gray-900 text-sm flex items-center gap-1.5 whitespace-nowrap">
-                            <CalendarDays size={14} className="text-gray-400" /> {vis.date || formatDisplayDate(vis.createdAt)}
+                        <td className="px-5 py-4 align-top">
+                          <div className="font-bold text-[#0F172A] text-[13px] flex items-center gap-1.5 whitespace-nowrap">
+                            <CalendarDays size={14} className="text-slate-400" /> {vis.date || formatDisplayDate(vis.createdAt)}
                           </div>
                         </td>
-                        <td className="px-4 py-3">
-                          <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 font-bold text-[10px] uppercase rounded mb-1">{vis.purpose}</span>
+                        <td className="px-5 py-4 align-top">
+                          <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 font-bold text-[10px] uppercase rounded mb-1">{vis.purpose}</span>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="text-xs font-semibold text-gray-700 flex items-center gap-1 whitespace-nowrap">
-                            <User size={12} /> <span className="font-bold text-gray-900 truncate max-w-[150px]">{vis.host}</span>
+                        <td className="px-5 py-4 align-top">
+                          <div className="text-xs font-semibold text-slate-600 flex items-center gap-1 whitespace-nowrap">
+                            <User size={12} /> <span className="font-bold text-[#0F172A] truncate max-w-[150px]">{vis.host}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2 font-bold text-gray-900 text-sm whitespace-nowrap">
-                            <span className="text-green-600">{vis.checkIn || formatTimeLabel(vis.checkInAt) || '--:--'}</span>
-                            <span className="text-gray-300">-</span>
-                            <span className={(vis.checkOut || '--:--') === '--:--' ? 'text-gray-400' : 'text-gray-900'}>{vis.checkOut || formatTimeLabel(vis.checkOutAt) || '--:--'}</span>
+                        <td className="px-5 py-4 align-top">
+                          <div className="flex items-center gap-2 font-bold text-[#0F172A] text-[13px] whitespace-nowrap">
+                            <span className="text-emerald-600">{vis.checkIn || formatTimeLabel(vis.checkInAt) || '--:--'}</span>
+                            <span className="text-slate-300">-</span>
+                            <span className={(vis.checkOut || '--:--') === '--:--' ? 'text-slate-400' : 'text-[#0F172A]'}>{vis.checkOut || formatTimeLabel(vis.checkOutAt) || '--:--'}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-5 py-4 align-top">
                           <div className="flex flex-col items-start gap-0.5">
                             <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${getStatusBadge(vis.status)}`}>
                               {vis.status}
                             </span>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-5 py-4 align-top">
                           <div className="flex flex-col items-start gap-2">
                             <div className="flex items-center gap-1.5">
-                              <button title="View details" onClick={() => setViewingVisitor(vis)} className="w-8 h-8 bg-gray-50 border border-gray-200 text-gray-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg transition-all inline-flex items-center justify-center">
-                                <Eye size={13} />
+                              <button title="View details" onClick={() => setViewingVisitor(vis)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all">
+                                <Eye size={15} strokeWidth={2.5} />
                               </button>
                               {!isCheckedOut && (
-                                <button title="Print badge" onClick={() => handlePrintBadge(vis)} className="w-8 h-8 bg-white border border-gray-200 text-gray-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all inline-flex items-center justify-center">
-                                  <Printer size={13} />
+                                <button title="Print badge" onClick={() => handlePrintBadge(vis)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200/70 hover:text-slate-700 rounded-lg transition-all">
+                                  <Printer size={15} strokeWidth={2.5} />
                                 </button>
                               )}
                               {isCheckedIn ? (
-                                <button title="Check out visitor" onClick={() => handleCheckOut(vis.id)} className="w-8 h-8 bg-white border border-gray-200 rounded-lg transition-all inline-flex items-center justify-center text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200">
-                                  <LogOut size={13} />
+                                <button title="Check out visitor" onClick={() => handleCheckOut(vis.id)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600 rounded-lg transition-all">
+                                  <LogOut size={15} strokeWidth={2.5} />
                                 </button>
                               ) : isApproved ? (
-                                <button title="Check in visitor" onClick={() => handleAllowEntry(vis)} className="w-8 h-8 border rounded-lg transition-all inline-flex items-center justify-center bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700">
-                                  <CheckCircle2 size={13} />
+                                <button title="Check in visitor" onClick={() => handleAllowEntry(vis)} className="p-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg transition-all">
+                                  <CheckCircle2 size={15} strokeWidth={2.5} />
                                 </button>
                               ) : (
-                                <button title={isRejected ? 'Rejected' : 'Awaiting approval'} type="button" disabled className={`w-8 h-8 rounded-lg transition-all inline-flex items-center justify-center border ${isRejected ? 'bg-red-50 border-red-200 text-red-500' : 'bg-amber-50 border-amber-200 text-amber-600'} cursor-not-allowed`}>
-                                  {isRejected ? <XCircle size={13} /> : <Clock size={13} />}
+                                <button title={isRejected ? 'Rejected' : 'Awaiting approval'} type="button" disabled className={`p-1.5 rounded-lg transition-all ${isRejected ? 'bg-red-50 text-red-400' : 'bg-amber-50 text-amber-500'} cursor-not-allowed`}>
+                                  {isRejected ? <XCircle size={15} strokeWidth={2.5} /> : <Clock size={15} strokeWidth={2.5} />}
                                 </button>
                               )}
                             </div>
@@ -3345,7 +3377,7 @@ export default function VisitorsManagementPage() {
                     );
                   })}
                   {trackedVisitors.length === 0 && (
-                    <tr><td colSpan={7} className="text-center py-20 text-gray-400 font-bold">No live visitors.</td></tr>
+                    <tr><td colSpan={7} className="text-center py-20 text-slate-400 font-semibold">No live visitors.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -3354,244 +3386,219 @@ export default function VisitorsManagementPage() {
 
           {/* --- TAB: BOOKINGS --- */}
           {activeTab === 'bookings' && (
-            <div className="overflow-x-auto flex-1 bg-gray-50/30">
-              <div className="p-6">
-                <div className="mx-auto mb-5 flex max-w-[960px] flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Create Bookings</p>
-                    <h3 className="text-base font-black text-slate-950">Upcoming, completed, and cancelled bookings</h3>
-                  </div>
-                  <div className="grid grid-cols-3 gap-1 rounded-2xl bg-slate-100 p-1">
-                    {[
-                      ['upcoming', 'Upcoming Bookings', bookingCollections.upcoming.length],
-                      ['completed', 'Completed Bookings', bookingCollections.completed.length],
-                      ['cancelled', 'Cancelled Bookings', bookingCollections.cancelled.length],
-                    ].map(([key, label, count]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setBookingStatusTab(key)}
-                        className={`rounded-xl px-3 py-2 text-[9px] font-black uppercase tracking-widest transition-all ${bookingStatusTab === key ? 'bg-white text-[#2563EB] shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
-                      >
-                        {label} <span className="ml-1 rounded bg-slate-200 px-1.5 py-0.5 text-[8px]">{count}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 gap-4 max-w-[960px] mx-auto">
-                  {selectedBookingList.map((bkg) => (
-                    <div key={bkg.id} className="w-full bg-white border border-gray-200 rounded-[15px] p-3.5 md:p-4 flex flex-col lg:grid lg:grid-cols-[minmax(0,1.95fr)_auto] gap-3 lg:gap-4 items-start lg:items-stretch hover:shadow-md hover:border-blue-300 transition-all group">
+            <div className="overflow-x-auto flex-1">
+              <div className="grid grid-cols-1 gap-4 p-6 max-w-[960px] mx-auto">
+                {selectedBookingList.map((bkg) => (
+                  <div key={bkg.id} className="w-full bg-white border border-slate-200 rounded-[15px] p-3.5 md:p-4 flex flex-col lg:grid lg:grid-cols-[minmax(0,1.95fr)_auto] gap-3 lg:gap-4 items-start lg:items-stretch hover:shadow-md hover:border-blue-300 transition-all group">
 
-                      <div className="flex items-start gap-2.5 min-w-0">
-                        <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0 border border-blue-100 shadow-sm">
-                          <CalendarDays size={16} />
-                        </div>
-                        <div>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <h3 className="font-black text-gray-900 text-[15px]">{bkg.resource}</h3>
-                            <div className="flex items-center gap-1.5">
-                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase border ${getStatusBadge(bkg.status)}`}>{bkg.status}</span>
-                              {bkg.isExtended && (
-                                <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase border bg-purple-50 text-purple-700 border-purple-200 flex items-center gap-1">
-                                  <Clock size={9} /> Extended
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col gap-1 mt-2 text-[11px] font-bold text-gray-500">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="flex items-center gap-1 text-gray-800"><User size={12} /> {bkg.bookedBy} ({bkg.company})</span>
-                              <span className="w-1 h-1 rounded-full bg-gray-300 shrink-0"></span>
-                              <span className={`flex items-center gap-1 px-2 py-0.5 rounded-lg ${bkg.source === 'Website' ? 'bg-indigo-50 text-indigo-700' : 'bg-orange-50 text-orange-700'}`}>
-                                {bkg.source === 'Website' ? <Globe size={9} /> : <Smartphone size={9} />} {bkg.source}
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0 border border-blue-100 shadow-sm">
+                        <CalendarDays size={16} />
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h3 className="font-black text-[#0F172A] text-[15px]">{bkg.resource}</h3>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase border ${getStatusBadge(bkg.status)}`}>{bkg.status}</span>
+                            {bkg.isExtended && (
+                              <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase border bg-purple-50 text-purple-700 border-purple-200 flex items-center gap-1">
+                                <Clock size={9} /> Extended
                               </span>
-                            </div>
-
-                            {bkg.isExtended ? (
-                              <div className="flex flex-col mt-1 space-y-1.5">
-                                <span className="flex items-center gap-1 text-gray-400 line-through decoration-gray-300"><Clock size={12} /> Original: {(bkg.originalDateLabel || bkg.dateLabel || bkg.date)} • {bkg.originalTime || bkg.time}</span>
-                                <span className="flex items-center gap-1 text-purple-600 font-black"><Clock size={12} /> Extended: {(bkg.dateLabel || bkg.date)} • {bkg.time}</span>
-                              </div>
-                            ) : (
-                              <span className="flex items-center gap-1 mt-1"><Clock size={12} /> {bkg.dateLabel || bkg.date} • {bkg.time}</span>
                             )}
                           </div>
                         </div>
-                      </div>
 
-                      <div className="w-full border-t border-gray-100 pt-3 mt-auto flex flex-wrap justify-end gap-1">
-                        {Number(bkg.discountAmount || 0) > 0 && (
-                          <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-2xl text-[7px] font-black uppercase tracking-widest whitespace-nowrap">
-                            Discount {formatCurrency(bkg.discountAmount)}{bkg.discountType === 'percent' ? ` (${Number(bkg.discountValue || 0)}%)` : ''}
-                          </span>
-                        )}
-                        {bkg.invoiceFileUrl && (
-                          <>
-                            <button onClick={() => window.open(bkg.invoiceFileUrl, '_blank', 'noopener,noreferrer')} className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-2xl text-[7px] font-black uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap">
-                              <Download size={12} /> Invoice
-                            </button>
-                            <button onClick={() => { const win = window.open(bkg.invoiceFileUrl, '_blank', 'noopener,noreferrer'); if (win) window.setTimeout(() => win.print?.(), 800); }} className="px-2.5 py-1 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-2xl text-[7px] font-black uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap">
-                              <Printer size={12} /> Print
-                            </button>
-                          </>
-                        )}
-                        {bkg.status === 'In Progress' ? (
-                          <>
-                            <button onClick={() => setViewingBooking(bkg)} className="px-2.5 py-1 bg-white border border-gray-200 text-gray-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-2xl text-[7px] font-black uppercase transition-all flex items-center gap-1 shadow-sm whitespace-nowrap">
-                              <Eye size={12} /> View
-                            </button>
-                            <button onClick={() => { setExtendingBooking(bkg); setExtendAvailability('idle'); setExtendForm({ newEndTime: '', paymentMode: 'Cash' }); setIsExtendModalOpen(true); }} className="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 rounded-2xl text-[7px] font-black uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap">
-                              <Clock size={12} /> Extend Slot
-                            </button>
-                          </>
-                        ) : bkg.status === 'Completed' || bkg.status === 'Cancelled' ? (
-                          <button onClick={() => setViewingBooking(bkg)} className="px-2.5 py-1 bg-white border border-gray-200 text-gray-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-2xl text-[7px] font-black uppercase transition-all flex items-center gap-1 shadow-sm whitespace-nowrap">
+                        <div className="flex flex-col gap-1 mt-2 text-[11px] font-bold text-slate-600">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="flex items-center gap-1 text-slate-800"><User size={12} /> {bkg.bookedBy} ({bkg.company})</span>
+                            <span className="w-1 h-1 rounded-full bg-slate-300 shrink-0"></span>
+                            <span className={`flex items-center gap-1 px-2 py-0.5 rounded-lg ${bkg.source === 'Website' ? 'bg-indigo-50 text-indigo-700' : 'bg-orange-50 text-orange-700'}`}>
+                              {bkg.source === 'Website' ? <Globe size={9} /> : <Smartphone size={9} />} {bkg.source}
+                            </span>
+                          </div>
+
+                          {bkg.isExtended ? (
+                            <div className="flex flex-col mt-1 space-y-1.5">
+                              <span className="flex items-center gap-1 text-slate-400 line-through decoration-slate-300"><Clock size={12} /> Original: {(bkg.originalDateLabel || bkg.dateLabel || bkg.date)} • {bkg.originalTime || bkg.time}</span>
+                              <span className="flex items-center gap-1 text-purple-600 font-black"><Clock size={12} /> Extended: {(bkg.dateLabel || bkg.date)} • {bkg.time}</span>
+                            </div>
+                          ) : (
+                            <span className="flex items-center gap-1 mt-1"><Clock size={12} /> {bkg.dateLabel || bkg.date} • {bkg.time}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="w-full border-t border-slate-100 pt-3 mt-auto flex flex-wrap justify-end gap-1">
+                      {Number(bkg.discountAmount || 0) > 0 && (
+                        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-2xl text-[7px] font-black uppercase tracking-widest whitespace-nowrap">
+                          Discount {formatCurrency(bkg.discountAmount)}{bkg.discountType === 'percent' ? ` (${Number(bkg.discountValue || 0)}%)` : ''}
+                        </span>
+                      )}
+                      {bkg.invoiceFileUrl && (
+                        <>
+                          <button onClick={() => window.open(bkg.invoiceFileUrl, '_blank', 'noopener,noreferrer')} className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-2xl text-[7px] font-black uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap">
+                            <Download size={12} /> Invoice
+                          </button>
+                          <button onClick={() => { const win = window.open(bkg.invoiceFileUrl, '_blank', 'noopener,noreferrer'); if (win) window.setTimeout(() => win.print?.(), 800); }} className="px-2.5 py-1 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-2xl text-[7px] font-black uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap">
+                            <Printer size={12} /> Print
+                          </button>
+                        </>
+                      )}
+                      {bkg.status === 'In Progress' ? (
+                        <>
+                          <button onClick={() => setViewingBooking(bkg)} className="px-2.5 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-2xl text-[7px] font-black uppercase transition-all flex items-center gap-1 shadow-sm whitespace-nowrap">
+                            <Eye size={12} /> View
+                          </button>
+                          <button onClick={() => { setExtendingBooking(bkg); setExtendAvailability('idle'); setExtendForm({ newEndTime: '', paymentMode: 'Cash' }); setIsExtendModalOpen(true); }} className="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 rounded-2xl text-[7px] font-black uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap">
+                            <Clock size={12} /> Extend Slot
+                          </button>
+                        </>
+                      ) : bkg.status === 'Completed' || bkg.status === 'Cancelled' ? (
+                        <button onClick={() => setViewingBooking(bkg)} className="px-2.5 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-2xl text-[7px] font-black uppercase transition-all flex items-center gap-1 shadow-sm whitespace-nowrap">
+                          <Eye size={14} /> View
+                        </button>
+                      ) : (
+                        <>
+                          <button onClick={() => setViewingBooking(bkg)} className="px-2.5 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-2xl text-[7px] font-black uppercase transition-all flex items-center gap-1 shadow-sm whitespace-nowrap">
                             <Eye size={14} /> View
                           </button>
-                        ) : (
-                          <>
-                            <button onClick={() => setViewingBooking(bkg)} className="px-2.5 py-1 bg-white border border-gray-200 text-gray-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-2xl text-[7px] font-black uppercase transition-all flex items-center gap-1 shadow-sm whitespace-nowrap">
-                              <Eye size={14} /> View
+                          <button onClick={() => { setReschedulingBooking(bkg); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }); }} className="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 rounded-2xl text-[7px] font-black uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap">
+                            <CalendarIcon size={12} /> Reschedule
+                          </button>
+                          {bkg.status !== 'In Progress' && (
+                            <button onClick={() => setCancellingBooking(bkg)} className="p-1.5 bg-white border border-slate-200 text-slate-400 rounded-2xl hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all" title="Cancel Booking">
+                              <XCircle size={16} />
                             </button>
-                            <button onClick={() => { setReschedulingBooking(bkg); setRescheduleForm({ newDate: '', newStartTime: '', newEndTime: '' }); }} className="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 rounded-2xl text-[7px] font-black uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap">
-                              <CalendarIcon size={12} /> Reschedule
-                            </button>
-                            {bkg.status !== 'In Progress' && (
-                              <button onClick={() => setCancellingBooking(bkg)} className="p-1.5 bg-white border border-gray-200 text-gray-400 rounded-2xl hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all" title="Cancel Booking">
-                                <XCircle size={16} />
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </div>
-
+                          )}
+                        </>
+                      )}
                     </div>
-                  ))}
-                  {selectedBookingList.length === 0 && (
-                    <div className="text-center py-20 text-gray-400 font-bold">No {bookingStatusTab} external bookings found.</div>
-                  )}
-                </div>
+
+                  </div>
+                ))}
+                {selectedBookingList.length === 0 && (
+                  <div className="text-center py-20 text-slate-400 font-semibold">No {bookingStatusTab} external bookings found.</div>
+                )}
               </div>
             </div>
           )}
 
           {/* --- TAB: CLIENTS --- */}
           {activeTab === 'clients' && (
-            <div className="flex-1 overflow-x-auto bg-gray-50/30">
-              <div className="p-6">
-                <div className="mx-auto mb-5 max-w-[960px] rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-500">Client Database</p>
-                  <h3 className="mt-1 text-base font-black text-slate-950">Clients created from bookings and visitor conversions</h3>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">Search a client, view contact details, and open booking history without leaving front desk.</p>
-                </div>
-
-                <div className="mx-auto grid max-w-[960px] grid-cols-1 gap-4">
+            <div className="overflow-x-auto flex-1">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <tr>
+                    <th className="px-5 py-4">Client Info</th>
+                    <th className="px-5 py-4">Contact</th>
+                    <th className="px-5 py-4">Source</th>
+                    <th className="px-5 py-4 text-center">Bookings</th>
+                    <th className="px-5 py-4 text-center">Total Value</th>
+                    <th className="px-5 py-4 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100/60">
                   {clientRows.map((client) => (
-                    <div key={client.id || client.recordId || client.clientCode} className="rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-blue-200 hover:shadow-md">
-                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="truncate text-base font-black text-slate-950">{client.name || client.company || 'Unnamed Client'}</h3>
-                            <span className="rounded-lg border border-blue-100 bg-blue-50 px-2 py-1 text-[8px] font-black uppercase tracking-widest text-blue-700">
-                              {client.clientCode || 'Client'}
-                            </span>
-                            {normalizeText(client.source) === 'visitor-conversion' && (
-                              <span className="rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-700">
-                                Converted Visitor
-                              </span>
-                            )}
-                          </div>
-                          <p className="mt-1 text-xs font-bold text-slate-500">{client.company || 'Individual Client'}</p>
-                          <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold text-slate-500">
-                            <span className="inline-flex items-center gap-1 rounded-xl bg-slate-50 px-2.5 py-1"><Phone size={12} /> {client.phone || 'No phone'}</span>
-                            <span className="inline-flex items-center gap-1 rounded-xl bg-slate-50 px-2.5 py-1"><Mail size={12} /> {client.email || 'No email'}</span>
-                          </div>
+                    <tr key={client.id || client.recordId || client.clientCode} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-5 py-4 align-top">
+                        <div className="font-bold text-[#0F172A] text-[13px]">{client.name || client.company || 'Unnamed Client'}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="rounded-lg border border-blue-100 bg-blue-50 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-blue-700">
+                            {client.clientCode || 'Client'}
+                          </span>
+                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{client.company || 'Individual'}</span>
                         </div>
-
-                        <div className="flex shrink-0 items-center gap-3">
-                          <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-center">
-                            <p className="text-xl font-black text-slate-950">{client.bookingCount || 0}</p>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Bookings</p>
-                          </div>
-                          <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-center">
-                            <p className="text-sm font-black text-slate-950">{formatCurrency(client.totalBookedAmount || 0)}</p>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Value</p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setViewingClient(client)}
-                            className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-md shadow-blue-100 transition-all hover:bg-blue-700"
-                          >
-                            <Eye size={14} /> View History
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                      </td>
+                      <td className="px-5 py-4 align-top">
+                        <div className="text-xs font-semibold text-slate-600 flex items-center gap-1"><Phone size={12} /> {client.phone || '—'}</div>
+                        <div className="text-xs font-semibold text-slate-600 flex items-center gap-1 mt-0.5"><Mail size={12} /> {client.email || '—'}</div>
+                      </td>
+                      <td className="px-5 py-4 align-top">
+                        {normalizeText(client.source) === 'visitor-conversion' ? (
+                          <span className="inline-flex px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border border-emerald-200 bg-emerald-50 text-emerald-700">
+                            Converted
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold text-slate-400">Direct</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 align-top text-center">
+                        <span className="font-black text-[#0F172A] text-[13px]">{client.bookingCount || 0}</span>
+                      </td>
+                      <td className="px-5 py-4 align-top text-center">
+                        <span className="font-black text-[#0F172A] text-[13px]">{formatCurrency(client.totalBookedAmount || 0)}</span>
+                      </td>
+                      <td className="px-5 py-4 align-top text-center">
+                        <button
+                          type="button"
+                          onClick={() => setViewingClient(client)}
+                          className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
+                        >
+                          <Eye size={15} strokeWidth={2.5} />
+                        </button>
+                      </td>
+                    </tr>
                   ))}
-
                   {clientRows.length === 0 && (
-                    <div className="rounded-3xl border border-dashed border-slate-200 bg-white py-20 text-center">
-                      <p className="text-sm font-black text-slate-600">No clients found.</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-400">New and converted visitor bookings will create client records here.</p>
-                    </div>
+                    <tr><td colSpan={6} className="text-center py-20 text-slate-400 font-semibold">No clients found.</td></tr>
                   )}
-                </div>
-              </div>
+                </tbody>
+              </table>
             </div>
           )}
 
           {/* --- TAB: HISTORY TABLE --- */}
           {activeTab === 'history' && (
             <div className="overflow-x-auto flex-1">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
-                    <th className="px-4 py-3">Badge ID</th>
-                    <th className="px-4 py-3">Date</th>
-                    <th className="px-4 py-3">Visitor Info</th>
-                    <th className="px-4 py-3">Purpose</th>
-                    <th className="px-4 py-3">Host</th>
-                    <th className="px-4 py-3">In - Out Time</th>
-                    <th className="px-4 py-3 text-center">Status</th>
-                    <th className="px-4 py-3 text-center">Action</th>
+                    <th className="px-5 py-4">Badge ID</th>
+                    <th className="px-5 py-4">Date</th>
+                    <th className="px-5 py-4">Visitor Info</th>
+                    <th className="px-5 py-4">Purpose</th>
+                    <th className="px-5 py-4">Host</th>
+                    <th className="px-5 py-4">In - Out Time</th>
+                    <th className="px-5 py-4 text-center">Status</th>
+                    <th className="px-5 py-4 text-center">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-slate-100/60">
                   {displayedHistory.map((vis) => {
                     const isCheckedOut = isVisitorCheckedOut(vis);
                     return (
-                    <tr key={vis.id} className="hover:bg-gray-50 transition-all opacity-80 group">
-                      <td className="px-4 py-3">
+                    <tr key={vis.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-5 py-4 align-top">
                         <div className="font-black text-blue-600 bg-blue-50 px-3 py-2 rounded inline-flex items-center gap-1 border border-blue-100 whitespace-nowrap">
                           <BadgeCheck size={14} /> {vis.badgeNo || 'N/A'}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="font-bold text-gray-900 text-sm flex items-center gap-1.5 whitespace-nowrap"><CalendarDays size={14} className="text-gray-400" /> {vis.date || formatDisplayDate(vis.createdAt)}</div>
+                      <td className="px-5 py-4 align-top">
+                        <div className="font-bold text-[#0F172A] text-[13px] flex items-center gap-1.5 whitespace-nowrap"><CalendarDays size={14} className="text-slate-400" /> {vis.date || formatDisplayDate(vis.createdAt)}</div>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="font-bold text-gray-900 text-sm whitespace-nowrap truncate max-w-[180px]">{vis.name}</div>
-                        <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-0.5 flex items-center gap-1 whitespace-nowrap">
+                      <td className="px-5 py-4 align-top">
+                        <div className="font-bold text-[#0F172A] text-[13px] whitespace-nowrap truncate max-w-[180px]">{vis.name}</div>
+                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5 flex items-center gap-1 whitespace-nowrap">
                           <Building size={10} /> {vis.company}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-700 font-bold text-[10px] uppercase rounded mb-1">{vis.purpose}</span>
+                      <td className="px-5 py-4 align-top">
+                        <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 font-bold text-[10px] uppercase rounded mb-1">{vis.purpose}</span>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="text-xs font-semibold text-gray-700 flex items-center gap-1 whitespace-nowrap">
-                          <User size={12} /> <span className="font-bold text-gray-900 truncate max-w-[150px]">{vis.host}</span>
+                      <td className="px-5 py-4 align-top">
+                        <div className="text-xs font-semibold text-slate-600 flex items-center gap-1 whitespace-nowrap">
+                          <User size={12} /> <span className="font-bold text-[#0F172A] truncate max-w-[150px]">{vis.host}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 font-bold text-gray-700 text-sm whitespace-nowrap">
+                      <td className="px-5 py-4 align-top">
+                        <div className="flex items-center gap-2 font-bold text-[#0F172A] text-[13px] whitespace-nowrap">
                           <span>{vis.checkIn || formatTimeLabel(vis.checkInAt) || '--:--'}</span>
-                          <span className="text-gray-300">-</span>
+                          <span className="text-slate-300">-</span>
                           <span>{vis.checkOut || formatTimeLabel(vis.checkOutAt) || '--:--'}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-5 py-4 align-top text-center">
                         <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${getStatusBadge(vis.status)}`}>
                           {vis.status}
                         </span>
@@ -3603,14 +3610,14 @@ export default function VisitorsManagementPage() {
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-5 py-4 align-top text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <button title="View details" onClick={() => setViewingVisitor(vis)} className="w-8 h-8 bg-white border border-gray-200 text-gray-600 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-all inline-flex items-center justify-center shadow-sm">
-                            <Eye size={13} />
+                          <button title="View details" onClick={() => setViewingVisitor(vis)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all">
+                            <Eye size={15} strokeWidth={2.5} />
                           </button>
                           {!isCheckedOut && (
-                            <button title="Print badge" onClick={() => handlePrintBadge(vis)} className="w-8 h-8 bg-white border border-gray-200 text-gray-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all inline-flex items-center justify-center shadow-sm">
-                              <Printer size={13} />
+                            <button title="Print badge" onClick={() => handlePrintBadge(vis)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200/70 hover:text-slate-700 rounded-lg transition-all">
+                              <Printer size={15} strokeWidth={2.5} />
                             </button>
                           )}
                         </div>
@@ -3618,12 +3625,13 @@ export default function VisitorsManagementPage() {
                     </tr>
                   )})}
                   {displayedHistory.length === 0 && (
-                    <tr><td colSpan={8} className="text-center py-20 text-gray-400 font-bold">No historical data found for {historyMonth} {historyYear}.</td></tr>
+                    <tr><td colSpan={8} className="text-center py-20 text-slate-400 font-semibold">No historical data found for {historyMonth} {historyYear}.</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
           )}
+        </div>
         </div>
 
         {/* MODAL 1: GRAND UNIFIED "LOG VISITOR & BOOKING" TERMINAL */}
@@ -3646,11 +3654,11 @@ export default function VisitorsManagementPage() {
                     disabled={!visitorAccess.modes.standard}
                     title={!visitorAccess.modes.standard ? 'You do not have permission for Standard Visitor.' : undefined}
                     onClick={() => { setVisitorMode('standard'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setForm((prev) => ({ ...prev, standardVisitorType: prev.standardVisitorType || 'standard' })); }}
-                    className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all ${visitorMode === 'standard' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.standard ? 'cursor-not-allowed opacity-60' : ''}`}
+                    className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-bold uppercase whitespace-nowrap transition-all ${visitorMode === 'standard' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-800/30' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.standard ? 'cursor-not-allowed opacity-60' : ''}`}
                   >Standard Visitor</button>
-                  <button type="button" disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have permission for Unit Tour.' : undefined} onClick={() => setVisitorMode('tour')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'tour' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.tour ? 'text-slate-500 bg-slate-700/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.tour && <Lock size={11} />} Unit Tour</button>
-                  <button type="button" disabled={!visitorAccess.modes.walkin_booking} title={!visitorAccess.modes.walkin_booking ? 'You do not have permission for Walk-in Booking.' : undefined} onClick={() => setVisitorMode('walkin_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'walkin_booking' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.walkin_booking ? 'text-slate-500 bg-slate-700/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.walkin_booking && <Lock size={11} />} Walk-in Booking</button>
-                  <button type="button" disabled={!visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have permission for Verify Booking ID.' : undefined} onClick={() => setVisitorMode('verify_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-black uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'verify_booking' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.verify_booking ? 'text-slate-500 bg-slate-700/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.verify_booking && <Lock size={11} />} Verify Booking ID</button>
+                  <button type="button" disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have permission for Unit Tour.' : undefined} onClick={() => setVisitorMode('tour')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-bold uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'tour' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-800/30' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.tour ? 'text-slate-500 bg-slate-700/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.tour && <Lock size={11} />} Unit Tour</button>
+                  <button type="button" disabled={!visitorAccess.modes.walkin_booking} title={!visitorAccess.modes.walkin_booking ? 'You do not have permission for Walk-in Booking.' : undefined} onClick={() => setVisitorMode('walkin_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-bold uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'walkin_booking' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-800/30' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.walkin_booking ? 'text-slate-500 bg-slate-700/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.walkin_booking && <Lock size={11} />} Walk-in Booking</button>
+                  <button type="button" disabled={!visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have permission for Verify Booking ID.' : undefined} onClick={() => setVisitorMode('verify_booking')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-bold uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'verify_booking' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-800/30' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.verify_booking ? 'text-slate-500 bg-slate-700/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.verify_booking && <Lock size={11} />} Verify Booking ID</button>
                 </div>
               </div>
 

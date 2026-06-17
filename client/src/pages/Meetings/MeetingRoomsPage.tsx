@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+﻿import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Search, ChevronDown, Clock, Users, Building,
@@ -632,7 +632,7 @@ export function MeetingRoomsPage() {
   // FRONTEND PREVIEW: Default to 'owner' role when no user is stored in localStorage.
   // TODO: Remove this fallback when auth is wired up.
   const membershipRole = (storedUser?.workspaceMembership?.role || storedUser?.role || 'owner').toLowerCase();
-  const isOwnerProfile = membershipRole === 'owner';
+  const isOwnerProfile = membershipRole === 'owner' || membershipRole === 'founder';
   const isSuperAdminProfile = membershipRole === 'super_admin' || membershipRole === 'super-admin';
   const isAdminProfile = canAccessAdminDashboard(storedUser);
   const isHrManagerProfile = canAccessHRDashboard(storedUser);
@@ -866,14 +866,14 @@ export function MeetingRoomsPage() {
 
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
 
-  // ─── MAIN BOOKING TABS ───
+  // --------- MAIN BOOKING TABS ---------
   const [mainBookingTab, setMainBookingTab] = useState<'my_bookings' | 'internal_booking' | 'external_booking' | 'tenant_bookings'>('my_bookings');
 
-  // ─── TENANT COMPANIES ───
+  // --------- TENANT COMPANIES ---------
   const [tenantCompanies, setTenantCompanies] = useState<Record<string, any>[]>([]);
   const [isLoadingTenants, setIsLoadingTenants] = useState(false);
 
-  // ─── FORMS ───
+  // --------- FORMS ---------
   const [showExternalBookingDialog, setShowExternalBookingDialog] = useState(false);
   const [showInternalBookingDialog, setShowInternalBookingDialog] = useState(false);
   const [showTenantBookingDialog, setShowTenantBookingDialog] = useState(false);
@@ -984,6 +984,13 @@ export function MeetingRoomsPage() {
   }, [isMyBooking, isDepartmentManagerProfile, matchesDepartmentScope, hasCurrentUserInvite]);
 
   const isBookingInActiveTab = useCallback((booking: any, tab: string = activeTab) => {
+    if (mainBookingTab !== 'my_bookings') {
+      const status = getBookingDisplayStatus(booking);
+      if (tab === 'bookings') return status !== 'completed' && status !== 'cancelled';
+      if (tab === 'booking_history') return status === 'completed' || status === 'cancelled';
+      return true;
+    }
+
     if (tab === 'my_bookings') {
       return isMyBooking(booking);
     }
@@ -1001,7 +1008,7 @@ export function MeetingRoomsPage() {
     }
 
     return false;
-  }, [activeTab, isMyBooking, isAssignedDeptBooking, isCompanyBooking, isDepartmentBooking]);
+  }, [activeTab, isMyBooking, isAssignedDeptBooking, isCompanyBooking, isDepartmentBooking, mainBookingTab]);
 
   const getRoomCatalogEntry = useCallback((roomName?: string) => {
     const roomCatalog = roomDetails.map((room: any) => normalizeRoomEntry(room));
@@ -1158,10 +1165,14 @@ export function MeetingRoomsPage() {
   }, []);
 
   const visibleBookings = useMemo(() => {
+    if (mainBookingTab === 'external_booking') return allBookings.filter((b) => normalize(b.bookingType) === 'external');
+    if (mainBookingTab === 'tenant_bookings') return allBookings.filter((b) => normalize(b.bookingType) === 'tenant');
+    if (mainBookingTab === 'internal_booking') return allBookings.filter((b) => normalize(b.bookingType) !== 'external' && normalize(b.bookingType) !== 'tenant');
+    
     if (isEmployeeProfile) return allBookings.filter((booking) => isMyBooking(booking));
     if (!isAdminProfile) return allBookings;
     return allBookings.filter((booking) => isAssignedDeptBooking(booking) || isMyBooking(booking));
-  }, [allBookings, isAdminProfile, isAssignedDeptBooking, isMyBooking, isEmployeeProfile]);
+  }, [allBookings, isAdminProfile, isAssignedDeptBooking, isMyBooking, isEmployeeProfile, mainBookingTab]);
 
   const displayedBookings = useMemo(() => {
     if (activeTab === 'invites') return [];
@@ -1224,30 +1235,86 @@ export function MeetingRoomsPage() {
     setCalendarRoomFilter((current) => roomNames.includes(current) ? current : (roomNames[0] || ''));
   };
 
-  // ─── MISSING FORM STATES ───
+  // --------- MISSING FORM STATES ---------
   const [externalBookingForm, setExternalBookingForm] = useState({
-    name: '', phone: '', email: '', company: '', roomName: '', date: '',
+    name: '', phone: '', email: '', company: '', roomType: '', floor: '', wing: '', roomName: '', date: '',
     startTime: '', endTime: '', attendees: 1, purpose: '', paymentMode: 'Cash',
     transactionId: '', discountType: 'amount', discountValue: '', notes: '',
   });
   const [isSavingExternalBooking, setIsSavingExternalBooking] = useState(false);
 
   const [internalBookingForm, setInternalBookingForm] = useState({
-    bookedForName: '', bookedForUserId: '', department: '', roomName: '', date: '',
+    departmentRoleFilter: '', bookedForName: '', bookedForUserId: '', department: '', roomType: '', floor: '', wing: '', roomName: '', date: '',
     startTime: '', endTime: '', attendees: 1, purpose: '', inviteParticipantIds: [] as string[], notes: '',
   });
   const [isSavingInternalBooking, setIsSavingInternalBooking] = useState(false);
 
   const [tenantBookingForm, setTenantBookingForm] = useState({
     tenantCompanyId: '', tenantCompanyName: '', bookedByName: '', bookedByEmail: '', bookedByPhone: '',
-    roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', notes: '', creditsToDeduct: 0,
+    roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', notes: '', creditsToDeduct: 0, inviteParticipantIds: [] as string[],
   });
   const [isSavingTenantBooking, setIsSavingTenantBooking] = useState(false);
+  const [externalBookingClientTab, setExternalBookingClientTab] = useState<'new' | 'existing'>('new');
+  const [tenantSearchQuery, setTenantSearchQuery] = useState('');
 
-  // ─── ROOM CATALOG (normalized list) ───
+  // --------- ROOM CATALOG (normalized list) ---------
   const roomCatalog = useMemo(() => roomDetails.map((room: any) => normalizeRoomEntry(room)), [roomDetails]);
 
-  // ─── CALENDAR STATE ───
+  // --------- INTERNAL BOOKING FILTERS ---------
+  const departmentRoleOptions = useMemo(() => {
+    const options = new Set<string>();
+    workspaceMembers.forEach((m: any) => {
+      const dept = m.departments?.[0] || m.department || 'General';
+      const role = m.role || 'Member';
+      options.add(`${dept} - ${role}`);
+    });
+    return Array.from(options).sort();
+  }, [workspaceMembers]);
+
+  // --------- EXTERNAL (WALK-IN) PRICING ---------
+  const externalWalkInPricing = useMemo(() => {
+    const room = roomCatalog.find(r => r.name === externalBookingForm.roomName);
+    if (!room) return null;
+
+    const startMinutes = timeToMinutes(externalBookingForm.startTime) || 0;
+    const endMinutes = timeToMinutes(externalBookingForm.endTime) || 0;
+    const durationMinutes = Math.max(0, endMinutes - startMinutes);
+    const durationHours = durationMinutes / 60;
+    
+    let baseAmount = 0;
+    if (room.pricePerHour > 0) {
+      baseAmount = room.pricePerHour * durationHours;
+    } else {
+      const capacity = Number(room.capacity || 4);
+      const hourly = Math.max(200, Math.round(capacity / 2) * 100);
+      baseAmount = hourly * durationHours;
+    }
+
+    const subtotalBeforeDiscount = baseAmount;
+    const discountType = externalBookingForm.discountType === 'percent' ? 'percent' : 'amount';
+    const rawDiscountValue = Number(externalBookingForm.discountValue || 0);
+    const discountValue = Number.isFinite(rawDiscountValue) ? Math.max(rawDiscountValue, 0) : 0;
+    
+    const discountAmountRaw = discountType === 'percent'
+      ? (subtotalBeforeDiscount * Math.min(discountValue, 100)) / 100
+      : discountValue;
+      
+    const discountAmount = Math.min(Math.max(discountAmountRaw, 0), subtotalBeforeDiscount);
+    const taxableBaseAfterDiscount = Math.max(subtotalBeforeDiscount - discountAmount, 0);
+    const gst = taxableBaseAfterDiscount * 0.18;
+
+    return {
+      subtotalBeforeDiscount,
+      discountType,
+      discountValue,
+      discountAmount,
+      taxableBaseAfterDiscount,
+      gst,
+      total: taxableBaseAfterDiscount + gst,
+    };
+  }, [externalBookingForm.roomName, externalBookingForm.startTime, externalBookingForm.endTime, externalBookingForm.discountType, externalBookingForm.discountValue, roomCatalog]);
+
+  // --------- CALENDAR STATE ---------
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
   const currentMonth = calendarDate.getMonth();
@@ -1274,17 +1341,17 @@ export function MeetingRoomsPage() {
 
   const canSeeCalendarBookingDetails = isOwnerProfile || isSuperAdminProfile || isAdministrationManagerProfile;
 
-  // ─── FORMATTING HELPERS ───
+  // --------- FORMATTING HELPERS ---------
   const formatCurrency = (amount?: number | null) => {
     const value = Number(amount || 0);
-    return `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    return `---${value.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
   };
 
   const formatTimeSlot = (startTime?: string, endTime?: string) => {
     const fmt = (t?: string) => formatTime12h(t || '');
     if (!startTime && !endTime) return '';
     if (!endTime) return fmt(startTime);
-    return `${fmt(startTime)} – ${fmt(endTime)}`;
+    return `${fmt(startTime)} --- ${fmt(endTime)}`;
   };
 
   const formatTimeOptionLabel = (timeValue: string) => formatTime12h(timeValue);
@@ -1333,10 +1400,10 @@ export function MeetingRoomsPage() {
     if (room.wing) parts.push(`Wing ${room.wing}`);
     if (room.capacity) parts.push(`${room.capacity} seats`);
     if (!isActiveRoom(room)) parts.push('(Unavailable)');
-    return parts.join(' • ');
+    return parts.join(' --- ');
   };
 
-  // ─── MANAGE OWN BOOKING PERMISSIONS ───
+  // --------- MANAGE OWN BOOKING PERMISSIONS ---------
   const canManageOwnBooking = (booking: any) => {
     const status = getBookingDisplayStatus(booking);
     return status === 'booked' || status === 'in progress';
@@ -1357,12 +1424,12 @@ export function MeetingRoomsPage() {
   const getInviteMeetingLabel = (booking: any) => {
     if (!booking?.isInvitedMeeting) return '';
     const status = booking.currentInviteStatus;
-    if (status === 'accepted') return 'Invited – Accepted';
-    if (status === 'rejected') return 'Invited – Rejected';
+    if (status === 'accepted') return 'Invited --- Accepted';
+    if (status === 'rejected') return 'Invited --- Rejected';
     return 'Invited';
   };
 
-  // ─── BOOKING TIME VALIDATION ───
+  // --------- BOOKING TIME VALIDATION ---------
   const bookingTimeValidation = useMemo(() => {
     return getBookingTimeValidation(newBooking.date, newBooking.startTime, newBooking.endTime);
   }, [newBooking.date, newBooking.startTime, newBooking.endTime]);
@@ -1388,7 +1455,7 @@ export function MeetingRoomsPage() {
     return getSuggestedSlots(newBooking.roomName, newBooking.date, newBooking.startTime, newBooking.endTime);
   }, [newBooking.roomName, newBooking.date, newBooking.startTime, newBooking.endTime, getSuggestedSlots]);
 
-  // ─── RESCHEDULE TIME VALIDATION ───
+  // --------- RESCHEDULE TIME VALIDATION ---------
   const rescheduleTimeValidation = useMemo(() => {
     return getBookingTimeValidation(rescheduleData.date, rescheduleData.startTime, rescheduleData.endTime);
   }, [rescheduleData.date, rescheduleData.startTime, rescheduleData.endTime]);
@@ -1398,7 +1465,7 @@ export function MeetingRoomsPage() {
     return checkAvailability(rescheduleData, rescheduleData.recordId || null);
   }, [rescheduleData, checkAvailability]);
 
-  // ─── EXTEND BOOKING PREVIEW ───
+  // --------- EXTEND BOOKING PREVIEW ---------
   const extendBookingPreview = useMemo(() => {
     if (!extendBooking || !extendForm.extraMinutes) return { available: false, reason: 'No booking selected.' };
     const extraMinutes = Number(extendForm.extraMinutes);
@@ -1436,12 +1503,12 @@ export function MeetingRoomsPage() {
     };
   }, [extendBooking, extendForm.extraMinutes, allBookings]);
 
-  // ─── SCOPED BOOKINGS (for summary cards) ───
+  // --------- SCOPED BOOKINGS (for summary cards) ---------
   const scopedBookings = useMemo(() => {
     return allBookings.filter(b => isMyBooking(b));
   }, [allBookings, isMyBooking]);
 
-  // ─── BOOKING FORM: room filter state ───
+  // --------- BOOKING FORM: room filter state ---------
   const [selectedBookingLocation, setSelectedBookingLocation] = useState('');
   const [selectedBookingFloor, setSelectedBookingFloor] = useState('');
   const [selectedBookingWing, setSelectedBookingWing] = useState('');
@@ -1511,7 +1578,7 @@ export function MeetingRoomsPage() {
     return getRoomCapacity(newBooking.roomName);
   }, [newBooking.roomName, getRoomCapacity]);
 
-  // ─── TIME OPTIONS ───
+  // --------- TIME OPTIONS ---------
   const createStartTimeOptions = useMemo(() => {
     const now = getMeetingClockParts();
     if (!now || !newBooking.date) return buildTimeOptions('09:00', '22:00');
@@ -1531,7 +1598,7 @@ export function MeetingRoomsPage() {
     return buildTimeOptions(minEnd, '23:55');
   }, [newBooking.startTime]);
 
-  // ─── INVITE MEMBER HELPERS ───
+  // --------- INVITE MEMBER HELPERS ---------
   const resolveMemberName = (member: any) => {
     return getEmployeeDisplayName(member) || member?.fullName || member?.name || member?.email || '';
   };
@@ -1550,7 +1617,8 @@ export function MeetingRoomsPage() {
   const inviteDepartments = useMemo(() => {
     const filteredMembers = workspaceMembers.filter(member => {
       const memberId = resolveMemberUserId(member);
-      return memberId && memberId !== currentUserId;
+      const isExternalOrTenant = normalize(member.role) === 'external' || normalize(member.role) === 'tenant';
+      return memberId && memberId !== currentUserId && !isExternalOrTenant;
     });
     const departmentMap = new Map<string, any[]>();
     filteredMembers.forEach(member => {
@@ -1563,7 +1631,7 @@ export function MeetingRoomsPage() {
     return Array.from(departmentMap.entries()).map(([department, members]) => ({ department, members }));
   }, [workspaceMembers, currentUserId]);
 
-  // ─── RESCHEDULE TIME OPTIONS ───
+  // --------- RESCHEDULE TIME OPTIONS ---------
   const rescheduleStartTimeOptions = useMemo(() => {
     const now = getMeetingClockParts();
     if (!now || !rescheduleData.date) return buildTimeOptions('09:00', '22:00');
@@ -1583,7 +1651,7 @@ export function MeetingRoomsPage() {
     return buildTimeOptions(minEnd, '23:55');
   }, [rescheduleData.startTime]);
 
-  // ─── ALL NORMALIZED ROOMS (flat list for booking dialogs) ───
+  // --------- ALL NORMALIZED ROOMS (flat list for booking dialogs) ---------
   const allNormalizedRooms = useMemo(() => {
     return roomCatalog.filter(isActiveRoom).map(room => ({
       ...room,
@@ -1773,7 +1841,7 @@ export function MeetingRoomsPage() {
     }
   };
 
-  // ─── LOAD TENANT COMPANIES for Tenant Booking tab ───
+  // --------- LOAD TENANT COMPANIES for Tenant Booking tab ---------
   useEffect(() => {
     if (mainBookingTab !== 'tenant_bookings') return;
     let isMounted = true;
@@ -1789,7 +1857,7 @@ export function MeetingRoomsPage() {
     return () => { isMounted = false; };
   }, [mainBookingTab]);
 
-  // ─── SUMMARY CARDS (change per mainBookingTab) ───
+  // --------- SUMMARY CARDS (change per mainBookingTab) ---------
   const meetingSummaryCards = useMemo(() => {
     const upcomingCount = scopedBookings.filter(b => getBookingDisplayStatus(b) === 'booked').length;
     const inProgressCount = scopedBookings.filter(b => getBookingDisplayStatus(b) === 'in progress').length;
@@ -1832,7 +1900,28 @@ export function MeetingRoomsPage() {
     ];
   }, [mainBookingTab, scopedBookings, allBookings, tenantCompanies]);
 
-  // ─── HANDLERS for new booking modals ───
+  // --------- EXISTING EXTERNAL CLIENTS (derived from booking history for the Existing Client tab) ---------
+  const existingExternalClients = useMemo(() => {
+    const seen = new Set<string>();
+    const clients: { name: string; phone: string; email: string; company: string }[] = [];
+    allBookings
+      .filter(b => normalize(b.bookingType) === 'external' && b.bookedByName)
+      .forEach(b => {
+        const key = b.bookedByName || '';
+        if (!seen.has(key)) {
+          seen.add(key);
+          clients.push({
+            name: b.bookedByName || '',
+            phone: (b as any).bookedByPhone || '',
+            email: (b as any).bookedByEmail || '',
+            company: (b as any).clientCompany || '',
+          });
+        }
+      });
+    return clients;
+  }, [allBookings]);
+
+  // --------- HANDLERS for new booking modals ---------
   const handleSubmitExternalBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!externalBookingForm.name.trim()) return setErrorMessage('Client name is required.');
@@ -1860,10 +1949,19 @@ export function MeetingRoomsPage() {
         paymentMode: externalBookingForm.paymentMode,
         transactionId: externalBookingForm.transactionId,
         bookingNotes: externalBookingForm.notes,
+        totalAmount: externalWalkInPricing?.total || 0,
+        amountDue: externalWalkInPricing?.total || 0,
+        discountType: externalWalkInPricing?.discountType || 'amount',
+        discountValue: externalWalkInPricing?.discountValue || 0,
+        discountAmount: externalWalkInPricing?.discountAmount || 0,
+        subtotalBeforeDiscount: externalWalkInPricing?.subtotalBeforeDiscount || 0,
+        taxableBaseAfterDiscount: externalWalkInPricing?.taxableBaseAfterDiscount || 0,
+        baseAmount: externalWalkInPricing?.taxableBaseAfterDiscount || 0,
+        gstAmount: externalWalkInPricing?.gst || 0,
       } as any);
       await reloadBookings();
       setShowExternalBookingDialog(false);
-      setExternalBookingForm({ name: '', phone: '', email: '', company: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', paymentMode: 'Cash', transactionId: '', discountType: 'amount', discountValue: '', notes: '' });
+      setExternalBookingForm({ name: '', phone: '', email: '', company: '', roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', paymentMode: 'Cash', transactionId: '', discountType: 'amount', discountValue: '', notes: '' });
     } catch (error: any) {
       setErrorMessage(error?.response?.data?.message || error?.message || 'Failed to create external booking.');
     } finally {
@@ -1898,7 +1996,7 @@ export function MeetingRoomsPage() {
       } as any);
       await reloadBookings();
       setShowInternalBookingDialog(false);
-      setInternalBookingForm({ bookedForName: '', bookedForUserId: '', department: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', inviteParticipantIds: [], notes: '' });
+      setInternalBookingForm({ bookedForName: '', bookedForUserId: '', department: '', roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', inviteParticipantIds: [], notes: '' });
     } catch (error: any) {
       setErrorMessage(error?.response?.data?.message || error?.message || 'Failed to create internal booking.');
     } finally {
@@ -1930,11 +2028,13 @@ export function MeetingRoomsPage() {
         endTime: tenantBookingForm.endTime,
         attendees: tenantBookingForm.attendees,
         purpose: tenantBookingForm.purpose || 'Tenant Meeting',
+        inviteeUserIds: tenantBookingForm.inviteParticipantIds,
         bookingNotes: tenantBookingForm.notes,
       } as any);
       await reloadBookings();
       setShowTenantBookingDialog(false);
-      setTenantBookingForm({ tenantCompanyId: '', tenantCompanyName: '', bookedByName: '', bookedByEmail: '', bookedByPhone: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', notes: '', creditsToDeduct: 0 });
+      setTenantBookingForm({ tenantCompanyId: '', tenantCompanyName: '', bookedByName: '', bookedByEmail: '', bookedByPhone: '', roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', notes: '', creditsToDeduct: 0, inviteParticipantIds: [] });
+      setTenantSearchQuery('');
     } catch (error: any) {
       setTenantBookingError(error?.response?.data?.message || error?.message || 'Failed to create tenant booking.');
     } finally {
@@ -1959,7 +2059,7 @@ export function MeetingRoomsPage() {
                   Reserve campus workspaces and monitor department availability.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              {/* <div className="flex items-center gap-2">
                 {mainBookingTab === 'my_bookings' && (
                   <button
                     onClick={() => {
@@ -1995,7 +2095,7 @@ export function MeetingRoomsPage() {
                     <Building2 size={14} strokeWidth={3} /> TENANT BOOKING
                   </button>
                 )}
-              </div>
+              </div> */}
             </div>
 
             {errorMessage ? (
@@ -2015,7 +2115,12 @@ export function MeetingRoomsPage() {
                 <button
                   key={tab.key}
                   type="button"
-                  onClick={() => setMainBookingTab(tab.key as any)}
+                  onClick={() => {
+                    setMainBookingTab(tab.key as any);
+                    if (tab.key === 'my_bookings') setActiveTab('my_bookings');
+                    else setActiveTab('bookings');
+                    setStatusFilter('all');
+                  }}
                   className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${mainBookingTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                 >
                   {tab.label}
@@ -2046,8 +2151,9 @@ export function MeetingRoomsPage() {
 
                 {/* Tabs & Filters */}
                 <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-                  <div className="flex bg-slate-100/50 p-1 rounded-xl w-full xl:w-auto relative border border-slate-200/50 overflow-x-auto">
-                    {isEmployeeProfile ? (
+                  {mainBookingTab === 'my_bookings' && (
+                    <div className="flex bg-slate-100/50 p-1 rounded-xl w-full xl:w-auto relative border border-slate-200/50 overflow-x-auto">
+                      {isEmployeeProfile ? (
                       <>
                         <button
                           onClick={() => { setActiveTab('my_bookings'); setStatusFilter('all'); }}
@@ -2084,11 +2190,11 @@ export function MeetingRoomsPage() {
                             setActiveTab(tab);
                             setStatusFilter('all');
                           }}
-                          className={`flex-[2.2] min-w-[210px] sm:min-w-[250px] lg:min-w-[200px] py-2 px-3 sm:px-4 rounded-lg text-[11px] sm:text-[12px] lg:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap text-center ${(activeTab === 'assigned_dept_bookings' || activeTab === 'company_bookings' || activeTab === 'dept_bookings') ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
+                          className={`flex-[2.2] min-w-[210px] sm:min-w-[250px] lg:min-w-[120px] py-2 px-3 sm:px-4 rounded-lg text-[11px] sm:text-[12px] lg:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap text-center ${(activeTab === 'assigned_dept_bookings' || activeTab === 'company_bookings' || activeTab === 'dept_bookings') ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
                             }`}
                         >
                           {(activeTab === 'assigned_dept_bookings' || activeTab === 'company_bookings' || activeTab === 'dept_bookings') && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
-                          {isAdminProfile ? 'Assigned meetings' : (isDepartmentManagerProfile ? 'Department meetings' : 'Company')}
+                          COMPANY
                         </button>
                         <button
                           onClick={() => { setActiveTab('my_bookings'); setStatusFilter('all'); }}
@@ -2114,6 +2220,25 @@ export function MeetingRoomsPage() {
                       </>
                     )}
                   </div>
+                  )}
+                  {mainBookingTab !== 'my_bookings' && (
+                    <div className="flex bg-slate-100/50 p-1 rounded-xl w-full xl:w-auto relative border border-slate-200/50 overflow-x-auto">
+                      <button
+                        onClick={() => { setActiveTab('bookings'); setStatusFilter('all'); }}
+                        className={`flex-1 min-w-0 sm:min-w-[100px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'bookings' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'}`}
+                      >
+                        {activeTab === 'bookings' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
+                        BOOKINGS
+                      </button>
+                      <button
+                        onClick={() => { setActiveTab('booking_history'); setStatusFilter('all'); }}
+                        className={`flex-1 min-w-0 sm:min-w-[120px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'booking_history' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'}`}
+                      >
+                        {activeTab === 'booking_history' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
+                        BOOKING HISTORY
+                      </button>
+                    </div>
+                  )}
 
 
                   <div className="relative w-full xl:w-auto">
@@ -2121,10 +2246,48 @@ export function MeetingRoomsPage() {
                     <input
                       type="text"
                       placeholder="Search rooms or hosts..."
-                      className="w-full xl:w-64 pl-10 pr-4 py-2 bg-white border border-slate-200/60 rounded-xl text-[13px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                      className="w-full xl:w-58 pl-10 pr-4 py-2 bg-white border border-slate-200/60 rounded-xl text-[13px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400 shadow-sm"
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
+
+                  <div className="flex items-center gap-2">
+                {mainBookingTab === 'my_bookings' && (
+                  <button
+                    onClick={() => {
+                      setNewBooking((prev) => ({ ...prev, floor: '', wing: '', roomType: '', roomName: '' }));
+                      setShowBookingDialog(true);
+                    }}
+                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
+                  >
+                    <Plus size={14} strokeWidth={3} /> BOOK A ROOM
+                  </button>
+                )}
+                {mainBookingTab === 'internal_booking' && (
+                  <button
+                    onClick={() => setShowInternalBookingDialog(true)}
+                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
+                  >
+                    <UserPlus size={14} strokeWidth={3} /> BOOK FOR MEMBER
+                  </button>
+                )}
+                {mainBookingTab === 'external_booking' && (
+                  <button
+                    onClick={() => setShowExternalBookingDialog(true)}
+                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
+                  >
+                    <Globe size={14} strokeWidth={3} /> WALK-IN BOOKING
+                  </button>
+                )}
+                {mainBookingTab === 'tenant_bookings' && (
+                  <button
+                    onClick={() => setShowTenantBookingDialog(true)}
+                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-indigo-700 active:scale-95"
+                  >
+                    <Building2 size={14} strokeWidth={3} /> TENANT BOOKING
+                  </button>
+                )}
+              </div>
                 </div>
 
                 {/* Status Sub-Tabs */}
@@ -2936,9 +3099,9 @@ export function MeetingRoomsPage() {
 
               <div className="p-4 sm:p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 shrink-0">
                 <button
-                  disabled={bookingStatus !== 'available' || isSavingBooking || !newBooking.purpose.trim()}
+                  disabled={bookingStatus !== 'available' || isSavingBooking || !newBooking.purpose.trim() || !newBooking.roomType || !newBooking.roomName || !newBooking.date || !newBooking.startTime || !newBooking.endTime}
                   onClick={handleCreateBooking}
-                  className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-white rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
+                  className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#0F172A] rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
                 >
                   {isSavingBooking ? 'Saving...' : 'Confirm Booking'}
                 </button>
@@ -3413,123 +3576,296 @@ export function MeetingRoomsPage() {
         )}
       </AnimatePresence>
 
-      {/* ─── EXTERNAL BOOKING DIALOG ─── */}
+      {/* --------- EXTERNAL BOOKING DIALOG --------- */}
       <AnimatePresence>
         {showExternalBookingDialog && (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-[#0F172A]/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[80] flex items-end md:items-center justify-center">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowExternalBookingDialog(false)} className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[32px] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              initial={{ y: "100%", opacity: 0, scale: 0.95 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: "100%", opacity: 0, scale: 0.95 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="bg-white rounded-t-[32px] md:rounded-[32px] w-full md:max-w-2xl max-h-[92vh] md:max-h-[88vh] shadow-2xl relative z-[90] flex flex-col overflow-hidden"
             >
-              <div className="p-6 md:p-7 bg-amber-600 flex justify-between items-start shrink-0">
+              <div className="w-full flex justify-center py-3 md:hidden"><div className="w-12 h-1.5 bg-slate-200 rounded-full" /></div>
+
+              {/* Header */}
+              <div className="px-6 py-4 md:p-8 flex justify-between items-center border-b border-slate-100/60 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
                 <div>
-                  <p className="text-[10px] font-black text-amber-200 uppercase tracking-widest">Walk-in / External</p>
-                  <h2 className="text-xl font-black text-white mt-1 flex items-center gap-2"><Globe size={20} /> External Booking</h2>
-                  <p className="text-amber-100 text-xs mt-1">Book for a walk-in client or external visitor. Collect payment before confirming.</p>
+                  <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">External Booking</h2>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Walk-in / External visitor</p>
                 </div>
-                <button onClick={() => setShowExternalBookingDialog(false)} className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-all text-white">
-                  <X size={16} />
+                <button onClick={() => setShowExternalBookingDialog(false)} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
+                  <X size={20} strokeWidth={2.5} />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmitExternalBooking} className="overflow-y-auto flex-1 p-6 md:p-7 space-y-5 bg-white">
-                {/* Client Details */}
-                <div className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4 space-y-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Client Information</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Full Name *</label>
-                      <input type="text" value={externalBookingForm.name} onChange={e => setExternalBookingForm(f => ({ ...f, name: e.target.value }))} placeholder="Client name" className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400" />
+              {/* Client Type Tabs */}
+              <div className="px-6 md:px-8 pt-4 pb-0 shrink-0">
+                <div className="flex bg-slate-100/60 p-1 rounded-xl border border-slate-200/50 mb-1">
+                  {([{ key: 'new' as const, label: 'New Client' }, { key: 'existing' as const, label: 'Existing Client' }]).map(tab => (
+                    <button key={tab.key} type="button" onClick={() => setExternalBookingClientTab(tab.key)}
+                      className={`flex-1 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${externalBookingClientTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#0F172A] hover:bg-slate-200/70 hover:text-slate-900'}`}>
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-5 sm:p-6 md:p-8 space-y-6 overflow-y-auto flex-1">
+                {/* Client Info */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-px flex-1 bg-slate-100" />
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Client Information</span>
+                    <div className="h-px flex-1 bg-slate-100" />
+                  </div>
+                  {externalBookingClientTab === 'existing' ? (
+                    <div className="space-y-3">
+                      {existingExternalClients.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[12px] font-semibold text-slate-400">
+                          No previous external bookings found. Switch to <span className="font-black text-[#2563EB]">New Client</span> to proceed.
+                        </div>
+                      ) : (
+                        <div className="max-h-52 overflow-y-auto space-y-2 pr-1">
+                          {existingExternalClients.map((client, idx) => {
+                            const isSelected = externalBookingForm.name === client.name && externalBookingForm.phone === client.phone;
+                            return (
+                              <button key={idx} type="button" onClick={() => setExternalBookingForm(f => ({ ...f, name: client.name, phone: client.phone, email: client.email, company: client.company }))}
+                                className={`w-full flex items-center justify-between gap-3 rounded-2xl border p-4 text-left transition-all ${isSelected ? 'border-[#2563EB] bg-blue-50 ring-2 ring-[#2563EB]/50 ring-offset-1' : 'border-slate-200 bg-white hover:bg-slate-50 hover:border-[#2563EB]/50'}`}>
+                                <div className="min-w-0">
+                                  <p className="text-[13px] font-bold text-[#0F172A] truncate">{client.name}</p>
+                                  <p className="text-[11px] font-semibold text-slate-500">{client.phone}{client.company ? ` - ${client.company}` : ''}</p>
+                                </div>
+                                {isSelected && <CheckCircle2 size={16} className="text-[#2563EB] shrink-0" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {externalBookingForm.name && (
+                        <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4 text-[12px] font-semibold text-amber-800">
+                          <span className="font-black">Selected: </span>{externalBookingForm.name} --- {externalBookingForm.phone}
+                        </div>
+                      )}
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Phone *</label>
-                      <input type="tel" value={externalBookingForm.phone} onChange={e => setExternalBookingForm(f => ({ ...f, phone: e.target.value }))} placeholder="+91..." className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400" />
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Full Name *</label>
+                        <input type="text" value={externalBookingForm.name} onChange={e => setExternalBookingForm(f => ({ ...f, name: e.target.value }))} placeholder="Client name" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phone *</label>
+                        <input type="tel" value={externalBookingForm.phone} onChange={e => setExternalBookingForm(f => ({ ...f, phone: e.target.value }))} placeholder="+91..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email</label>
+                        <input type="email" value={externalBookingForm.email} onChange={e => setExternalBookingForm(f => ({ ...f, email: e.target.value }))} placeholder="client@email.com" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Company / Agency</label>
+                        <input type="text" value={externalBookingForm.company} onChange={e => setExternalBookingForm(f => ({ ...f, company: e.target.value }))} placeholder="Optional" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Email</label>
-                      <input type="email" value={externalBookingForm.email} onChange={e => setExternalBookingForm(f => ({ ...f, email: e.target.value }))} placeholder="client@email.com" className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400" />
+                  )}
+                </div>
+
+                {/* Room Selection */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-px flex-1 bg-slate-100" />
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Room Selection</span>
+                    <div className="h-px flex-1 bg-slate-100" />
+                  </div>
+                  {(() => {
+                    const activeRooms = roomCatalog.filter(isActiveRoom);
+                    const roomTypes = [...new Set(activeRooms.map(r => r.type).filter(Boolean))];
+                    const floors = [...new Set(activeRooms.filter(r => !externalBookingForm.roomType || r.type === externalBookingForm.roomType).map(r => r.floor).filter(Boolean))];
+                    const hasWings = activeRooms.some(r => (!externalBookingForm.floor || r.floor === externalBookingForm.floor) && Boolean(r.wing));
+                    const wings = [...new Set(activeRooms.filter(r => (!externalBookingForm.roomType || r.type === externalBookingForm.roomType) && (!externalBookingForm.floor || r.floor === externalBookingForm.floor)).map(r => r.wing).filter(Boolean))];
+                    const filteredRooms = activeRooms.filter(r => (!externalBookingForm.roomType || r.type === externalBookingForm.roomType) && (!externalBookingForm.floor || r.floor === externalBookingForm.floor) && (!externalBookingForm.wing || !r.wing || r.wing === externalBookingForm.wing));
+                    return (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Room Type</label>
+                            <div className="relative">
+                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.roomType} onChange={e => setExternalBookingForm(f => ({ ...f, roomType: e.target.value, floor: '', wing: '', roomName: '' }))}>
+                                <option value="">Select room type</option>
+                                {roomTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                              </select>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Floor</label>
+                            <div className="relative">
+                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.floor} onChange={e => setExternalBookingForm(f => ({ ...f, floor: e.target.value, wing: '', roomName: '' }))}>
+                                <option value="">Select floor</option>
+                                {floors.map(floor => <option key={floor} value={floor}>{floor}</option>)}
+                              </select>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                            </div>
+                          </div>
+                        </div>
+                        {hasWings && (
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Wing (Optional)</label>
+                            <div className="relative">
+                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.wing} onChange={e => setExternalBookingForm(f => ({ ...f, wing: e.target.value, roomName: '' }))}>
+                                <option value="">Any wing</option>
+                                {wings.map(wing => <option key={wing} value={wing}>{wing}</option>)}
+                              </select>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                            </div>
+                          </div>
+                        )}
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meeting Room *</label>
+                          <div className="relative">
+                            <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.roomName} onChange={e => setExternalBookingForm(f => ({ ...f, roomName: e.target.value }))}>
+                              <option value="">-- Choose a Room --</option>
+                              {filteredRooms.map(room => <option key={room.name} value={room.name}>{room.name}{room.floor ? ` --- Floor ${room.floor}` : ''}{room.wing ? ` --- Wing ${room.wing}` : ''}{room.capacity ? ` --- ${room.capacity} seats` : ''}</option>)}
+                              {filteredRooms.length === 0 && <option value="" disabled>No rooms match your filters</option>}
+                            </select>
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* Date & Time */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-px flex-1 bg-slate-100" />
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Date & Time</span>
+                    <div className="h-px flex-1 bg-slate-100" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date *</label>
+                      <input type="date" min={todayStr} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" value={externalBookingForm.date} onChange={e => setExternalBookingForm(f => ({ ...f, date: e.target.value }))} />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Company / Agency</label>
-                      <input type="text" value={externalBookingForm.company} onChange={e => setExternalBookingForm(f => ({ ...f, company: e.target.value }))} placeholder="Optional" className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400" />
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Start Time *</label>
+                      <div className="relative">
+                        <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.startTime} onChange={e => { const nextStart = e.target.value; const minEnd = minutesToTimeString((timeToMinutes(nextStart) || 0) + BOOKING_MIN_DURATION_MINUTES); setExternalBookingForm(f => ({ ...f, startTime: nextStart, endTime: !f.endTime || (timeToMinutes(f.endTime) || 0) < (timeToMinutes(minEnd) || 0) ? minEnd : f.endTime })); }}>
+                          <option value="">Select time</option>
+                          {buildTimeOptions('08:00', '22:00').map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">End Time *</label>
+                      <div className="relative">
+                        <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.endTime} onChange={e => setExternalBookingForm(f => ({ ...f, endTime: e.target.value }))}>
+                          <option value="">Select time</option>
+                          {buildTimeOptions(externalBookingForm.startTime ? minutesToTimeString((timeToMinutes(externalBookingForm.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES) : '08:30', '23:55').map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Attendees</label>
+                      <input type="number" min="1" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={externalBookingForm.attendees} onChange={e => setExternalBookingForm(f => ({ ...f, attendees: Number(e.target.value) }))} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Purpose</label>
+                      <input type="text" placeholder="Meeting, Training, etc." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={externalBookingForm.purpose} onChange={e => setExternalBookingForm(f => ({ ...f, purpose: e.target.value }))} />
                     </div>
                   </div>
                 </div>
 
-                {/* Room & Schedule */}
-                <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Room & Schedule</p>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Select Room *</label>
-                    <select value={externalBookingForm.roomName} onChange={e => setExternalBookingForm(f => ({ ...f, roomName: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400">
-                      <option value="">Choose a meeting room</option>
-                      {allNormalizedRooms.map((room) => (
-                        <option key={room.roomId || room.name} value={room.name}>{room.name} {room.floor ? `— ${room.floor}` : ''} {room.capacity ? `(${room.capacity} seats)` : ''}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Date *</label>
-                      <input type="date" value={externalBookingForm.date} onChange={e => setExternalBookingForm(f => ({ ...f, date: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400" />
+                {/* Live Pricing UI */}
+                {externalWalkInPricing && (() => {
+                  const hasExternalQuote = externalBookingForm.roomName && externalBookingForm.startTime && externalBookingForm.endTime && externalWalkInPricing.subtotalBeforeDiscount > 0;
+                  return (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <div className="h-px flex-1 bg-slate-100" />
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Pricing & Discount</span>
+                        <div className="h-px flex-1 bg-slate-100" />
+                      </div>
+                      <div className="rounded-2xl border border-blue-100 bg-blue-50/30 p-5">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Base Rate</span>
+                              <span className="text-[13px] font-bold text-slate-800">{hasExternalQuote ? formatCurrency(externalWalkInPricing.subtotalBeforeDiscount) : 'Pending'}</span>
+                            </div>
+                            
+                            <div className="space-y-3">
+                              <div className="flex gap-2">
+                                <button type="button" onClick={() => setExternalBookingForm(f => ({ ...f, discountType: 'amount' }))} className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${externalBookingForm.discountType === 'amount' ? 'bg-[#2563EB] text-white' : 'bg-white text-slate-500 border border-slate-200'}`}>Amount</button>
+                                <button type="button" onClick={() => setExternalBookingForm(f => ({ ...f, discountType: 'percent' }))} className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${externalBookingForm.discountType === 'percent' ? 'bg-[#2563EB] text-white' : 'bg-white text-slate-500 border border-slate-200'}`}>Percent</button>
+                              </div>
+                              <input type="number" min="0" placeholder={externalBookingForm.discountType === 'percent' ? 'e.g. 10' : 'e.g. 500'} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-[12px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" value={externalBookingForm.discountValue} onChange={e => setExternalBookingForm(f => ({ ...f, discountValue: e.target.value }))} />
+                            </div>
+                          </div>
+
+                          <div className="space-y-3 border-t md:border-t-0 md:border-l border-slate-200/60 pt-4 md:pt-0 md:pl-6 flex flex-col justify-end">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Discount</span>
+                              <span className="text-[12px] font-bold text-emerald-600">{hasExternalQuote ? `- ${formatCurrency(externalWalkInPricing.discountAmount)}` : 'Pending'}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Taxable Amount</span>
+                              <span className="text-[12px] font-bold text-slate-600">{hasExternalQuote ? formatCurrency(externalWalkInPricing.taxableBaseAfterDiscount) : 'Pending'}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">GST (18%)</span>
+                              <span className="text-[12px] font-bold text-slate-600">{hasExternalQuote ? formatCurrency(externalWalkInPricing.gst) : 'Pending'}</span>
+                            </div>
+                            <div className="h-px w-full bg-slate-200/80 my-1" />
+                            <div className="flex items-center justify-between">
+                              <span className="text-[13px] font-black text-[#0F172A] uppercase tracking-widest">Total Due</span>
+                              <span className="text-[16px] font-black text-[#2563EB]">{hasExternalQuote ? formatCurrency(externalWalkInPricing.total) : 'Pending'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Start Time *</label>
-                      <select value={externalBookingForm.startTime} onChange={e => setExternalBookingForm(f => ({ ...f, startTime: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400">
-                        <option value="">Select time</option>
-                        {buildTimeOptions('08:00', '20:00', 30).map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">End Time *</label>
-                      <select value={externalBookingForm.endTime} onChange={e => setExternalBookingForm(f => ({ ...f, endTime: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400">
-                        <option value="">Select time</option>
-                        {buildTimeOptions(externalBookingForm.startTime || '08:30', '21:00', 30).map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Attendees</label>
-                      <input type="number" min="1" value={externalBookingForm.attendees} onChange={e => setExternalBookingForm(f => ({ ...f, attendees: Number(e.target.value) }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Purpose</label>
-                      <input type="text" value={externalBookingForm.purpose} onChange={e => setExternalBookingForm(f => ({ ...f, purpose: e.target.value }))} placeholder="Meeting, Training, etc." className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400" />
-                    </div>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* Payment */}
-                <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-3">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Payment Collection</p>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-px flex-1 bg-slate-100" />
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Payment Collection</span>
+                    <div className="h-px flex-1 bg-slate-100" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
                     {['Cash', 'GPay (UPI)'].map(mode => (
                       <button key={mode} type="button" onClick={() => setExternalBookingForm(f => ({ ...f, paymentMode: mode, transactionId: mode === 'Cash' ? '' : f.transactionId }))}
-                        className={`py-2.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${externalBookingForm.paymentMode === mode ? 'border-amber-600 bg-amber-600 text-white shadow-sm' : 'border-gray-200 text-gray-600 hover:border-amber-300'}`}>
+                        className={`py-3.5 rounded-2xl border text-[11px] font-black uppercase tracking-widest transition-all ${externalBookingForm.paymentMode === mode ? 'border-[#2563EB] bg-[#2563EB] text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-[#2563EB]/50'}`}>
                         {mode}
                       </button>
                     ))}
                   </div>
                   {externalBookingForm.paymentMode !== 'Cash' && (
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Transaction / UTR Number</label>
-                      <input type="text" value={externalBookingForm.transactionId} onChange={e => setExternalBookingForm(f => ({ ...f, transactionId: e.target.value }))} placeholder="Enter GPay reference" className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400" />
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Transaction / UTR Number</label>
+                      <input type="text" placeholder="Enter GPay reference" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={externalBookingForm.transactionId} onChange={e => setExternalBookingForm(f => ({ ...f, transactionId: e.target.value }))} />
                     </div>
                   )}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Notes (optional)</label>
-                    <textarea rows={2} value={externalBookingForm.notes} onChange={e => setExternalBookingForm(f => ({ ...f, notes: e.target.value }))} placeholder="Any internal notes..." className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-amber-400 resize-none" />
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Notes (Optional)</label>
+                    <textarea rows={2} placeholder="Any internal notes..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all resize-none" value={externalBookingForm.notes} onChange={e => setExternalBookingForm(f => ({ ...f, notes: e.target.value }))} />
                   </div>
                 </div>
-              </form>
+              </div>
 
-              <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-3 shrink-0">
-                <button type="button" onClick={() => setShowExternalBookingDialog(false)} className="flex-1 py-3 bg-white border border-gray-200 rounded-2xl font-black text-xs text-gray-500 hover:text-gray-900 transition-all">CANCEL</button>
-                <button type="button" disabled={isSavingExternalBooking} onClick={(e: any) => handleSubmitExternalBooking(e)} className="flex-[2] py-3 bg-amber-600 text-white rounded-2xl font-black text-xs shadow-md shadow-amber-200 hover:bg-amber-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-gray-300 disabled:shadow-none">
-                  <CreditCard size={14} /> {isSavingExternalBooking ? 'CONFIRMING...' : 'COLLECT PAYMENT & CONFIRM'}
+              <div className="p-4 sm:p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 shrink-0">
+                <button type="button" disabled={isSavingExternalBooking || !externalBookingForm.name || !externalBookingForm.phone || !externalBookingForm.roomName || !externalBookingForm.date || !externalBookingForm.startTime || !externalBookingForm.endTime} onClick={(e: any) => handleSubmitExternalBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#0F172A] rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
+                  {isSavingExternalBooking ? 'Confirming...' : 'Collect Payment & Confirm'}
                 </button>
               </div>
             </motion.div>
@@ -3537,104 +3873,242 @@ export function MeetingRoomsPage() {
         )}
       </AnimatePresence>
 
-      {/* ─── INTERNAL BOOKING DIALOG ─── */}
+      {/* --------- INTERNAL BOOKING DIALOG --------- */}
       <AnimatePresence>
         {showInternalBookingDialog && (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-[#0F172A]/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[80] flex items-end md:items-center justify-center">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowInternalBookingDialog(false)} className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[32px] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              initial={{ y: "100%", opacity: 0, scale: 0.95 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: "100%", opacity: 0, scale: 0.95 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="bg-white rounded-t-[32px] md:rounded-[32px] w-full md:max-w-2xl max-h-[92vh] md:max-h-[88vh] shadow-2xl relative z-[90] flex flex-col overflow-hidden"
             >
-              <div className="p-6 md:p-7 bg-[#2563EB] flex justify-between items-start shrink-0">
+              <div className="w-full flex justify-center py-3 md:hidden"><div className="w-12 h-1.5 bg-slate-200 rounded-full" /></div>
+
+              {/* Header */}
+              <div className="px-6 py-4 md:p-8 flex justify-between items-center border-b border-slate-100/60 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
                 <div>
-                  <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest">Internal</p>
-                  <h2 className="text-xl font-black text-white mt-1 flex items-center gap-2"><UserPlus size={20} /> Internal Booking</h2>
-                  <p className="text-blue-100 text-xs mt-1">Book on behalf of a team member or department. Invite additional participants.</p>
+                  <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">Internal Booking</h2>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Booking on behalf of a member</p>
                 </div>
-                <button onClick={() => setShowInternalBookingDialog(false)} className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-all text-white">
-                  <X size={16} />
+                <button onClick={() => setShowInternalBookingDialog(false)} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
+                  <X size={20} strokeWidth={2.5} />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmitInternalBooking} className="overflow-y-auto flex-1 p-6 md:p-7 space-y-5 bg-white">
+              <div className="p-5 sm:p-6 md:p-8 space-y-6 overflow-y-auto flex-1">
                 {/* Booking For */}
-                <div className="rounded-2xl border border-blue-100 bg-blue-50/40 p-4 space-y-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Booking For</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Member Name *</label>
-                      <input type="text" value={internalBookingForm.bookedForName} onChange={e => setInternalBookingForm(f => ({ ...f, bookedForName: e.target.value }))} placeholder="Employee name" className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Department</label>
-                      <input type="text" value={internalBookingForm.department} onChange={e => setInternalBookingForm(f => ({ ...f, department: e.target.value }))} placeholder="e.g. Sales, IT, HR" className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400" />
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-px flex-1 bg-slate-100" />
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Booking For</span>
+                    <div className="h-px flex-1 bg-slate-100" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filter by Department & Role</label>
+                    <div className="relative">
+                      <select
+                        className="w-full pl-5 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-[13px] text-slate-600 focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
+                        value={internalBookingForm.departmentRoleFilter}
+                        onChange={e => setInternalBookingForm(f => ({ ...f, departmentRoleFilter: e.target.value, bookedForUserId: '', bookedForName: '', department: '' }))}
+                      >
+                        <option value="">All Members</option>
+                        {departmentRoleOptions.map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Invite Participants (optional)</label>
-                    <select multiple value={internalBookingForm.inviteParticipantIds} onChange={e => setInternalBookingForm(f => ({ ...f, inviteParticipantIds: Array.from(e.target.selectedOptions).map(o => o.value) }))}
-                      className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400 h-24">
-                      {workspaceMembers.map((m: any) => <option key={m.id || m._id} value={m.id || m._id}>{getEmployeeDisplayName(m)}</option>)}
-                    </select>
-                    <p className="text-[10px] text-gray-400 font-medium">Hold Ctrl / Cmd to select multiple participants.</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Member *</label>
+                      <div className="relative">
+                        <select
+                          className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
+                          value={internalBookingForm.bookedForUserId}
+                          onChange={e => {
+                            const member = workspaceMembers.find((m: any) => (m.id || m._id || m.userId) === e.target.value);
+                            const dept = (member as any)?.departments?.[0] || (member as any)?.department || '';
+                            setInternalBookingForm(f => ({ ...f, bookedForUserId: e.target.value, bookedForName: (member as any)?.fullName || (member as any)?.name || '', department: dept }));
+                          }}
+                        >
+                          <option value="">Select a member</option>
+                          {workspaceMembers.filter((m: any) => {
+                            if (!internalBookingForm.departmentRoleFilter) return true;
+                            const dept = m.departments?.[0] || m.department || 'General';
+                            const role = m.role || 'Member';
+                            return `${dept} - ${role}` === internalBookingForm.departmentRoleFilter;
+                          }).map((m: any) => {
+                            const mId = m.id || m._id || m.userId || '';
+                            return <option key={mId} value={mId}>{getEmployeeDisplayName(m) || m.email}</option>;
+                          })}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Department</label>
+                      <input type="text" placeholder="e.g. Sales, HR, IT" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={internalBookingForm.department} onChange={e => setInternalBookingForm(f => ({ ...f, department: e.target.value }))} />
+                    </div>
                   </div>
                 </div>
 
-                {/* Room & Schedule */}
-                <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Room & Schedule</p>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Select Room *</label>
-                    <select value={internalBookingForm.roomName} onChange={e => setInternalBookingForm(f => ({ ...f, roomName: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400">
-                      <option value="">Choose a meeting room</option>
-                      {allNormalizedRooms.map((room) => (
-                        <option key={room.roomId || room.name} value={room.name}>{room.name} {room.floor ? `— ${room.floor}` : ''} {room.capacity ? `(${room.capacity} seats)` : ''}</option>
-                      ))}
-                    </select>
+                {/* Room Selection */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-px flex-1 bg-slate-100" />
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Room Selection</span>
+                    <div className="h-px flex-1 bg-slate-100" />
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Date *</label>
-                      <input type="date" value={internalBookingForm.date} onChange={e => setInternalBookingForm(f => ({ ...f, date: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Start Time *</label>
-                      <select value={internalBookingForm.startTime} onChange={e => setInternalBookingForm(f => ({ ...f, startTime: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400">
-                        <option value="">Select time</option>
-                        {buildTimeOptions('08:00', '20:00', 30).map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">End Time *</label>
-                      <select value={internalBookingForm.endTime} onChange={e => setInternalBookingForm(f => ({ ...f, endTime: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400">
-                        <option value="">Select time</option>
-                        {buildTimeOptions(internalBookingForm.startTime || '08:30', '21:00', 30).map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
-                      </select>
-                    </div>
+                  {(() => {
+                    const activeRooms = roomCatalog.filter(isActiveRoom);
+                    const roomTypes = [...new Set(activeRooms.map(r => r.type).filter(Boolean))];
+                    const floors = [...new Set(activeRooms.filter(r => !internalBookingForm.roomType || r.type === internalBookingForm.roomType).map(r => r.floor).filter(Boolean))];
+                    const hasWings = activeRooms.some(r => (!internalBookingForm.floor || r.floor === internalBookingForm.floor) && Boolean(r.wing));
+                    const wings = [...new Set(activeRooms.filter(r => (!internalBookingForm.roomType || r.type === internalBookingForm.roomType) && (!internalBookingForm.floor || r.floor === internalBookingForm.floor)).map(r => r.wing).filter(Boolean))];
+                    const filteredRooms = activeRooms.filter(r => (!internalBookingForm.roomType || r.type === internalBookingForm.roomType) && (!internalBookingForm.floor || r.floor === internalBookingForm.floor) && (!internalBookingForm.wing || !r.wing || r.wing === internalBookingForm.wing));
+                    return (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Room Type</label>
+                            <div className="relative">
+                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.roomType} onChange={e => setInternalBookingForm(f => ({ ...f, roomType: e.target.value, floor: '', wing: '', roomName: '' }))}>
+                                <option value="">Select room type</option>
+                                {roomTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                              </select>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Floor</label>
+                            <div className="relative">
+                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.floor} onChange={e => setInternalBookingForm(f => ({ ...f, floor: e.target.value, wing: '', roomName: '' }))}>
+                                <option value="">Select floor</option>
+                                {floors.map(floor => <option key={floor} value={floor}>{floor}</option>)}
+                              </select>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                            </div>
+                          </div>
+                        </div>
+                        {hasWings && (
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Wing (Optional)</label>
+                            <div className="relative">
+                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.wing} onChange={e => setInternalBookingForm(f => ({ ...f, wing: e.target.value, roomName: '' }))}>
+                                <option value="">Any wing</option>
+                                {wings.map(wing => <option key={wing} value={wing}>{wing}</option>)}
+                              </select>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                            </div>
+                          </div>
+                        )}
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meeting Room *</label>
+                          <div className="relative">
+                            <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.roomName} onChange={e => setInternalBookingForm(f => ({ ...f, roomName: e.target.value }))}>
+                              <option value="">-- Choose a Room --</option>
+                              {filteredRooms.map(room => <option key={room.name} value={room.name}>{room.name}{room.floor ? ` --- Floor ${room.floor}` : ''}{room.wing ? ` --- Wing ${room.wing}` : ''}{room.capacity ? ` --- ${room.capacity} seats` : ''}</option>)}
+                              {filteredRooms.length === 0 && <option value="" disabled>No rooms match your filters</option>}
+                            </select>
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* Date & Time */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-px flex-1 bg-slate-100" />
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Date & Time</span>
+                    <div className="h-px flex-1 bg-slate-100" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Attendees</label>
-                      <input type="number" min="1" value={internalBookingForm.attendees} onChange={e => setInternalBookingForm(f => ({ ...f, attendees: Number(e.target.value) }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400" />
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date *</label>
+                      <input type="date" min={todayStr} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" value={internalBookingForm.date} onChange={e => setInternalBookingForm(f => ({ ...f, date: e.target.value }))} />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Purpose</label>
-                      <input type="text" value={internalBookingForm.purpose} onChange={e => setInternalBookingForm(f => ({ ...f, purpose: e.target.value }))} placeholder="Team meeting, review, etc." className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400" />
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Start Time *</label>
+                      <div className="relative">
+                        <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.startTime} onChange={e => { const nextStart = e.target.value; const minEnd = minutesToTimeString((timeToMinutes(nextStart) || 0) + BOOKING_MIN_DURATION_MINUTES); setInternalBookingForm(f => ({ ...f, startTime: nextStart, endTime: !f.endTime || (timeToMinutes(f.endTime) || 0) < (timeToMinutes(minEnd) || 0) ? minEnd : f.endTime })); }}>
+                          <option value="">Select time</option>
+                          {buildTimeOptions('08:00', '22:00').map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                      </div>
                     </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Notes (optional)</label>
-                    <textarea rows={2} value={internalBookingForm.notes} onChange={e => setInternalBookingForm(f => ({ ...f, notes: e.target.value }))} placeholder="Any additional context..." className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-blue-400 resize-none" />
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">End Time *</label>
+                      <div className="relative">
+                        <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.endTime} onChange={e => setInternalBookingForm(f => ({ ...f, endTime: e.target.value }))}>
+                          <option value="">Select time</option>
+                          {buildTimeOptions(internalBookingForm.startTime ? minutesToTimeString((timeToMinutes(internalBookingForm.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES) : '08:30', '23:55').map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </form>
 
-              <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-3 shrink-0">
-                <button type="button" onClick={() => setShowInternalBookingDialog(false)} className="flex-1 py-3 bg-white border border-gray-200 rounded-2xl font-black text-xs text-gray-500 hover:text-gray-900 transition-all">CANCEL</button>
-                <button type="button" disabled={isSavingInternalBooking} onClick={(e: any) => handleSubmitInternalBooking(e)} className="flex-[2] py-3 bg-[#2563EB] text-white rounded-2xl font-black text-xs shadow-md shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-gray-300 disabled:shadow-none">
-                  <CheckCircle2 size={14} /> {isSavingInternalBooking ? 'BOOKING...' : 'CONFIRM INTERNAL BOOKING'}
+                {/* Purpose */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Purpose / Agenda</label>
+                  <input type="text" placeholder="e.g. Q3 Review, Team Sync, Planning..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={internalBookingForm.purpose} onChange={e => setInternalBookingForm(f => ({ ...f, purpose: e.target.value }))} />
+                </div>
+
+                {/* Invite Participants */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="h-px w-8 bg-slate-100" />
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Invite Participants</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-[#2563EB]">{internalBookingForm.inviteParticipantIds.length} selected</span>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto space-y-4 pr-1">
+                    {inviteDepartments.map((group: any) => (
+                      <div key={group.department} className="rounded-2xl border border-slate-200/60 bg-slate-50/70 p-4">
+                        <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-3">{group.department}</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {group.members.map((member: any) => {
+                            const memberId = resolveMemberUserId(member);
+                            const checked = internalBookingForm.inviteParticipantIds.includes(memberId);
+                            return (
+                              <label key={memberId} className={`flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition-colors ${checked ? 'border-[#2563EB] bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                                <input type="checkbox" checked={checked} onChange={() => setInternalBookingForm(f => ({ ...f, inviteParticipantIds: checked ? f.inviteParticipantIds.filter(id => id !== memberId) : [...f.inviteParticipantIds, memberId] }))} className="mt-1 h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]" />
+                                <div className="min-w-0">
+                                  <p className="text-[13px] font-bold text-[#0F172A] truncate">{resolveMemberName(member) || member.email || 'Member'}</p>
+                                  <p className="text-[11px] font-semibold text-slate-500">{formatInviteGroupLabel(member.role || 'General')}</p>
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    {inviteDepartments.length === 0 && (
+                      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[12px] font-semibold text-slate-400">No inviteable participants found.</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Notes (Optional)</label>
+                  <textarea rows={2} placeholder="Any additional context..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all resize-none" value={internalBookingForm.notes} onChange={e => setInternalBookingForm(f => ({ ...f, notes: e.target.value }))} />
+                </div>
+              </div>
+
+              <div className="p-4 sm:p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 shrink-0">
+                <button type="button" disabled={isSavingInternalBooking || (!internalBookingForm.bookedForName && !internalBookingForm.department) || !internalBookingForm.roomName || !internalBookingForm.date || !internalBookingForm.startTime || !internalBookingForm.endTime} onClick={(e: any) => handleSubmitInternalBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#0F172A] rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
+                  {isSavingInternalBooking ? 'Booking...' : 'Confirm Internal Booking'}
                 </button>
               </div>
             </motion.div>
@@ -3642,124 +4116,301 @@ export function MeetingRoomsPage() {
         )}
       </AnimatePresence>
 
-      {/* ─── TENANT BOOKING DIALOG ─── */}
+      {/* --------- TENANT BOOKING DIALOG --------- */}
       <AnimatePresence>
         {showTenantBookingDialog && (
-          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-[#0F172A]/70 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[80] flex items-end md:items-center justify-center">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setShowTenantBookingDialog(false); setTenantBookingError(''); }} className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-[32px] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              initial={{ y: "100%", opacity: 0, scale: 0.95 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: "100%", opacity: 0, scale: 0.95 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="bg-white rounded-t-[32px] md:rounded-[32px] w-full md:max-w-2xl max-h-[92vh] md:max-h-[88vh] shadow-2xl relative z-[90] flex flex-col overflow-hidden"
             >
-              <div className="p-6 md:p-7 bg-indigo-600 flex justify-between items-start shrink-0">
+              <div className="w-full flex justify-center py-3 md:hidden"><div className="w-12 h-1.5 bg-slate-200 rounded-full" /></div>
+
+              {/* Header */}
+              <div className="px-6 py-4 md:p-8 flex justify-between items-center border-b border-slate-100/60 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
                 <div>
-                  <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest">Tenant</p>
-                  <h2 className="text-xl font-black text-white mt-1 flex items-center gap-2"><Building2 size={20} /> Tenant Booking</h2>
-                  <p className="text-indigo-100 text-xs mt-1">Book a meeting room for a tenant company. Credits may be deducted from their balance.</p>
+                  <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">Tenant Booking</h2>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Book a meeting room for a tenant company</p>
                 </div>
-                <button onClick={() => setShowTenantBookingDialog(false)} className="w-9 h-9 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-all text-white">
-                  <X size={16} />
+                <button onClick={() => { setShowTenantBookingDialog(false); setTenantBookingError(''); }} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
+                  <X size={20} strokeWidth={2.5} />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmitTenantBooking} className="overflow-y-auto flex-1 p-6 md:p-7 space-y-5 bg-white">
+              <div className="p-5 sm:p-6 md:p-8 space-y-6 overflow-y-auto flex-1">
                 {tenantBookingError && (
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-600">
-                    {tenantBookingError}
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-600">{tenantBookingError}</div>
+                )}
+
+                {/* Tenant Company Selection */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-px flex-1 bg-slate-100" />
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Select Tenant Company</span>
+                    <div className="h-px flex-1 bg-slate-100" />
+                  </div>
+                  {isLoadingTenants ? (
+                    <div className="py-8 text-center text-xs font-bold text-slate-400">Loading tenant companies...</div>
+                  ) : (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Company *</label>
+                      <div className="relative">
+                        <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.tenantCompanyId} onChange={e => {
+                          const selected = tenantCompanies.find(t => String(t.id || t._id) === e.target.value);
+                          setTenantBookingForm(f => ({ ...f, tenantCompanyId: e.target.value, tenantCompanyName: selected?.companyName || selected?.name || '', inviteParticipantIds: [], attendees: 1 }));
+                        }}>
+                          <option value="">-- Choose a Company --</option>
+                          {tenantCompanies.filter(t => (t as any).status === 'Active' || !Object.prototype.hasOwnProperty.call(t, 'status')).map(t => (
+                            <option key={t.id || t._id} value={t.id || t._id}>{t.companyName || t.name}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+
+                {/* Room Selection */}
+                {tenantBookingForm.tenantCompanyId && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="h-px flex-1 bg-slate-100" />
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Room Selection</span>
+                      <div className="h-px flex-1 bg-slate-100" />
+                    </div>
+                    {(() => {
+                      const activeRooms = roomCatalog.filter(isActiveRoom);
+                      const roomTypes = [...new Set(activeRooms.map(r => r.type).filter(Boolean))];
+                      const floors = [...new Set(activeRooms.filter(r => !tenantBookingForm.roomType || r.type === tenantBookingForm.roomType).map(r => r.floor).filter(Boolean))];
+                      const hasWings = activeRooms.some(r => (!tenantBookingForm.floor || r.floor === tenantBookingForm.floor) && Boolean(r.wing));
+                      const wings = [...new Set(activeRooms.filter(r => (!tenantBookingForm.roomType || r.type === tenantBookingForm.roomType) && (!tenantBookingForm.floor || r.floor === tenantBookingForm.floor)).map(r => r.wing).filter(Boolean))];
+                      const filteredRooms = activeRooms.filter(r => (!tenantBookingForm.roomType || r.type === tenantBookingForm.roomType) && (!tenantBookingForm.floor || r.floor === tenantBookingForm.floor) && (!tenantBookingForm.wing || !r.wing || r.wing === tenantBookingForm.wing));
+                      return (
+                        <>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Room Type</label>
+                              <div className="relative">
+                                <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.roomType} onChange={e => setTenantBookingForm(f => ({ ...f, roomType: e.target.value, floor: '', wing: '', roomName: '' }))}>
+                                  <option value="">Select room type</option>
+                                  {roomTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Floor</label>
+                              <div className="relative">
+                                <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.floor} onChange={e => setTenantBookingForm(f => ({ ...f, floor: e.target.value, wing: '', roomName: '' }))}>
+                                  <option value="">Select floor</option>
+                                  {floors.map(floor => <option key={floor} value={floor}>{floor}</option>)}
+                                </select>
+                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                              </div>
+                            </div>
+                          </div>
+                          {hasWings && (
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Wing (Optional)</label>
+                              <div className="relative">
+                                <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.wing} onChange={e => setTenantBookingForm(f => ({ ...f, wing: e.target.value, roomName: '' }))}>
+                                  <option value="">Any wing</option>
+                                  {wings.map(wing => <option key={wing} value={wing}>{wing}</option>)}
+                                </select>
+                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                              </div>
+                            </div>
+                          )}
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meeting Room *</label>
+                            <div className="relative">
+                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.roomName} onChange={e => setTenantBookingForm(f => ({ ...f, roomName: e.target.value }))}>
+                                <option value="">-- Choose a Room --</option>
+                                {filteredRooms.map(room => <option key={room.name} value={room.name}>{room.name}{room.floor ? ` --- Floor ${room.floor}` : ''}{room.wing ? ` --- Wing ${room.wing}` : ''}{room.capacity ? ` --- ${room.capacity} seats` : ''}</option>)}
+                                {filteredRooms.length === 0 && <option value="" disabled>No rooms match your filters</option>}
+                              </select>
+                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                    
+                    {/* Room Summary Cards */}
+                    {tenantBookingForm.roomName && (() => {
+                      const room = roomCatalog.find(r => r.name === tenantBookingForm.roomName);
+                      if (!room) return null;
+                      const inviteeLimit = Math.max(0, Number(room.capacity || 0));
+                      const remainingSlots = Math.max(0, inviteeLimit - tenantBookingForm.inviteParticipantIds.length);
+                      const selectedCompany = tenantCompanies.find(t => String(t.id || t._id) === tenantBookingForm.tenantCompanyId);
+                      
+                      const startMinutes = timeToMinutes(tenantBookingForm.startTime);
+                      const endMinutes = timeToMinutes(tenantBookingForm.endTime);
+                      let selectedRoomCreditEstimate = 0;
+                      if (startMinutes !== null && endMinutes !== null && endMinutes > startMinutes) {
+                        const durationHours = (endMinutes - startMinutes) / 60;
+                        const rate = Number(room.credits || 0);
+                        selectedRoomCreditEstimate = Number((durationHours * rate).toFixed(2));
+                      }
+                      
+                      const companyCreditsRemaining = Number(
+                        ((selectedCompany as any)?.creditsRemaining ?? (selectedCompany as any)?.addOnCredits?.remainingCredits ?? Math.max(0, Number((selectedCompany as any)?.creditsAllocated || 0) - Number((selectedCompany as any)?.creditsUsed || 0))) || 0
+                      );
+
+                      return (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Capacity</p>
+                            <p className="text-base font-pbold text-slate-900 flex items-center gap-1.5"><Users size={14} className="text-blue-600" /> {room.capacity || 0} people</p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Invite Slots</p>
+                            <p className="text-base font-pbold text-emerald-600 flex items-center gap-1.5"><CheckCircle2 size={14} /> {remainingSlots} {remainingSlots === 1 ? 'Slot' : 'Slots'}</p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Remaining Credits</p>
+                            <p className="text-base font-pbold text-indigo-700 flex items-center gap-1.5"><Clock size={14} className="text-indigo-600" /> {companyCreditsRemaining.toFixed(2)} CR</p>
+                          </div>
+                          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                            <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Estimated Credits</p>
+                            <p className="text-base font-pbold text-slate-900 flex items-center gap-1.5"><Clock size={14} className="text-indigo-600" />{selectedRoomCreditEstimate.toFixed(2)} CR</p>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
-                {/* Tenant Company */}
-                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4 space-y-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-indigo-700">Select Tenant Company</p>
-                  {isLoadingTenants ? (
-                    <div className="py-4 text-center text-xs font-bold text-gray-400">Loading tenant companies...</div>
-                  ) : (
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Company *</label>
-                      <select value={tenantBookingForm.tenantCompanyId} onChange={e => {
-                        const selected = tenantCompanies.find(t => String(t.id || t._id) === e.target.value);
-                        setTenantBookingForm(f => ({ ...f, tenantCompanyId: e.target.value, tenantCompanyName: selected?.companyName || selected?.name || '' }));
-                      }} className="w-full px-3 py-2.5 bg-white border border-indigo-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-500">
-                        <option value="">Select a tenant company</option>
-                        {tenantCompanies.map(t => (
-                          <option key={t.id || t._id} value={t.id || t._id}>{t.companyName || t.name} {t.credits != null ? `— ${t.credits} credits` : ''}</option>
-                        ))}
-                      </select>
+                {/* Date & Time */}
+                {tenantBookingForm.tenantCompanyId && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="h-px flex-1 bg-slate-100" />
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Date & Time</span>
+                      <div className="h-px flex-1 bg-slate-100" />
                     </div>
-                  )}
-                  {tenantBookingForm.tenantCompanyId && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Booked By (name)</label>
-                        <input type="text" value={tenantBookingForm.bookedByName} onChange={e => setTenantBookingForm(f => ({ ...f, bookedByName: e.target.value }))} placeholder="Tenant representative name" className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400" />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date *</label>
+                        <input type="date" min={todayStr} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" value={tenantBookingForm.date} onChange={e => setTenantBookingForm(f => ({ ...f, date: e.target.value }))} />
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Phone</label>
-                        <input type="tel" value={tenantBookingForm.bookedByPhone} onChange={e => setTenantBookingForm(f => ({ ...f, bookedByPhone: e.target.value }))} placeholder="+91..." className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400" />
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Start Time *</label>
+                        <div className="relative">
+                          <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.startTime} onChange={e => { const nextStart = e.target.value; const minEnd = minutesToTimeString((timeToMinutes(nextStart) || 0) + BOOKING_MIN_DURATION_MINUTES); setTenantBookingForm(f => ({ ...f, startTime: nextStart, endTime: !f.endTime || (timeToMinutes(f.endTime) || 0) < (timeToMinutes(minEnd) || 0) ? minEnd : f.endTime })); }}>
+                            <option value="">Select time</option>
+                            {buildTimeOptions('08:00', '22:00').map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
+                          </select>
+                          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                        </div>
                       </div>
-                      <div className="space-y-1 col-span-2">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Email</label>
-                        <input type="email" value={tenantBookingForm.bookedByEmail} onChange={e => setTenantBookingForm(f => ({ ...f, bookedByEmail: e.target.value }))} placeholder="contact@tenantcompany.com" className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400" />
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">End Time *</label>
+                        <div className="relative">
+                          <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.endTime} onChange={e => setTenantBookingForm(f => ({ ...f, endTime: e.target.value }))}>
+                            <option value="">Select time</option>
+                            {buildTimeOptions(tenantBookingForm.startTime ? minutesToTimeString((timeToMinutes(tenantBookingForm.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES) : '08:30', '23:55').map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
+                          </select>
+                          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                        </div>
                       </div>
                     </div>
-                  )}
-                </div>
+                    <div className="grid grid-cols-2 gap-5">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Attendees</label>
+                        <input type="number" min="1" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={tenantBookingForm.attendees} onChange={e => setTenantBookingForm(f => ({ ...f, attendees: Number(e.target.value) }))} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Purpose</label>
+                        <input type="text" placeholder="Client meeting, board meeting..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={tenantBookingForm.purpose} onChange={e => setTenantBookingForm(f => ({ ...f, purpose: e.target.value }))} />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Notes (Optional)</label>
+                      <textarea rows={2} placeholder="Any internal notes or requirements..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all resize-none" value={tenantBookingForm.notes} onChange={e => setTenantBookingForm(f => ({ ...f, notes: e.target.value }))} />
+                    </div>
 
-                {/* Room & Schedule */}
-                <div className="rounded-2xl border border-gray-200 bg-white p-4 space-y-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Room & Schedule</p>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Select Room *</label>
-                    <select value={tenantBookingForm.roomName} onChange={e => setTenantBookingForm(f => ({ ...f, roomName: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400">
-                      <option value="">Choose a meeting room</option>
-                      {allNormalizedRooms.map((room) => (
-                        <option key={room.roomId || room.name} value={room.name}>{room.name} {room.floor ? `— ${room.floor}` : ''} {room.capacity ? `(${room.capacity} seats)` : ''}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Date *</label>
-                      <input type="date" value={tenantBookingForm.date} onChange={e => setTenantBookingForm(f => ({ ...f, date: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Start Time *</label>
-                      <select value={tenantBookingForm.startTime} onChange={e => setTenantBookingForm(f => ({ ...f, startTime: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400">
-                        <option value="">Select time</option>
-                        {buildTimeOptions('08:00', '20:00', 30).map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">End Time *</label>
-                      <select value={tenantBookingForm.endTime} onChange={e => setTenantBookingForm(f => ({ ...f, endTime: e.target.value }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400">
-                        <option value="">Select time</option>
-                        {buildTimeOptions(tenantBookingForm.startTime || '08:30', '21:00', 30).map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Attendees</label>
-                      <input type="number" min="1" value={tenantBookingForm.attendees} onChange={e => setTenantBookingForm(f => ({ ...f, attendees: Number(e.target.value) }))} className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Purpose</label>
-                      <input type="text" value={tenantBookingForm.purpose} onChange={e => setTenantBookingForm(f => ({ ...f, purpose: e.target.value }))} placeholder="Client meeting, board meeting, etc." className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400" />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Notes (optional)</label>
-                    <textarea rows={2} value={tenantBookingForm.notes} onChange={e => setTenantBookingForm(f => ({ ...f, notes: e.target.value }))} placeholder="Any internal notes or requirements..." className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-semibold text-xs text-gray-900 outline-none focus:border-indigo-400 resize-none" />
-                  </div>
-                </div>
-              </form>
+                    {/* Invite Employees */}
+                    {(() => {
+                      const selectedCompany = tenantCompanies.find(t => String(t.id || t._id) === tenantBookingForm.tenantCompanyId);
+                      const employees = (selectedCompany as any)?.employees || [];
+                      const room = roomCatalog.find(r => r.name === tenantBookingForm.roomName);
+                      const maxCapacity = room ? Number(room.capacity || 0) : 0;
+                      const remainingSlots = Math.max(0, maxCapacity - tenantBookingForm.inviteParticipantIds.length);
+                      
+                      return employees.length > 0 ? (
+                        <div className="space-y-4 pt-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                              <div className="h-px w-8 bg-slate-100" />
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Invite Employees</span>
+                            </div>
+                            <span className="text-[11px] font-bold text-[#2563EB]">{tenantBookingForm.inviteParticipantIds.length} selected</span>
+                          </div>
+                          
+                          {maxCapacity > 0 && remainingSlots <= 0 && (
+                            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-center gap-2">
+                              <AlertTriangle size={16} className="text-amber-600 shrink-0" />
+                              <span className="text-[11px] font-semibold text-amber-700">Invite limit reached. Select a bigger room with more capacity to invite more members.</span>
+                            </div>
+                          )}
 
-              <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-3 shrink-0">
-                <button type="button" onClick={() => { setShowTenantBookingDialog(false); setTenantBookingError(''); }} className="flex-1 py-3 bg-white border border-gray-200 rounded-2xl font-black text-xs text-gray-500 hover:text-gray-900 transition-all">CANCEL</button>
-                <button type="button" disabled={isSavingTenantBooking || !tenantBookingForm.tenantCompanyId} onClick={(e: any) => handleSubmitTenantBooking(e)} className="flex-[2] py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-gray-300 disabled:shadow-none">
-                  <Building2 size={14} /> {isSavingTenantBooking ? 'BOOKING...' : 'CONFIRM TENANT BOOKING'}
+                          <div className="max-h-64 overflow-y-auto space-y-4 pr-1">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {employees.map((emp: any) => {
+                                const empId = String(emp.id || emp.userId || emp._id);
+                                const checked = tenantBookingForm.inviteParticipantIds.includes(empId);
+                                const empName = emp.name || emp.fullName || emp.email || 'Employee';
+                                const isDisabled = !checked && maxCapacity > 0 && remainingSlots <= 0;
+                                
+                                return (
+                                  <label key={empId} className={`flex items-start gap-3 rounded-xl border p-3 transition-colors ${checked ? 'border-[#2563EB] bg-blue-50 cursor-pointer' : isDisabled ? 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed' : 'border-slate-200 bg-white hover:bg-slate-50 cursor-pointer'}`}>
+                                    <input type="checkbox" disabled={isDisabled} checked={checked} onChange={() => setTenantBookingForm(f => ({ ...f, inviteParticipantIds: checked ? f.inviteParticipantIds.filter(id => id !== empId) : [...f.inviteParticipantIds, empId], attendees: checked ? Math.max(1, f.attendees - 1) : f.attendees + 1 }))} className="mt-1 h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB] disabled:opacity-50" />
+                                    <div className="min-w-0">
+                                      <p className="text-[13px] font-bold text-[#0F172A] truncate">{empName}</p>
+                                      <p className="text-[11px] font-semibold text-slate-500">{emp.designation || emp.role || 'Member'}</p>
+                                    </div>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4 pt-4">
+                          <div className="flex items-center gap-2">
+                            <div className="h-px w-8 bg-slate-100" />
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact Details</span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Booked By Name</label>
+                              <input type="text" placeholder="Contact person" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={tenantBookingForm.bookedByName} onChange={e => setTenantBookingForm(f => ({ ...f, bookedByName: e.target.value }))} />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email</label>
+                              <input type="email" placeholder="email@company.com" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={tenantBookingForm.bookedByEmail} onChange={e => setTenantBookingForm(f => ({ ...f, bookedByEmail: e.target.value }))} />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phone</label>
+                              <input type="tel" placeholder="+91..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={tenantBookingForm.bookedByPhone} onChange={e => setTenantBookingForm(f => ({ ...f, bookedByPhone: e.target.value }))} />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 sm:p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 shrink-0">
+                <button type="button" disabled={isSavingTenantBooking || !tenantBookingForm.tenantCompanyId || !tenantBookingForm.roomName || !tenantBookingForm.date || !tenantBookingForm.startTime || !tenantBookingForm.endTime} onClick={(e: any) => handleSubmitTenantBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#0F172A] rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
+                  {isSavingTenantBooking ? 'Booking...' : 'Confirm Tenant Booking'}
                 </button>
               </div>
             </motion.div>
@@ -3769,8 +4420,5 @@ export function MeetingRoomsPage() {
 
     </div>
   );
-}
-function setErrorMessage(arg0: any) {
-  throw new Error('Function not implemented.');
 }
 

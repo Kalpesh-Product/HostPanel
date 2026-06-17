@@ -259,6 +259,7 @@ export default function TenantBookingHistoryPage() {
   const currentUserEmail = normalizeId(currentUser?.email || '');
   const tenantCompanyName = currentUser?.tenantCompanyName || currentUser?.workspaceMembership?.tenantCompanyName || getStoredTenantCompanyName() || 'Tenant Workspace';
   const tenantCompanyId = normalizeId(currentUser?.tenantCompanyId || currentUser?.workspaceMembership?.tenantCompanyId || getStoredTenantCompanyId() || '');
+  const workspaceId = normalizeId(currentUser?.workspaceMembership?.workspaceId || currentUser?.workspaceId || '');
   const normalizedTenantCompanyName = normalizeId(tenantCompanyName);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -298,7 +299,7 @@ export default function TenantBookingHistoryPage() {
     setErrorMessage('');
     try {
       const [bookingsResponse, companiesResponse] = await Promise.allSettled([
-        getMeetingRoomBookings(), getTenantCompanies(),
+        getMeetingRoomBookings(workspaceId), getTenantCompanies(),
       ]);
       const nextBookings = bookingsResponse.status === 'fulfilled' ? extractList(bookingsResponse.value, ['bookings', 'items']) : [];
       const nextCompanies = companiesResponse.status === 'fulfilled' ? extractList(companiesResponse.value, ['tenants', 'companies']) : [];

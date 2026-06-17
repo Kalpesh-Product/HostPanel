@@ -17,7 +17,7 @@ import { getMyCalendar } from '@/services/calendar';
 import Skeleton from '@/components/ui/Skeleton';
 import PageFrame from '@/components/Pages/PageFrame';
 
-type EventType = 'booking' | 'task' | 'ticket' | 'leave';
+type EventType = 'booking' | 'task' | 'ticket' | 'leave' | 'holiday';
 
 interface EventInvite {
   invitedName?: string;
@@ -70,6 +70,7 @@ interface CalendarSummary {
   tickets: number;
   leaveRequests: number;
   bookings: number;
+  holidays: number;
 }
 
 interface CalendarFeed {
@@ -95,6 +96,7 @@ const META: Record<string, EventMeta> = {
   task: { label: 'Task', icon: CheckCircle2, tone: 'bg-green-100 text-green-700 border-green-200' },
   ticket: { label: 'Ticket', icon: Ticket, tone: 'bg-purple-100 text-purple-700 border-purple-200' },
   leave: { label: 'Leave', icon: CalendarIcon, tone: 'bg-amber-100 text-amber-700 border-amber-200' },
+  holiday: { label: 'Holiday', icon: CalendarIcon, tone: 'bg-rose-100 text-rose-700 border-rose-200' },
 };
 
 function getEventTypeIcon(type: string) {
@@ -103,6 +105,7 @@ function getEventTypeIcon(type: string) {
     case 'task': return CheckCircle2;
     case 'ticket': return Ticket;
     case 'leave': return CalendarIcon;
+    case 'holiday': return CalendarIcon;
     default: return CalendarIcon;
   }
 }
@@ -254,6 +257,31 @@ function isUpcomingInVisibleMonth(event: CalendarEvent, visibleDate: Date, today
   return eventStartKey <= monthEnd && eventEndKey >= monthStart;
 }
 
+const GANESH_CHATURTHI_DATES: Record<number, string> = {
+  2024: '2024-09-07',
+  2025: '2025-08-27',
+  2026: '2026-09-14',
+  2027: '2027-09-04',
+  2028: '2028-09-22',
+  2029: '2029-09-12',
+  2030: '2030-09-01',
+};
+
+function getSupplementaryHolidays(year: number): CalendarEvent[] {
+  const result: CalendarEvent[] = [];
+  const ganeshDate = GANESH_CHATURTHI_DATES[year];
+  if (ganeshDate) {
+    result.push({
+      id: `supp-holiday-ganesh-${year}`,
+      type: 'holiday' as EventType,
+      title: 'Ganesh Chaturthi',
+      date: ganeshDate,
+      description: 'Ganesh Chaturthi festival',
+    });
+  }
+  return result;
+}
+
 function CalendarSkeleton() {
   return (
     <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
@@ -278,11 +306,11 @@ function CalendarSkeleton() {
 }
 
 const summaryCards = [
-  { label: 'Total', key: 'total', tone: 'text-slate-400' },
-  { label: 'Bookings', key: 'bookings', tone: 'text-sky-500' },
-  { label: 'Tasks', key: 'tasks', tone: 'text-emerald-500' },
-  { label: 'Tickets', key: 'tickets', tone: 'text-violet-500' },
-  { label: 'Leave', key: 'leaveRequests', tone: 'text-amber-500' },
+  { label: 'Holidays', key: 'holidays', icon: CalendarIcon, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-rose-500', iconClass: 'bg-rose-50 text-rose-600' },
+  { label: 'Bookings', key: 'bookings', icon: CalendarDays, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', iconClass: 'bg-blue-50 text-blue-600' },
+  { label: 'Tasks', key: 'tasks', icon: CheckCircle2, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600' },
+  { label: 'Tickets', key: 'tickets', icon: Ticket, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-purple-500', iconClass: 'bg-purple-50 text-purple-600' },
+  { label: 'Leave', key: 'leaveRequests', icon: CalendarIcon, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600' },
 ] as const;
 
 function UnifiedCalendar() {
@@ -290,8 +318,9 @@ function UnifiedCalendar() {
   const [loadError, setLoadError] = useState('');
   const [calendarFeed, setCalendarFeed] = useState<CalendarFeed>({
     events: [],
-    summary: { total: 0, tasks: 0, tickets: 0, leaveRequests: 0, bookings: 0 }
+    summary: { total: 0, tasks: 0, tickets: 0, leaveRequests: 0, bookings: 0, holidays: 0 }
   });
+  const [holidayEvents, setHolidayEvents] = useState<CalendarEvent[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
@@ -318,6 +347,52 @@ function UnifiedCalendar() {
     return () => { isMounted = false; };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+    async function loadHolidays() {
+      try {
+        const year = new Date().getFullYear();
+        const seenDates = new Set<string>();
+        const merged: CalendarEvent[] = [];
+
+        const res = await fetch(`https://tallyfy.com/national-holidays/api/IN/${year}.json`);
+        if (res.ok) {
+          const data = await res.json();
+          if (!isMounted) return;
+          (data?.holidays || []).forEach((h: any) => {
+            if (!seenDates.has(h.date)) {
+              seenDates.add(h.date);
+              merged.push({
+                id: `holiday-${h.date}`,
+                type: 'holiday' as EventType,
+                title: h.name || h.local_name,
+                date: h.date,
+                description: h.description || '',
+              });
+            }
+          });
+        }
+
+        const supplementary = getSupplementaryHolidays(year);
+        supplementary.forEach((s) => {
+          if (!seenDates.has(s.date)) {
+            seenDates.add(s.date);
+            merged.push(s);
+          }
+        });
+
+        if (isMounted) setHolidayEvents(merged);
+      } catch {
+        if (isMounted) {
+          const year = new Date().getFullYear();
+          setHolidayEvents(getSupplementaryHolidays(year));
+        }
+      }
+    }
+    loadHolidays();
+    return () => { isMounted = false; };
+  }, []);
+
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -332,6 +407,7 @@ function UnifiedCalendar() {
       case 'task': return 'bg-green-100 text-green-700 border-green-200';
       case 'ticket': return 'bg-purple-100 text-purple-700 border-purple-200';
       case 'leave': return 'bg-amber-100 text-amber-700 border-amber-200';
+      case 'holiday': return 'bg-rose-100 text-rose-700 border-rose-200';
       default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
@@ -366,7 +442,8 @@ function UnifiedCalendar() {
 
   const getEventsForDate = (date: Date) => {
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-    return (calendarFeed?.events || []).filter(event => {
+    const allForDate = [...(calendarFeed?.events || []), ...holidayEvents];
+    return allForDate.filter(event => {
       const matchesDate = event.date && dateStr >= event.date && dateStr <= (event.endDate || event.date);
       const matchesFilter = filterType === 'all' || event.type === filterType;
       const matchesSearch = searchQuery === '' || getEventSearchText(event).includes(searchQuery.toLowerCase());
@@ -386,7 +463,8 @@ function UnifiedCalendar() {
   const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate);
   const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  const filteredEvents = (calendarFeed?.events || []).filter(event => {
+  const allEvents = [...(calendarFeed?.events || []), ...holidayEvents];
+  const filteredEvents = allEvents.filter(event => {
     const matchesFilter = filterType === 'all' || event.type === filterType;
     const matchesSearch = searchQuery === '' || getEventSearchText(event).includes(searchQuery.toLowerCase());
     return matchesFilter && matchesSearch;
@@ -422,21 +500,32 @@ function UnifiedCalendar() {
             </div>
           )}
 
-          <div className="mb-3 grid grid-cols-2 lg:grid-cols-5 gap-3">
-            {summaryCards.map((card) => (
-              <div key={card.key} className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                {showLoadingState ? (
-                  <Skeleton className="h-6 w-10 rounded-lg" />
-                ) : (
-                  <p className="text-[15px] font-black text-slate-900">{summary?.[card.key as keyof CalendarSummary] || 0}</p>
-                )}
-              </div>
-            ))}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 shrink-0">
+            {summaryCards.map((card) => {
+              const Icon = card.icon;
+              return (
+                <div key={card.key} className={card.cardClass}>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    {showLoadingState ? (
+                      <Skeleton className="h-5 w-10 rounded-lg" />
+                    ) : (
+                      <p className="text-[15px] font-black text-slate-900">
+                        {card.key === 'holidays' ? holidayEvents.length : (summary?.[card.key as keyof CalendarSummary] || 0)}
+                      </p>
+                    )}
+                  </div>
+                  <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}>
+                    <Icon size={16} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          <div className="rounded-2xl border border-slate-100 bg-white p-1 shadow-sm mb-3">
-            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between p-3">
+          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden mb-3">
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+
               <div className="flex items-center gap-3">
                 <button onClick={() => changeMonth('prev')} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
                   <ChevronLeft size={18} className="text-slate-500" />
@@ -445,39 +534,36 @@ function UnifiedCalendar() {
                 <button onClick={() => changeMonth('next')} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
                   <ChevronRight size={18} className="text-slate-500" />
                 </button>
-                <button onClick={() => setCurrentDate(new Date())} className="px-4 py-2 bg-[#2563EB] text-white rounded-xl text-[10px] font-bold hover:bg-blue-700 transition-colors">
+                <button onClick={() => setCurrentDate(new Date())} className="px-4 py-2 bg-[#2563EB] text-white rounded-2xl text-[10px] font-bold hover:bg-blue-700 transition-colors">
                   Today
                 </button>
               </div>
 
-              <div className="flex items-center gap-5 flex-wrap">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+              <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                <div className="relative flex-1 min-w-[160px]">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input
-                    type="text"
-                    placeholder="Search events..."
+                    type="text" placeholder="Search events..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:ring-2 focus:ring-blue-100 outline-none transition-all w-44"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                   />
                 </div>
 
-                <div className="flex items-center gap-3 bg-slate-100/50 p-1 rounded-xl border border-slate-200/50">
-                  {['all', 'booking', 'task', 'ticket', 'leave'].map(type => (
+                <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                  {['all', 'booking', 'task', 'ticket', 'leave', 'holiday'].map(type => (
                     <button
                       key={type}
                       onClick={() => setFilterType(type)}
-                      className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all ${filterType === type
-                          ? 'bg-white text-slate-950 shadow-sm border border-slate-200/50'
-                          : 'text-slate-500 hover:text-slate-950'
+                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${filterType === type
+                          ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                          : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
                         }`}
                     >
-                      {type === 'all' ? 'All' : type === 'booking' ? 'Bookings' : type === 'task' ? 'Tasks' : type === 'ticket' ? 'Tickets' : 'Leave'}
+                      {type === 'all' ? 'All' : type === 'booking' ? 'Bookings' : type === 'task' ? 'Tasks' : type === 'ticket' ? 'Tickets' : type === 'leave' ? 'Leave' : 'Holiday'}
                     </button>
                   ))}
                 </div>
-
-
               </div>
             </div>
           </div>
@@ -541,7 +627,7 @@ function UnifiedCalendar() {
 
             <div className="xl:col-span-1">
               <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-5 sticky top-8">
-                <h3 className="text-sm font-black text-slate-950 mb-4 flex items-center gap-2">
+                <h3 className="text-sm font-pmedium text-primary mb-4 flex items-center gap-2">
                   <CalendarIcon size={16} className="text-[#2563EB]" />
                   {sidebarHeading}
                 </h3>
