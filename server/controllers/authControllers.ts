@@ -1081,6 +1081,8 @@ export const verifyRegisterOtpAndComplete = async (req, res, next) => {
 
     user.name = payloadName;
     user.password = payloadPassword;
+    user.inviteStatus = "registered";
+    user.registeredAt = new Date();
     await user.save();
     await Otp.updateOne({ _id: otpRecord._id }, { $set: { isUsed: true } });
 

@@ -3,6 +3,21 @@ import mongoose from "mongoose";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 
+const workspaceAccessSchema = new mongoose.Schema(
+  {
+    workspaceId: { type: String, trim: true, default: "" },
+    workspaceName: { type: String, trim: true, default: "Main Workspace" },
+    moduleAccess: { type: mongoose.Schema.Types.Mixed, default: {} },
+    accessSource: {
+      type: String,
+      trim: true,
+      enum: ["plan_role_preset", "custom_workspace_grant"],
+      default: "custom_workspace_grant",
+    },
+  },
+  { _id: false },
+);
+
 const hostUserSchema = new mongoose.Schema(
   {
     company: {
@@ -81,6 +96,15 @@ const hostUserSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    inviteStatus: {
+      type: String,
+      enum: ["not_invited", "invite_sent", "registered", "joined"],
+      default: "not_invited",
+    },
+    inviteSentAt: { type: Date, default: null },
+    registeredAt: { type: Date, default: null },
+    joinedAt: { type: Date, default: null },
+    workspaceAccess: { type: [workspaceAccessSchema], default: [] },
   },
   {
     timestamps: true,

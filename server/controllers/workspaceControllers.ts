@@ -196,6 +196,10 @@ export const completeWorkspaceSetup = async (req, res, next) => {
     }
     user.hasCompletedWorkspaceSetup = true;
     user.isActive = true;
+    if (!user.joinedAt) {
+      user.inviteStatus = "joined";
+      user.joinedAt = new Date();
+    }
     await user.save();
 
     const updatedUser = await HostUser.findById(user._id).lean().exec();
