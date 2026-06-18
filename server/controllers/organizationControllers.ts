@@ -6,6 +6,7 @@ import WorkspaceMember from "../models/WorkspaceMember.js";
 import Department from "../models/Department.js";
 import { Role } from "../models/Role.js";
 import ActingManager from "../models/ActingManager.js";
+import Company from "../models/Company.js";
 import jwt from "jsonwebtoken";
 import { sendMail } from "../config/mailer.js";
 import { buildWorkspaceModuleCatalog } from "../config/workspaceModuleCatalog.js";
