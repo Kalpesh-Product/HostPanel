@@ -10,13 +10,13 @@ export interface ITicket extends Document {
     description: string;
     tenantCompanyId?: mongoose.Types.ObjectId | null;
     tenantCompanyName: string;
-    assetId: string;
+    assetId?: mongoose.Types.ObjectId | null;
     assetCode: string;
     assetName: string;
     assetDepartment: string;
     assetDepartmentId?: mongoose.Types.ObjectId | null;
     assetAssignedTo: string;
-    dueDate: string;
+    dueDate?: Date | null;
     department: string;
     departmentId?: mongoose.Types.ObjectId | null;
     submittedBy: string;
@@ -63,13 +63,13 @@ const ticketSchema = new Schema<ITicket>(
         description: { type: String, required: true, trim: true, maxlength: 3000 },
         tenantCompanyId: { type: Schema.Types.ObjectId, ref: "TenantCompany", default: null, index: true },
         tenantCompanyName: { type: String, default: "", trim: true, maxlength: 180 },
-        assetId: { type: String, default: "", trim: true, maxlength: 64, index: true },
+        assetId: { type: Schema.Types.ObjectId, ref: "Asset", default: null, index: true },
         assetCode: { type: String, default: "", trim: true, maxlength: 64 },
         assetName: { type: String, default: "", trim: true, maxlength: 180 },
         assetDepartment: { type: String, default: "", trim: true, maxlength: 80 },
         assetDepartmentId: { type: Schema.Types.ObjectId, ref: "Department", default: null, index: true },
         assetAssignedTo: { type: String, default: "", trim: true, maxlength: 120 },
-        dueDate: { type: String, default: "", trim: true, maxlength: 30, index: true },
+        dueDate: { type: Date, default: null, index: true },
         department: { type: String, required: true, trim: true, maxlength: 80, index: true },
         departmentId: { type: Schema.Types.ObjectId, ref: "Department", default: null, index: true },
         submittedBy: { type: String, required: true, trim: true, maxlength: 120 },

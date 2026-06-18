@@ -8,7 +8,9 @@ export interface IPayrollAdjustment {
     createdAt: Date;
 }
 
-export interface IPayrollEmployee {
+export interface IPayrollEntry extends Document {
+    workspaceId: mongoose.Types.ObjectId;
+    cycleId: mongoose.Types.ObjectId;
     profileId: mongoose.Types.ObjectId;
     linkedUserId?: mongoose.Types.ObjectId | null;
     employeeId: string;
@@ -66,40 +68,9 @@ export interface IPayrollEmployee {
     manualAdjustments: IPayrollAdjustment[];
     adjustmentReason?: string;
     hasSalaryPackage: boolean;
-}
-
-export interface IPayrollSummary {
-    totalEmployees: number;
-    totalWorkingDays: number;
-    totalGross: number;
-    totalBenefits: number;
-    totalStandardDeductions: number;
-    totalAttendanceDeductions: number;
-    totalManualBonuses: number;
-    totalManualDeductions: number;
-    totalNetPayable: number;
-}
-
-export interface IPayrollCycle extends Document {
-    workspaceId: mongoose.Types.ObjectId;
-    ownerId: mongoose.Types.ObjectId;
-    cycleKey: string;
-    month: number;
-    year: number;
-    monthLabel: string;
-    status: "Pending" | "Prepared" | "Sent to Finance" | "Paid";
-    processedOn?: Date | null;
-    preparedAt?: Date | null;
-    sentToFinanceAt?: Date | null;
-    paidAt?: Date | null;
-    preparedBy?: mongoose.Types.ObjectId | null;
-    sentToFinanceBy?: mongoose.Types.ObjectId | null;
-    paidBy?: mongoose.Types.ObjectId | null;
-    summary: IPayrollSummary;
     createdAt?: Date;
     updatedAt?: Date;
 }
-
 
 const payrollAdjustmentSchema = new Schema<IPayrollAdjustment>(
     {
@@ -135,8 +106,20 @@ const payrollAdjustmentSchema = new Schema<IPayrollAdjustment>(
     { timestamps: false }
 );
 
-const payrollEmployeeSchema = new Schema<IPayrollEmployee>(
+const payrollEntrySchema = new Schema<IPayrollEntry>(
     {
+        workspaceId: {
+            type: Schema.Types.ObjectId,
+            ref: "Workspace",
+            required: true,
+            index: true,
+        },
+        cycleId: {
+            type: Schema.Types.ObjectId,
+            ref: "PayrollCycle",
+            required: true,
+            index: true,
+        },
         profileId: {
             type: Schema.Types.ObjectId,
             ref: "EmployeeProfile",
@@ -243,89 +226,15 @@ const payrollEmployeeSchema = new Schema<IPayrollEmployee>(
         adjustmentReason: { type: String, trim: true, default: "", maxlength: 1200 },
         hasSalaryPackage: { type: Boolean, default: true, index: true },
     },
-    { timestamps: false }
-);
-
-const payrollSummarySchema = new Schema<IPayrollSummary>(
-    {
-        totalEmployees: { type: Number, required: true, min: 0, default: 0 },
-        totalWorkingDays: { type: Number, required: true, min: 0, default: 0 },
-        totalGross: { type: Number, required: true, min: 0, default: 0 },
-        totalBenefits: { type: Number, required: true, min: 0, default: 0 },
-        totalStandardDeductions: { type: Number, required: true, min: 0, default: 0 },
-        totalAttendanceDeductions: { type: Number, required: true, min: 0, default: 0 },
-        totalManualBonuses: { type: Number, required: true, min: 0, default: 0 },
-        totalManualDeductions: { type: Number, required: true, min: 0, default: 0 },
-        totalNetPayable: { type: Number, required: true, min: 0, default: 0 },
-    },
-    { _id: false }
-);
-
-const payrollCycleSchema = new Schema<IPayrollCycle>(
-    {
-        workspaceId: {
-            type: Schema.Types.ObjectId,
-            ref: "Workspace",
-            required: true,
-            index: true,
-        },
-        ownerId: {
-            type: Schema.Types.ObjectId,
-            ref: "HostUser",
-            required: true,
-            index: true,
-        },
-        cycleKey: {
-            type: String,
-            trim: true,
-            required: true,
-            maxlength: 16,
-            index: true,
-        },
-        month: {
-            type: Number,
-            required: true,
-            min: 0,
-            max: 11,
-            index: true,
-        },
-        year: {
-            type: Number,
-            required: true,
-            min: 2000,
-            max: 3000,
-            index: true,
-        },
-        monthLabel: {
-            type: String,
-            trim: true,
-            required: true,
-            maxlength: 20,
-        },
-        status: {
-            type: String,
-            enum: ["Pending", "Prepared", "Sent to Finance", "Paid"],
-            default: "Pending",
-            required: true,
-            index: true,
-        },
-        processedOn: { type: Date, default: null },
-        preparedAt: { type: Date, default: null },
-        sentToFinanceAt: { type: Date, default: null },
-        paidAt: { type: Date, default: null },
-        preparedBy: { type: Schema.Types.ObjectId, ref: "HostUser", default: null, index: true },
-        sentToFinanceBy: { type: Schema.Types.ObjectId, ref: "HostUser", default: null, index: true },
-        paidBy: { type: Schema.Types.ObjectId, ref: "HostUser", default: null, index: true },
-        summary: { type: payrollSummarySchema, default: () => ({}) },
-    },
     {
         timestamps: true,
     }
 );
 
-payrollCycleSchema.index({ workspaceId: 1, cycleKey: 1 }, { unique: true });
-payrollCycleSchema.index({ workspaceId: 1, status: 1, updatedAt: -1 });
+payrollEntrySchema.index({ cycleId: 1, profileId: 1 }, { unique: true });
+payrollEntrySchema.index({ workspaceId: 1, cycleId: 1 });
+payrollEntrySchema.index({ cycleId: 1, "financials.paymentStatus": 1 });
 
-export const PayrollCycle = (mongoose.models.PayrollCycle as mongoose.Model<IPayrollCycle>) ||
-    mongoose.model<IPayrollCycle>("PayrollCycle", payrollCycleSchema);
-export default PayrollCycle;
+export const PayrollEntry = (mongoose.models.PayrollEntry as mongoose.Model<IPayrollEntry>) ||
+    mongoose.model<IPayrollEntry>("PayrollEntry", payrollEntrySchema);
+export default PayrollEntry;

@@ -8,6 +8,7 @@ const nullableObjectIdFields = [
     "repairLogAssignedToUserId",
     "tenantCompanyId",
     "followUpOfTicketId",
+    "assetId",
 ] as const;
 
 const toNullableObjectId = (value: unknown): mongoose.Types.ObjectId | null | undefined => {

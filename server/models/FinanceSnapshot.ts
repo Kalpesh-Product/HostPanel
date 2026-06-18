@@ -221,11 +221,6 @@ export interface IFinanceSnapshot extends Document {
     ownerId: mongoose.Types.ObjectId;
     fiscalYear: string;
     departments: IDepartmentFinance[];
-    annualRequests: IAnnualFinanceRequest[];
-    extraRequests: IExtraFinanceRequest[];
-    deptTransactions: IFinanceTransaction[];
-    auditTrail: IFinanceAuditTrail[];
-    departmentFinance: IDepartmentFinancePlan[];
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -563,31 +558,11 @@ const financeSnapshotSchema = new Schema<IFinanceSnapshot>(
             index: true,
         },
         departments: { type: [departmentFinanceSchema], default: [] },
-        annualRequests: { type: [annualFinanceRequestSchema], default: [] },
-        extraRequests: { type: [extraFinanceRequestSchema], default: [] },
-        deptTransactions: { type: [financeTransactionSchema], default: [] },
-        auditTrail: { type: [financeAuditTrailSchema], default: [] },
-        departmentFinance: { type: [departmentFinancePlanSchema], default: [] },
     },
     {
         timestamps: true,
     }
 );
-
-financeSnapshotSchema.pre("validate", function trimAnnualRequestBreakdowns(this: any, next: any) {
-    if (Array.isArray(this.annualRequests)) {
-        this.annualRequests = this.annualRequests.map((request: any) => {
-            if (!request || typeof request !== "object") {
-                return request;
-            }
-            return {
-                ...request,
-                breakdown: trimToMaxLength(request.breakdown, 1000),
-            };
-        });
-    }
-    next();
-});
 
 financeSnapshotSchema.index({ ownerId: 1, fiscalYear: 1 }, { unique: true });
 financeSnapshotSchema.index({ workspaceId: 1, fiscalYear: 1 }, { unique: true, sparse: true });
