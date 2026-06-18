@@ -3,6 +3,8 @@ import Company from "../models/Company.js";
 import HostUser from "../models/HostUser.js";
 import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
+import Role from "../models/Role.js";
+import Department from "../models/Department.js";
 import {
   buildWorkspaceModuleCatalog,
   buildWorkspaceModulesStructure,
@@ -166,11 +168,21 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       isActive: true,
     });
 
+    let founderRole = await Role.findOne({ name: "founder" });
+    if (!founderRole) {
+      founderRole = await Role.create({
+        name: "founder",
+        isSystemRole: true,
+        workspaceId: null,
+        permissions: ["*"],
+      });
+    }
+
     const workspaceMembership = await WorkspaceMember.findOneAndUpdate(
       { workspace: workspace._id, user: user._id },
       {
         $set: {
-          role: "founder",
+          role: founderRole._id,
           isPrimary: !isAdditionalWorkspaceMode,
           isActive: true,
         },
@@ -300,11 +312,26 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
     ]);
     const memberMap = new Map(membershipCounts.map((item) => [toId(item._id), Number(item.count || 0)]));
 
+    const allDepartments = await Department.find({
+      workspaceId: { $in: workspaceIds },
+      isActive: true,
+    }).lean().exec();
+
+    const departmentsByWorkspace = new Map<string, any[]>();
+    for (const dept of allDepartments) {
+      const wId = String(dept.workspaceId);
+      const current = departmentsByWorkspace.get(wId) || [];
+      current.push(dept);
+      departmentsByWorkspace.set(wId, current);
+    }
+
     const activeMemberships = await WorkspaceMember.find({
       workspace: { $in: workspaceIds },
       isActive: true,
     })
       .populate("user", "name email")
+      .populate("role")
+      .populate("departments")
       .lean()
       .exec();
 
@@ -319,9 +346,7 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
     const list = ownerWorkspaces.map((item) => {
       const workspaceId = toId(item._id);
       const workspaceMembers = membersByWorkspace.get(workspaceId) || [];
-      const departments = Array.isArray(item.organizationDepartments)
-        ? item.organizationDepartments.filter((department) => department?.isActive !== false)
-        : [];
+      const departments = departmentsByWorkspace.get(workspaceId) || [];
       const roleCountsMap = new Map<string, number>();
       const employees = workspaceMembers.map((member: any) => {
         const role = String(member?.role || "member").trim().toLowerCase();
@@ -336,7 +361,9 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
           email: String(member?.user?.email || ""),
           roleLabel,
           status: String(member?.status || "active"),
-          departments: Array.isArray(member?.departments) ? member.departments : [],
+          departments: Array.isArray(member?.departments)
+            ? member.departments.map((d: any) => d.name || String(d))
+            : [],
           employeeId: "",
         };
       });

@@ -5,6 +5,7 @@ import Company from "../models/Company.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
 import { TenantCompany } from "../models/TenantCompany.js";
+import Role from "../models/Role.js";
 
 const buildAuthUserPayload = (
   user: any,
@@ -26,7 +27,7 @@ const buildAuthUserPayload = (
   workspaceCount,
   workspaceMembership: workspaceMembership
     ? {
-        role: workspaceMembership.role,
+        role: workspaceMembership.role?.name || (typeof workspaceMembership.role === "string" ? workspaceMembership.role : "member"),
         isPrimary: workspaceMembership.isPrimary,
         isActive: workspaceMembership.isActive,
       }
@@ -41,6 +42,7 @@ const getAccessibleWorkspaces = async (userId: any) => {
   })
     .sort({ isPrimary: -1, createdAt: 1 })
     .populate("workspace")
+    .populate("role")
     .lean()
     .exec();
 
@@ -74,6 +76,7 @@ const resolveActiveWorkspaceMembership = async (user: any) => {
     ...(user?.primaryWorkspace ? { workspace: user.primaryWorkspace } : {}),
   })
     .sort({ isPrimary: -1, createdAt: 1 })
+    .populate("role")
     .lean()
     .exec();
 
@@ -83,6 +86,7 @@ const resolveActiveWorkspaceMembership = async (user: any) => {
 
   return WorkspaceMember.findOne({ user: user._id, isActive: true })
     .sort({ isPrimary: -1, createdAt: 1 })
+    .populate("role")
     .lean()
     .exec();
 };

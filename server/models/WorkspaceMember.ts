@@ -14,9 +14,9 @@ const workspaceMemberSchema = new mongoose.Schema(
       required: true,
     },
     role: {
-      type: String,
-      default: "founder",
-      trim: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Role",
+      required: true,
     },
     status: {
       type: String,
@@ -24,7 +24,7 @@ const workspaceMemberSchema = new mongoose.Schema(
       trim: true,
     },
     departments: {
-      type: [String],
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Department" }],
       default: [],
     },
     grantedModules: {
@@ -36,8 +36,8 @@ const workspaceMemberSchema = new mongoose.Schema(
         {
           fromWorkspaceId: { type: mongoose.Schema.Types.ObjectId, ref: "Workspace", default: null },
           toWorkspaceId: { type: mongoose.Schema.Types.ObjectId, ref: "Workspace", default: null },
-          previousRole: { type: String, default: "", trim: true },
-          nextRole: { type: String, default: "", trim: true },
+          previousRole: { type: mongoose.Schema.Types.ObjectId, ref: "Role", default: null },
+          nextRole: { type: mongoose.Schema.Types.ObjectId, ref: "Role", default: null },
           note: { type: String, default: "", trim: true },
           transferredAt: { type: Date, default: Date.now },
         },

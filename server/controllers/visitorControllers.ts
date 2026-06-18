@@ -3,6 +3,7 @@ import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import HostUser from "../models/HostUser.js";
 import VisitorLog from "../models/VisitorLog.js";
+import Role from "../models/Role.js";
 import { VISITOR_MEMBER_GRANT_ALIASES, VISITOR_PERMISSION_KEYS } from "../config/visitorPermissionMap.js";
 
 const FRONTDESK_ROLES = new Set(["owner", "founder", "super_admin", "admin", "admin_manager", "manager"]);
@@ -63,11 +64,12 @@ const getWorkspaceRole = async (workspaceId: string, userId: string) => {
     user: userId,
     isActive: true,
   })
+    .populate("role")
     .select("role")
     .lean()
     .exec();
 
-  return normalizeRole(membership?.role || "");
+  return normalizeRole(membership?.role?.name || membership?.role || "");
 };
 
 const ensureFrontdeskPermission = async (workspaceId: string, userId: string) => {
@@ -98,6 +100,7 @@ const getWorkspaceMembership = async (workspaceId: string, userId: string) =>
     user: userId,
     isActive: true,
   })
+    .populate("role")
     .select("role grantedModules")
     .lean()
     .exec();
@@ -305,6 +308,8 @@ export const getVisitorsOverview = async (req, res, next) => {
       isActive: true,
     })
       .populate("user", "name email")
+      .populate("role")
+      .populate("departments")
       .select("user role departments")
       .lean()
       .exec();
@@ -313,8 +318,10 @@ export const getVisitorsOverview = async (req, res, next) => {
       id: toId(member?.user?._id || member?.user),
       fullName: member?.user?.name || "",
       email: member?.user?.email || "",
-      role: member?.role || "employee",
-      departments: Array.isArray(member?.departments) ? member.departments : [],
+      role: member?.role?.name || member?.role || "employee",
+      departments: Array.isArray(member?.departments)
+        ? member.departments.map((d: any) => d.name || String(d))
+        : [],
       isSelectable: true,
     }));
 

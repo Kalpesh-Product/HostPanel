@@ -32,6 +32,7 @@ import resourceRoutes from "./routes/resourceRoutes.js";
 import plansPricingRoutes from "./routes/plansPricing.routes.js";
 import tenantCompanyRoutes from "./routes/tenant-company.routes.js";
 import calendarRoutes from "./routes/calendarRoutes.js";
+import { seedSystemRoles } from "./config/seedRoles.js";
 
 const app = express();
 dotenv.config();
@@ -39,8 +40,9 @@ const PORT = process.env.PORT || 5006;
 
 mongoose
   .connect(process.env.DB_URL)
-  .then(() => {
+  .then(async () => {
     console.log("connected to mongoDB");
+    await seedSystemRoles();
   })
   .catch((error) => {
     console.error("mongoDB connection error:", error?.message || error);

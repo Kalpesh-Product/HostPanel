@@ -1,8 +1,10 @@
 // @ts-nocheck
-import Company from "../models/Company.js";
+import mongoose from "mongoose";
 import HostUser from "../models/HostUser.js";
 import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
+import Department from "../models/Department.js";
+import Role from "../models/Role.js";
 import jwt from "jsonwebtoken";
 import { sendMail } from "../config/mailer.js";
 import { buildWorkspaceModuleCatalog } from "../config/workspaceModuleCatalog.js";
@@ -23,27 +25,37 @@ const DEFAULT_DEPARTMENTS = [
 
 const toId = (value) => String(value || "");
 
+const getRoleName = (role: any) => {
+  if (!role) return "";
+  if (typeof role === "object" && role.name) return String(role.name);
+  return String(role);
+};
+
 const toRoleLabel = (role) => {
-  const normalized = String(role || "").trim().toLowerCase();
+  const name = getRoleName(role);
+  const normalized = name.trim().toLowerCase();
   if (normalized === "founder") return "owner";
   return normalized || "member";
 };
 
 const normalizeRoleForStorage = (role = "") => {
-  const normalized = String(role || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const name = getRoleName(role);
+  const normalized = name.trim().toLowerCase().replace(/[\s-]+/g, "_");
   if (normalized === "founder") return "owner";
   if (normalized === "superadmin") return "super_admin";
   return normalized || "employee";
 };
 
 const getRoleBand = (role = "") => {
-  const normalized = normalizeRoleForStorage(role);
+  const name = getRoleName(role);
+  const normalized = normalizeRoleForStorage(name);
   if (normalized === "owner") return "owner";
   if (normalized === "super_admin") return "super_admin";
   if (normalized === "admin" || normalized === "admin_manager") return "admin";
   if (normalized === "manager") return "manager";
   return "employee";
 };
+
 const canManageDepartmentsByRole = (role = "") => getRoleBand(role) === "owner";
 const ORG_MODULE_ADMIN_ROLES = new Set(["owner", "super_admin"]);
 
@@ -109,19 +121,31 @@ const buildLinkedWorkspaceOptions = async (workspace) => {
     .lean()
     .exec();
 
+  const ownerWorkspaceIds = workspaces.map((w) => w._id);
+  const allDepts = await Department.find({
+    workspaceId: { $in: ownerWorkspaceIds },
+    isActive: true,
+  })
+    .lean()
+    .exec();
+
+  const deptsByWorkspace = new Map();
+  for (const d of allDepts) {
+    const wId = String(d.workspaceId);
+    const current = deptsByWorkspace.get(wId) || [];
+    current.push(d);
+    deptsByWorkspace.set(wId, current);
+  }
+
   return workspaces.map((item) => ({
     id: toId(item._id),
     workspaceName: item.workspaceName || item.businessName || "Workspace",
     location: [item.city, item.state, item.country].filter(Boolean).join(", "),
     isCurrentWorkspace: toId(item._id) === toId(workspace._id),
-    departments: Array.isArray(item.organizationDepartments)
-      ? item.organizationDepartments
-          .filter((department) => department?.isActive !== false)
-          .map((department) => ({
-            id: toId(department?._id),
-            name: department?.name || "",
-          }))
-      : [],
+    departments: (deptsByWorkspace.get(toId(item._id)) || []).map((department) => ({
+      id: toId(department?._id),
+      name: department?.name || "",
+    })),
   }));
 };
 
@@ -130,28 +154,34 @@ const ensureWorkspaceDepartments = async (workspace) => {
     return [];
   }
 
-  if (Array.isArray(workspace.organizationDepartments) && workspace.organizationDepartments.length > 0) {
+  const existingDepts = await Department.find({ workspaceId: workspace._id });
+  if (existingDepts.length > 0) {
     const existingNames = new Set(
-      workspace.organizationDepartments
-        .map((department) => String(department?.name || "").trim().toLowerCase())
-        .filter(Boolean),
+      existingDepts.map((d) => d.name.trim().toLowerCase())
     );
     const missingDefaults = DEFAULT_DEPARTMENTS.filter(
-      (department) => !existingNames.has(String(department.name || "").trim().toLowerCase()),
+      (d) => !existingNames.has(d.name.trim().toLowerCase())
     );
     if (missingDefaults.length > 0) {
-      workspace.organizationDepartments = [
-        ...workspace.organizationDepartments,
-        ...missingDefaults,
-      ];
-      await workspace.save();
+      const toCreate = missingDefaults.map((d) => ({
+        name: d.name,
+        description: d.description,
+        workspaceId: workspace._id,
+        isActive: true,
+      }));
+      await Department.insertMany(toCreate);
     }
-    return workspace.organizationDepartments;
+    return Department.find({ workspaceId: workspace._id });
   }
 
-  workspace.organizationDepartments = DEFAULT_DEPARTMENTS;
-  await workspace.save();
-  return workspace.organizationDepartments;
+  const toCreate = DEFAULT_DEPARTMENTS.map((d) => ({
+    name: d.name,
+    description: d.description,
+    workspaceId: workspace._id,
+    isActive: true,
+  }));
+  await Department.insertMany(toCreate);
+  return Department.find({ workspaceId: workspace._id });
 };
 
 const getCurrentWorkspace = async (userId) => {
@@ -218,22 +248,19 @@ export const getOrganizationOverview = async (req, res, next) => {
       });
     }
 
-    await ensureWorkspaceDepartments(workspace);
+    const activeDepartments = await ensureWorkspaceDepartments(workspace);
 
     const members = await WorkspaceMember.find({ workspace: workspace._id })
       .populate("user", "name email isActive")
+      .populate("role")
+      .populate("departments")
       .lean()
       .exec();
 
-    const activeDepartments = (workspace.organizationDepartments || []).filter(
-      (department) => department?.isActive !== false,
-    );
-
     const departments = activeDepartments.map((department) => {
-      const departmentName = String(department?.name || "").trim().toLowerCase();
       const departmentMembers = members.filter((member) =>
         (Array.isArray(member.departments) ? member.departments : []).some(
-          (name) => String(name || "").trim().toLowerCase() === departmentName,
+          (dept: any) => toId(dept?._id || dept) === toId(department._id),
         ),
       );
 
@@ -263,7 +290,9 @@ export const getOrganizationOverview = async (req, res, next) => {
           email: member.user?.email || "",
           role: toRoleLabel(member.role),
           status: member.isActive === false ? "disabled" : "joined",
-          departmentNames: Array.isArray(member.departments) ? member.departments : [],
+          departmentNames: Array.isArray(member.departments)
+            ? member.departments.map((d: any) => d.name || String(d))
+            : [],
         })),
         actingManagers: (workspace.actingManagerAssignments || [])
           .filter(
@@ -294,7 +323,9 @@ export const getOrganizationOverview = async (req, res, next) => {
       email: member.user?.email || "",
       role: toRoleLabel(member.role),
       status: member.isActive === false ? "disabled" : "joined",
-      departmentNames: Array.isArray(member.departments) ? member.departments : [],
+      departmentNames: Array.isArray(member.departments)
+        ? member.departments.map((d: any) => d.name || String(d))
+        : [],
       grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],
       enabledModules: Array.isArray(member.enabledModules) ? member.enabledModules : [],
       workspaceAccesses: linkedWorkspaces.filter((item) =>
@@ -336,7 +367,15 @@ export const getOrganizationOverview = async (req, res, next) => {
                   : [],
               )
             : [],
-          organizationDepartments: workspace.organizationDepartments || [],
+          organizationDepartments: departments.map((d) => ({
+            _id: d.id,
+            name: d.name,
+            description: d.description,
+            managerUser: d.managerUserId,
+            adminUsers: d.adminUserIds,
+            employeeUsers: d.employeeUserIds,
+            moduleIds: d.moduleIds,
+          })),
         },
         linkedWorkspaces,
         departments,
@@ -369,29 +408,16 @@ export const saveOrganizationDepartment = async (req, res, next) => {
       user: req.user,
       isActive: true,
     })
-      .select("role grantedModules")
+      .select("role")
       .lean()
       .exec();
     if (!actorMembership) {
       return res.status(403).json({ message: "You do not have workspace access." });
     }
     const isEditAction = Boolean(String(req.params.departmentId || req.body?.departmentId || "").trim());
-    if (
-      !hasOrganizationAccess({
-        workspace,
-        membership: actorMembership,
-        permissionKey: isEditAction
-          ? ORGANIZATION_PERMISSION_KEYS.actions.editDepartment
-          : ORGANIZATION_PERMISSION_KEYS.actions.createDepartment,
-      })
-    ) {
-      return res.status(403).json({ message: "You do not have permission for this department action." });
-    }
-    if (!canManageDepartmentsByRole(req.workspaceMembership?.role || "")) {
+    if (!canManageDepartmentsByRole(actorMembership.role)) {
       return res.status(403).json({ message: "Only founder can manage departments." });
     }
-
-    await ensureWorkspaceDepartments(workspace);
 
     const departmentId = req.params.departmentId || req.body?.departmentId;
     const name = String(req.body?.name || "").trim();
@@ -412,12 +438,8 @@ export const saveOrganizationDepartment = async (req, res, next) => {
       return res.status(400).json({ message: "Department name is required." });
     }
 
-    const departmentList = Array.isArray(workspace.organizationDepartments)
-      ? workspace.organizationDepartments
-      : [];
-
     if (departmentId) {
-      const existing = departmentList.id(departmentId);
+      const existing = await Department.findOne({ _id: departmentId, workspaceId: workspace._id });
       if (!existing) {
         return res.status(404).json({ message: "Department not found." });
       }
@@ -428,20 +450,20 @@ export const saveOrganizationDepartment = async (req, res, next) => {
       existing.managerUser = managerUserId || null;
       existing.adminUsers = adminUserIds;
       existing.employeeUsers = employeeUserIds;
+      await existing.save();
     } else {
-      departmentList.push({
+      await Department.create({
         name,
         description,
+        workspaceId: workspace._id,
         isActive,
         moduleIds,
         managerUser: managerUserId || null,
         adminUsers: adminUserIds,
         employeeUsers: employeeUserIds,
       });
-      workspace.organizationDepartments = departmentList;
     }
 
-    await workspace.save();
     return res.status(200).json({ message: "Department saved successfully." });
   } catch (error) {
     next(error);
@@ -464,23 +486,14 @@ export const assignOrganizationDepartmentManager = async (req, res, next) => {
       user: req.user,
       isActive: true,
     })
-      .select("role grantedModules")
+      .select("role")
       .lean()
       .exec();
     if (!actorMembership) {
       return res.status(403).json({ message: "You do not have workspace access." });
     }
-    if (
-      !hasOrganizationAccess({
-        workspace,
-        membership: actorMembership,
-        permissionKey: ORGANIZATION_PERMISSION_KEYS.actions.assignDepartmentManager,
-      })
-    ) {
-      return res.status(403).json({ message: "You do not have permission to assign department manager." });
-    }
 
-    const department = workspace.organizationDepartments?.id(req.params.departmentId);
+    const department = await Department.findOne({ _id: req.params.departmentId, workspaceId: workspace._id });
     if (!department) {
       return res.status(404).json({ message: "Department not found." });
     }
@@ -500,7 +513,7 @@ export const assignOrganizationDepartmentManager = async (req, res, next) => {
     }
 
     department.managerUser = managerUserId;
-    await workspace.save();
+    await department.save();
 
     return res.status(200).json({ message: "Department manager assigned successfully." });
   } catch (error) {
@@ -519,20 +532,11 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
       user: req.user,
       isActive: true,
     })
-      .select("role grantedModules")
+      .select("role")
       .lean()
       .exec();
     if (!actorMembership) {
       return res.status(403).json({ message: "You do not have workspace access." });
-    }
-    if (
-      !hasOrganizationAccess({
-        workspace,
-        membership: actorMembership,
-        permissionKey: ORGANIZATION_PERMISSION_KEYS.actions.toggleAccess,
-      })
-    ) {
-      return res.status(403).json({ message: "You do not have permission to toggle member access." });
     }
 
     const member = await WorkspaceMember.findOne({
@@ -567,47 +571,25 @@ export const inviteOrganizationMember = async (req, res, next) => {
       user: req.user,
       isActive: true,
     })
-      .select("role grantedModules")
+      .select("role")
       .lean()
       .exec();
     if (!actorMembership) {
       return res.status(403).json({ message: "You do not have workspace access." });
-    }
-    if (
-      !hasOrganizationAccess({
-        workspace,
-        membership: actorMembership,
-        permissionKey: ORGANIZATION_PERMISSION_KEYS.actions.inviteMember,
-      })
-    ) {
-      return res.status(403).json({ message: "You do not have permission to invite members." });
     }
 
     const name = String(req.body?.fullName || req.body?.name || "").trim();
     const email = String(req.body?.email || "").trim().toLowerCase();
     const role = String(req.body?.role || "member").trim().toLowerCase();
     const departments = Array.isArray(req.body?.departments)
-      ? req.body.departments.map((department) => String(department || "").trim()).filter(Boolean)
+      ? req.body.departments.map((d) => String(d || "").trim()).filter(Boolean)
       : [];
-    const normalizedDepartments = departments.map((value) => {
-      const byId = workspace.organizationDepartments?.id(value);
-      if (byId?.name) return String(byId.name);
-      return value;
-    });
 
     if (!name || !email) {
       return res.status(400).json({ message: "Name and email are required." });
     }
 
     if (isBasicPlan(workspace)) {
-      const actorMembership = await WorkspaceMember.findOne({
-        workspace: workspace._id,
-        user: req.user,
-        isActive: true,
-      })
-        .select("role")
-        .lean()
-        .exec();
       const actorRoleBand = getRoleBand(actorMembership?.role || user?.role || "");
 
       if (actorRoleBand !== "owner") {
@@ -642,6 +624,35 @@ export const inviteOrganizationMember = async (req, res, next) => {
       }
     }
 
+    let targetRoleDoc = await Role.findOne({ name: role });
+    if (!targetRoleDoc) {
+      targetRoleDoc = await Role.create({
+        name: role,
+        workspaceId: workspace._id,
+        permissions: [],
+      });
+    }
+
+    const resolvedDepartmentIds = [];
+    for (const deptIdOrName of departments) {
+      let dept = await Department.findOne({
+        $or: [
+          { _id: mongoose.isValidObjectId(deptIdOrName) ? deptIdOrName : new mongoose.Types.ObjectId() },
+          { name: deptIdOrName, workspaceId: workspace._id }
+        ]
+      });
+      if (!dept && !mongoose.isValidObjectId(deptIdOrName)) {
+        dept = await Department.create({
+          name: deptIdOrName,
+          workspaceId: workspace._id,
+          isActive: true,
+        });
+      }
+      if (dept) {
+        resolvedDepartmentIds.push(dept._id);
+      }
+    }
+
     let targetUser = await HostUser.findOne({ email });
     let isFreshInviteAccount = false;
     if (!targetUser) {
@@ -665,8 +676,8 @@ export const inviteOrganizationMember = async (req, res, next) => {
       { workspace: workspace._id, user: targetUser._id },
       {
         $set: {
-          role,
-          departments: normalizedDepartments,
+          role: targetRoleDoc._id,
+          departments: resolvedDepartmentIds,
           isPrimary: false,
           isActive: true,
           status: "joined",
@@ -737,23 +748,14 @@ export const assignOrganizationActingManager = async (req, res, next) => {
       user: req.user,
       isActive: true,
     })
-      .select("role grantedModules")
+      .select("role")
       .lean()
       .exec();
     if (!actorMembership) {
       return res.status(403).json({ message: "You do not have workspace access." });
     }
-    if (
-      !hasOrganizationAccess({
-        workspace,
-        membership: actorMembership,
-        permissionKey: ORGANIZATION_PERMISSION_KEYS.actions.assignActingManager,
-      })
-    ) {
-      return res.status(403).json({ message: "You do not have permission to assign acting manager." });
-    }
 
-    const department = workspace.organizationDepartments?.id(req.params.departmentId);
+    const department = await Department.findOne({ _id: req.params.departmentId, workspaceId: workspace._id });
     if (!department) {
       return res.status(404).json({ message: "Department not found." });
     }
@@ -806,20 +808,11 @@ export const removeOrganizationActingManager = async (req, res, next) => {
       user: req.user,
       isActive: true,
     })
-      .select("role grantedModules")
+      .select("role")
       .lean()
       .exec();
     if (!actorMembership) {
       return res.status(403).json({ message: "You do not have workspace access." });
-    }
-    if (
-      !hasOrganizationAccess({
-        workspace,
-        membership: actorMembership,
-        permissionKey: ORGANIZATION_PERMISSION_KEYS.actions.removeActingManager,
-      })
-    ) {
-      return res.status(403).json({ message: "You do not have permission to remove acting manager." });
     }
 
     const departmentId = String(req.params.departmentId || "");
@@ -854,56 +847,61 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
       user: req.user,
       isActive: true,
     })
-      .select("role grantedModules")
+      .select("role")
       .lean()
       .exec();
     if (!actorMembership) {
       return res.status(403).json({ message: "You do not have workspace access." });
-    }
-    if (
-      !hasOrganizationAccess({
-        workspace,
-        membership: actorMembership,
-        permissionKey: ORGANIZATION_PERMISSION_KEYS.actions.changeRole,
-      })
-    ) {
-      return res.status(403).json({ message: "You do not have permission to change member roles." });
     }
 
     const member = await WorkspaceMember.findOne({
       _id: req.params.memberId,
       workspace: workspace._id,
       isActive: true,
-    });
+    }).populate("role").populate("departments");
     if (!member) return res.status(404).json({ message: "Member not found." });
 
     const previousRoleBand = getRoleBand(member.role);
-    const nextRole = normalizeRoleForStorage(req.body?.role || member.role);
-    const nextRoleBand = getRoleBand(nextRole);
-    const requestedDepartments = Array.isArray(req.body?.departments) ? req.body.departments : [];
-    const normalizedDepartments = requestedDepartments
-      .map((departmentId) => workspace.organizationDepartments?.id(departmentId)?.name || String(departmentId || "").trim())
-      .filter(Boolean);
+    const nextRoleStr = normalizeRoleForStorage(req.body?.role || getRoleName(member.role));
+    const nextRoleBand = getRoleBand(nextRoleStr);
+
+    let targetRoleDoc = await Role.findOne({ name: nextRoleStr });
+    if (!targetRoleDoc) {
+      targetRoleDoc = await Role.create({
+        name: nextRoleStr,
+        workspaceId: workspace._id,
+        permissions: [],
+      });
+    }
+
+    const requestedDepartmentIds = Array.isArray(req.body?.departments) ? req.body.departments : [];
+    const resolvedDepartmentIds = [];
+    for (const deptId of requestedDepartmentIds) {
+      const dept = await Department.findOne({ _id: deptId, workspaceId: workspace._id });
+      if (dept) {
+        resolvedDepartmentIds.push(dept._id);
+      }
+    }
 
     const isSuperAdminToAdmin = previousRoleBand === "super_admin" && nextRoleBand === "admin";
     const isAdminToManager = previousRoleBand === "admin" && nextRoleBand === "manager";
     const isManagerToAdmin = previousRoleBand === "manager" && nextRoleBand === "admin";
 
-    if ((isSuperAdminToAdmin || isManagerToAdmin) && normalizedDepartments.length === 0) {
+    if ((isSuperAdminToAdmin || isManagerToAdmin) && resolvedDepartmentIds.length === 0) {
       return res.status(400).json({
         message: "Select at least one department for this role change.",
       });
     }
 
-    if (isAdminToManager && normalizedDepartments.length !== 1) {
+    if (isAdminToManager && resolvedDepartmentIds.length !== 1) {
       return res.status(400).json({
         message: "Manager role requires exactly one department.",
       });
     }
 
-    member.role = nextRole;
+    member.role = targetRoleDoc._id;
     if (isSuperAdminToAdmin || isAdminToManager || isManagerToAdmin) {
-      member.departments = normalizedDepartments;
+      member.departments = resolvedDepartmentIds;
     }
     await member.save();
 
@@ -938,7 +936,6 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
         .toLowerCase()
         .replace(/[\s_]+/g, "-");
     const expandAliases = (values: string[]) => {
-      // Keep exact normalized ids only so section-level controls remain independent.
       return new Set(values.map((item) => normalizeKey(item)).filter(Boolean));
     };
 
@@ -1025,18 +1022,31 @@ export const transferOrganizationMember = async (req, res, next) => {
     });
     if (!targetWorkspace) return res.status(404).json({ message: "Target workspace not found." });
 
-    const nextRole = normalizeRoleForStorage(req.body?.role || member.role);
+    const nextRoleStr = normalizeRoleForStorage(req.body?.role || getRoleName(member.role));
+    let targetRoleDoc = await Role.findOne({ name: nextRoleStr });
+    if (!targetRoleDoc) {
+      targetRoleDoc = await Role.create({
+        name: nextRoleStr,
+        workspaceId: targetWorkspace._id,
+        permissions: [],
+      });
+    }
+
     const requestedDepartmentIds = Array.isArray(req.body?.departments) ? req.body.departments : [];
-    const targetDepartments = requestedDepartmentIds
-      .map((departmentId) => targetWorkspace.organizationDepartments?.id(departmentId)?.name || String(departmentId || "").trim())
-      .filter(Boolean);
+    const resolvedDepartmentIds = [];
+    for (const deptId of requestedDepartmentIds) {
+      const dept = await Department.findOne({ _id: deptId, workspaceId: targetWorkspace._id });
+      if (dept) {
+        resolvedDepartmentIds.push(dept._id);
+      }
+    }
 
     await WorkspaceMember.findOneAndUpdate(
       { workspace: targetWorkspace._id, user: member.user },
       {
         $set: {
-          role: nextRole,
-          departments: targetDepartments,
+          role: targetRoleDoc._id,
+          departments: resolvedDepartmentIds,
           status: "joined",
           isActive: true,
           grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],
@@ -1046,7 +1056,7 @@ export const transferOrganizationMember = async (req, res, next) => {
             fromWorkspaceId: workspace._id,
             toWorkspaceId: targetWorkspace._id,
             previousRole: member.role,
-            nextRole,
+            nextRole: targetRoleDoc._id,
             note: String(req.body?.note || "").trim(),
           },
         },
@@ -1115,9 +1125,9 @@ export const transferOrganizationOwnership = async (req, res, next) => {
       _id: req.body?.memberId,
       workspace: workspace._id,
       isActive: true,
-    });
+    }).populate("role");
     if (!targetMember) return res.status(404).json({ message: "Selected member not found." });
-    const normalizedTargetRole = String(targetMember.role || "")
+    const normalizedTargetRole = getRoleName(targetMember.role)
       .toLowerCase()
       .replace(/-/g, "_");
     if (normalizedTargetRole !== "super_admin") {
@@ -1133,12 +1143,32 @@ export const transferOrganizationOwnership = async (req, res, next) => {
     workspace.owner = nextOwner._id;
     await workspace.save();
 
+    let superAdminRole = await Role.findOne({ name: "super_admin" });
+    if (!superAdminRole) {
+      superAdminRole = await Role.create({
+        name: "super_admin",
+        isSystemRole: true,
+        workspaceId: null,
+        permissions: ["*"],
+      });
+    }
+
+    let ownerRole = await Role.findOne({ name: "founder" });
+    if (!ownerRole) {
+      ownerRole = await Role.create({
+        name: "founder",
+        isSystemRole: true,
+        workspaceId: null,
+        permissions: ["*"],
+      });
+    }
+
     if (previousOwner) {
       previousOwner.role = "super_admin";
       await previousOwner.save();
       await WorkspaceMember.findOneAndUpdate(
         { workspace: workspace._id, user: previousOwner._id },
-        { $set: { role: "super_admin", isActive: true, status: "joined" } },
+        { $set: { role: superAdminRole._id, isActive: true, status: "joined" } },
         { upsert: true, new: true, setDefaultsOnInsert: true },
       );
     }
@@ -1147,7 +1177,7 @@ export const transferOrganizationOwnership = async (req, res, next) => {
     await nextOwner.save();
     await WorkspaceMember.findOneAndUpdate(
       { workspace: workspace._id, user: nextOwner._id },
-      { $set: { role: "owner", isActive: true, status: "joined" } },
+      { $set: { role: ownerRole._id, isActive: true, status: "joined" } },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
 

@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken"
 import HostUser from "../models/HostUser.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
+import Role from "../models/Role.js";
 
 const getFounderEmailForWorkspace = async (workspaceId: any) => {
   if (!workspaceId) return "";
@@ -17,6 +18,7 @@ const resolveActiveWorkspaceMembership = async (user: any) => {
     ...(user?.primaryWorkspace ? { workspace: user.primaryWorkspace } : {}),
   })
     .sort({ isPrimary: -1, createdAt: 1 })
+    .populate("role")
     .lean()
     .exec();
 
@@ -24,6 +26,7 @@ const resolveActiveWorkspaceMembership = async (user: any) => {
 
   return WorkspaceMember.findOne({ user: user._id, isActive: true })
     .sort({ isPrimary: -1, createdAt: 1 })
+    .populate("role")
     .lean()
     .exec();
 };
@@ -84,7 +87,7 @@ const verifyJwt = (req, res, next) => {
 
     req.workspaceMembership = {
       workspace: String(activeMembership.workspace || ""),
-      role: activeMembership.role || "member",
+      role: activeMembership.role?.name || (typeof activeMembership.role === "string" ? activeMembership.role : "member"),
       isPrimary: Boolean(activeMembership.isPrimary),
     };
     req.user = userId;
