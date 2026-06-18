@@ -5,7 +5,6 @@ export interface IRepairLog extends Document {
     ownerId: mongoose.Types.ObjectId;
     repairLogNumber: number;
     repairLogCode: string;
-    department: string;
     departmentId?: mongoose.Types.ObjectId | null;
     assetId: mongoose.Types.ObjectId;
     assetCode: string;
@@ -16,7 +15,6 @@ export interface IRepairLog extends Document {
     assigneeUserId?: mongoose.Types.ObjectId | null;
     requestedBy: string;
     requestedByUserId?: mongoose.Types.ObjectId | null;
-    requestedByDepartment?: string;
     requestedByDepartmentId?: mongoose.Types.ObjectId | null;
     sourceTicketId?: mongoose.Types.ObjectId | null;
     sourceTicketCode?: string;
@@ -50,13 +48,6 @@ const repairLogSchema = new Schema<IRepairLog>(
             type: String,
             required: true,
             trim: true,
-            index: true,
-        },
-        department: {
-            type: String,
-            required: true,
-            trim: true,
-            maxlength: 80,
             index: true,
         },
         departmentId: {
@@ -120,12 +111,6 @@ const repairLogSchema = new Schema<IRepairLog>(
             ref: "HostUser",
             default: null,
             index: true,
-        },
-        requestedByDepartment: {
-            type: String,
-            default: "",
-            trim: true,
-            maxlength: 80,
         },
         requestedByDepartmentId: {
             type: Schema.Types.ObjectId,

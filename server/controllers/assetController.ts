@@ -71,9 +71,9 @@ export const getAssets = async (req, res, next) => {
         const {
             status,
             category,
-            department,
+            departmentId,
             assignedToUserId,
-            assignedToDepartment,
+            assignedToDepartmentId,
             vendor,
             ownershipType,
             condition,
@@ -86,9 +86,9 @@ export const getAssets = async (req, res, next) => {
 
         if (status) filter.status = status;
         if (category) filter.category = category;
-        if (department) filter.department = department;
+        if (departmentId) filter.departmentId = departmentId;
         if (assignedToUserId) filter.assignedToUserId = assignedToUserId;
-        if (assignedToDepartment) filter.assignedToDepartment = assignedToDepartment;
+        if (assignedToDepartmentId) filter.assignedToDepartmentId = assignedToDepartmentId;
         if (vendor) filter.vendor = vendor;
         if (ownershipType) filter.ownershipType = ownershipType;
         if (condition) filter.condition = condition;
@@ -99,8 +99,6 @@ export const getAssets = async (req, res, next) => {
                 { name: { $regex: search, $options: "i" } },
                 { serialNumber: { $regex: search, $options: "i" } },
                 { brandModel: { $regex: search, $options: "i" } },
-                { department: { $regex: search, $options: "i" } },
-                { assignedToDepartment: { $regex: search, $options: "i" } },
                 { vendor: { $regex: search, $options: "i" } },
                 { invoiceNumber: { $regex: search, $options: "i" } },
             ];
@@ -240,7 +238,7 @@ export const transferAsset = async (req, res, next) => {
 
         const {
             assignedToUserId = null,
-            assignedToDepartment = "",
+            assignedToDepartmentId = null,
             transferReason = "",
             transferDate = new Date(),
         } = req.body;
@@ -270,7 +268,7 @@ export const transferAsset = async (req, res, next) => {
             },
             {
                 assignedToUserId,
-                assignedToDepartment,
+                assignedToDepartmentId,
                 transferReason,
                 transferDate,
             },
@@ -397,8 +395,23 @@ export const getAssetSummary = async (req, res, next) => {
                 { $match: { workspaceId: new mongoose.Types.ObjectId(workspaceId) } },
                 {
                     $group: {
-                        _id: "$department",
+                        _id: "$departmentId",
                         count: { $sum: 1 },
+                    },
+                },
+                {
+                    $lookup: {
+                        from: "departments",
+                        localField: "_id",
+                        foreignField: "_id",
+                        as: "departmentInfo",
+                    },
+                },
+                {
+                    $project: {
+                        _id: 1,
+                        count: 1,
+                        departmentName: { $arrayElemAt: ["$departmentInfo.name", 0] },
                     },
                 },
                 { $sort: { count: -1 } },

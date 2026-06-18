@@ -284,12 +284,8 @@ export const getOrganizationOverview = async (req, res, next) => {
         moduleIds: Array.isArray(department?.moduleIds) ? department.moduleIds : [],
         managerUserId: toId(department?.managerUser),
         managerName: managerMember?.user?.name || "",
-        adminUserIds: Array.isArray(department?.adminUsers)
-          ? department.adminUsers.map((userId) => toId(userId))
-          : [],
-        employeeUserIds: Array.isArray(department?.employeeUsers)
-          ? department.employeeUsers.map((userId) => toId(userId))
-          : [],
+        adminUserIds: departmentMembers.map((m) => toId(m.user?._id)),
+        employeeUserIds: departmentMembers.map((m) => toId(m.user?._id)),
         employeeCount: departmentMembers.length,
         employees: departmentMembers.map((member) => ({
           id: toId(member._id),
@@ -455,20 +451,33 @@ export const saveOrganizationDepartment = async (req, res, next) => {
       existing.isActive = isActive;
       existing.moduleIds = moduleIds;
       existing.managerUser = managerUserId || null;
-      existing.adminUsers = adminUserIds;
-      existing.employeeUsers = employeeUserIds;
       await existing.save();
+
+      const allMemberUserIds = [...new Set([...adminUserIds, ...employeeUserIds])];
+      const currentDeptMembers = await WorkspaceMember.find({ workspace: workspace._id, departments: existing._id }).select("user").lean();
+      const currentMemberUserIds = currentDeptMembers.map((m) => String(m.user));
+      const toAdd = allMemberUserIds.filter((uid) => !currentMemberUserIds.includes(uid));
+      const toRemove = currentMemberUserIds.filter((uid) => !allMemberUserIds.includes(uid));
+      if (toAdd.length > 0) {
+        await WorkspaceMember.updateMany({ workspace: workspace._id, user: { $in: toAdd } }, { $addToSet: { departments: existing._id } });
+      }
+      if (toRemove.length > 0) {
+        await WorkspaceMember.updateMany({ workspace: workspace._id, user: { $in: toRemove } }, { $pull: { departments: existing._id } });
+      }
     } else {
-      await Department.create({
+      const created = await Department.create({
         name,
         description,
         workspaceId: workspace._id,
         isActive,
         moduleIds,
         managerUser: managerUserId || null,
-        adminUsers: adminUserIds,
-        employeeUsers: employeeUserIds,
       });
+
+      const allMemberUserIds = [...new Set([...adminUserIds, ...employeeUserIds])];
+      if (allMemberUserIds.length > 0) {
+        await WorkspaceMember.updateMany({ workspace: workspace._id, user: { $in: allMemberUserIds } }, { $addToSet: { departments: created._id } });
+      }
     }
 
     return res.status(200).json({ message: "Department saved successfully." });

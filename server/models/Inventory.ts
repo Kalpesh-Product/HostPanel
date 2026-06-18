@@ -17,7 +17,6 @@ export interface IInventory extends Document {
     name: string;
     category: "Physical" | "Digital" | "Other" | "Office Supplies" | "Pantry" | "Facilities" | "Branding" | "Hardware" | "Safety Equipment";
     trackingType: "Consumable" | "Returnable Asset";
-    department: string;
     departmentId?: mongoose.Types.ObjectId | null;
     totalQuantity: number;
     availableQuantity: number;
@@ -90,13 +89,6 @@ const inventorySchema = new Schema<IInventory>(
             required: true,
             index: true,
         },
-        department: {
-            type: String,
-            required: true,
-            trim: true,
-            maxlength: 80,
-            index: true,
-        },
         departmentId: {
             type: Schema.Types.ObjectId,
             ref: "Department",
@@ -127,9 +119,9 @@ const inventorySchema = new Schema<IInventory>(
 
 inventorySchema.index({ ownerId: 1, inventoryNumber: 1 }, { unique: true });
 inventorySchema.index({ workspaceId: 1, inventoryNumber: 1 }, { unique: true, sparse: true });
-inventorySchema.index({ workspaceId: 1, department: 1, name: 1 });
+inventorySchema.index({ workspaceId: 1, departmentId: 1, name: 1 });
 inventorySchema.index({ workspaceId: 1, createdAt: -1 });
-inventorySchema.index({ workspaceId: 1, department: 1, createdAt: -1 });
+inventorySchema.index({ workspaceId: 1, departmentId: 1, createdAt: -1 });
 inventorySchema.index({ workspaceId: 1, category: 1, createdAt: -1 });
 inventorySchema.index({ workspaceId: 1, trackingType: 1, createdAt: -1 });
 

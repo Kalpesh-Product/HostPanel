@@ -58,14 +58,6 @@ const assetSchema = new mongoose.Schema(
             index: true,
         },
 
-        department: {
-            type: String,
-            default: "",
-            trim: true,
-            maxlength: 80,
-            index: true,
-        },
-
         departmentId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Department",
@@ -92,14 +84,6 @@ const assetSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "HostUser",
             default: null,
-            index: true,
-        },
-
-        assignedToDepartment: {
-            type: String,
-            default: "",
-            trim: true,
-            maxlength: 80,
             index: true,
         },
 
@@ -202,9 +186,9 @@ assetSchema.index({ workspaceId: 1, assetCode: 1 }, { unique: true });
 assetSchema.index({ workspaceId: 1, createdAt: -1 });
 assetSchema.index({ workspaceId: 1, status: 1, createdAt: -1 });
 assetSchema.index({ workspaceId: 1, category: 1, createdAt: -1 });
-assetSchema.index({ workspaceId: 1, department: 1, createdAt: -1 });
+assetSchema.index({ workspaceId: 1, departmentId: 1, createdAt: -1 });
 assetSchema.index({ workspaceId: 1, assignedToUserId: 1, createdAt: -1 });
-assetSchema.index({ workspaceId: 1, assignedToDepartment: 1, createdAt: -1 });
+assetSchema.index({ workspaceId: 1, assignedToDepartmentId: 1, createdAt: -1 });
 
 export const Asset =
     mongoose.models.Asset || mongoose.model("Asset", assetSchema);

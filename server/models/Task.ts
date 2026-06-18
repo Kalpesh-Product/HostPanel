@@ -22,11 +22,9 @@ export interface ITask extends Document {
     type: "Standard" | "Approval";
     title: string;
     description: string;
-    department: string;
     departmentId?: mongoose.Types.ObjectId | null;
     raisedBy: string;
     raisedByUserId?: mongoose.Types.ObjectId | null;
-    raisedByDept: string;
     raisedByDeptId?: mongoose.Types.ObjectId | null;
     assignee: string;
     assigneeUserId?: mongoose.Types.ObjectId | null;
@@ -108,13 +106,6 @@ const taskSchema = new Schema<ITask>(
             trim: true,
             maxlength: 2000,
         },
-        department: {
-            type: String,
-            required: true,
-            trim: true,
-            maxlength: 80,
-            index: true,
-        },
         departmentId: {
             type: Schema.Types.ObjectId,
             ref: "Department",
@@ -132,12 +123,6 @@ const taskSchema = new Schema<ITask>(
             ref: "HostUser",
             default: null,
             index: true,
-        },
-        raisedByDept: {
-            type: String,
-            default: "Executive",
-            trim: true,
-            maxlength: 80,
         },
         raisedByDeptId: {
             type: Schema.Types.ObjectId,
@@ -211,7 +196,7 @@ taskSchema.index({ workspaceId: 1, taskNumber: 1 }, { unique: true, sparse: true
 taskSchema.index({ ownerId: 1, createdAt: -1 });
 taskSchema.index({ workspaceId: 1, createdAt: -1 });
 taskSchema.index({ workspaceId: 1, status: 1, createdAt: -1 });
-taskSchema.index({ workspaceId: 1, department: 1, status: 1, createdAt: -1 });
+taskSchema.index({ workspaceId: 1, departmentId: 1, status: 1, createdAt: -1 });
 taskSchema.index({ workspaceId: 1, assigneeUserId: 1, createdAt: -1 });
 taskSchema.index({ workspaceId: 1, raisedByUserId: 1, createdAt: -1 });
 

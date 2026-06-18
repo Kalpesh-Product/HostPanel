@@ -3,10 +3,8 @@ import mongoose, { Document, Schema } from "mongoose";
 export interface IDepartment extends Document {
     name: string;
     description?: string;
-    workspaceId: mongoose.Types.ObjectId; // Crucial for multi-tenant HostPanel
+    workspaceId: mongoose.Types.ObjectId;
     managerUser?: mongoose.Types.ObjectId | null;
-    adminUsers: mongoose.Types.ObjectId[];
-    employeeUsers: mongoose.Types.ObjectId[];
     moduleIds: string[];
     isActive: boolean;
     createdAt?: Date;
@@ -36,14 +34,6 @@ const departmentSchema = new Schema<IDepartment>(
             type: Schema.Types.ObjectId,
             ref: "HostUser",
             default: null,
-        },
-        adminUsers: {
-            type: [{ type: Schema.Types.ObjectId, ref: "HostUser" }],
-            default: [],
-        },
-        employeeUsers: {
-            type: [{ type: Schema.Types.ObjectId, ref: "HostUser" }],
-            default: [],
         },
         moduleIds: {
             type: [String],

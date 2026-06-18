@@ -13,15 +13,12 @@ export interface ITicket extends Document {
     assetId?: mongoose.Types.ObjectId | null;
     assetCode: string;
     assetName: string;
-    assetDepartment: string;
     assetDepartmentId?: mongoose.Types.ObjectId | null;
     assetAssignedTo: string;
     dueDate?: Date | null;
-    department: string;
     departmentId?: mongoose.Types.ObjectId | null;
     submittedBy: string;
     requesterUserId?: mongoose.Types.ObjectId | null;
-    submittedByDept: string;
     submittedByDeptId?: mongoose.Types.ObjectId | null;
     assignedTo: string;
     assigneeUserId?: mongoose.Types.ObjectId | null;
@@ -66,15 +63,12 @@ const ticketSchema = new Schema<ITicket>(
         assetId: { type: Schema.Types.ObjectId, ref: "Asset", default: null, index: true },
         assetCode: { type: String, default: "", trim: true, maxlength: 64 },
         assetName: { type: String, default: "", trim: true, maxlength: 180 },
-        assetDepartment: { type: String, default: "", trim: true, maxlength: 80 },
         assetDepartmentId: { type: Schema.Types.ObjectId, ref: "Department", default: null, index: true },
         assetAssignedTo: { type: String, default: "", trim: true, maxlength: 120 },
         dueDate: { type: Date, default: null, index: true },
-        department: { type: String, required: true, trim: true, maxlength: 80, index: true },
         departmentId: { type: Schema.Types.ObjectId, ref: "Department", default: null, index: true },
         submittedBy: { type: String, required: true, trim: true, maxlength: 120 },
         requesterUserId: { type: Schema.Types.ObjectId, ref: "HostUser", default: null, index: true },
-        submittedByDept: { type: String, default: "Executive", trim: true, maxlength: 80 },
         submittedByDeptId: { type: Schema.Types.ObjectId, ref: "Department", default: null, index: true },
         assignedTo: { type: String, required: true, trim: true, maxlength: 120 },
         assigneeUserId: { type: Schema.Types.ObjectId, ref: "HostUser", default: null, index: true },
@@ -103,7 +97,7 @@ ticketSchema.index({ workspaceId: 1, ticketNumber: 1 }, { unique: true, sparse: 
 ticketSchema.index({ ownerId: 1, createdAt: -1 });
 ticketSchema.index({ workspaceId: 1, createdAt: -1 });
 ticketSchema.index({ workspaceId: 1, status: 1, createdAt: -1 });
-ticketSchema.index({ workspaceId: 1, department: 1, status: 1, createdAt: -1 });
+ticketSchema.index({ workspaceId: 1, departmentId: 1, status: 1, createdAt: -1 });
 ticketSchema.index({ workspaceId: 1, assigneeUserId: 1, createdAt: -1 });
 ticketSchema.index({ workspaceId: 1, requesterUserId: 1, createdAt: -1 });
 ticketSchema.index({ workspaceId: 1, tenantCompanyId: 1, createdAt: -1 });

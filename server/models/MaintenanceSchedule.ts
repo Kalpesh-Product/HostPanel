@@ -17,7 +17,6 @@ export interface IMaintenanceSchedule extends Document {
     assetCode: string;
     assetName: string;
     assetCategory?: string;
-    department: string;
     departmentId?: mongoose.Types.ObjectId | null;
     maintenanceType: string;
     frequency: string;
@@ -93,13 +92,6 @@ const maintenanceScheduleSchema = new Schema<IMaintenanceSchedule>(
             default: "",
             trim: true,
             maxlength: 80,
-        },
-        department: {
-            type: String,
-            required: true,
-            trim: true,
-            maxlength: 80,
-            index: true,
         },
         departmentId: {
             type: Schema.Types.ObjectId,
