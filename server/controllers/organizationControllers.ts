@@ -253,15 +253,57 @@ export const getOrganizationOverview = async (req, res, next) => {
     if (!actorMembership) {
       return res.status(403).json({ message: "You do not have workspace access." });
     }
-    if (
-      !hasOrganizationAccess({
-        workspace,
-        membership: actorMembership,
-        permissionKey: ORGANIZATION_PERMISSION_KEYS.tabs.users,
+
+    const hasFullAccess = hasOrganizationAccess({
+      workspace,
+      membership: actorMembership,
+      permissionKey: ORGANIZATION_PERMISSION_KEYS.tabs.users,
+    });
+
+    if (!hasFullAccess) {
+      // Non-admin members still need their own profile (sidebar uses it for role/departments).
+      const selfMember = await WorkspaceMember.findOne({
+        workspace: workspace._id,
+        user: req.user,
+        isActive: true,
       })
-    ) {
-      return res.status(403).json({
-        message: "You do not have permission to access Organization Management.",
+        .populate("user", "name email isActive")
+        .populate("role")
+        .populate("departments")
+        .lean()
+        .exec();
+
+      const selfEntry = selfMember
+        ? {
+            id: toId(selfMember._id),
+            userId: toId(selfMember.user?._id),
+            name: selfMember.user?.name || "",
+            email: selfMember.user?.email || "",
+            role: toRoleLabel(selfMember.role),
+            status: selfMember.isActive === false ? "disabled" : "joined",
+            departmentNames: Array.isArray(selfMember.departments)
+              ? selfMember.departments.map((d: any) => d.name || String(d))
+              : [],
+            grantedModules: Array.isArray(selfMember.grantedModules) ? selfMember.grantedModules : [],
+            enabledModules: Array.isArray(selfMember.enabledModules) ? selfMember.enabledModules : [],
+            workspaceAccesses: [],
+            joinedAt: selfMember.createdAt,
+          }
+        : null;
+
+      return res.status(200).json({
+        message: "Organization overview loaded successfully.",
+        data: {
+          workspace: {
+            id: toId(workspace._id),
+            selectedPlan: workspace.selectedPlan || "basic",
+            enabledModuleIds: Array.isArray(workspace.enabledModuleIds) ? workspace.enabledModuleIds : [],
+          },
+          departments: [],
+          teamMembers: selfEntry ? [selfEntry] : [],
+          linkedWorkspaces: [],
+          accessRestricted: true,
+        },
       });
     }
 
