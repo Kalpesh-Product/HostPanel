@@ -1889,15 +1889,6 @@ export function TicketsPage() {
                       : 'Founder God-Mode: Monitor escalations globally, track resolutions, and manage incident assignments.'}
                 </p>
               </div>
-              <button
-                onClick={() => {
-                  setTicketForm(initialForm);
-                  setIsCreateModalOpen(true);
-                }}
-                className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95 animate-in"
-              >
-                <Plus size={14} strokeWidth={3} /> RAISE TICKET
-              </button>
             </div>
 
             {errorMessage ? (
@@ -1906,122 +1897,134 @@ export function TicketsPage() {
               </div>
             ) : null}
 
-            {/* 2. DYNAMIC STATS */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="bg-gradient-to-br from-white/90 to-white/50 backdrop-blur-md p-3.5 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 group-hover:text-slate-600 transition-colors">Total Tickets</p>
-                <p className="text-[20px] font-black text-[#0F172A]">{statsBase.length}</p>
-              </div>
-              <div className="bg-gradient-to-br from-white/90 to-white/50 backdrop-blur-md p-3.5 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group">
-                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1 group-hover:text-amber-700 transition-colors">Open (Raised)</p>
-                <p className="text-[20px] font-black text-amber-500">{statsBase.filter(t => t.status === 'Open').length}</p>
-              </div>
-              <div className="bg-gradient-to-br from-white/90 to-white/50 backdrop-blur-md p-3.5 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group">
-                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1 group-hover:text-blue-700 transition-colors">In Progress</p>
-                <p className="text-[20px] font-black text-[#2563EB]">{statsBase.filter(t => t.status === 'In Progress').length}</p>
-              </div>
-              <div className="bg-gradient-to-br from-white/90 to-white/50 backdrop-blur-md p-3.5 rounded-[1.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group">
-                <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest mb-1 group-hover:text-green-700 transition-colors">Resolved</p>
-                <p className="text-[20px] font-black text-emerald-500">{statsBase.filter(t => t.status === 'Resolved').length}</p>
-              </div>
+            {/* 2. MAIN TABS (pill-style matching meetings page) */}
+            <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+              {isAdminTicketProfile ? (
+                <>
+                  <button onClick={() => { setActiveTab('assigned_dept_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'assigned_dept_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    Assigned Dept {tickets.filter(t => isAdminDepartmentQueueTicket(t) && t.status === 'Open').length > 0 && (
+                      <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-bold leading-none ml-1">{tickets.filter(t => isAdminDepartmentQueueTicket(t) && t.status === 'Open').length}</span>
+                    )}
+                  </button>
+                  <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    My Assigned
+                  </button>
+                  <button onClick={() => { setActiveTab('my_assigned_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_assigned_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    My Raised
+                  </button>
+                </>
+              ) : isDepartmentManagerProfile ? (
+                <>
+                  <button onClick={() => { setActiveTab('department_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'department_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    Department
+                  </button>
+                  <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    My Assigned {tickets.filter(t => isDepartmentMyTicket(t) && t.status === 'Open').length > 0 && (
+                      <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-bold leading-none ml-1">{tickets.filter(t => isDepartmentMyTicket(t) && t.status === 'Open').length}</span>
+                    )}
+                  </button>
+                  <button onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    My Raised
+                  </button>
+                </>
+              ) : isEmployeeTicketProfile ? (
+                <>
+                  <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    Department {tickets.filter(t => isEmployeeDepartmentTaskTicket(t) && t.status === 'Open').length > 0 && (
+                      <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-bold leading-none ml-1">{tickets.filter(t => isEmployeeDepartmentTaskTicket(t) && t.status === 'Open').length}</span>
+                    )}
+                  </button>
+                  <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    My Assigned
+                  </button>
+                  <button onClick={() => { setActiveTab('my_raised_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    My Raised
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => { setActiveTab('all'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'all' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    Company
+                  </button>
+                  <button onClick={() => { setActiveTab('my_received'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_received' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    My Assigned {tickets.filter(t => isMyReceivedTicket(t) && t.status === 'Open').length > 0 && (
+                      <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-bold leading-none ml-1">{tickets.filter(t => isMyReceivedTicket(t) && t.status === 'Open').length}</span>
+                    )}
+                  </button>
+                  <button onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                    My Raised
+                  </button>
+                </>
+              )}
             </div>
 
-            {/* 3. WORKSPACE CONTROLS & TABLE */}
+            {/* 3. STATS CARDS (matching meetings page exactly) */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+              {[
+                { key: 'total', label: 'Total Tickets', value: statsBase.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', icon: AlertCircle, iconClass: 'bg-slate-50 text-slate-600' },
+                { key: 'open', label: 'Open (Raised)', value: statsBase.filter(t => t.status === 'Open').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', icon: AlertTriangle, iconClass: 'bg-amber-50 text-amber-600' },
+                { key: 'progress', label: 'In Progress', value: statsBase.filter(t => t.status === 'In Progress').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', icon: Clock, iconClass: 'bg-blue-50 text-blue-600' },
+                { key: 'resolved', label: 'Resolved', value: statsBase.filter(t => t.status === 'Resolved').length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', icon: CheckCircle2, iconClass: 'bg-emerald-50 text-emerald-600' },
+              ].map((card) => {
+                const Icon = card.icon;
+                return (
+                  <div key={card.key} className={card.cardClass}>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                      <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                    </div>
+                    <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}><Icon size={16}/></div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 4. WORKSPACE CONTROLS & TABLE */}
             <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
 
-              {/* Tier 1: Main Tabs & Search */}
-              <div className="p-4 border-b border-slate-100 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
+              {/* Search + Filters + Action (matching meetings style) */}
+              <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
 
-                {/* Main Navigation Tabs */}
-                <div className="flex bg-slate-100/50 p-1.5 rounded-[14px] border border-slate-200/50 w-full xl:w-auto overflow-x-auto [&::-webkit-scrollbar]:hidden">
-                  {isAdminTicketProfile ? (
-                    <>
-                      <button onClick={() => { setActiveTab('assigned_dept_tickets'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'assigned_dept_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
-                        Assigned Dept Tickets <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[10px] border border-red-100 shadow-sm font-bold leading-none">{tickets.filter(t => isAdminDepartmentQueueTicket(t) && t.status === 'Open').length} Action</span>
-                      </button>
-                      <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'my_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
-                        My Assigned Tickets
-                      </button>
-                      <button onClick={() => { setActiveTab('my_assigned_tickets'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'my_assigned_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
-                        My Raised Tickets
-                      </button>
-                    </>
-                  ) : isDepartmentManagerProfile ? (
-                    <>
-                      <button onClick={() => { setActiveTab('department_tickets'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'department_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
-                        Department Tickets
-                      </button>
-                      <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all flex items-center gap-2 whitespace-nowrap min-w-max ${activeTab === 'my_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
-                        My Assigned Tickets <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[10px] border border-red-100 shadow-sm font-bold leading-none">{tickets.filter(t => isDepartmentMyTicket(t) && t.status === 'Open').length} Action</span>
-                      </button>
-                      <button onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'my_raised' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
-                        My Raised Tickets
-                      </button>
-                    </>
-                  ) : isEmployeeTicketProfile ? (
-                    <>
-                      <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all flex items-center gap-2 whitespace-nowrap min-w-max ${activeTab === 'department_tasks' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
-                        Department Tickets <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[10px] border border-red-100 shadow-sm font-bold leading-none">{tickets.filter(t => isEmployeeDepartmentTaskTicket(t) && t.status === 'Open').length} Action</span>
-                      </button>
-                      <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'my_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
-                        My Assigned Tickets
-                      </button>
-                      <button onClick={() => { setActiveTab('my_raised_tickets'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'my_raised_tickets' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
-                        My Raised Tickets
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button onClick={() => { setActiveTab('all'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'all' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
-                        Company's Tickets
-                      </button>
-                      <button onClick={() => { setActiveTab('my_received'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all flex items-center gap-2 whitespace-nowrap min-w-max ${activeTab === 'my_received' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
-                        My Assigned Tickets <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[10px] border border-red-100 shadow-sm font-bold leading-none">{tickets.filter(t => isMyReceivedTicket(t) && t.status === 'Open').length} Action</span>
-                      </button>
-                      <button onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-[10px] text-[12px] sm:text-[13px] font-semibold transition-all whitespace-nowrap min-w-max ${activeTab === 'my_raised' ? 'bg-white text-[#0F172A] shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/30'}`}>
-                        My Raised Tickets
-                      </button>
-                    </>
-                  )}
-                </div>
-
-                <div className="relative w-full xl:w-80 shrink-0 group">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#2563EB] transition-colors" size={16} />
-                  <input
-                    type="text" placeholder="Search Ticket ID or Name..."
-                    className="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-white/60 backdrop-blur border border-slate-200/60 rounded-xl text-[13px] sm:text-[14px] font-medium text-[#0F172A] placeholder:text-slate-400 focus:ring-2 focus:ring-blue-100 focus:border-[#2563EB] outline-none transition-all shadow-sm"
-                    value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Tier 2: Sub-Filters */}
-              <div className="p-4 border-b border-slate-100/60 flex flex-col md:flex-row justify-between items-center gap-4 bg-white/40">
-
-                <div className="flex gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden w-full md:w-auto pb-2 md:pb-0">
+                <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                   {['All', 'Open', 'In Progress', 'Resolved', 'Closed'].map((status) => (
                     <button
                       key={status}
                       onClick={() => setStatusFilter(status)}
-                      className={`px-4 sm:px-5 py-2 rounded-[10px] text-[11px] sm:text-[12px] font-bold transition-all min-w-max border ${statusFilter === status
-                        ? 'bg-[#0F172A] text-white border-[#0F172A] shadow-sm'
-                        : 'bg-white text-slate-500 border-slate-200/60 hover:border-slate-300 hover:text-[#0F172A] hover:bg-slate-50'
+                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${statusFilter === status
+                        ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                        : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
                         }`}
                     >
-                      {status === 'Open' ? 'Raised (Open)' : status}
+                      {status === 'Open' ? 'Raised' : status}
                     </button>
                   ))}
                 </div>
 
-                <div className="relative w-full md:w-64 shrink-0 focus-within:ring-2 ring-blue-100 rounded-xl transition-all">
-                  <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2563EB]" size={14} />
-                  <select
-                    className="w-full pl-10 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest outline-none transition-all cursor-pointer appearance-none shadow-sm"
-                    value={selectedDeptFilter} onChange={(e) => setSelectedDeptFilter(e.target.value)}
+                <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                  <div className="relative flex-1 min-w-[180px]">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                    <input
+                      type="text" placeholder="Search tickets..."
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <div className="relative">
+                    <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
+                    <select
+                      className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
+                      value={selectedDeptFilter} onChange={(e) => setSelectedDeptFilter(e.target.value)}
+                    >
+                      <option value="All">All Tickets</option>
+                      {availableDepartments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
+                    </select>
+                  </div>
+                  <button
+                    onClick={() => { setTicketForm(initialForm); setIsCreateModalOpen(true); }}
+                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
-                    <option value="All">{isAdminTicketProfile ? 'ALL ASSIGNED DEPARTMENTS' : 'ALL DEPARTMENTS'} &nbsp; ▾</option>
-                    {availableDepartments.map((dept) => <option key={dept} value={dept}>{dept} ONLY</option>)}
-                  </select>
+                    <Plus size={13} strokeWidth={3} /> RAISE TICKET
+                  </button>
                 </div>
               </div>
 
@@ -2030,14 +2033,14 @@ export function TicketsPage() {
 
                 {/* Desktop Table */}
                 <table className="hidden lg:table w-full text-left">
-                  <thead className="bg-slate-50/50 text-[10px] font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
-                      <th className="px-5 sm:px-6 py-4 sm:py-5 font-semibold">Ticket Details</th>
-                      <th className="px-5 sm:px-6 py-4 sm:py-5 font-semibold">Routing & Assignment</th>
-                      <th className="px-5 sm:px-6 py-4 sm:py-5 font-semibold">Priority</th>
-                      <th className="px-5 sm:px-6 py-4 sm:py-5 font-semibold">Status</th>
-                      <th className="px-5 sm:px-6 py-4 sm:py-5 font-semibold">Updated</th>
-                      <th className="px-5 sm:px-6 py-4 sm:py-5 font-semibold text-center">Action</th>
+                      <th className="px-5 py-4">Ticket Details</th>
+                      <th className="px-5 py-4">Routing & Assignment</th>
+                      <th className="px-5 py-4">Priority</th>
+                      <th className="px-5 py-4">Status</th>
+                      <th className="px-5 py-4">Updated</th>
+                      <th className="px-5 py-4 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
