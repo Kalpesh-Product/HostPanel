@@ -2,14 +2,14 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   BadgeCheck, Building2, CalendarDays, CheckCircle2,
-  ChevronRight, FileDown, FileSpreadsheet, Filter, Mail, Phone,
+  ChevronRight, Mail, Phone, RotateCcw,Eye,
   Search, ShieldCheck, Sparkles, Target, User, X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useFreshCurrentUser } from "../../../hooks/useFreshCurrentUser";
 import { createReport } from "../../../services/reports";
-import { getSalesTourLeads } from "../../../services/sales-leads";
+import { getSalesTourLeads, getWebsiteLeads } from "../../../services/sales-leads";
 import { downloadReportFile } from "../../../utils/report-download";
 import PageFrame from "../../../components/Pages/PageFrame";
 
@@ -96,6 +96,12 @@ export default function LeadsManagementPage() {
   const [leadStages, setLeadStages] = useState({});
   const [selectedLeadId, setSelectedLeadId] = useState(null);
   const [isExportingReport, setIsExportingReport] = useState("");
+  const [mainTab, setMainTab] = useState("website-leads");
+  const [websiteLeads, setWebsiteLeads] = useState([]);
+  const [websiteLeadStages, setWebsiteLeadStages] = useState({});
+  const [selectedWebsiteLeadId, setSelectedWebsiteLeadId] = useState(null);
+  const [isWebsiteLoading, setIsWebsiteLoading] = useState(false);
+  const [websiteError, setWebsiteError] = useState("");
   const currentUser = useFreshCurrentUser();
   const navigate = useNavigate();
 
@@ -103,6 +109,45 @@ export default function LeadsManagementPage() {
     () => currentUser?.fullName || currentUser?.name || currentUser?.displayName || "Sales Team",
     [currentUser],
   );
+
+  const workspaceId = useMemo(
+    () => currentUser?.primaryWorkspace || currentUser?.workspaceMembership?.workspace || currentUser?.workspaceId || "",
+    [currentUser],
+  );
+
+  const companyId = useMemo(
+    () => currentUser?.companyId || "",
+    [currentUser],
+  );
+
+  const loadWebsiteLeads = async () => {
+    setIsWebsiteLoading(true);
+    setWebsiteError("");
+    try {
+      const params = { workspaceId, companyId };
+      const result = await getWebsiteLeads(params);
+      const nextLeads = Array.isArray(result?.data) ? result.data : [];
+      setWebsiteLeads(nextLeads);
+      setWebsiteLeadStages((current) => {
+        const nextStages = { ...current };
+        nextLeads.forEach((lead) => {
+          if (!nextStages[lead._id]) nextStages[lead._id] = lead.status || "Pending";
+        });
+        return nextStages;
+      });
+    } catch (fetchError) {
+      setWebsiteError(fetchError.message || "Unable to load website leads right now.");
+    } finally {
+      setIsWebsiteLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (mainTab === "website-leads" && websiteLeads.length === 0) {
+      loadWebsiteLeads();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mainTab]);
 
   const loadLeads = async () => {
     setIsLoading(true);
@@ -164,6 +209,36 @@ export default function LeadsManagementPage() {
     ];
   }, [normalizedLeads]);
 
+  const normalizedWebsiteLeads = useMemo(
+    () => websiteLeads.map((lead) => ({ ...lead, status: websiteLeadStages[lead._id] || lead.status || "Pending" })),
+    [websiteLeads, websiteLeadStages],
+  );
+
+  const websiteLeadStats = useMemo(() => {
+    const total = normalizedWebsiteLeads.length;
+    const pending = normalizedWebsiteLeads.filter((l) => l.status === "Pending").length;
+    const contacted = normalizedWebsiteLeads.filter((l) => l.status === "Contacted").length;
+    const closed = normalizedWebsiteLeads.filter((l) => l.status === "Closed").length;
+    return [
+      { label: "Total Website Leads", value: total, icon: Target },
+      { label: "Pending", value: pending, icon: Sparkles },
+      { label: "Contacted", value: contacted, icon: BadgeCheck },
+      { label: "Closed", value: closed, icon: CheckCircle2 },
+    ];
+  }, [normalizedWebsiteLeads]);
+
+  const WEBSITE_STATUSES = ["Pending", "Contacted", "Closed", "Rejected"];
+
+  const visibleWebsiteLeads = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return normalizedWebsiteLeads.filter((lead) => {
+      const matchesStage = stageFilter === "All" || lead.status === stageFilter;
+      const matchesQuery = !query || [lead.fullName, lead.mobileNumber, lead.email, lead.source, lead.vertical, lead.productType, lead.companyName]
+        .filter(Boolean).some((v) => String(v).toLowerCase().includes(query));
+      return matchesStage && matchesQuery;
+    });
+  }, [normalizedWebsiteLeads, searchQuery, stageFilter]);
+
   const selectedLead = useMemo(
     () => normalizedLeads.find((l) => l.id === selectedLeadId) || null,
     [normalizedLeads, selectedLeadId],
@@ -181,189 +256,243 @@ export default function LeadsManagementPage() {
     setLeadStages((current) => ({ ...current, [leadId]: nextStage }));
   };
 
+  const handleUpdateWebsiteLeadStatus = (leadId, nextStatus) => {
+    setWebsiteLeadStages((current) => ({ ...current, [leadId]: nextStatus }));
+  };
+
+  const selectedWebsiteLead = useMemo(
+    () => websiteLeads.find((l) => l._id === selectedWebsiteLeadId) || null,
+    [websiteLeads, selectedWebsiteLeadId],
+  );
+
   const handleExportReport = async (format = "PDF") => {
     const reportFormat = String(format).toLowerCase() === "excel" ? "Excel" : "PDF";
-    if (!visibleLeads.length) { toast.error("There are no sales leads to export."); return; }
+    const isWebsite = mainTab === "website-leads";
+    const exportData = isWebsite ? visibleWebsiteLeads : visibleLeads;
+    if (!exportData.length) { toast.error("There are no leads to export."); return; }
     const departmentLabel = "Sales & CRM";
     const searchLabel = searchQuery.trim() || "All";
     const stageLabel = stageFilter || "All";
     setIsExportingReport(reportFormat);
     try {
       const response = await createReport({
-        title: "Sales Leads Management Report", department: departmentLabel, category: "Other", dataWindow: "Custom",
+        title: isWebsite ? "Website Leads Report" : "Sales Leads Management Report", department: departmentLabel, category: "Other", dataWindow: "Custom",
         reportMonth: new Date().toISOString().slice(0, 7), period: "Leads Management", generatedBy: currentUserName,
         format: reportFormat,
-        description: `Sales leads export for ${departmentLabel}${stageLabel !== "All" ? `, stage ${stageLabel}` : ""}${searchQuery.trim() ? `, filtered by ${searchQuery.trim()}` : ""}.`,
-        sourceType: "custom", sourceRef: "sales-leads-management",
-        reportRows: buildLeadReportRows(visibleLeads, { stageFilter: stageLabel, searchQuery: searchLabel }, pipelineStats),
+        description: `${isWebsite ? "Website leads" : "Sales leads"} export for ${departmentLabel}${stageLabel !== "All" ? `, stage ${stageLabel}` : ""}${searchQuery.trim() ? `, filtered by ${searchQuery.trim()}` : ""}.`,
+        sourceType: "custom", sourceRef: isWebsite ? "website-leads" : "sales-leads-management",
+        reportRows: buildLeadReportRows(exportData, { stageFilter: stageLabel, searchQuery: searchLabel }, pipelineStats),
         monthlyData: [],
       });
       if (reportFormat === "PDF") await downloadReportFile(response?.data?.download, { openInNewTab: false });
       const createdReportId = response?.data?.report?.recordId;
-      toast.success(reportFormat === "PDF" ? "Sales report saved to Reports." : "Sales report saved to Reports. Preview it before downloading.");
+      toast.success(reportFormat === "PDF" ? "Report saved to Reports." : "Report saved to Reports. Preview it before downloading.");
       navigate(createdReportId ? `/dashboard/sales-crm/report?reportId=${createdReportId}` : "/dashboard/sales-crm/report");
       window.dispatchEvent(new Event("reports:refresh"));
-    } catch (exportError) { toast.error(exportError?.message || "Failed to export sales leads report."); }
+    } catch (exportError) { toast.error(exportError?.message || "Failed to export leads report."); }
     finally { setIsExportingReport(""); }
   };
 
-  if (isLoading) return <TablePageSkeleton rows={6} columns={6} />;
+  if (isLoading || (mainTab === "website-leads" && isWebsiteLoading)) return <TablePageSkeleton rows={6} columns={6} />;
 
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
-      <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-            Leads Management
-          </h2>
-          <p className="text-xs font-medium text-slate-500 mt-1">
-            Sales synced from Visitor Management and Website Builder.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => handleExportReport("PDF")} disabled={isExportingReport || !visibleLeads.length}
-            className="px-4 py-2.5 bg-white text-[#e01313] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
-          ><FileDown size={13} className="text-red-500" />{isExportingReport === "PDF" ? "Exporting..." : ""}</button>
-          <button type="button" onClick={() => handleExportReport("Excel")} disabled={isExportingReport || !visibleLeads.length}
-            className="px-4 py-2.5 bg-[#ffffff] text-[#1fd628] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
-          ><FileSpreadsheet size={13} />{isExportingReport === "Excel" ? "Exporting..." : ""}</button>
-          
-        </div>
-      </div>
+        <div className="flex flex-col gap-4 text-slate-700 font-sans">
 
-      {error && (
-        <div className="mb-3 rounded-[2rem] border border-rose-200 bg-rose-50 px-4 py-3 text-[12px] font-medium text-rose-700">{error}</div>
-      )}
-
-      <div className="mb-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div key={stat.label} className="p-2.5 rounded-[2rem] border border-slate-100 bg-white shadow-sm">
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div className={`flex w-8 h-8 items-center justify-center rounded-2xl border ${stat.tone}`}>
-                  <Icon size={16} />
-                </div>
-                <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-slate-500">Live sync</span>
-              </div>
-              <p className="text-[15px] font-black text-slate-900">{stat.value}</p>
-              <p className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-500">{stat.label}</p>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="mb-3 flex flex-col gap-3 rounded-[2rem] border border-slate-100 bg-white p-3 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-1.5">
-          <button type="button" onClick={() => setStageFilter("All")}
-            className={`rounded-xl px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition ${stageFilter === "All" ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100"}`}
-          >All ({normalizedLeads.length})</button>
-          {STAGES.map((stage) => {
-            const count = normalizedLeads.filter((l) => l.status === stage).length;
-            const active = stageFilter === stage;
-            return (
-              <button key={stage} type="button" onClick={() => setStageFilter(stage)}
-                className={`rounded-xl px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition ${active ? "bg-blue-600 text-white" : "bg-slate-50 text-slate-600 hover:bg-slate-100"}`}
-              >{stage} ({count})</button>
-            );
-          })}
-        </div>
-        <div className="relative w-full max-w-xs">
-          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={13} />
-          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search leads, companies, visitor codes..."
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-[12px] font-medium text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-          />
-        </div>
-      </div>
-
-      <div className="overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+        {/* 1. HEADER */}
+        <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
           <div>
-            <h2 className="text-[13px] font-black text-slate-900">Tour Leads</h2>
-            <p className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Sales tours, quote requests, and general website enquiries</p>
-          </div>
-          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-            <Filter size={13} /> {visibleLeads.length} visible
-          </div>
-        </div>
-
-        {visibleLeads.length === 0 ? (
-          <div className="flex min-h-[360px] flex-col items-center justify-center px-6 py-12 text-center">
-            <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-              <Target size={28} />
-            </div>
-            <h3 className="text-[15px] font-black text-slate-900">No matching leads found</h3>
-            <p className="mt-1.5 max-w-lg text-[12px] font-medium text-slate-500">
-              Frontdesk tours and website quote or inquiry forms are synced here as sales-ready leads.
+            <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+              Leads Management
+            </h2>
+            <p className="text-xs font-medium text-slate-500 mt-1">
+              Sales synced from Visitor Management and Website Builder.
             </p>
           </div>
+          <div className="flex items-center gap-2">
+            {/* <button
+              type="button"
+              onClick={mainTab === "website-leads" ? loadWebsiteLeads : loadLeads}
+              disabled={mainTab === "website-leads" ? isWebsiteLoading : isLoading}
+              title="Refresh"
+              className="px-4 py-2.5 bg-white text-[#0F172A] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <RotateCcw size={14} /> Refresh
+            </button> */}
+          </div>
+        </div>
+
+        {/* {(error || (mainTab === "website-leads" && websiteError)) && (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[12px] font-semibold text-rose-600">{mainTab === "website-leads" ? websiteError : error}</div>
+        )} */}
+
+        
+
+        {/* 2. MAIN TABS (Website Leads | Unit Tour List) */}
+        <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          {[
+            { key: "website-leads", label: "Website Leads" },
+            { key: "unit-tour", label: "Unit Tour Leads" },
+          ].map((tab) => (
+            <button key={tab.key} type="button" onClick={() => { setMainTab(tab.key); setStageFilter("All"); setSearchQuery(""); }}
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${mainTab === tab.key ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"}`}
+            >{tab.label}</button>
+          ))}
+        </div>
+
+        {/* 3. STAT CARDS (DESIGN.md 4-col grid with border-left accents) */}
+        {mainTab === "unit-tour" ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Leads</p>
+              <p className="text-[15px] font-black text-slate-900">{stats[0]?.value ?? 0}</p>
+            </div>
+            <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><Target size={16}/></div>
+          </div>
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Active Pipeline</p>
+              <p className="text-[15px] font-black text-slate-900">{stats[1]?.value ?? 0}</p>
+            </div>
+            <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><BadgeCheck size={16}/></div>
+          </div>
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">High Priority</p>
+              <p className="text-[15px] font-black text-slate-900">{stats[2]?.value ?? 0}</p>
+            </div>
+            <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><Sparkles size={16}/></div>
+          </div>
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Converted</p>
+              <p className="text-[15px] font-black text-slate-900">{stats[3]?.value ?? 0}</p>
+            </div>
+            <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16}/></div>
+          </div>
+        </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left">
-              <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em]">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Website Leads</p>
+              <p className="text-[15px] font-black text-slate-900">{websiteLeadStats[0]?.value ?? 0}</p>
+            </div>
+            <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><Target size={16}/></div>
+          </div>
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pending</p>
+              <p className="text-[15px] font-black text-slate-900">{websiteLeadStats[1]?.value ?? 0}</p>
+            </div>
+            <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Sparkles size={16}/></div>
+          </div>
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Contacted</p>
+              <p className="text-[15px] font-black text-slate-900">{websiteLeadStats[2]?.value ?? 0}</p>
+            </div>
+            <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><BadgeCheck size={16}/></div>
+          </div>
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Closed</p>
+              <p className="text-[15px] font-black text-slate-900">{websiteLeadStats[3]?.value ?? 0}</p>
+            </div>
+            <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16}/></div>
+          </div>
+        </div>
+        )}
+
+        
+
+        {/* 4. TABLES (Website Leads | Unit Tour List) */}
+        {mainTab === "unit-tour" ? (
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+          <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+          {/* STATUS SUB-TABS */}
+          <div className="flex bg-slate-100/50 p-1 rounded-xl w-full relative border border-slate-200/50 overflow-x-auto mb-3">
+            <div className="flex items-center gap-1.5 overflow-x-auto">
+              <button onClick={() => setStageFilter("All")}
+                className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${stageFilter === "All" ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200" : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"}`}
+              >All ({normalizedLeads.length})</button>
+              {STAGES.map((status) => {
+                const count = normalizedLeads.filter((l) => l.status === status).length;
+                return (
+                  <button key={status} onClick={() => setStageFilter(status)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${stageFilter === status ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200" : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"}`}
+                  >{status} ({count})</button>
+                );
+              })}
+            </div>
+          </div>
+            <div />
+            <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                <input type="text" placeholder="Search leads, companies, visitor codes..."
+                  value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" />
+              </div>
+            </div>
+          </div>
+          {visibleLeads.length === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center px-6 py-20 text-center">
+              <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-400"><Target size={28} /></div>
+              <p className="text-slate-400 font-semibold">No matching leads found.</p>
+            </div>
+          ) : (
+          <div className="overflow-x-auto flex-1">
+            <table className="w-full text-left min-w-[860px]">
+              <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                 <tr>
-                  <th className="px-3.5 py-2">Lead</th>
-                  <th className="px-3.5 py-2">Contact</th>
-                  <th className="px-3.5 py-2">Source</th>
-                  <th className="px-3.5 py-2">Stage</th>
-                  <th className="px-3.5 py-2">Added</th>
-                  <th className="px-3.5 py-2 text-center">Action</th>
+                  <th className="px-5 py-4">Lead Names</th>
+                  <th className="px-5 py-4">Contact</th>
+                  <th className="px-5 py-4">Purpose</th>
+                  <th className="px-5 py-4">Stage</th>
+                  <th className="px-5 py-4">Date Added</th>
+                  <th className="px-5 py-4 text-center">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100/60">
                 {visibleLeads.map((lead) => {
                   const stageMeta = STAGE_META[lead.status] || STAGE_META.New;
                   const priorityMeta = PRIORITY_META[lead.priority] || PRIORITY_META.Low;
                   return (
-                    <tr key={lead.id} className="transition hover:bg-blue-50/40">
-                      <td className="px-3.5 py-2">
+                    <tr key={lead.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-5 py-4">
                         <div className="flex items-center gap-2.5">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-[10px] font-black text-white shadow-sm">
-                            {getInitials(lead.name)}
-                          </div>
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-[10px] font-black text-white shadow-sm">{getInitials(lead.name)}</div>
                           <div>
                             <p className="text-[12px] font-bold text-slate-900">{lead.name}</p>
-                            <p className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                              <Building2 size={10} className="inline-block -translate-y-px" /> {lead.company}
-                            </p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-3.5 py-2">
+                      <td className="px-5 py-4">
                         <div className="space-y-0.5 text-[12px] font-semibold text-slate-600">
                           <p className="flex items-center gap-1.5"><Phone size={11} className="text-slate-400" /> {lead.phone || "Not shared"}</p>
                           <p className="flex items-center gap-1.5"><Mail size={11} className="text-slate-400" /> {lead.email || "Not shared"}</p>
                         </div>
                       </td>
-                      <td className="px-3.5 py-2">
-                        <p className="text-[12px] font-bold text-slate-700">{lead.sourceLabel}</p>
-                        <p className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">{lead.purpose}</p>
-                        <div className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${priorityMeta.tone}`}>
-                          {priorityMeta.label} priority
-                        </div>
+                      <td className="px-5 py-4">
+                        <p className="text-[12px] font-bold text-slate-700">{lead.purpose || "Unit Tour"}</p>
+                        <div className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${priorityMeta.tone}`}>{priorityMeta.label} priority</div>
                       </td>
-                      <td className="px-3.5 py-2">
-                        <div className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${stageMeta.tone}`}>
-                          {stageMeta.label}
-                        </div>
-                        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Purpose: {lead.purpose}</p>
+                      <td className="px-5 py-4">
+                        <div className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${stageMeta.tone}`}>{stageMeta.label}</div>
                       </td>
-                      <td className="px-3.5 py-2">
-                        <p className="flex items-center gap-1.5 text-[12px] font-bold text-slate-700">
-                          <CalendarDays size={11} className="text-slate-400" /> {lead.dateAdded}
-                        </p>
+                      <td className="px-5 py-4">
+                        <p className="flex items-center gap-1.5 text-[12px] font-bold text-slate-700"><CalendarDays size={11} className="text-slate-400" /> {lead.dateAdded}</p>
                         <p className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Last contact: {lead.lastContact}</p>
                       </td>
-                      <td className="px-3.5 py-2">
+                      <td className="px-5 py-4">
                         <div className="flex items-center justify-center gap-1.5">
                           <button type="button" onClick={() => setSelectedLeadId(lead.id)}
-                            className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 transition hover:border-blue-300 hover:text-blue-700"
-                          >View <ChevronRight size={12} /></button>
+                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"><Eye size={15} strokeWidth={2.5} /></button>
                           <button type="button" onClick={() => handleUpdateStage(lead.id, "Converted")}
-                            className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-emerald-700"
-                          >Convert</button>
+                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-600 rounded-lg transition-all"><CheckCircle2 size={15} strokeWidth={2.5} /></button>
                         </div>
                       </td>
                     </tr>
@@ -372,11 +501,127 @@ export default function LeadsManagementPage() {
               </tbody>
             </table>
           </div>
+          )}
+        </div>
+        ) : (
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+          <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+          {/* STATUS SUB-TABS (stage filter pills, above main tabs) */}
+        <div className="flex bg-slate-100/50 p-1 rounded-xl w-full relative border border-slate-200/50 overflow-x-auto mb-3">
+          <div className="flex items-center gap-1.5 overflow-x-auto">
+            <button onClick={() => setStageFilter("All")}
+              className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${stageFilter === "All" ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200" : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"}`}
+            >All ({mainTab === "website-leads" ? websiteLeads.length : normalizedLeads.length})</button>
+            {(mainTab === "website-leads" ? WEBSITE_STATUSES : STAGES).map((status) => {
+              const count = mainTab === "website-leads"
+                ? websiteLeads.filter((l) => l.status === status).length
+                : normalizedLeads.filter((l) => l.status === status).length;
+              return (
+                <button key={status} onClick={() => setStageFilter(status)}
+                  className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${stageFilter === status ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200" : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"}`}
+                >{status} ({count})</button>
+              );
+            })}
+          </div>
+        </div>
+            <div />
+            <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                <input type="text" placeholder="Search by name, email, phone..."
+                  value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" />
+              </div>
+            </div>
+          </div>
+          {visibleWebsiteLeads.length === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center px-6 py-20 text-center">
+              <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-400"><Target size={28} /></div>
+              <p className="text-slate-400 font-semibold">No matching website leads found.</p>
+            </div>
+          ) : (
+          <div className="overflow-x-auto flex-1">
+            <table className="w-full text-left min-w-[900px]">
+              <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                <tr>
+                  <th className="px-5 py-4">Lead Names</th>
+                  <th className="px-5 py-4">Contact</th>
+                  <th className="px-5 py-4">Source</th>
+                  <th className="px-5 py-4">Product</th>
+                  <th className="px-5 py-4">Status</th>
+                  <th className="px-5 py-4">Received Date</th>
+                  <th className="px-5 py-4 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100/60">
+                {visibleWebsiteLeads.map((lead) => {
+                  const websiteStageStyle = {
+                    Pending: "bg-amber-50 text-amber-700 border-amber-100",
+                    Contacted: "bg-blue-50 text-blue-700 border-blue-100",
+                    Closed: "bg-emerald-50 text-emerald-700 border-emerald-100",
+                    Rejected: "bg-rose-50 text-rose-700 border-rose-100",
+                  }[lead.status] || "bg-slate-50 text-slate-600 border-slate-200";
+                  return (
+                    <tr key={lead._id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-[10px] font-black text-white shadow-sm">{getInitials(lead.fullName)}</div>
+                          <div>
+                            <p className="text-[12px] font-bold text-slate-900">{lead.fullName}</p>
+                            
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="space-y-0.5 text-[12px] font-semibold text-slate-600">
+                          <p className="flex items-center gap-1.5"><Phone size={11} className="text-slate-400" /> {lead.mobileNumber || "Not shared"}</p>
+                          <p className="flex items-center gap-1.5"><Mail size={11} className="text-slate-400" /> {lead.email || "Not shared"}</p>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4"><span className="text-[12px] font-bold text-slate-700">{lead.source || "Website"}</span></td>
+                      <td className="px-5 py-4">
+                        {(() => {
+                          const pt = (lead.productType || "").trim();
+                          const v  = (lead.vertical || "").trim();
+                          const product = pt && pt.toLowerCase() !== "co-working" ? pt : (v && v.toLowerCase() !== "co-working" ? v : "co-working");
+                          return <p className="text-[12px] font-bold text-slate-700">{product}</p>;
+                        })()}
+                      </td>
+                      <td className="px-5 py-4">
+                        <select
+                          value={lead.status}
+                          onChange={(e) => handleUpdateWebsiteLeadStatus(lead._id, e.target.value)}
+                          className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest cursor-pointer outline-none focus:ring-2 focus:ring-[#2563EB]/20 ${websiteStageStyle}`}
+                        >
+                          {WEBSITE_STATUSES.map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-5 py-4">
+                        <p className="text-[12px] font-bold text-slate-700">{formatDateLabel(lead.recievedDate || lead.createdAt)}</p>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button type="button" onClick={() => setSelectedWebsiteLeadId(lead._id)}
+                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"><Eye size={15} strokeWidth={2.5} /></button>
+                          {/* <button type="button" onClick={() => handleUpdateWebsiteLeadStatus(lead._id, "Closed")}
+                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-600 rounded-lg transition-all"><CheckCircle2 size={15} strokeWidth={2.5} /></button> */}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          )}
+        </div>
         )}
-      </div>
 
-      {selectedLead && (
+      {mainTab === "unit-tour" && selectedLead && (
         <div className="fixed inset-0 z-[9999] overflow-hidden bg-[#0F172A]/60 backdrop-blur-md p-3 sm:p-4">
+          
           <div className="absolute inset-0 bg-[#0F172A]/60 backdrop-blur-sm" onClick={() => setSelectedLeadId(null)} />
           <div className="relative z-10 mx-auto flex h-full w-full max-w-[1100px] flex-col overflow-hidden rounded-[2.5rem] border border-white/80 bg-white shadow-2xl">
             <div className="sticky top-0 z-20 flex flex-col gap-3 border-b border-slate-100 bg-slate-50 px-4 py-3 sm:px-5 md:flex-row md:items-start md:justify-between">
@@ -496,6 +741,170 @@ export default function LeadsManagementPage() {
         </div>
       )}
 
+      {mainTab === "website-leads" && selectedWebsiteLead && (
+        <div className="fixed inset-0 z-[9999] overflow-hidden bg-[#0F172A]/60 backdrop-blur-md p-3 sm:p-4 flex items-center justify-center">
+          <div className="absolute inset-0 bg-[#0F172A]/60 backdrop-blur-sm" onClick={() => setSelectedWebsiteLeadId(null)} />
+          <div className="relative z-10 flex flex-col w-full max-w-[620px] max-h-[88vh] overflow-hidden rounded-[2rem] border border-white/80 bg-white shadow-2xl">
+
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-slate-50 px-5 py-4 shrink-0">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-sm font-black text-white shadow-sm">
+                  {getInitials(selectedWebsiteLead.fullName)}
+                </div>
+                <div>
+                  <h3 className="text-[13px] font-black leading-tight text-slate-900">{selectedWebsiteLead.fullName}</h3>
+                  <div className="mt-1.5 flex flex-wrap gap-1">
+                    <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest ${{ Pending: "bg-amber-50 text-amber-700 border-amber-100", Contacted: "bg-blue-50 text-blue-700 border-blue-100", Closed: "bg-emerald-50 text-emerald-700 border-emerald-100", Rejected: "bg-rose-50 text-rose-700 border-rose-100" }[selectedWebsiteLead.status] || "bg-slate-50 text-slate-600 border-slate-200"}`}>{selectedWebsiteLead.status}</span>
+                    {(() => {
+                      // Show productType as primary category; fall back to vertical only if productType is absent or same as "co-working" default
+                      const pt = (selectedWebsiteLead.productType || "").trim();
+                      const v  = (selectedWebsiteLead.vertical   || "").trim();
+                      const label = pt && pt.toLowerCase() !== "co-working" ? pt : (v && v.toLowerCase() !== "co-working" ? v : "");
+                      return label ? (
+                        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-slate-500">{label}</span>
+                      ) : null;
+                    })()}
+                  </div>
+                </div>
+              </div>
+              <button type="button" onClick={() => setSelectedWebsiteLeadId(null)}
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:text-rose-600"
+              ><X size={14} /></button>
+            </div>
+
+            {/* Scrollable Body */}
+            <div className="overflow-y-auto flex-1 p-4 space-y-3">
+
+              {/* Core contact fields — always shown */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Phone</p>
+                  <p className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedWebsiteLead.mobileNumber || "Not shared"}</p>
+                </div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Email</p>
+                  <p className="mt-0.5 break-all text-[12px] font-bold text-slate-900">{selectedWebsiteLead.email || "Not shared"}</p>
+                </div>
+                {(() => {
+                  const pt = (selectedWebsiteLead.productType || "").trim();
+                  const v  = (selectedWebsiteLead.vertical   || "").trim();
+                  const product = pt && pt.toLowerCase() !== "co-working" ? pt : (v && v.toLowerCase() !== "co-working" ? v : "");
+                  return product ? (
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Product / Service</p>
+                      <p className="mt-0.5 text-[12px] font-bold text-slate-900">{product}</p>
+                    </div>
+                  ) : null;
+                })()}
+                {selectedWebsiteLead.noOfPeople && (
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">No. of People</p>
+                    <p className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedWebsiteLead.noOfPeople}</p>
+                  </div>
+                )}
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Received On</p>
+                  <p className="mt-0.5 text-[12px] font-bold text-slate-900">{formatDateLabel(selectedWebsiteLead.recievedDate || selectedWebsiteLead.createdAt)}</p>
+                </div>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Received Via</p>
+                  <p className="mt-0.5 text-[12px] font-bold text-slate-900">
+                    {(() => {
+                      const s = (selectedWebsiteLead.source || "").toLowerCase();
+                      if (s.includes("preview")) return "Website Preview";
+                      if (s.includes("hosted") || s.includes("live") || s.includes("wono")) return "Hosted Website";
+                      if (s.includes("direct")) return "Direct";
+                      return selectedWebsiteLead.source || "Website";
+                    })()}
+                  </p>
+                </div>
+              </div>
+
+              {/* Booking / Enquiry fields — smart dedup */}
+              {(() => {
+                const norm = (v) => String(v || "").toLowerCase().trim();
+                const vertical  = norm(selectedWebsiteLead.vertical);
+                const product   = norm(selectedWebsiteLead.productType);
+                const nop       = norm(selectedWebsiteLead.noOfPeople);
+
+                // A field is a duplicate if its normalised value matches vertical, productType, or noOfPeople
+                const isRedundant = (val) => {
+                  const s = norm(val);
+                  return !s || s === vertical || s === product || (vertical && product && s === `${vertical} · ${product}`);
+                };
+                const sameAsNop = (val) => { const s = norm(val); return !s || s === nop; };
+
+                const sd   = selectedWebsiteLead.startDate   || null;
+                const ed   = selectedWebsiteLead.endDate     || null;
+                // Stay Duration is only useful when dates aren't already shown
+                const dur  = selectedWebsiteLead.stayDuration && !(sd && ed) ? selectedWebsiteLead.stayDuration : null;
+                const room = !isRedundant(selectedWebsiteLead.roomType)    ? selectedWebsiteLead.roomType    : null;
+                // dormType redundant if same value as roomType OR same as vertical
+                const dorm = !isRedundant(selectedWebsiteLead.dormType) && norm(selectedWebsiteLead.dormType) !== norm(selectedWebsiteLead.roomType) ? selectedWebsiteLead.dormType : null;
+                const pkg  = !isRedundant(selectedWebsiteLead.packageName) ? selectedWebsiteLead.packageName : null;
+                // Attendees redundant if same number as noOfPeople
+                const att  = !sameAsNop(selectedWebsiteLead.attendees)    ? selectedWebsiteLead.attendees   : null;
+                const inq  = !isRedundant(selectedWebsiteLead.inquiryType) ? selectedWebsiteLead.inquiryType : null;
+                const slot = selectedWebsiteLead.timeSlot  || null;
+                const bud  = selectedWebsiteLead.budget    || null;
+                const loc  = selectedWebsiteLead.location  || null;
+
+                const fields = [
+                  sd   && { label: "Start Date",             value: formatDateLabel(sd) },
+                  ed   && { label: "End Date",               value: formatDateLabel(ed) },
+                  dur  && { label: "Stay Duration",          value: dur },
+                  room && { label: "Room Type",              value: room },
+                  dorm && { label: "Bed / Dorm Type",        value: dorm },
+                  pkg  && { label: "Package / Plan",         value: pkg },
+                  att  && { label: "Attendees / Team Size",  value: att },
+                  inq  && { label: "Inquiry Type",           value: inq },
+                  slot && { label: "Preferred Time / Slot",  value: slot },
+                  bud  && { label: "Budget",                 value: bud },
+                  loc  && { label: "Location",               value: loc },
+                ].filter(Boolean);
+
+                if (!fields.length) return null;
+                return (
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 px-0.5">Booking / Enquiry Details</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {fields.map(({ label, value }) => (
+                        <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{label}</p>
+                          <p className="mt-0.5 text-[12px] font-bold text-slate-900">{value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Message */}
+              {selectedWebsiteLead.message && (
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-1">Message</p>
+                  <p className="text-[12px] font-medium leading-5 text-slate-700">{selectedWebsiteLead.message}</p>
+                </div>
+              )}
+
+            </div>
+
+            {/* Sticky Footer — action buttons only */}
+            <div className="border-t border-slate-100 bg-slate-50 px-4 py-3 flex items-center justify-end gap-2 shrink-0">
+              <button type="button" onClick={() => { handleUpdateWebsiteLeadStatus(selectedWebsiteLead._id, "Closed"); setSelectedWebsiteLeadId(null); }}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-emerald-700"
+              ><CheckCircle2 size={12} /> Close Lead</button>
+              <button type="button" onClick={() => { handleUpdateWebsiteLeadStatus(selectedWebsiteLead._id, "Rejected"); setSelectedWebsiteLeadId(null); }}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-rose-700"
+              ><X size={12} /> Reject Lead</button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+        </div>
       </PageFrame>
     </div>
   );
