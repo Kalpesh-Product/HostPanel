@@ -738,6 +738,7 @@ export const inviteOrganizationMember = async (req, res, next) => {
         .trim()
         .replace(/\/$/, "");
 
+    let inviteLink = "";
     if (inviteSecret && targetUser && (!targetUser.password || isFreshInviteAccount)) {
       const inviteToken = jwt.sign(
         {
@@ -750,25 +751,30 @@ export const inviteOrganizationMember = async (req, res, next) => {
         inviteSecret,
         { expiresIn: "7d" },
       );
-      const inviteLink = `${frontendBase}/register/${inviteToken}`;
+      inviteLink = `${frontendBase}/register/${inviteToken}`;
 
-      await sendMail({
-        to: email,
-        subject: "You are invited to WONO Host Panel",
-        html: `
-          <p>Hi ${name},</p>
-          <p>You have been invited to join the Host Panel.</p>
-          <p>Use the link below to complete your account setup:</p>
-          <p><a href="${inviteLink}" target="_blank">Complete Registration</a></p>
-          <p>Your name and email will be prefilled. You only need to set your password and verify OTP.</p>
-          <p>This invite link expires in 7 days.</p>
-        `,
-      });
+      try {
+        await sendMail({
+          to: email,
+          subject: "You are invited to WONO Host Panel",
+          html: `
+            <p>Hi ${name},</p>
+            <p>You have been invited to join the Host Panel.</p>
+            <p>Use the link below to complete your account setup:</p>
+            <p><a href="${inviteLink}" target="_blank">Complete Registration</a></p>
+            <p>Your name and email will be prefilled. You only need to set your password and verify OTP.</p>
+            <p>This invite link expires in 7 days.</p>
+          `,
+        });
+      } catch (mailError: any) {
+        console.error("Invite email failed (member was still created):", mailError?.message || mailError);
+      }
     }
 
     return res.status(201).json({
       message: "Organization invite sent successfully.",
       inviteMode: !targetUser?.password || isFreshInviteAccount ? "register-link" : "existing-user",
+      inviteLink: inviteLink || undefined,
     });
   } catch (error) {
     next(error);
