@@ -23,6 +23,7 @@ export interface IMeetingRoomBooking extends Document {
     attendees: number;
     purpose: string;
     department?: string;
+    departmentId?: mongoose.Types.ObjectId | null;
 
     invites: Array<{
         invitedUserId?: mongoose.Types.ObjectId;
@@ -126,6 +127,12 @@ const meetingRoomBookingSchema = new Schema<IMeetingRoomBooking>(
             type: String,
             trim: true,
             maxlength: 80,
+        },
+        departmentId: {
+            type: Schema.Types.ObjectId,
+            ref: "Department",
+            default: null,
+            index: true,
         },
 
         invites: [

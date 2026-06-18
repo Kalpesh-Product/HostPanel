@@ -118,6 +118,7 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
             purpose: purpose.trim(),
             attendees: attendeeCount,
             department: req.body.department,
+            departmentId: req.body.departmentId && mongoose.Types.ObjectId.isValid(req.body.departmentId) ? new mongoose.Types.ObjectId(String(req.body.departmentId)) : null,
             invites: invitedUsers.map((user: any) => ({ invitedUserId: user._id, invitedName: user.name || user.email || "User", invitedEmail: user.email, status: "pending" })),
             status: "confirmed",
         });

@@ -587,11 +587,20 @@ export const inviteOrganizationMember = async (req, res, next) => {
       user: req.user,
       isActive: true,
     })
-      .select("role")
+      .select("role grantedModules")
       .lean()
       .exec();
     if (!actorMembership) {
       return res.status(403).json({ message: "You do not have workspace access." });
+    }
+    if (
+      !hasOrganizationAccess({
+        workspace,
+        membership: actorMembership,
+        permissionKey: ORGANIZATION_PERMISSION_KEYS.actions.inviteMember,
+      })
+    ) {
+      return res.status(403).json({ message: "You do not have permission to invite members." });
     }
 
     const name = String(req.body?.fullName || req.body?.name || "").trim();
