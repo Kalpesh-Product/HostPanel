@@ -16,6 +16,7 @@ export interface ITicket extends Document {
     assetDepartmentId?: mongoose.Types.ObjectId | null;
     assetAssignedTo: string;
     dueDate?: Date | null;
+    department?: string;
     departmentId?: mongoose.Types.ObjectId | null;
     submittedBy: string;
     requesterUserId?: mongoose.Types.ObjectId | null;
@@ -66,6 +67,7 @@ const ticketSchema = new Schema<ITicket>(
         assetDepartmentId: { type: Schema.Types.ObjectId, ref: "Department", default: null, index: true },
         assetAssignedTo: { type: String, default: "", trim: true, maxlength: 120 },
         dueDate: { type: Date, default: null, index: true },
+        department: { type: String, default: "", trim: true, maxlength: 120, index: true },
         departmentId: { type: Schema.Types.ObjectId, ref: "Department", default: null, index: true },
         submittedBy: { type: String, required: true, trim: true, maxlength: 120 },
         requesterUserId: { type: Schema.Types.ObjectId, ref: "HostUser", default: null, index: true },
