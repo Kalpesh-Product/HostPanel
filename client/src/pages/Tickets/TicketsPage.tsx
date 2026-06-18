@@ -569,6 +569,7 @@ export function TicketsPage() {
   const [ticketForm, setTicketForm] = useState(initialForm);
 
   const [orgData, setOrgData] = useState({});
+  const [workspaceDepartmentNames, setWorkspaceDepartmentNames] = useState([]);
   const [memberRoleByName, setMemberRoleByName] = useState({});
   const [memberIdByName, setMemberIdByName] = useState({});
   const [memberDirectory, setMemberDirectory] = useState([]);
@@ -828,18 +829,24 @@ export function TicketsPage() {
   }, [orgData, storedUser, tickets, isAdminTicketProfile, adminAssignedDepartments, isOwnerProfile, isSuperAdminProfile, normalizedRole]);
 
   const ticketCreateDepartments = useMemo(() => {
-    const collectedDepartments = [
-      ...Object.keys(orgData),
-      ...(Array.isArray(adminAssignedDepartments) ? adminAssignedDepartments : []),
-      ...(Array.isArray(storedUser?.workspace?.departments) ? storedUser.workspace.departments : []),
-      ...(Array.isArray(storedUser?.workspaceDraft?.departments) ? storedUser.workspaceDraft.departments : []),
-      ...tickets.map((ticket) => ticket.department).filter(Boolean),
-    ]
+    // Prefer the canonical workspace department list fetched from the API.
+    // Fall back to departments inferred from member data / existing tickets only
+    // when the API hasn't returned anything yet.
+    const primarySource = workspaceDepartmentNames.length > 0
+      ? workspaceDepartmentNames
+      : [
+          ...Object.keys(orgData),
+          ...(Array.isArray(storedUser?.workspace?.departments) ? storedUser.workspace.departments : []),
+          ...(Array.isArray(storedUser?.workspaceDraft?.departments) ? storedUser.workspaceDraft.departments : []),
+          ...tickets.map((ticket) => ticket.department).filter(Boolean),
+        ];
+
+    const collectedDepartments = primarySource
       .filter(Boolean)
       .filter((department) => shouldShowDepartmentOption(department));
 
     return orderTopManagementDepartments(collectedDepartments);
-  }, [orgData, adminAssignedDepartments, storedUser, tickets, isOwnerProfile, isSuperAdminProfile, normalizedRole]);
+  }, [workspaceDepartmentNames, orgData, storedUser, tickets, isOwnerProfile, isSuperAdminProfile, normalizedRole]);
 
   const assigneeOptions = useMemo(() => {
     return getAssigneeOptionsForDepartment(ticketForm.department);
@@ -1364,6 +1371,10 @@ export function TicketsPage() {
           : Array.isArray(storedUser?.workspace?.departments)
             ? storedUser.workspace.departments.filter(Boolean)
             : [];
+
+        if (workspaceDepartments.length > 0) {
+          setWorkspaceDepartmentNames(workspaceDepartments);
+        }
 
         const grouped = canonicalMembers.reduce((acc, member) => {
           member.departments.forEach((department) => {

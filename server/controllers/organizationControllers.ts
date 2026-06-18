@@ -262,16 +262,19 @@ export const getOrganizationOverview = async (req, res, next) => {
 
     if (!hasFullAccess) {
       // Non-admin members still need their own profile (sidebar uses it for role/departments).
-      const selfMember = await WorkspaceMember.findOne({
-        workspace: workspace._id,
-        user: req.user,
-        isActive: true,
-      })
-        .populate("user", "name email isActive")
-        .populate("role")
-        .populate("departments")
-        .lean()
-        .exec();
+      const [selfMember, restrictedDepts] = await Promise.all([
+        WorkspaceMember.findOne({
+          workspace: workspace._id,
+          user: req.user,
+          isActive: true,
+        })
+          .populate("user", "name email isActive")
+          .populate("role")
+          .populate("departments")
+          .lean()
+          .exec(),
+        Department.find({ workspaceId: workspace._id, isActive: true }).lean().exec(),
+      ]);
 
       const selfEntry = selfMember
         ? {
@@ -299,7 +302,7 @@ export const getOrganizationOverview = async (req, res, next) => {
             selectedPlan: workspace.selectedPlan || "basic",
             enabledModuleIds: Array.isArray(workspace.enabledModuleIds) ? workspace.enabledModuleIds : [],
           },
-          departments: [],
+          departments: restrictedDepts.map((d: any) => ({ id: toId(d._id), name: d.name, isActive: true })),
           teamMembers: selfEntry ? [selfEntry] : [],
           linkedWorkspaces: [],
           accessRestricted: true,
