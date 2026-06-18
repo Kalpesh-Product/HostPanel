@@ -7,6 +7,10 @@ import HostUser from "../models/HostUser.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
 import { uploadFileToS3 } from "../config/s3config.js";
+import TenantEmployee from "../models/TenantEmployee.js";
+import TenantCreditRequest from "../models/TenantCreditRequest.js";
+import TenantCreditLedger from "../models/TenantCreditLedger.js";
+import TenantAgreementDocument from "../models/TenantAgreementDocument.js";
 
 const TENANT_COMPANIES_SALES_MODULE = "tenant-companies-sales";
 const TENANT_COMPANIES_ADMIN_MODULE = "tenant-companies-admin";
@@ -258,14 +262,20 @@ function formatPricingPackage(pkg) {
   };
 }
 
-function formatTenantCompany(company) {
+async function formatTenantCompany(company) {
   if (!company) return null;
-  const employees = Array.isArray(company.employees) ? company.employees : [];
+
+  const [employees, creditRequests, agreementDocuments, creditHistory] = await Promise.all([
+    TenantEmployee.find({ tenantCompanyId: company._id }).lean().exec(),
+    TenantCreditRequest.find({ tenantCompanyId: company._id }).sort({ requestedAt: -1 }).lean().exec(),
+    TenantAgreementDocument.find({ tenantCompanyId: company._id }).sort({ uploadedAt: -1 }).lean().exec(),
+    TenantCreditLedger.find({ tenantCompanyId: company._id }).sort({ date: -1 }).lean().exec(),
+  ]);
+
   const managerEmployee = company.managerEmployeeId
     ? employees.find((e) => e.id === company.managerEmployeeId) || null
     : employees.find((e) => e.role === "Manager") || null;
   const status = deriveTenantStatus(company.contractEnd);
-  const creditRequests = Array.isArray(company.creditRequests) ? company.creditRequests : [];
 
   return {
     recordId: company._id,
@@ -305,16 +315,16 @@ function formatTenantCompany(company) {
     creditConfiguration: company.creditConfiguration || {},
     addOnCredits: company.addOnCredits || {},
     space: company.space || { floor: "", seats: [], assignedDate: null },
-    employees,
-    creditRequests,
+    employees: employees || [],
+    creditRequests: creditRequests || [],
     creditRequestSummary: {
       total: creditRequests.length,
       pending: creditRequests.filter((r) => r.status === "PENDING_SALES_APPROVAL").length,
       completed: creditRequests.filter((r) => r.status === "COMPLETED").length,
       rejected: creditRequests.filter((r) => ["REJECTED", "PAYMENT_FAILED", "PAYMENT_REJECTED"].includes(r.status)).length,
     },
-    agreementDocuments: Array.isArray(company.agreementDocuments) ? company.agreementDocuments : [],
-    creditHistory: Array.isArray(company.creditHistory) ? company.creditHistory : [],
+    agreementDocuments: agreementDocuments || [],
+    creditHistory: creditHistory || [],
     initials: getInitials(company.companyName),
     createdAt: company.createdAt,
     updatedAt: company.updatedAt,
@@ -342,7 +352,7 @@ export async function listTenantCompaniesForCurrentUser(userId, query = {}) {
       .lean(),
   ]);
 
-  const tenants = companies.map((c) => formatTenantCompany(c));
+  const tenants = await Promise.all(companies.map((c) => formatTenantCompany(c)));
 
   return {
     tenants,
@@ -377,7 +387,7 @@ export async function getTenantCompanyForCurrentUser(userId, tenantCompanyId) {
   const access = await resolveWorkspaceAccess(userId);
   const company = await TenantCompany.findById(tenantCompanyId).lean();
   ensureTenantCompanyExists(company, access.workspaceId);
-  return { tenant: formatTenantCompany(company) };
+  return { tenant: await formatTenantCompany(company) };
 }
 
 export async function createTenantCompanyForCurrentUser(userId, input) {
@@ -443,7 +453,6 @@ export async function createTenantCompanyForCurrentUser(userId, input) {
       startDate: input.agreementDetails?.startDate ? new Date(input.agreementDetails.startDate) : contractStart,
       endDate: input.agreementDetails?.endDate ? new Date(input.agreementDetails.endDate) : contractEnd,
       lockInPeriod: Math.max(0, Number(input.agreementDetails?.lockInPeriod || 0)),
-
     },
     billingDetails: {
       contractDurationMonths: Math.max(0, Number(input.billingDetails?.contractDurationMonths || contractDurationMonths)),
@@ -483,12 +492,10 @@ export async function createTenantCompanyForCurrentUser(userId, input) {
       remainingCredits: Math.max(0, Number(input.addOnCredits?.remainingCredits || 0)),
     },
     space: { floor: "", seats: [], assignedDate: null },
-    employees: [],
-    creditHistory: [],
   });
 
   return {
-    tenant: formatTenantCompany(company),
+    tenant: await formatTenantCompany(company),
     message: "Tenant company created successfully.",
   };
 }
@@ -555,7 +562,7 @@ export async function updateTenantCompanyForCurrentUser(userId, tenantCompanyId,
   await company.save();
 
   return {
-    tenant: formatTenantCompany(company),
+    tenant: await formatTenantCompany(company),
     message: "Tenant company updated successfully.",
   };
 }
@@ -600,7 +607,7 @@ export async function renewTenantCompanyForCurrentUser(userId, tenantCompanyId, 
   await company.save();
 
   return {
-    tenant: formatTenantCompany(company),
+    tenant: await formatTenantCompany(company),
     message: "Tenant company renewed successfully.",
   };
 }
@@ -625,7 +632,7 @@ export async function assignTenantCompanySpaceForCurrentUser(userId, tenantCompa
   await company.save();
 
   return {
-    tenant: formatTenantCompany(company),
+    tenant: await formatTenantCompany(company),
     message: "Tenant space assignment saved successfully.",
   };
 }
@@ -648,13 +655,14 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
   const role = normalizeTenantCompanyEmployeeRole(input.role || "Employee");
   const now = new Date();
 
-  const existingEmployees = Array.isArray(company.employees) ? company.employees : [];
-  const existingIndex = email
-    ? existingEmployees.findIndex((e) => normalizeText(e.email).toLowerCase() === email)
-    : -1;
+  const existingEmployee = email
+    ? await TenantEmployee.findOne({ tenantCompanyId: company._id, email }).lean().exec()
+    : null;
 
-  const employeeId = existingIndex >= 0 ? existingEmployees[existingIndex].id : `TE-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const employee = {
+  const employeeId = existingEmployee ? existingEmployee.id : `TE-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const employeeData = {
+    tenantCompanyId: company._id,
+    workspaceId: company.workspaceId,
     id: employeeId,
     name,
     email,
@@ -672,8 +680,6 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
     tenantCompanyName: company.companyName,
     userId: null,
     inviteId: null,
-    createdAt: now,
-    updatedAt: now,
   };
 
   let inviteSent = false;
@@ -681,11 +687,11 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
   if (email) {
     const existingUser = await HostUser.findOne({ email });
     if (existingUser) {
-      employee.userId = existingUser._id;
-      employee.inviteStatus = "Registered";
-      employee.registeredAt = existingUser.createdAt || now;
-      employee.lastLoginAt = existingUser.lastLoginAt || null;
-      employee.inviteAcceptedAt = now;
+      employeeData.userId = existingUser._id;
+      employeeData.inviteStatus = "Registered";
+      employeeData.registeredAt = existingUser.createdAt || now;
+      employeeData.lastLoginAt = existingUser.lastLoginAt || null;
+      employeeData.inviteAcceptedAt = now;
 
       const frontendBase = String(process.env.FRONTEND_PROD_LINK || process.env.CLIENT_URL || "http://localhost:3006")
         .trim()
@@ -694,8 +700,8 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
       inviteSent = true;
     } else {
       const rawToken = crypto.randomBytes(32).toString("hex");
-      employee.inviteToken = rawToken;
-      employee.inviteTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      employeeData.inviteToken = rawToken;
+      employeeData.inviteTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       const frontendBase = String(process.env.FRONTEND_PROD_LINK || process.env.CLIENT_URL || "http://localhost:3006")
         .trim()
         .replace(/\/$/, "");
@@ -706,24 +712,28 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
     }
   }
 
-  if (existingIndex >= 0) {
-    existingEmployees[existingIndex] = employee;
+  let employeeDoc;
+  if (existingEmployee) {
+    employeeDoc = await TenantEmployee.findOneAndUpdate(
+      { tenantCompanyId: company._id, email },
+      { $set: employeeData },
+      { new: true }
+    );
   } else {
-    existingEmployees.push(employee);
+    employeeDoc = await TenantEmployee.create(employeeData);
   }
 
   if (role === "Manager") {
-    company.managerEmployeeId = employee.id;
-  } else if (company.managerEmployeeId === employee.id) {
+    company.managerEmployeeId = employeeId;
+    await company.save();
+  } else if (company.managerEmployeeId === employeeId) {
     company.managerEmployeeId = null;
+    await company.save();
   }
 
-  company.employees = existingEmployees;
-  await company.save();
-
   return {
-    tenant: formatTenantCompany(company),
-    employee,
+    tenant: await formatTenantCompany(company),
+    employee: employeeDoc,
     inviteSent,
     message: "Tenant employee added successfully.",
   };
@@ -740,34 +750,32 @@ export async function updateTenantCompanyEmployeeForCurrentUser(userId, tenantCo
   const company = await TenantCompany.findById(tenantCompanyId);
   ensureTenantCompanyExists(company, access.workspaceId);
 
-  const employees = Array.isArray(company.employees) ? company.employees : [];
-  const idx = findEmployeeIndex(employees, employeeId);
-  if (idx === -1) {
+  const employee = await TenantEmployee.findOne({ tenantCompanyId: company._id, id: employeeId });
+  if (!employee) {
     const err = new Error("Tenant employee not found.");
     err.statusCode = 404;
     throw err;
   }
 
-  if (input.name !== undefined) employees[idx].name = normalizeText(input.name);
-  if (input.phone !== undefined) employees[idx].phone = normalizeText(input.phone);
-  if (input.designation !== undefined) employees[idx].designation = normalizeText(input.designation);
+  if (input.name !== undefined) employee.name = normalizeText(input.name);
+  if (input.phone !== undefined) employee.phone = normalizeText(input.phone);
+  if (input.designation !== undefined) employee.designation = normalizeText(input.designation);
   if (input.role !== undefined) {
     const newRole = normalizeTenantCompanyEmployeeRole(input.role);
-    employees[idx].role = newRole;
+    employee.role = newRole;
     if (newRole === "Manager") {
-      company.managerEmployeeId = employees[idx].id;
-    } else if (company.managerEmployeeId === employees[idx].id) {
+      company.managerEmployeeId = employee.id;
+      await company.save();
+    } else if (company.managerEmployeeId === employee.id) {
       company.managerEmployeeId = null;
+      await company.save();
     }
   }
-  employees[idx].updatedAt = new Date();
-
-  company.employees = employees;
-  await company.save();
+  await employee.save();
 
   return {
-    tenant: formatTenantCompany(company),
-    employee: employees[idx],
+    tenant: await formatTenantCompany(company),
+    employee,
     message: "Tenant employee updated successfully.",
   };
 }
@@ -783,28 +791,24 @@ export async function updateTenantCompanyEmployeeStatusForCurrentUser(userId, te
   const company = await TenantCompany.findById(tenantCompanyId);
   ensureTenantCompanyExists(company, access.workspaceId);
 
-  const employees = Array.isArray(company.employees) ? company.employees : [];
-  const idx = findEmployeeIndex(employees, employeeId);
-  if (idx === -1) {
+  const employee = await TenantEmployee.findOne({ tenantCompanyId: company._id, id: employeeId });
+  if (!employee) {
     const err = new Error("Tenant employee not found.");
     err.statusCode = 404;
     throw err;
   }
 
-  employees[idx].status = input.status === "Inactive" ? "Inactive" : "Active";
-  employees[idx].updatedAt = new Date();
-
-  if (input.status === "Inactive" && company.managerEmployeeId === employees[idx].id) {
+  employee.status = input.status === "Inactive" ? "Inactive" : "Active";
+  if (input.status === "Inactive" && company.managerEmployeeId === employee.id) {
     company.managerEmployeeId = null;
-    employees[idx].role = "Employee";
+    employee.role = "Employee";
+    await company.save();
   }
-
-  company.employees = employees;
-  await company.save();
+  await employee.save();
 
   return {
-    tenant: formatTenantCompany(company),
-    employee: employees[idx],
+    tenant: await formatTenantCompany(company),
+    employee,
     message: "Tenant employee status updated successfully.",
   };
 }
@@ -820,26 +824,23 @@ export async function deleteTenantCompanyEmployeeForCurrentUser(userId, tenantCo
   const company = await TenantCompany.findById(tenantCompanyId);
   ensureTenantCompanyExists(company, access.workspaceId);
 
-  const employees = Array.isArray(company.employees) ? company.employees : [];
-  const idx = findEmployeeIndex(employees, employeeId);
-  if (idx === -1) {
+  const employee = await TenantEmployee.findOne({ tenantCompanyId: company._id, id: employeeId });
+  if (!employee) {
     const err = new Error("Tenant employee not found.");
     err.statusCode = 404;
     throw err;
   }
 
-  const removed = employees[idx];
-  company.employees = employees.filter((_, i) => i !== idx);
+  await TenantEmployee.deleteOne({ tenantCompanyId: company._id, id: employeeId });
 
   if (company.managerEmployeeId === employeeId) {
     company.managerEmployeeId = null;
+    await company.save();
   }
 
-  await company.save();
-
   return {
-    tenant: formatTenantCompany(company),
-    removedEmployee: removed,
+    tenant: await formatTenantCompany(company),
+    removedEmployee: employee,
     message: "Tenant employee removed successfully.",
   };
 }
@@ -855,33 +856,33 @@ export async function assignTenantCompanyManagerForCurrentUser(userId, tenantCom
   const company = await TenantCompany.findById(tenantCompanyId);
   ensureTenantCompanyExists(company, access.workspaceId);
 
-  const employees = Array.isArray(company.employees) ? company.employees : [];
-  const idx = findEmployeeIndex(employees, input.employeeId);
-  if (idx === -1) {
+  const targetEmployee = await TenantEmployee.findOne({ tenantCompanyId: company._id, id: input.employeeId });
+  if (!targetEmployee) {
     const err = new Error("Tenant employee not found.");
     err.statusCode = 404;
     throw err;
   }
 
-  if (employees[idx].status === "Inactive") {
+  if (targetEmployee.status === "Inactive") {
     const err = new Error("Inactive employees cannot be assigned as manager.");
     err.statusCode = 400;
     throw err;
   }
 
-  const nextEmployees = employees.map((emp, i) => ({
-    ...emp,
-    role: i === idx ? "Manager" : "Employee",
-    updatedAt: new Date(),
-  }));
+  await TenantEmployee.updateMany(
+    { tenantCompanyId: company._id, id: { $ne: input.employeeId } },
+    { $set: { role: "Employee" } }
+  );
 
-  company.employees = nextEmployees;
-  company.managerEmployeeId = nextEmployees[idx].id;
+  targetEmployee.role = "Manager";
+  await targetEmployee.save();
+
+  company.managerEmployeeId = targetEmployee.id;
   await company.save();
 
   return {
-    tenant: formatTenantCompany(company),
-    manager: nextEmployees[idx],
+    tenant: await formatTenantCompany(company),
+    manager: targetEmployee,
     message: "Tenant company manager updated successfully.",
   };
 }
@@ -915,7 +916,9 @@ export async function uploadTenantCompanyAgreementDocumentsForCurrentUser(userId
       } catch {
         s3Result = { id: route, url: "" };
       }
-      return {
+      return await TenantAgreementDocument.create({
+        tenantCompanyId: company._id,
+        workspaceId: company.workspaceId,
         name: file.originalname || "document",
         type: file.mimetype || "document",
         mimeType: file.mimetype || "",
@@ -923,18 +926,12 @@ export async function uploadTenantCompanyAgreementDocumentsForCurrentUser(userId
         url: s3Result.url || "",
         publicId: s3Result.id || route,
         uploadedAt: new Date(),
-      };
+      });
     }),
   );
 
-  company.agreementDocuments = [
-    ...(Array.isArray(company.agreementDocuments) ? company.agreementDocuments : []),
-    ...uploadedDocuments,
-  ];
-  await company.save();
-
   return {
-    tenant: formatTenantCompany(company),
+    tenant: await formatTenantCompany(company),
     agreementDocuments: uploadedDocuments,
     message: "Tenant company agreement documents uploaded successfully.",
   };
@@ -949,18 +946,25 @@ export async function getMyTenantCompanyCreditRequestsForCurrentUser(userId) {
   }
 
   const user = await HostUser.findById(userId).lean();
-  const tenantCompany = await TenantCompany.findOne({
+  const employee = await TenantEmployee.findOne({
     workspaceId: access.workspaceId,
-    "employees.email": normalizeText(user?.email || "").toLowerCase(),
+    email: normalizeText(user?.email || "").toLowerCase(),
   }).lean();
 
+  if (!employee) {
+    return { tenant: null, creditRequests: [], creditRequestSummary: { total: 0, pending: 0, completed: 0, rejected: 0 } };
+  }
+
+  const tenantCompany = await TenantCompany.findById(employee.tenantCompanyId).lean();
   if (!tenantCompany) {
     return { tenant: null, creditRequests: [], creditRequestSummary: { total: 0, pending: 0, completed: 0, rejected: 0 } };
   }
 
-  const creditRequests = Array.isArray(tenantCompany.creditRequests) ? tenantCompany.creditRequests : [];
+  const creditRequests = await TenantCreditRequest.find({ tenantCompanyId: tenantCompany._id }).sort({ requestedAt: -1 }).lean().exec();
+  const formattedTenant = await formatTenantCompany(tenantCompany);
+
   return {
-    tenant: formatTenantCompany(tenantCompany),
+    tenant: formattedTenant,
     creditRequests,
     creditRequestSummary: {
       total: creditRequests.length,
@@ -980,11 +984,18 @@ export async function createMyTenantCompanyCreditRequestForCurrentUser(userId, i
   }
 
   const user = await HostUser.findById(userId).lean();
-  const company = await TenantCompany.findOne({
+  const employee = await TenantEmployee.findOne({
     workspaceId: access.workspaceId,
-    "employees.email": normalizeText(user?.email || "").toLowerCase(),
-  });
+    email: normalizeText(user?.email || "").toLowerCase(),
+  }).lean();
 
+  if (!employee) {
+    const err = new Error("Tenant employee not found for your account.");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const company = await TenantCompany.findById(employee.tenantCompanyId);
   if (!company) {
     const err = new Error("Tenant company not found for your account.");
     err.statusCode = 404;
@@ -993,7 +1004,9 @@ export async function createMyTenantCompanyCreditRequestForCurrentUser(userId, i
 
   const requestedCredits = Math.max(1, Math.min(100000, Number(input.requestedCredits || 0)));
   const now = new Date();
-  const request = {
+  const request = await TenantCreditRequest.create({
+    tenantCompanyId: company._id,
+    workspaceId: company.workspaceId,
     id: `CRQ-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     requestedCredits,
     approvedCredits: 0,
@@ -1014,12 +1027,7 @@ export async function createMyTenantCompanyCreditRequestForCurrentUser(userId, i
       at: now,
     }],
     requestedAt: now,
-    updatedAt: now,
-  };
-
-  company.creditRequests = [request, ...(Array.isArray(company.creditRequests) ? company.creditRequests : [])];
-  company.markModified("creditRequests");
-  await company.save();
+  });
 
   return {
     creditRequest: request,
@@ -1042,26 +1050,24 @@ export async function submitMyTenantCompanyCreditRequestPaymentForCurrentUser(us
   }
 
   const user = await HostUser.findById(userId).lean();
-  const company = await TenantCompany.findOne({
+  const employee = await TenantEmployee.findOne({
     workspaceId: access.workspaceId,
-    "employees.email": normalizeText(user?.email || "").toLowerCase(),
-  });
+    email: normalizeText(user?.email || "").toLowerCase(),
+  }).lean();
 
-  if (!company) {
+  if (!employee) {
     const err = new Error("Tenant company not found for your account.");
     err.statusCode = 404;
     throw err;
   }
 
-  const creditRequests = Array.isArray(company.creditRequests) ? company.creditRequests : [];
-  const reqIdx = creditRequests.findIndex((r) => r.id === requestId);
-  if (reqIdx === -1) {
+  const request = await TenantCreditRequest.findOne({ tenantCompanyId: employee.tenantCompanyId, id: requestId });
+  if (!request) {
     const err = new Error("Credit request not found.");
     err.statusCode = 404;
     throw err;
   }
 
-  const request = creditRequests[reqIdx];
   if (request.status !== "APPROVED_AWAITING_PAYMENT") {
     const err = new Error("This credit request is not ready for payment submission.");
     err.statusCode = 409;
@@ -1075,10 +1081,7 @@ export async function submitMyTenantCompanyCreditRequestPaymentForCurrentUser(us
   request.paymentSubmittedAt = now;
   request.updatedAt = now;
 
-  creditRequests[reqIdx] = request;
-  company.creditRequests = creditRequests;
-  company.markModified("creditRequests");
-  await company.save();
+  await request.save();
 
   return {
     creditRequest: request,
@@ -1097,15 +1100,13 @@ export async function updateTenantCompanyCreditRequestForCurrentUser(userId, ten
   const company = await TenantCompany.findById(tenantCompanyId);
   ensureTenantCompanyExists(company, access.workspaceId);
 
-  const creditRequests = Array.isArray(company.creditRequests) ? company.creditRequests : [];
-  const reqIdx = creditRequests.findIndex((r) => r.id === requestId);
-  if (reqIdx === -1) {
+  const request = await TenantCreditRequest.findOne({ tenantCompanyId: company._id, id: requestId });
+  if (!request) {
     const err = new Error("Credit request not found.");
     err.statusCode = 404;
     throw err;
   }
 
-  const request = creditRequests[reqIdx];
   const now = new Date();
 
   const validStatuses = [
@@ -1145,13 +1146,11 @@ export async function updateTenantCompanyCreditRequestForCurrentUser(userId, ten
     request.creditsAddedByName = normalizeText(access.user?.name || "");
     request.completedAt = now;
     request.status = "COMPLETED";
+    await company.save();
   }
 
   request.updatedAt = now;
-  creditRequests[reqIdx] = request;
-  company.creditRequests = creditRequests;
-  company.markModified("creditRequests");
-  await company.save();
+  await request.save();
 
   return {
     creditRequest: request,

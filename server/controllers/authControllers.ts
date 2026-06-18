@@ -9,6 +9,7 @@ import Workspace from "../models/Workspace.js";
 import { sendMail } from "../config/mailer.js";
 import crypto from "crypto";
 import { TenantCompany } from "../models/TenantCompany.js";
+import TenantEmployee from "../models/TenantEmployee.js";
 import Role from "../models/Role.js";
 
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[\d\W]).+$/;
@@ -518,27 +519,21 @@ export const login = async (req, res, next) => {
     let tenantCompanyName = null;
     let tenantLastLoginAt = null;
     if (user?.email) {
-      const tenantCompany = await TenantCompany.findOne({
-        "employees.email": normalizeInviteEmail(user.email),
-        "employees.status": "Active",
-      })
-        .lean()
-        .exec();
-      if (tenantCompany) {
-        const emp = Array.isArray(tenantCompany.employees)
-          ? tenantCompany.employees.find(
-              (e) => normalizeInviteEmail(e.email || "") === normalizeInviteEmail(user.email),
-            )
-          : null;
-        if (emp && emp.status === "Active") {
+      const emp = await TenantEmployee.findOne({
+        email: normalizeInviteEmail(user.email),
+        status: "Active",
+      }).exec();
+      if (emp) {
+        const tenantCompany = await TenantCompany.findById(emp.tenantCompanyId).lean().exec();
+        if (tenantCompany) {
           tenantRole = emp.tenantRole || (emp.role === "Manager" ? "tenant-manager" : "tenant-employee");
           tenantCompanyId = String(tenantCompany._id);
           tenantCompanyName = tenantCompany.companyName || "";
           tenantLastLoginAt = emp.lastLoginAt || null;
           // Update lastLoginAt
-          await TenantCompany.updateOne(
-            { _id: tenantCompany._id, "employees.email": normalizeInviteEmail(user.email) },
-            { $set: { "employees.$.lastLoginAt": new Date() } },
+          await TenantEmployee.updateOne(
+            { _id: emp._id },
+            { $set: { lastLoginAt: new Date() } }
           ).exec();
         }
       }
@@ -1265,20 +1260,14 @@ export const getTenantRegisterPrefill = async (req, res, next) => {
     const { inviteToken } = req.query;
     if (!inviteToken) return res.status(400).json({ message: "Invite token is required." });
 
-    const company = await TenantCompany.findOne({
-      "employees.inviteToken": inviteToken,
-    }).lean().exec();
-
-    if (!company) {
+    const employee = await TenantEmployee.findOne({ inviteToken }).exec();
+    if (!employee) {
       return res.status(400).json({ message: "Invalid or expired invite link." });
     }
 
-    const employee = company.employees.find(
-      (emp) => emp.inviteToken === inviteToken,
-    );
-
-    if (!employee) {
-      return res.status(400).json({ message: "Invalid invite link." });
+    const company = await TenantCompany.findById(employee.tenantCompanyId).lean().exec();
+    if (!company) {
+      return res.status(400).json({ message: "Tenant company not found." });
     }
 
     if (employee.inviteTokenExpiresAt && new Date(employee.inviteTokenExpiresAt).getTime() < Date.now()) {
@@ -1317,22 +1306,15 @@ export const registerTenantEmployee = async (req, res, next) => {
     const strengthMessage = validateStrongPassword(password);
     if (strengthMessage) return res.status(400).json({ message: strengthMessage });
 
-    const company = await TenantCompany.findOne({
-      "employees.inviteToken": inviteToken,
-    }).exec();
-
-    if (!company) {
+    const employee = await TenantEmployee.findOne({ inviteToken }).exec();
+    if (!employee) {
       return res.status(400).json({ message: "Invalid or expired invite link." });
     }
 
-    const employees = Array.isArray(company.employees) ? company.employees : [];
-    const idx = employees.findIndex((emp) => emp.inviteToken === inviteToken);
-
-    if (idx === -1) {
-      return res.status(400).json({ message: "Invalid invite link." });
+    const company = await TenantCompany.findById(employee.tenantCompanyId).exec();
+    if (!company) {
+      return res.status(400).json({ message: "Tenant company not found." });
     }
-
-    const employee = employees[idx];
 
     if (employee.inviteTokenExpiresAt && new Date(employee.inviteTokenExpiresAt).getTime() < Date.now()) {
       return res.status(400).json({ message: "Invite link has expired. Contact your manager for a new invite." });
@@ -1376,21 +1358,21 @@ export const registerTenantEmployee = async (req, res, next) => {
 
     // Update employee record
     const now = new Date();
-    employees[idx].userId = user._id;
-    employees[idx].inviteStatus = "Registered";
-    employees[idx].inviteAcceptedAt = now;
-    employees[idx].registeredAt = now;
-    employees[idx].updatedAt = now;
+    employee.userId = user._id;
+    employee.inviteStatus = "Registered";
+    employee.inviteAcceptedAt = now;
+    employee.registeredAt = now;
+    employee.updatedAt = now;
 
     if (employee.role === "Manager") {
-      employees[idx].tenantRole = "tenant-manager";
+      employee.tenantRole = "tenant-manager";
       company.managerEmployeeId = employee.id;
+      await company.save();
     } else {
-      employees[idx].tenantRole = "tenant-employee";
+      employee.tenantRole = "tenant-employee";
     }
 
-    company.employees = employees;
-    await company.save();
+    await employee.save();
 
     return res.status(200).json({
       message: "Registration completed successfully. You can now sign in.",
@@ -1415,26 +1397,22 @@ export const getTenantProfile = async (req, res, next) => {
 
     const userEmail = hostUser.email;
 
-    const tenantCompany = await TenantCompany.findOne({
-      "employees.email": normalizeInviteEmail(userEmail),
-      "employees.status": "Active",
-    })
-      .select("companyName contactName email phone businessType customerDetails companyDetails employees")
+    const emp = await TenantEmployee.findOne({
+      email: normalizeInviteEmail(userEmail),
+      status: "Active",
+    }).exec();
+
+    if (!emp) {
+      return res.status(404).json({ message: "Employee record not found" });
+    }
+
+    const tenantCompany = await TenantCompany.findById(emp.tenantCompanyId)
+      .select("companyName contactName email phone businessType customerDetails companyDetails")
       .lean()
       .exec();
 
     if (!tenantCompany) {
       return res.status(404).json({ message: "Tenant profile not found" });
-    }
-
-    const emp = Array.isArray(tenantCompany.employees)
-      ? tenantCompany.employees.find(
-          (e) => normalizeInviteEmail(e.email || "") === normalizeInviteEmail(userEmail),
-        )
-      : null;
-
-    if (!emp) {
-      return res.status(404).json({ message: "Employee record not found" });
     }
 
     const roleLabel = emp.role === "Manager" ? "Tenant Manager" : "Tenant Employee";

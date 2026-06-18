@@ -5,6 +5,7 @@ import Company from "../models/Company.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
 import { TenantCompany } from "../models/TenantCompany.js";
+import TenantEmployee from "../models/TenantEmployee.js";
 import Role from "../models/Role.js";
 
 const buildAuthUserPayload = (
@@ -213,19 +214,13 @@ const refreshTokenController = async (req, res, next) => {
     let tenantCompanyName = null;
     let tenantLastLoginAt = null;
     if (user?.email) {
-      const tenantCompany = await TenantCompany.findOne({
-        "employees.email": normalizeInviteEmail(user.email),
-        "employees.status": "Active",
-      })
-        .lean()
-        .exec();
-      if (tenantCompany) {
-        const emp = Array.isArray(tenantCompany.employees)
-          ? tenantCompany.employees.find(
-              (e) => normalizeInviteEmail(e.email || "") === normalizeInviteEmail(user.email),
-            )
-          : null;
-        if (emp && emp.status === "Active") {
+      const emp = await TenantEmployee.findOne({
+        email: normalizeInviteEmail(user.email),
+        status: "Active",
+      }).exec();
+      if (emp) {
+        const tenantCompany = await TenantCompany.findById(emp.tenantCompanyId).lean().exec();
+        if (tenantCompany) {
           tenantRole = emp.tenantRole || (emp.role === "Manager" ? "tenant-manager" : "tenant-employee");
           tenantCompanyId = String(tenantCompany._id);
           tenantCompanyName = tenantCompany.companyName || "";

@@ -94,58 +94,6 @@ const workspaceSchema = new mongoose.Schema(
       primaryColor: { type: String, default: "#2563EB" },
       logoUrl: { type: String, default: "" },
     },
-    organizationDepartments: {
-      type: [
-        {
-          name: { type: String, required: true, trim: true },
-          description: { type: String, default: "", trim: true },
-          isActive: { type: Boolean, default: true },
-          moduleIds: {
-            type: [String],
-            default: [],
-          },
-          managerUser: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "HostUser",
-            default: null,
-          },
-          adminUsers: {
-            type: [{ type: mongoose.Schema.Types.ObjectId, ref: "HostUser" }],
-            default: [],
-          },
-          employeeUsers: {
-            type: [{ type: mongoose.Schema.Types.ObjectId, ref: "HostUser" }],
-            default: [],
-          },
-        },
-      ],
-      default: [],
-    },
-    actingManagerAssignments: {
-      type: [
-        {
-          departmentId: {
-            type: mongoose.Schema.Types.ObjectId,
-            default: null,
-          },
-          assignedUser: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "HostUser",
-            default: null,
-          },
-          note: {
-            type: String,
-            default: "",
-            trim: true,
-          },
-          isActive: {
-            type: Boolean,
-            default: true,
-          },
-        },
-      ],
-      default: [],
-    },
     isSetupComplete: {
       type: Boolean,
       default: true,

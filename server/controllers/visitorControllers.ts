@@ -4,6 +4,7 @@ import WorkspaceMember from "../models/WorkspaceMember.js";
 import HostUser from "../models/HostUser.js";
 import VisitorLog from "../models/VisitorLog.js";
 import Role from "../models/Role.js";
+import Department from "../models/Department.js";
 import { VISITOR_MEMBER_GRANT_ALIASES, VISITOR_PERMISSION_KEYS } from "../config/visitorPermissionMap.js";
 
 const FRONTDESK_ROLES = new Set(["owner", "founder", "super_admin", "admin", "admin_manager", "manager"]);
@@ -329,9 +330,13 @@ export const getVisitorsOverview = async (req, res, next) => {
     const liveVisitors = formatted.filter((visitor) => String(visitor.status || "").toLowerCase() === "checked_in");
     const approvedVisitors = formatted.filter((visitor) => String(visitor.status || "").toLowerCase() === "approved");
     const pendingVisitors = formatted.filter((visitor) => String(visitor.status || "").toLowerCase() === "pending");
-    const activeWorkspaceDepartments = Array.isArray(workspace.organizationDepartments)
-      ? workspace.organizationDepartments.filter((department) => department?.isActive !== false)
-      : [];
+    const departments = await Department.find({ workspaceId: workspace._id, isActive: true }).lean().exec();
+    const activeWorkspaceDepartments = departments.map((d) => ({
+      _id: d._id,
+      name: d.name,
+      description: d.description || "",
+      isActive: d.isActive,
+    }));
     const hostGroups = buildHostGroups(employeeRoster, activeWorkspaceDepartments);
     const todayKey = getKolkataDateKey(new Date());
     const dailyVisitors = formatted.filter((visitor) => {

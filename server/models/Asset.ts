@@ -66,6 +66,13 @@ const assetSchema = new mongoose.Schema(
             index: true,
         },
 
+        departmentId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Department",
+            default: null,
+            index: true,
+        },
+
         status: {
             type: String,
             enum: ["Active", "Inactive", "Disposed", "Repair"],
@@ -93,6 +100,13 @@ const assetSchema = new mongoose.Schema(
             default: "",
             trim: true,
             maxlength: 80,
+            index: true,
+        },
+
+        assignedToDepartmentId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Department",
+            default: null,
             index: true,
         },
 

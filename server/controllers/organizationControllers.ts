@@ -5,6 +5,7 @@ import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Department from "../models/Department.js";
 import Role from "../models/Role.js";
+import ActingManager from "../models/ActingManager.js";
 import jwt from "jsonwebtoken";
 import { sendMail } from "../config/mailer.js";
 import { buildWorkspaceModuleCatalog } from "../config/workspaceModuleCatalog.js";
@@ -257,6 +258,13 @@ export const getOrganizationOverview = async (req, res, next) => {
       .lean()
       .exec();
 
+    const allActingManagers = await ActingManager.find({
+      workspaceId: workspace._id,
+      isActive: true,
+    })
+      .lean()
+      .exec();
+
     const departments = activeDepartments.map((department) => {
       const departmentMembers = members.filter((member) =>
         (Array.isArray(member.departments) ? member.departments : []).some(
@@ -294,10 +302,9 @@ export const getOrganizationOverview = async (req, res, next) => {
             ? member.departments.map((d: any) => d.name || String(d))
             : [],
         })),
-        actingManagers: (workspace.actingManagerAssignments || [])
+        actingManagers: allActingManagers
           .filter(
             (assignment) =>
-              assignment?.isActive !== false &&
               toId(assignment?.departmentId) === toId(department?._id),
           )
           .map((assignment) => ({
@@ -765,25 +772,24 @@ export const assignOrganizationActingManager = async (req, res, next) => {
       return res.status(400).json({ message: "Assigned user id is required." });
     }
 
-    const assignments = Array.isArray(workspace.actingManagerAssignments)
-      ? workspace.actingManagerAssignments
-      : [];
-    const existing = assignments.find(
-      (assignment) =>
-        toId(assignment?.departmentId) === toId(department?._id) &&
-        toId(assignment?.assignedUser) === assignedUserId &&
-        assignment?.isActive !== false,
-    );
+    let assignment = await ActingManager.findOne({
+      workspaceId: workspace._id,
+      departmentId: department._id,
+      assignedUser: assignedUserId,
+    });
 
-    if (!existing) {
-      assignments.push({
+    if (!assignment) {
+      await ActingManager.create({
+        workspaceId: workspace._id,
         departmentId: department._id,
         assignedUser: assignedUserId,
         note: String(req.body?.note || "").trim(),
         isActive: true,
       });
-      workspace.actingManagerAssignments = assignments;
-      await workspace.save();
+    } else if (!assignment.isActive) {
+      assignment.isActive = true;
+      assignment.note = String(req.body?.note || "").trim();
+      await assignment.save();
     }
 
     return res.status(200).json({ message: "Acting manager assigned successfully." });
@@ -817,20 +823,18 @@ export const removeOrganizationActingManager = async (req, res, next) => {
 
     const departmentId = String(req.params.departmentId || "");
     const assignedUserId = String(req.params.assignedUserId || "");
-    const assignments = Array.isArray(workspace.actingManagerAssignments)
-      ? workspace.actingManagerAssignments
-      : [];
-    const target = assignments.find(
-      (assignment) =>
-        toId(assignment?.departmentId) === departmentId &&
-        toId(assignment?.assignedUser) === assignedUserId &&
-        assignment?.isActive !== false,
-    );
 
-    if (target) {
-      target.isActive = false;
-      await workspace.save();
-    }
+    await ActingManager.updateOne(
+      {
+        workspaceId: workspace._id,
+        departmentId,
+        assignedUser: assignedUserId,
+        isActive: true,
+      },
+      {
+        $set: { isActive: false },
+      }
+    );
 
     return res.status(200).json({ message: "Acting manager removed successfully." });
   } catch (error) {

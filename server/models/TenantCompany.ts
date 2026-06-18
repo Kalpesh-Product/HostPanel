@@ -273,7 +273,6 @@ const tenantCompanySchema = new Schema(
     packageDetails: { type: tenantPackageDetailsSchema, default: () => ({}) },
     creditConfiguration: { type: tenantCreditConfigurationSchema, default: () => ({}) },
     addOnCredits: { type: tenantAddOnCreditsSchema, default: () => ({}) },
-    creditRequests: { type: [tenantCreditRequestSchema], default: [] },
     managerEmployeeId: { type: String, default: null, trim: true, index: true },
     status: {
       type: String, required: true, trim: true,
@@ -282,9 +281,6 @@ const tenantCompanySchema = new Schema(
     },
     notes: { type: String, default: "", trim: true, maxlength: 1000 },
     space: { type: tenantSpaceSchema, default: () => ({}) },
-    employees: { type: [tenantEmployeeSchema], default: [] },
-    creditHistory: { type: [tenantCreditHistorySchema], default: [] },
-    agreementDocuments: { type: [tenantAgreementDocumentSchema], default: [] },
   },
   { timestamps: true },
 );

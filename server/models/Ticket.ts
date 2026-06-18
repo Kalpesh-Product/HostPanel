@@ -14,12 +14,15 @@ export interface ITicket extends Document {
     assetCode: string;
     assetName: string;
     assetDepartment: string;
+    assetDepartmentId?: mongoose.Types.ObjectId | null;
     assetAssignedTo: string;
     dueDate: string;
     department: string;
+    departmentId?: mongoose.Types.ObjectId | null;
     submittedBy: string;
     requesterUserId?: mongoose.Types.ObjectId | null;
     submittedByDept: string;
+    submittedByDeptId?: mongoose.Types.ObjectId | null;
     assignedTo: string;
     assigneeUserId?: mongoose.Types.ObjectId | null;
     acceptedBy?: string | null;
@@ -64,12 +67,15 @@ const ticketSchema = new Schema<ITicket>(
         assetCode: { type: String, default: "", trim: true, maxlength: 64 },
         assetName: { type: String, default: "", trim: true, maxlength: 180 },
         assetDepartment: { type: String, default: "", trim: true, maxlength: 80 },
+        assetDepartmentId: { type: Schema.Types.ObjectId, ref: "Department", default: null, index: true },
         assetAssignedTo: { type: String, default: "", trim: true, maxlength: 120 },
         dueDate: { type: String, default: "", trim: true, maxlength: 30, index: true },
         department: { type: String, required: true, trim: true, maxlength: 80, index: true },
+        departmentId: { type: Schema.Types.ObjectId, ref: "Department", default: null, index: true },
         submittedBy: { type: String, required: true, trim: true, maxlength: 120 },
         requesterUserId: { type: Schema.Types.ObjectId, ref: "HostUser", default: null, index: true },
         submittedByDept: { type: String, default: "Executive", trim: true, maxlength: 80 },
+        submittedByDeptId: { type: Schema.Types.ObjectId, ref: "Department", default: null, index: true },
         assignedTo: { type: String, required: true, trim: true, maxlength: 120 },
         assigneeUserId: { type: Schema.Types.ObjectId, ref: "HostUser", default: null, index: true },
         acceptedBy: { type: String, default: null, trim: true, maxlength: 120 },
