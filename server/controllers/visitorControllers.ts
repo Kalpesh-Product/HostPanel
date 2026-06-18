@@ -3,7 +3,7 @@ import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import HostUser from "../models/HostUser.js";
 import VisitorLog from "../models/VisitorLog.js";
-import Role from "../models/Role.js";
+import { Role } from "../models/Role.js";
 import Department from "../models/Department.js";
 import { VISITOR_MEMBER_GRANT_ALIASES, VISITOR_PERMISSION_KEYS } from "../config/visitorPermissionMap.js";
 

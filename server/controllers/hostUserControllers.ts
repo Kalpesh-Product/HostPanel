@@ -5,6 +5,7 @@ import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import HostCompany from "../models/Company.js";
 import { uploadFileToS3, deleteFileFromS3ByUrl } from "../config/s3config.js";
+import { resolveActiveWorkspaceMembership } from "../utils/resolveMembership.js";
 
 const derivePrimaryVertical = (businessTypes = []) => {
   const normalized = businessTypes.map((item) => String(item || "").trim().toLowerCase());
@@ -241,14 +242,21 @@ export const getMyProfile = async (req, res) => {
       workspace = membershipWorkspace?.workspace || null;
     }
 
-    const workspaceMembership = await WorkspaceMember.findOne({
-      user: user._id,
-      isActive: true,
-      ...(workspace?._id ? { workspace: workspace._id } : {}),
-    })
-      .sort({ isPrimary: -1, createdAt: 1 })
-      .lean()
-      .exec();
+    let workspaceMembership = null;
+    if (workspace?._id) {
+      workspaceMembership = await WorkspaceMember.findOne({
+        user: user._id,
+        isActive: true,
+        workspace: workspace._id,
+      })
+        .sort({ isPrimary: -1, createdAt: 1 })
+        .lean()
+        .exec();
+    }
+
+    if (!workspaceMembership) {
+      workspaceMembership = await resolveActiveWorkspaceMembership(user);
+    }
 
     const workspaceBusinessName = String(workspace?.businessName || "")
       .trim()

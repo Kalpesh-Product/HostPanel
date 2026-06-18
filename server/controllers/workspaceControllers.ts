@@ -3,7 +3,7 @@ import Company from "../models/Company.js";
 import HostUser from "../models/HostUser.js";
 import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
-import Role from "../models/Role.js";
+import { Role } from "../models/Role.js";
 import Department from "../models/Department.js";
 import {
   buildWorkspaceModuleCatalog,

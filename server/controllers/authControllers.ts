@@ -10,7 +10,10 @@ import { sendMail } from "../config/mailer.js";
 import crypto from "crypto";
 import { TenantCompany } from "../models/TenantCompany.js";
 import TenantEmployee from "../models/TenantEmployee.js";
-import Role from "../models/Role.js";
+import {
+  resolveAccessibleWorkspaceMemberships,
+  resolveActiveWorkspaceMembership,
+} from "../utils/resolveMembership.js";
 
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[\d\W]).+$/;
 
@@ -206,15 +209,7 @@ const buildAuthUserPayload = (
 });
 
 const getAccessibleWorkspaces = async (userId: any) => {
-  const memberships = await WorkspaceMember.find({
-    user: userId,
-    isActive: true,
-  })
-    .sort({ isPrimary: -1, createdAt: 1 })
-    .populate("workspace")
-    .populate("role")
-    .lean()
-    .exec();
+  const memberships = await resolveAccessibleWorkspaceMemberships(userId);
 
   return memberships
     .filter((membership: any) => membership?.workspace)
@@ -239,27 +234,6 @@ const getFounderEmailForWorkspace = async (workspaceId: any) => {
   return workspace?.owner?.email || "";
 };
 
-const resolveActiveWorkspaceMembership = async (user: any) => {
-  const preferredMembership = await WorkspaceMember.findOne({
-    user: user._id,
-    isActive: true,
-    ...(user?.primaryWorkspace ? { workspace: user.primaryWorkspace } : {}),
-  })
-    .sort({ isPrimary: -1, createdAt: 1 })
-    .populate("role")
-    .lean()
-    .exec();
-
-  if (preferredMembership) {
-    return preferredMembership;
-  }
-
-  return WorkspaceMember.findOne({ user: user._id, isActive: true })
-    .sort({ isPrimary: -1, createdAt: 1 })
-    .populate("role")
-    .lean()
-    .exec();
-};
 
 const resolveCompanyForActiveWorkspace = async (user: any, activeMembership: any) => {
   if (activeMembership?.workspace) {

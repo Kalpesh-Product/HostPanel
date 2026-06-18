@@ -4,7 +4,7 @@ import HostUser from "../models/HostUser.js";
 import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Department from "../models/Department.js";
-import Role from "../models/Role.js";
+import { Role } from "../models/Role.js";
 import ActingManager from "../models/ActingManager.js";
 import jwt from "jsonwebtoken";
 import { sendMail } from "../config/mailer.js";
@@ -170,7 +170,15 @@ const ensureWorkspaceDepartments = async (workspace) => {
         workspaceId: workspace._id,
         isActive: true,
       }));
-      await Department.insertMany(toCreate);
+      try {
+        await Department.insertMany(toCreate, { ordered: false });
+      } catch (err: any) {
+        // Ignore E11000 duplicate key errors (e.g. legacy departmentId_1 index);
+        // docs that are genuinely new were still inserted.
+        const isDupKey = err?.code === 11000 || err?.name === "MongoBulkWriteError" &&
+          (err?.writeErrors || []).every((e: any) => e?.code === 11000);
+        if (!isDupKey) throw err;
+      }
     }
     return Department.find({ workspaceId: workspace._id });
   }
@@ -181,7 +189,13 @@ const ensureWorkspaceDepartments = async (workspace) => {
     workspaceId: workspace._id,
     isActive: true,
   }));
-  await Department.insertMany(toCreate);
+  try {
+    await Department.insertMany(toCreate, { ordered: false });
+  } catch (err: any) {
+    const isDupKey = err?.code === 11000 || err?.name === "MongoBulkWriteError" &&
+      (err?.writeErrors || []).every((e: any) => e?.code === 11000);
+    if (!isDupKey) throw err;
+  }
   return Department.find({ workspaceId: workspace._id });
 };
 
@@ -232,6 +246,7 @@ export const getOrganizationOverview = async (req, res, next) => {
       isActive: true,
     })
       .select("role grantedModules")
+      .populate("role")
       .lean()
       .exec();
     if (!actorMembership) {
@@ -412,6 +427,7 @@ export const saveOrganizationDepartment = async (req, res, next) => {
       isActive: true,
     })
       .select("role")
+      .populate("role")
       .lean()
       .exec();
     if (!actorMembership) {
@@ -549,6 +565,7 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
       isActive: true,
     })
       .select("role")
+      .populate("role")
       .lean()
       .exec();
     if (!actorMembership) {
@@ -588,6 +605,7 @@ export const inviteOrganizationMember = async (req, res, next) => {
       isActive: true,
     })
       .select("role grantedModules")
+      .populate("role")
       .lean()
       .exec();
     if (!actorMembership) {
@@ -774,6 +792,7 @@ export const assignOrganizationActingManager = async (req, res, next) => {
       isActive: true,
     })
       .select("role")
+      .populate("role")
       .lean()
       .exec();
     if (!actorMembership) {
@@ -833,6 +852,7 @@ export const removeOrganizationActingManager = async (req, res, next) => {
       isActive: true,
     })
       .select("role")
+      .populate("role")
       .lean()
       .exec();
     if (!actorMembership) {
@@ -870,6 +890,7 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
       isActive: true,
     })
       .select("role")
+      .populate("role")
       .lean()
       .exec();
     if (!actorMembership) {
