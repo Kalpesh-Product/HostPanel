@@ -1,6 +1,15 @@
 import mongoose, { Document, Schema } from "mongoose";
 import { IFinanceApprovalFlow } from "./DepartmentFinancePlan.js";
 
+export interface IFinanceExpenseItem {
+    expenseKey?: string;
+    title: string;
+    amount: number;
+    date?: Date | null;
+    category?: string;
+    note?: string;
+}
+
 export interface IMonthlyBreakdown {
     monthKey?: string;
     month: string;
@@ -11,7 +20,7 @@ export interface IMonthlyBreakdown {
     projectedBudget: number;
     actualSpent: number;
     savings: number;
-    expenses: any[]; // inline expenses or referenced
+    expenses: IFinanceExpenseItem[]; // inline expenses
 }
 
 export interface IAnnualFinanceRequest extends Document {
@@ -85,6 +94,18 @@ const financeApprovalFlowSchema = new Schema(
     { _id: false }
 );
 
+const financeExpenseItemSchema = new Schema<IFinanceExpenseItem>(
+    {
+        expenseKey: { type: String, trim: true, default: "" },
+        title: { type: String, trim: true, required: true, maxlength: 180 },
+        amount: { type: Number, required: true, min: 0, default: 0 },
+        date: { type: Date, default: null },
+        category: { type: String, trim: true, default: "" },
+        note: { type: String, trim: true, default: "", maxlength: 300 },
+    },
+    { _id: false }
+);
+
 const monthlyBreakdownSchema = new Schema<IMonthlyBreakdown>(
     {
         monthKey: { type: String, trim: true, maxlength: 32, default: "" },
@@ -96,7 +117,7 @@ const monthlyBreakdownSchema = new Schema<IMonthlyBreakdown>(
         projectedBudget: { type: Number, required: true, min: 0, default: 0 },
         actualSpent: { type: Number, required: true, min: 0, default: 0 },
         savings: { type: Number, required: true, default: 0 },
-        expenses: { type: [Schema.Types.Mixed] as any, default: [] },
+        expenses: { type: [financeExpenseItemSchema], default: [] },
     },
     { _id: false }
 );
