@@ -949,7 +949,7 @@ export const routes = createBrowserRouter([
                     element: <TenantCompaniesPage />,
                   },
                   {
-                    path: "plans-pricing",
+                    path: "resource-pricing",
                     element: <PricingPackagesPage />,
                   },
                   {

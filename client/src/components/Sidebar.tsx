@@ -159,7 +159,6 @@ const readWorkspaceSetup = (): WorkspaceSetupState => {
 const companySettingsData: NavNode[] = [
   { id: "website-builder", label: "Website Builder", icon: Globe, route: "/company-settings/website-builder" },
   { id: "wono-nomad", label: "Wono Nomad", icon: ShieldCheck, route: "/company-settings/wono-nomad" },
-  { id: "website-leads", label: "Website Leads", icon: NotebookText, route: "/company-settings/website-builder/leads" },
   { id: "organization-management", label: "Organization Management", icon: Building, route: "/company-settings/organization-management" },
   { id: "module-management", label: "Module Management", icon: Boxes, disabled: true },
   { id: "access-grants", label: "Access Grants", icon: UserCog, route: "/company-settings/access-grants" },
@@ -173,7 +172,7 @@ const keyAppsData: NavNode[] = [
   { id: "visitor-management", label: "Visitor Management", icon: ContactRound, route: "/visitors/visitor-management", disabled: false },
   { id: "website-builder", label: "Website Builder", icon: Globe, route: "/company-settings/website-builder", disabled: false },
   { id: "wono-nomad", label: "Wono Nomad", icon: ShieldCheck, route: "/company-settings/wono-nomad", disabled: false },
-  { id: "website-leads", label: "Website Leads", icon: NotebookText, route: "/company-settings/website-builder/leads", disabled: false },
+  { id: "leads-management", label: "Leads Management", icon: Magnet, route: "/sales-crm/leads-management", disabled: false },
 ];
 
 const departmentModules: NavNode[] = [
@@ -219,7 +218,7 @@ const departmentModules: NavNode[] = [
     children: [
       { id: "leads-management", label: "Leads Management", icon: Magnet, route: "/sales/leads-management", disabled: false },
       { id: "tenant-companies-sales", label: "Tenant Companies", icon: Building2, route: "/sales/tenant-companies", disabled: false },
-      { id: "plans-pricing", label: "Resource & Pricing", icon: Tag, route: "/sales/plans-pricing", disabled: false },
+      { id: "resource-pricing", label: "Resource & Pricing", icon: Tag, route: "/sales-crm/resource-pricing", disabled: false },
       { id: "sales-architecture", label: "Sales Architecture", icon: ShoppingCart, route: "/sales/sales-architecture", disabled: false },
     ],
   },
@@ -287,7 +286,7 @@ const ROUTE_BY_ID: Record<string, string> = {
   "visitor-management": "/visitors/visitor-management",
   "visitors-management": "/visitors/visitor-management",
   "tenant-companies-sales": "/sales-crm/tenant-companies",
-  "plans-pricing": "/sales-crm/plans-pricing",
+  "resource-pricing": "/sales-crm/resource-pricing",
   "leads-management": "/sales-crm/leads-management",
   "sales-architecture": "/sales-crm/sales-architecture",
   "tenant-companies-admin": "/administration/tenant-companies",
@@ -351,7 +350,7 @@ const ICON_BY_ID: Record<string, ElementType> = {
   "workspace-layout": LayoutDashboard,
   "leads-management": Magnet,
   "tenant-companies-sales": Building2,
-  "plans-pricing": Tag,
+  "resource-pricing": Tag,
   "sales-architecture": ShoppingCart,
   "finance-budget": Wallet,
   "billing-payments": Receipt,
@@ -769,7 +768,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
           disabledTitle: item.disabledTitle || "Upgrade plan to unlock this",
         };
       }
-      if (item.id === "workspace-management" && !isFounderRole) {
+      if (item.id === "work-management" && !isFounderRole) {
         return {
           ...item,
           disabled: true,
@@ -1024,6 +1023,13 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
       };
     }).filter(Boolean);
     let sortedItems = sortEnabledFirst(mappedItems);
+    sortedItems = sortedItems.map((item) => {
+      if (item.id === "website-leads")
+        return { id: "leads-management", label: "Leads Management", icon: Magnet, route: "/sales-crm/leads-management", disabled: false };
+      if (item.id === "resource-pricing")
+        return { ...item, label: "Resource & Pricing" };
+      return item;
+    });
     if (sectionKey === "department-accesses") {
       // Prioritize departments with more granted+enabled tabs.
       sortedItems = [...sortedItems].sort((a, b) => {

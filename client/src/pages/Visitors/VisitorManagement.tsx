@@ -24,7 +24,7 @@ import {
   LogOut, UserPlus, FileText, BadgeCheck, Phone, Mail,
   CalendarDays, ShieldCheck, ArrowRight, Wallet, Banknote, Sparkles,
   XCircle, ShieldAlert, Calendar as CalendarIcon, AlertTriangle, Globe, Smartphone, LayoutGrid,
-  Download, Printer, Lock
+  Download, Printer, Lock, Home
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 
@@ -2355,7 +2355,7 @@ export default function VisitorsManagementPage() {
       : 'Individual';
     const normalizedEmail = form.email.trim();
 
-    if (visitorMode !== 'verify_booking' && !normalizedEmail) {
+    if (visitorMode !== 'verify_booking' && visitorMode !== 'tour' && !normalizedEmail) {
       return alert('Email is required.');
     }
 
@@ -2428,6 +2428,14 @@ export default function VisitorsManagementPage() {
           setVisitorOverviewRefreshToken((value) => value + 1);
           setShowBadge({
             ...normalizedVisitor,
+            // Explicitly set every field the badge modal needs so display is never blank
+            name: fullName || normalizedVisitor.name || normalizedVisitor.fullName || 'Visitor',
+            phone: form.phone || '',
+            company: normalizedCompany || 'Individual',
+            purpose: form.purpose || 'General Visit',
+            host: 'Front Desk',
+            badgeNo: normalizedVisitor.badgeNo || createdVisitor?.badgeNo || badge,
+            checkIn: formatTimeLabel(new Date()),
             notes: 'Visitor checked in successfully.',
           });
 
@@ -2534,6 +2542,9 @@ export default function VisitorsManagementPage() {
           phone: contactPhone,
           email: contactEmail,
           company: normalizedCompany,
+          country: form.country?.trim() || '',
+          state: form.state?.trim() || '',
+          city: form.city?.trim() || '',
           industry: form.industry,
           teamSize: form.teamSize,
           seatCount: form.seatCount,
@@ -2555,21 +2566,59 @@ export default function VisitorsManagementPage() {
         });
 
         const createdVisitor = result?.visitor || null;
-        if (createdVisitor) {
-          setPendingVisitors((prev) => [
-            createdVisitor,
-            ...prev.filter((entry) => !isSameVisitorEntry(entry, createdVisitor)),
-          ]);
-          setVisitorOverviewRefreshToken((value) => value + 1);
-          toast.success('Visitor checked in and synced to CRM.', {
-            id: loadingToastId,
-            description: 'Administration logged the check-in. Sales can follow up from CRM.',
+        const normalizedTourVisitor = createdVisitor
+          ? normalizeVisitorTrackingEntry(createdVisitor)
+          : normalizeVisitorTrackingEntry({
+            ...finalRecord,
+            name: visitorName,
+            phone: contactPhone,
+            email: contactEmail,
+            company: normalizedCompany,
+            purpose: 'Workspace Tour',
+            department: 'Administration',
+            host: 'Administration Desk',
+            pocName: form.pocName,
+            pocDesignation: form.pocDesignation,
+            pocPhone: form.pocPhone,
+            pocEmail: form.pocEmail,
+            preferredContactMethod: form.preferredContactMethod,
+            followUpDate: form.followUpDate,
+            industry: form.industry,
+            teamSize: form.teamSize,
+            seatCount: form.seatCount,
+            preferredSpace: form.preferredSpace,
+            budgetRange: form.budgetRange,
+            moveInTimeline: form.moveInTimeline,
+            tourNotes: form.tourNotes,
+            notes: form.tourNotes || 'Lead forwarded to CRM.',
+            approvalStatus: 'approved',
+            approvalStatusLabel: 'Direct Check-in',
+            statusKey: 'checked_in',
           });
-        } else {
-          toast.success('Visitor checked in and synced to CRM.', {
-            id: loadingToastId,
-          });
-        }
+
+        setLiveVisitors((prev) => [
+          normalizedTourVisitor,
+          ...prev.filter((entry) => !isSameVisitorEntry(entry, normalizedTourVisitor)),
+        ]);
+        setCheckedInVisitorIds((prev) => {
+          const next = new Set(prev);
+          const visitorId = String(normalizedTourVisitor.recordId || normalizedTourVisitor.id || '').trim();
+          if (visitorId) next.add(visitorId);
+          return next;
+        });
+        setVisitorOverviewRefreshToken((value) => value + 1);
+        setShowBadge({
+          ...normalizedTourVisitor,
+          // Explicitly set every field the badge modal needs so display is never blank
+          name: visitorName || normalizedTourVisitor.name || normalizedTourVisitor.fullName || 'Visitor',
+          phone: contactPhone || normalizedTourVisitor.phone || '',
+          company: normalizedCompany || 'Individual',
+          purpose: 'Workspace Tour',
+          host: 'Administration Desk',
+          badgeNo: normalizedTourVisitor.badgeNo || createdVisitor?.badgeNo || badge,
+          checkIn: formatTimeLabel(new Date()),
+          notes: 'Unit tour visitor checked in. Lead forwarded to CRM for Sales follow-up.',
+        });
 
         if (Array.isArray(result?.hostGroups) || Array.isArray(result?.employeeRoster)) {
           setVisitorHostGroups(
@@ -2580,23 +2629,11 @@ export default function VisitorsManagementPage() {
           );
         }
 
-        finalRecord = {
-          ...finalRecord,
-          name: visitorName,
-          phone: contactPhone,
-          status: 'Checked In',
-          purpose: 'Workspace Tour',
-          department: 'Administration',
-          host: 'Administration Desk',
-          pocName: form.pocName,
-          pocDesignation: form.pocDesignation,
-          pocPhone: form.pocPhone,
-          pocEmail: form.pocEmail,
-          preferredContactMethod: form.preferredContactMethod,
-          followUpDate: form.followUpDate,
-          notes: form.tourNotes || 'Lead forwarded to CRM.',
-        };
-        setLiveVisitors([finalRecord, ...liveVisitors]);
+        toast.success('Visitor checked in and synced to CRM.', {
+          id: loadingToastId,
+          description: 'Administration logged the check-in. Sales can follow up from CRM.',
+        });
+
         setIsLoggingVisitor(false);
         setVerifiedBooking(null);
         setWalkInStep(1);
@@ -4125,245 +4162,132 @@ export default function VisitorsManagementPage() {
                     </div>
                   )}
 
-                  {visitorMode === 'tour' && (
-                    <div className="h-full overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-2.5 shadow-sm text-[10px]">
-                      <div className="flex flex-col gap-4 border-b border-indigo-100 pb-5">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                          <div className="max-w-2xl">
-                            <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-700">
-                              <Building size={12} /> Unit Tour Check-in
-                            </div>
-                            <h3 className="mt-1 text-base font-black tracking-tight text-gray-950">Unit Tour / Enquiry</h3>
-                            <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-gray-600">
-                              Capture the full client profile during the tour so Administration can check the visitor in immediately and Sales can follow up with pricing, space needs, and contact context already in place.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
+                 {visitorMode === 'tour' && (
+  <div className="animate-in fade-in bg-gray-50 p-2.5 rounded-lg border border-gray-200 text-[10px] space-y-2">
 
-                      <div className="mt-5 grid gap-5 xl:grid-cols-[1.04fr_0.96fr]">
-                        <div className="space-y-3.5">
-                          <div className="rounded-lg border border-indigo-100 bg-white p-2.5 shadow-sm">
-                            <div className="mb-4 flex items-center justify-between">
-                              <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Client Profile</p>
-                                <h4 className="mt-1 text-xs font-black text-gray-950">What kind of company is visiting?</h4>
-                              </div>
-                              <BadgeCheck className="text-indigo-500" size={18} />
-                            </div>
-                            <div className="grid gap-4 sm:grid-cols-2">
-                              <label className="space-y-1">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Industry</span>
-                                <select
-                                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-900 outline-none transition focus:border-indigo-400 focus:bg-white"
-                                  value={form.industry}
-                                  onChange={(e) => setForm({ ...form, industry: e.target.value })}
-                                >
-                                  <option value="">Select industry</option>
-                                  {TOUR_INDUSTRY_OPTIONS.map((option) => (
-                                    <option key={option} value={option}>{option}</option>
-                                  ))}
-                                </select>
-                              </label>
-                              <label className="space-y-1">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Company Size</span>
-                                <input
-                                  type="text"
-                                  placeholder="e.g. 12 employees"
-                                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-900 outline-none transition focus:border-indigo-400 focus:bg-white"
-                                  value={form.teamSize}
-                                  onChange={(e) => setForm({ ...form, teamSize: e.target.value })}
-                                />
-                              </label>
-                              <label className="space-y-1">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Seats Needed</span>
-                                <input
-                                  type="text"
-                                  placeholder="e.g. 8-12"
-                                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-900 outline-none transition focus:border-indigo-400 focus:bg-white"
-                                  value={form.seatCount}
-                                  onChange={(e) => setForm({ ...form, seatCount: e.target.value })}
-                                />
-                              </label>
-                            </div>
-                          </div>
+    <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-200 pb-1 flex items-center gap-1">
+      <Building size={12} /> Unit Tour / Enquiry
+    </h3>
 
-                          <div className="rounded-lg border border-indigo-100 bg-white p-2.5 shadow-sm">
-                            <div className="mb-4 flex items-center justify-between">
-                              <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">POC & Follow-Up</p>
-                                <h4 className="mt-1 text-xs font-black text-gray-950">Who should Administration contact next?</h4>
-                              </div>
-                              <Phone className="text-indigo-500" size={18} />
-                            </div>
-                            <div className="grid gap-4 sm:grid-cols-2">
-                              <label className="space-y-1">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">POC / Visitor Name</span>
-                                <input
-                                  type="text"
-                                  placeholder="Primary contact / visitor name"
-                                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-900 outline-none transition focus:border-indigo-400 focus:bg-white"
-                                  value={form.pocName}
-                                  onChange={(e) => setForm({ ...form, pocName: e.target.value })}
-                                />
-                              </label>
-                              <label className="space-y-1">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Designation</span>
-                                <input
-                                  type="text"
-                                  placeholder="Founder, Manager, Admin"
-                                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-900 outline-none transition focus:border-indigo-400 focus:bg-white"
-                                  value={form.pocDesignation}
-                                  onChange={(e) => setForm({ ...form, pocDesignation: e.target.value })}
-                                />
-                              </label>
-                              <label className="space-y-1">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">POC Phone</span>
-                                <input
-                                  type="tel"
-                                  placeholder="+91..."
-                                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-900 outline-none transition focus:border-indigo-400 focus:bg-white"
-                                  value={form.pocPhone}
-                                  onChange={(e) => setForm({ ...form, pocPhone: e.target.value })}
-                                />
-                              </label>
-                              <label className="space-y-1">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">POC Email</span>
-                                <input
-                                  type="email"
-                                  placeholder="contact@company.com"
-                                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-900 outline-none transition focus:border-indigo-400 focus:bg-white"
-                                  value={form.pocEmail}
-                                  onChange={(e) => setForm({ ...form, pocEmail: e.target.value })}
-                                />
-                              </label>
-                              <label className="space-y-1">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Preferred Contact</span>
-                                <select
-                                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-900 outline-none transition focus:border-indigo-400 focus:bg-white"
-                                  value={form.preferredContactMethod}
-                                  onChange={(e) => setForm({ ...form, preferredContactMethod: e.target.value })}
-                                >
-                                  <option value="">Select method</option>
-                                  <option value="Call">Call</option>
-                                  <option value="WhatsApp">WhatsApp</option>
-                                  <option value="Email">Email</option>
-                                  <option value="In-person">In-person</option>
-                                </select>
-                              </label>
-                              <label className="space-y-1">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Follow-Up Date</span>
-                                <input
-                                  type="date"
-                                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-900 outline-none transition focus:border-indigo-400 focus:bg-white"
-                                  value={form.followUpDate}
-                                  onChange={(e) => setForm({ ...form, followUpDate: e.target.value })}
-                                />
-                              </label>
-                            </div>
-                          </div>
+    {/* Row 1 — POC identity */}
+    <div className="grid grid-cols-2 gap-1.5">
+      <input type="text" placeholder="POC / Visitor Name *"
+        value={form.pocName} onChange={(e) => setForm({ ...form, pocName: e.target.value })}
+        className="col-span-2 w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white" />
+      <input type="text" placeholder="Designation (e.g. Founder)"
+        value={form.pocDesignation} onChange={(e) => setForm({ ...form, pocDesignation: e.target.value })}
+        className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white" />
+      <input type="text" placeholder="Company / Agency"
+        value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })}
+        className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white" />
+      <input type="tel" placeholder="Phone *"
+        value={form.pocPhone} onChange={(e) => setForm({ ...form, pocPhone: e.target.value })}
+        className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white" />
+      <input type="email" placeholder="Email *"
+        value={form.pocEmail} onChange={(e) => setForm({ ...form, pocEmail: e.target.value })}
+        className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white" />
+    </div>
 
-                          <div className="rounded-lg border border-indigo-100 bg-white p-2.5 shadow-sm">
-                            <div className="mb-4">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Space Intent</p>
-                              <h4 className="mt-1 text-xs font-black text-gray-950">What are they looking for?</h4>
-                            </div>
-                            <div className="grid gap-4 sm:grid-cols-2">
-                              <label className="space-y-1">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Preferred Space</span>
-                                <select
-                                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-900 outline-none transition focus:border-indigo-400 focus:bg-white"
-                                  value={form.preferredSpace}
-                                  onChange={(e) => setForm({ ...form, preferredSpace: e.target.value })}
-                                >
-                                  <option value="">Select space type</option>
-                                  {TOUR_SPACE_OPTIONS.map((option) => (
-                                    <option key={option} value={option}>{option}</option>
-                                  ))}
-                                </select>
-                              </label>
-                              <label className="space-y-1">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Budget Range</span>
-                                <select
-                                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-900 outline-none transition focus:border-indigo-400 focus:bg-white"
-                                  value={form.budgetRange}
-                                  onChange={(e) => setForm({ ...form, budgetRange: e.target.value })}
-                                >
-                                  <option value="">Select budget</option>
-                                  {TOUR_BUDGET_OPTIONS.map((option) => (
-                                    <option key={option} value={option}>{option}</option>
-                                  ))}
-                                </select>
-                              </label>
-                              <label className="space-y-1">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Move-In Timeline</span>
-                                <select
-                                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-900 outline-none transition focus:border-indigo-400 focus:bg-white"
-                                  value={form.moveInTimeline}
-                                  onChange={(e) => setForm({ ...form, moveInTimeline: e.target.value })}
-                                >
-                                  <option value="">Select timeline</option>
-                                  {TOUR_TIMELINE_OPTIONS.map((option) => (
-                                    <option key={option} value={option}>{option}</option>
-                                  ))}
-                                </select>
-                              </label>
-                              <label className="space-y-1">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Company / Agency</span>
-                                <input
-                                  type="text"
-                                  placeholder="Optional"
-                                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-semibold text-gray-900 outline-none transition focus:border-indigo-400 focus:bg-white"
-                                  value={form.company}
-                                  onChange={(e) => setForm({ ...form, company: e.target.value })}
-                                />
-                              </label>
-                            </div>
-                          </div>
-                        </div>
+    {/* Row 2 — Location (saved for daily visitor record) */}
+    <div className="grid grid-cols-3 gap-1.5">
+      <select
+        value={form.country}
+        onChange={(e) => setForm({ ...form, country: e.target.value, state: '', city: '' })}
+        className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white"
+      >
+        <option value="">Country</option>
+        {countryOptions.map((country) => (
+          <option key={country.isoCode} value={country.name}>{country.name}</option>
+        ))}
+      </select>
+      <select
+        value={form.state}
+        onChange={(e) => setForm({ ...form, state: e.target.value, city: '' })}
+        disabled={!form.country}
+        className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white disabled:cursor-not-allowed disabled:bg-gray-100"
+      >
+        <option value="">{form.country ? 'State' : 'Select country first'}</option>
+        {stateOptions.map((state) => (
+          <option key={state.isoCode} value={state.name}>{state.name}</option>
+        ))}
+      </select>
+      <select
+        value={form.city}
+        onChange={(e) => setForm({ ...form, city: e.target.value })}
+        disabled={!form.country || !form.state}
+        className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white disabled:cursor-not-allowed disabled:bg-gray-100"
+      >
+        <option value="">{form.country && form.state ? 'City' : 'Select state first'}</option>
+        {cityOptions.map((city) => (
+          <option key={`${city.name}-${city.stateCode}-${city.latitude}`} value={city.name}>{city.name}</option>
+        ))}
+      </select>
+    </div>
 
-                        <div className="space-y-3.5">
-                          <div className="rounded-lg border border-indigo-100 bg-white p-2.5 shadow-sm">
-                            <div className="mb-4 flex items-center justify-between">
-                              <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Sales Notes</p>
-                                <h4 className="mt-1 text-xs font-black text-gray-950">Extra context for the sales team</h4>
-                              </div>
-                              <Sparkles className="text-indigo-500" size={18} />
-                            </div>
-                            <label className="space-y-1">
-                              <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Tour Notes</span>
-                              <textarea
-                                rows={7}
-                                placeholder="What did the client say? What objections, preferences, or follow-up points should Sales know?"
-                                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-800 outline-none transition focus:border-indigo-400 focus:bg-white resize-none"
-                                value={form.tourNotes}
-                                onChange={(e) => setForm({ ...form, tourNotes: e.target.value })}
-                              />
-                            </label>
-                          </div>
+    {/* Row 3 — Client profile */}
+    <div className="grid grid-cols-3 gap-1.5">
+      <div>
+        <select value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })}
+          className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white">
+          <option value="">Industry *</option>
+          {TOUR_INDUSTRY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+      </div>
+      <input type="text" placeholder="Team Size *"
+        value={form.teamSize} onChange={(e) => setForm({ ...form, teamSize: e.target.value })}
+        className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white" />
+      <input type="text" placeholder="Seats Needed *"
+        value={form.seatCount} onChange={(e) => setForm({ ...form, seatCount: e.target.value })}
+        className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white" />
+    </div>
 
-                          <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-indigo-700">Frontdesk Checklist</p>
-                            <ul className="mt-3 space-y-2 text-sm font-medium leading-6 text-indigo-950">
-                              <li className="flex items-start gap-2">
-                                <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-indigo-600" />
-                                Capture the visitor contact details and the company name.
-                              </li>
-                              <li className="flex items-start gap-2">
-                                <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-indigo-600" />
-                                Fill the preferred space, seat count, budget, timeline, and POC.
-                              </li>
-                              <li className="flex items-start gap-2">
-                                <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-indigo-600" />
-                                Add tour notes and follow-up details so Sales sees the context when the lead lands.
-                              </li>
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+    {/* Row 4 — Space intent */}
+    <div className="grid grid-cols-3 gap-1.5">
+      <select value={form.preferredSpace} onChange={(e) => setForm({ ...form, preferredSpace: e.target.value })}
+        className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white">
+        <option value="">Space Type *</option>
+        {TOUR_SPACE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+      <select value={form.budgetRange} onChange={(e) => setForm({ ...form, budgetRange: e.target.value })}
+        className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white">
+        <option value="">Budget *</option>
+        {TOUR_BUDGET_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+      <select value={form.moveInTimeline} onChange={(e) => setForm({ ...form, moveInTimeline: e.target.value })}
+        className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white">
+        <option value="">Timeline *</option>
+        {TOUR_TIMELINE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+
+    {/* Row 5 — Follow-up */}
+    <div className="grid grid-cols-2 gap-1.5">
+      <select value={form.preferredContactMethod} onChange={(e) => setForm({ ...form, preferredContactMethod: e.target.value })}
+        className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white">
+        <option value="">Contact Method *</option>
+        <option value="Call">Call</option>
+        <option value="WhatsApp">WhatsApp</option>
+        <option value="Email">Email</option>
+        <option value="In-person">In-person</option>
+      </select>
+      <input type="date" value={form.followUpDate} onChange={(e) => setForm({ ...form, followUpDate: e.target.value })}
+        className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white" />
+    </div>
+
+    {/* Row 6 — Notes */}
+    <textarea rows={2} placeholder="Tour notes — objections, preferences, follow-up points for Sales (optional)"
+      className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg font-semibold text-xs text-gray-900 focus:border-blue-500 outline-none resize-none"
+      value={form.tourNotes} onChange={(e) => setForm({ ...form, tourNotes: e.target.value })} />
+
+    <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-1.5">
+      <ShieldCheck className="text-blue-500 shrink-0 mt-0.5" size={13} />
+      <p className="text-[9px] font-bold text-blue-700 leading-relaxed">
+        Visitor is checked in &amp; lead synced to CRM. All starred (*) fields required.
+      </p>
+    </div>
+
+  </div>
+)}
 
                   {visitorMode === 'walkin_booking' && (
                     <div className="animate-in fade-in flex h-full min-h-0 flex-col gap-2.5 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-2.5">
@@ -5718,13 +5642,15 @@ export default function VisitorsManagementPage() {
                 <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-14 h-5 bg-white border-2 border-gray-200 rounded-full flex items-center justify-center"><div className="w-7 h-1.5 bg-gray-200 rounded-full"></div></div>
 
                 <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-3">VISITOR PASS</p>
-                <h3 className="text-xl font-black text-gray-900 mb-1 leading-tight">{showBadge.name}</h3>
-                <p className="text-[11px] font-bold text-gray-500 mb-4">{showBadge.company}</p>
+                <h3 className="text-xl font-black text-gray-900 mb-1 leading-tight">{showBadge.name || showBadge.fullName || '—'}</h3>
+                <p className="text-[11px] font-bold text-gray-500 mb-4">{showBadge.company || 'Individual'}</p>
 
                 <div className="grid grid-cols-2 gap-3 text-left border-t border-gray-200 pt-3">
-                  <div><p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Badge No</p><p className="font-black text-base text-gray-900">{showBadge.badgeNo}</p></div>
-                  <div><p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Purpose</p><p className="font-bold text-xs text-gray-700">{showBadge.purpose}</p></div>
-                  <div className="col-span-2"><p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Host / Destination</p><p className="font-bold text-xs text-gray-700">{showBadge.host}</p></div>
+                  <div><p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Badge No</p><p className="font-black text-base text-gray-900">{showBadge.badgeNo || '—'}</p></div>
+                  <div><p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Purpose</p><p className="font-bold text-xs text-gray-700">{showBadge.purpose || '—'}</p></div>
+                  <div><p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Check-In</p><p className="font-bold text-xs text-gray-700">{showBadge.checkIn || formatTimeLabel(new Date())}</p></div>
+                  <div><p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Phone</p><p className="font-bold text-xs text-gray-700">{showBadge.phone || '—'}</p></div>
+                  <div className="col-span-2"><p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Host / Destination</p><p className="font-bold text-xs text-gray-700">{showBadge.host || showBadge.hostName || 'Front Desk'}</p></div>
                 </div>
               </div>
 

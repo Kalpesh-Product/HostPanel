@@ -998,154 +998,123 @@ export function OrganizationPage() {
     <>
       <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
-      
-      {/* HEADER & TOP KPIs */}
-      <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
-        <div>
-          <h2 className="text-title font-pmedium text-primary uppercase">Organization Management</h2>
-          <p className="text-xs font-medium text-slate-500 mt-1">Manage platform users and organization access.</p>
-        </div>
-      </div>
+        <div className="flex flex-col gap-4 text-slate-700 font-sans">
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
-        <div className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
-           <div>
-             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Platform Users</p>
-             <p className="text-[15px] font-black text-[#2563EB]">{teamMembers.length}</p>
-           </div>
-           <div className="p-2 rounded-2xl bg-blue-50 text-[#2563EB]"><Shield size={16}/></div>
+        {/* 1. HEADER */}
+        <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          <div>
+            <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">Organization Management</h2>
+            <p className="text-xs font-medium text-slate-500 mt-1">Manage platform users and organization access.</p>
+          </div>
         </div>
-        <div className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
-           <div>
-             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Depts</p>
-             <p className={`text-[15px] font-black ${canAccessDepartmentsTab ? 'text-slate-800' : 'text-slate-300'}`}>
-               {canAccessDepartmentsTab ? departments.length : '--'}
-             </p>
-           </div>
-           <div className="p-2 rounded-2xl bg-slate-50 text-slate-600"><Building2 size={16}/></div>
+
+        {/* 2. MAIN TABS (pill-style matching DESIGN.md) */}
+        <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <button onClick={() => setActiveTab('users')} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'users' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+            <Shield size={16} className="inline mr-1"/> PLATFORM USERS
+          </button>
+          <button
+            title={!canAccessDepartmentsTab ? 'You do not have access to departments.' : ''}
+            disabled={!canAccessDepartmentsTab}
+            onClick={() => { setActiveTab('departments'); setView('list'); }}
+            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+              !canAccessDepartmentsTab
+                ? 'text-slate-300 cursor-not-allowed'
+                : activeTab === 'departments'
+                  ? 'bg-[#2563EB] text-white shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+            }`}>
+            <Building2 size={16} className="inline mr-1"/> DEPARTMENTS {!canAccessDepartmentsTab ? <Lock size={12} className="inline" /> : null}
+          </button>
         </div>
-        <div className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
-           <div>
-             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Global Headcount</p>
-             <p className={`text-[15px] font-black ${canAccessDepartmentsTab ? 'text-emerald-600' : 'text-slate-300'}`}>
-               {canAccessDepartmentsTab ? totalEmployees : '--'}
-             </p>
-           </div>
-           <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600"><Users size={16}/></div>
+
+        {/* 3. STAT CARDS (DESIGN.md 4-col grid with border-left accents) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Platform Users</p>
+            <p className="text-[15px] font-black text-slate-900">{teamMembers.length}</p>
+          </div>
+          <div className="p-2 rounded-2xl bg-slate-50 text-slate-600 shrink-0"><Shield size={16}/></div>
+        </div>
+        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Depts</p>
+            <p className={`text-[15px] font-black ${canAccessDepartmentsTab ? 'text-slate-900' : 'text-slate-300'}`}>
+              {canAccessDepartmentsTab ? departments.length : '--'}
+            </p>
+          </div>
+          <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Building2 size={16}/></div>
+        </div>
+        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Global Headcount</p>
+            <p className={`text-[15px] font-black ${canAccessDepartmentsTab ? 'text-slate-900' : 'text-slate-300'}`}>
+              {canAccessDepartmentsTab ? totalEmployees : '--'}
+            </p>
+          </div>
+          <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><Users size={16}/></div>
         </div>
         <button
           type="button"
           title={addUserHoverMessage}
           disabled={!canAddUserOnCurrentPlan}
-          className={`relative overflow-hidden bg-gradient-to-br from-[#0b3aa8] via-[#1d4ed8] to-[#2563EB] p-2.5 rounded-[2rem] border border-blue-300/40 shadow-lg shadow-blue-300/40 flex justify-between items-center transition-all group text-left w-full ${
+          className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all text-left w-full border-l-4 border-l-emerald-500 ${
             canAddUserOnCurrentPlan
-              ? 'cursor-pointer hover:shadow-xl hover:-translate-y-1'
+              ? 'hover:shadow-md cursor-pointer'
               : 'opacity-60 cursor-not-allowed'
           }`}
           onClick={() => {
             setActiveTab('users');
-            setTeamMemberFormData({
-              name: '',
-              email: '',
-              role: 'manager',
-              departments: [],
-            });
+            setTeamMemberFormData({ name: '', email: '', role: 'manager', departments: [] });
             setShowTeamMemberModal(true);
           }}>
-          <div className="absolute -right-5 -top-5 h-16 w-16 rounded-full bg-white/15 blur-[1px]" />
-           <div>
-              <p className="text-[10px] font-black text-blue-100/90 uppercase tracking-widest mb-1">Quick Action</p>
-             <p className="text-[13px] font-black text-white group-hover:scale-105 transition-transform origin-left flex items-center gap-1.5">
-               {!canAddUserOnCurrentPlan ? <Lock size={12} /> : null}
-               Add User
-             </p>
-             <p className="text-[10px] mt-1 text-blue-100/90 font-semibold">{addUserHoverMessage}</p>
-           </div>
-           <div className="p-2 rounded-2xl bg-white/20 text-white border border-white/30"><UserPlus size={16}/></div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Quick Action</p>
+            <p className="text-[15px] font-black text-slate-900 flex items-center gap-1.5">
+              {!canAddUserOnCurrentPlan ? <Lock size={12} /> : null}
+              Add User
+            </p>
+            <p className="text-[10px] font-semibold text-slate-400 mt-1">{addUserHoverMessage}</p>
+          </div>
+          <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><UserPlus size={16}/></div>
         </button>
       </div>
 
-      {/* CUSTOM TABS */}
-      <div className="flex bg-white p-1 rounded-2xl w-full md:w-max mb-3 shadow-sm border border-slate-200/60 overflow-x-auto">
-        <button onClick={() => setActiveTab('users')} className={`flex-1 md:px-5 py-1.5 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${activeTab === 'users' ? 'bg-[#2563EB] shadow-sm text-white' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}>
-          <Shield size={16}/> PLATFORM USERS
-        </button>
-        <button
-          title={!canAccessDepartmentsTab ? 'You do not have access to departments.' : ''}
-          disabled={!canAccessDepartmentsTab}
-          onClick={() => { setActiveTab('departments'); setView('list'); }}
-          className={`flex-1 md:px-5 py-1.5 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
-            !canAccessDepartmentsTab
-              ? 'text-slate-300 cursor-not-allowed'
-              : activeTab === 'departments'
-                ? 'bg-[#2563EB] shadow-sm text-white'
-                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-          }`}>
-          <Building2 size={16}/> DEPARTMENTS {!canAccessDepartmentsTab ? <Lock size={12} /> : null}
-        </button>
-      </div>
+      
 
       {/* ========================================== */}
       {/* TAB 1: PLATFORM USERS (DEFAULT)            */}
       {/* ========================================== */}
       {activeTab === 'users' && (
-        <div className="space-y-4 animate-in fade-in duration-300">
-        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-110">
-          
-            <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-2.5 shrink-0">
-              <div className="relative w-full md:w-88">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input 
-                  type="text" placeholder="Search platform users..." 
-                  className="w-full pl-10 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" 
-                  onChange={(e) => setSearchQuery(e.target.value)} 
-                />
-              </div>
-              <button
-                title={addUserHoverMessage}
-                onClick={() => {
-                  setTeamMemberFormData({
-                    name: '',
-                    email: '',
-                    role: 'manager',
-                    departments: [],
-                  });
-                  setShowTeamMemberModal(true);
-                }}
-                disabled={!canAddUserOnCurrentPlan}
-                className={`w-full md:w-auto px-3.5 py-2.5 rounded-2xl font-bold text-[11px] leading-none transition-all shadow-sm inline-flex items-center justify-center gap-1.5 whitespace-nowrap ${
-                  canAddUserOnCurrentPlan
-                    ? 'bg-[#2563EB] hover:bg-blue-700 text-white shadow-blue-200'
-                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                }`}>
-              <Plus size={13}/> Add User
+        <>
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+          {/* DATA PANEL HEADER ROW: inner tabs (left) + search/filter/action (right) */}
+          <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+            <div className="flex bg-slate-100/50 p-1 rounded-xl w-full xl:w-auto relative border border-slate-200/50 overflow-x-auto">
+              <button className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 whitespace-nowrap text-[#0F172A]">
+                <div className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />
+                Platform Users
               </button>
             </div>
 
-            <div className="px-4 pb-3.5 flex flex-col md:flex-row gap-2.5 md:gap-3">
-              <div className="w-full md:w-48">
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Status</label>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
-                >
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="accepted">Accepted</option>
-                  <option value="joined">Joined</option>
-                  <option value="invited">Invited</option>
-                  <option value="disabled">Disabled</option>
-                </select>
+            <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                <input
+                  type="text" placeholder="Search platform users..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                />
               </div>
-              <div className="w-full md:w-60">
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Department</label>
+              <div className="relative">
                 <select
                   value={departmentFilter}
                   onChange={(e) => setDepartmentFilter(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                  className="pl-3 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
                 >
-                  <option value="all">All Departments</option>
+                  <option value="all">All Depts</option>
                   {departments.map((department) => (
                     <option key={department.id} value={department.id}>
                       {normalizeDepartmentLabel(department.name)}
@@ -1153,20 +1122,51 @@ export function OrganizationPage() {
                   ))}
                 </select>
               </div>
+              <button
+                title={addUserHoverMessage}
+                onClick={() => {
+                  setTeamMemberFormData({ name: '', email: '', role: 'manager', departments: [] });
+                  setShowTeamMemberModal(true);
+                }}
+                disabled={!canAddUserOnCurrentPlan}
+                className={`bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap ${
+                  !canAddUserOnCurrentPlan ? 'opacity-50 cursor-not-allowed' : ''
+                }`}>
+                <Plus size={13} strokeWidth={3} /> ADD USER
+              </button>
             </div>
+          </div>
 
-            <div className="overflow-x-auto flex-1 p-2">
-            <table className="w-full text-left">
-              <thead className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 sticky top-0 bg-white z-10">
-                <tr>
-                  <th className="px-3.5 py-2">Platform User</th>
-                  <th className="px-3.5 py-2">Access Role</th>
-                  <th className="px-3.5 py-2">Department</th>
-                  <th className="px-3.5 py-2">Status</th>
-                  <th className="px-4 py-3 text-right">Access</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
+          {/* STATUS SUB-TABS (pill filters) */}
+          <div className="px-3 sm:px-4 lg:px-5 py-2 border-b border-slate-100/40 bg-white flex items-center gap-1.5 overflow-x-auto">
+            {['all', 'pending', 'accepted', 'joined', 'invited', 'disabled'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
+                  statusFilter === status
+                    ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                    : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                }`}
+              >
+                {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {/* TABLE */}
+          <div className="overflow-x-auto flex-1">
+          <table className="w-full text-left">
+            <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+              <tr>
+                <th className="px-5 py-4">Platform User</th>
+                <th className="px-5 py-4">Access Role</th>
+                <th className="px-5 py-4">Department</th>
+                <th className="px-5 py-4">Status</th>
+                <th className="px-5 py-4 text-right">Access</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100/60">
                 {filteredTeamMembers.map((member) => {
                   const normalizedRole = normalizeRoleValue(member.role);
                   const normalizedDepartments = Array.isArray(member.departmentNames)
@@ -1181,8 +1181,8 @@ export function OrganizationPage() {
                     : normalizedDepartments;
 
                   return (
-                  <tr key={member.id} className={`transition-all ${normalizedRole === 'owner' ? 'bg-slate-50/50' : member.status === 'disabled' ? 'bg-slate-50/50 opacity-75' : 'hover:bg-blue-50/30'}`}>
-                    <td className="px-3.5 py-2">
+                  <tr key={member.id} className={`hover:bg-slate-50/50 transition-colors group ${normalizedRole === 'owner' ? 'bg-slate-50/50' : member.status === 'disabled' ? 'bg-slate-50/50 opacity-75' : ''}`}>
+                    <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-[10px] shadow-sm ${normalizedRole === 'owner' ? 'bg-[#111827]' : 'bg-gradient-to-br from-[#2563EB] to-blue-700'}`}>
                           {getInitials(member.name)}
@@ -1198,20 +1198,20 @@ export function OrganizationPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-3.5 py-2">{getRoleBadge(member.role)}</td>
-                    <td className="px-3.5 py-2">
+                    <td className="px-5 py-4">{getRoleBadge(member.role)}</td>
+                    <td className="px-5 py-4">
                       <div className="flex flex-wrap gap-1.5 max-w-56">
                         {departmentBadges.map((dept, i) => (
                           <span key={i} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[9px] font-bold tracking-wide">{normalizeDepartmentLabel(dept)}</span>
                         ))}
                       </div>
                     </td>
-                    <td className="px-3.5 py-2">
+                    <td className="px-5 py-4">
                       <div className="flex items-center justify-center">
                         {getStatusBadge(member.status)}
                       </div>
                     </td>
-                    <td className="px-3.5 py-2">
+                    <td className="px-5 py-4">
                       <div className="flex flex-col items-end justify-center gap-1.5">
                         {(() => {
                           const isSelf = member.userId && String(member.userId) === currentUserId;
@@ -1245,7 +1245,7 @@ export function OrganizationPage() {
                                   ? 'Access Off'
                                   : 'Invite Sent'}
                         </span>
-                        {canChangeRoleByAccess && member.role !== 'owner' ? (
+                        {/* {canChangeRoleByAccess && member.role !== 'owner' ? (
                           <select
                             value={normalizeRoleValue(member.role)}
                             onChange={(e) => handleRoleChange(member, e.target.value)}
@@ -1256,46 +1256,46 @@ export function OrganizationPage() {
                             <option value="admin">Admin</option>
                             <option value="super_admin">Super Admin</option>
                           </select>
-                        ) : null}
+                        ) : null} */}
                       </div>
                     </td>
                   </tr>
                 )})}
                 {filteredTeamMembers.length === 0 && (
-                  <tr><td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-bold"><Shield size={32} className="mx-auto mb-3 opacity-50"/>No platform users found.</td></tr>
+                  <tr><td colSpan={5} className="text-center py-20 text-slate-400 font-semibold"><Shield size={32} className="mx-auto mb-3 opacity-50"/>No platform users found.</td></tr>
                 )}
               </tbody>
             </table>
           </div>
         </div>
         {shouldShowTransferredReferences ? (
-        <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-3">
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-slate-50/50">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Transferred References</h2>
-              <p className="text-sm font-medium text-slate-500 mt-1">
+              <h3 className="text-[13px] font-bold text-slate-900">Transferred References</h3>
+              <p className="text-xs font-medium text-slate-500 mt-0.5">
                 These users are no longer counted in this workspace and are shown here only for record keeping.
               </p>
             </div>
-            <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-[11px] font-black uppercase tracking-widest">
+            <span className="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
               {filteredTransferredTeamMembers.length} Recorded
             </span>
           </div>
-          <div className="overflow-x-auto p-2">
+          <div className="overflow-x-auto flex-1">
             <table className="w-full text-left">
-              <thead className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+              <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                 <tr>
-                  <th className="px-6 py-4">User</th>
-                  <th className="px-6 py-4">Previous Role</th>
-                  <th className="px-6 py-4">Departments</th>
-                  <th className="px-6 py-4">Transferred To</th>
-                  <th className="px-6 py-4">Transfer Date</th>
+                  <th className="px-5 py-4">User</th>
+                  <th className="px-5 py-4">Previous Role</th>
+                  <th className="px-5 py-4">Departments</th>
+                  <th className="px-5 py-4">Transferred To</th>
+                  <th className="px-5 py-4">Transfer Date</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-slate-100/60">
                 {filteredTransferredTeamMembers.map((member) => (
-                  <tr key={`transferred-${member.id}`} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-6 py-4">
+                  <tr key={`transferred-${member.id}`} className="hover:bg-slate-50/50 transition-colors group">
+                    <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center text-black font-bold text-sm shadow-sm bg-slate-400">
                           {member.name?.charAt(0) ?? '?'}
@@ -1347,17 +1347,17 @@ export function OrganizationPage() {
           </div>
         </div>
         ) : null}
-        </div>
+        </>
       )}
 
       {/* ========================================== */}
       {/* TAB 2: DEPARTMENTS & ROSTER                */}
       {/* ========================================== */}
       {activeTab === 'departments' && view === 'list' && (
-        <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
+        <div className="flex flex-col gap-4 animate-in fade-in duration-300">
+          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
-              <h2 className="font-sans text-base lg:text-lg font-black tracking-tight text-slate-800" style={{ fontFamily: "inherit" }}>Departments</h2>
+              <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">Departments</h2>
               <p className="text-xs font-medium text-slate-500 mt-1">
                 Review existing departments and enable the ones that were missed during setup.
               </p>
@@ -1366,9 +1366,9 @@ export function OrganizationPage() {
               <button
                 type="button"
                 onClick={() => openDepartmentModal(null)}
-                className="px-4 py-2 rounded-xl bg-[#2563EB] text-white text-[11px] font-black uppercase tracking-widest hover:bg-blue-700"
+                className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
               >
-                Create Department
+                <Plus size={13} strokeWidth={3} /> CREATE DEPARTMENT
               </button>
             ) : null}
 
@@ -1504,97 +1504,196 @@ export function OrganizationPage() {
           </div>
 
           {/* Dept Employee Table */}
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">Department Roster</h2>
+          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50 flex items-center justify-between">
+              <h3 className="text-[13px] font-bold text-slate-900">Department Roster</h3>
             </div>
-            <div className="overflow-x-auto p-2">
+            <div className="overflow-x-auto flex-1">
               <table className="w-full text-left">
-                <thead className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
-                    <th className="px-6 py-4">Employee Info</th>
-                    <th className="px-6 py-4">Employee ID</th>
-                    <th className="px-6 py-4">Role</th>
-                    <th className="px-6 py-4">Contact Details</th>
-                    <th className="px-6 py-4">Join Date</th>
+                    <th className="px-5 py-4">Employee Info</th>
+                    <th className="px-5 py-4">Employee ID</th>
+                    <th className="px-5 py-4">Role</th>
+                    <th className="px-5 py-4">Contact Details</th>
+                    <th className="px-5 py-4">Join Date</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-slate-100/60">
                   {(selectedDepartment?.employees ?? []).map((emp) => (
-                    <tr key={emp.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-center text-slate-600 font-bold text-sm shadow-sm">
-                            {emp.name?.split(' ').map((n) => n[0]).join('') ?? ''}
+                    <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-[10px] shadow-sm bg-gradient-to-br from-[#2563EB] to-blue-700">
+                            {getInitials(emp.name)}
                           </div>
-                          <div className="font-bold text-slate-900">{emp.name}</div>
+                          <div className="font-bold text-[11px] text-slate-900">{emp.name}</div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-4">
                         {emp.employeeId ? (
-                          <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-blue-50 text-[#2563EB] text-[11px] font-black tracking-widest uppercase">
+                          <span className="inline-flex items-center px-2 py-1 rounded-lg bg-blue-50 text-[#2563EB] text-[10px] font-black tracking-widest uppercase">
                             {emp.employeeId}
                           </span>
                         ) : (
                           <span className="text-[12px] font-medium text-slate-300">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-4">{getRoleBadge(emp.role)}</td>
-                      <td className="px-6 py-4 space-y-1.5">
-                        <div className="flex items-center gap-2 text-[13px] text-slate-600"><Mail size={14} className="text-slate-400"/> {emp.email}</div>
+                      <td className="px-5 py-4">{getRoleBadge(emp.role)}</td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2 text-[12px] text-slate-600"><Mail size={14} className="text-slate-400"/> {emp.email}</div>
                       </td>
-                      <td className="px-6 py-4 text-[13px] font-medium text-slate-500">{formatJoinedDate((emp as any).joinedAt)}</td>
+                      <td className="px-5 py-4 text-[12px] font-medium text-slate-500">{formatJoinedDate((emp as any).joinedAt)}</td>
                     </tr>
                   ))}
                   {(selectedDepartment?.employees?.length ?? 0) === 0 && (
-                    <tr><td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-medium"><Users size={32} className="mx-auto mb-3 opacity-30"/>No personnel assigned.</td></tr>
+                    <tr><td colSpan={5} className="text-center py-20 text-slate-400 font-semibold"><Users size={32} className="mx-auto mb-3 opacity-30"/>No personnel assigned.</td></tr>
                   )}
                 </tbody>
               </table>
             </div>
           </div>
 
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">Transferred From This Department</h2>
-                <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-[11px] font-black uppercase tracking-widest">
+          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50 flex items-center justify-between">
+              <h3 className="text-[13px] font-bold text-slate-900">Transferred From This Department</h3>
+                <span className="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest">
                 {(selectedDepartment as any)?.transferredEmployees?.length || 0} Recorded
               </span>
             </div>
-            <div className="overflow-x-auto p-2">
+            <div className="overflow-x-auto flex-1">
               <table className="w-full text-left">
-                <thead className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
-                    <th className="px-6 py-4">Employee</th>
-                    <th className="px-6 py-4">Previous Role</th>
-                    <th className="px-6 py-4">Transferred To</th>
-                    <th className="px-6 py-4">Transfer Date</th>
+                    <th className="px-5 py-4">Employee</th>
+                    <th className="px-5 py-4">Previous Role</th>
+                    <th className="px-5 py-4">Transferred To</th>
+                    <th className="px-5 py-4">Transfer Date</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-slate-100/60">
                   {((selectedDepartment as any)?.transferredEmployees || []).map((emp: any) => (
-                    <tr key={`dept-transfer-${emp.id}`} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-center text-slate-600 font-bold text-sm shadow-sm">
-                            {emp.name.split(' ').map((n) => n[0]).join('')}
+                    <tr key={`dept-transfer-${emp.id}`} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-[10px] shadow-sm bg-slate-400">
+                            {getInitials(emp.name)}
                           </div>
                           <div>
-                            <div className="font-bold text-slate-900">{emp.name}</div>
-                            <div className="text-[12px] font-medium text-slate-500">{emp.email}</div>
+                            <div className="font-bold text-[11px] text-slate-900">{emp.name}</div>
+                            <div className="text-[10px] font-medium text-slate-500">{emp.email}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">{getRoleBadge(emp.role)}</td>
-                      <td className="px-6 py-4">
-                        <div className="font-bold text-slate-900">{emp.transferredToWorkspaceName || 'Linked Unit'}</div>
-                        <div className="text-[12px] font-medium text-slate-500">{emp.transferredToWorkspaceLocation || 'Location not set'}</div>
+                      <td className="px-5 py-4">{getRoleBadge(emp.role)}</td>
+                      <td className="px-5 py-4">
+                        <div className="font-bold text-[11px] text-slate-900">{emp.transferredToWorkspaceName || 'Linked Unit'}</div>
+                        <div className="text-[10px] font-medium text-slate-500">{emp.transferredToWorkspaceLocation || 'Location not set'}</div>
                       </td>
-                      <td className="px-6 py-4 text-[13px] font-medium text-slate-500">{formatTransferDate(emp.transferredAt)}</td>
+                      <td className="px-5 py-4 text-[12px] font-medium text-slate-500">{formatTransferDate(emp.transferredAt)}</td>
                     </tr>
                   ))}
                   {(!selectedDepartment.transferredEmployees || selectedDepartment.transferredEmployees.length === 0) && (
-                    <tr><td colSpan={4} className="px-6 py-16 text-center text-slate-400 font-medium"><Users size={32} className="mx-auto mb-3 opacity-30"/>No transferred records for this department yet.</td></tr>
+                    <tr><td colSpan={4} className="text-center py-20 text-slate-400 font-semibold"><Users size={32} className="mx-auto mb-3 opacity-30"/>No transferred records for this department yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Dept Employee Table (updated to DESIGN.md) */}
+          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50 flex items-center justify-between">
+              <h3 className="text-[13px] font-bold text-slate-900">Department Roster</h3>
+            </div>
+            <div className="overflow-x-auto flex-1">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <tr>
+                    <th className="px-5 py-4">Employee Info</th>
+                    <th className="px-5 py-4">Employee ID</th>
+                    <th className="px-5 py-4">Role</th>
+                    <th className="px-5 py-4">Contact Details</th>
+                    <th className="px-5 py-4">Join Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100/60">
+                  {(selectedDepartment?.employees ?? []).map((emp: any) => (
+                    <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-[10px] shadow-sm bg-gradient-to-br from-[#2563EB] to-blue-700">
+                            {getInitials(emp.name)}
+                          </div>
+                          <div className="font-bold text-[11px] text-slate-900">{emp.name}</div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        {emp.employeeId ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-lg bg-blue-50 text-[#2563EB] text-[10px] font-black tracking-widest uppercase">
+                            {emp.employeeId}
+                          </span>
+                        ) : (
+                          <span className="text-[12px] font-medium text-slate-300">—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">{getRoleBadge(emp.role)}</td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2 text-[12px] text-slate-600"><Mail size={14} className="text-slate-400"/> {emp.email}</div>
+                      </td>
+                      <td className="px-5 py-4 text-[12px] font-medium text-slate-500">{formatJoinedDate((emp as any).joinedAt)}</td>
+                    </tr>
+                  ))}
+                  {(selectedDepartment?.employees?.length ?? 0) === 0 && (
+                    <tr><td colSpan={5} className="text-center py-20 text-slate-400 font-semibold"><Users size={32} className="mx-auto mb-3 opacity-30"/>No personnel assigned.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Transferred From This Department (updated to DESIGN.md) */}
+          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50 flex items-center justify-between">
+              <h3 className="text-[13px] font-bold text-slate-900">Transferred From This Department</h3>
+                <span className="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest">
+                {(selectedDepartment as any)?.transferredEmployees?.length || 0} Recorded
+              </span>
+            </div>
+            <div className="overflow-x-auto flex-1">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <tr>
+                    <th className="px-5 py-4">Employee</th>
+                    <th className="px-5 py-4">Previous Role</th>
+                    <th className="px-5 py-4">Transferred To</th>
+                    <th className="px-5 py-4">Transfer Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100/60">
+                  {((selectedDepartment as any)?.transferredEmployees || []).map((emp: any) => (
+                    <tr key={`dept-transfer-${emp.id}`} className="hover:bg-slate-50/50 transition-colors group">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-[10px] shadow-sm bg-slate-400">
+                            {getInitials(emp.name)}
+                          </div>
+                          <div>
+                            <div className="font-bold text-[11px] text-slate-900">{emp.name}</div>
+                            <div className="text-[10px] font-medium text-slate-500">{emp.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">{getRoleBadge(emp.role)}</td>
+                      <td className="px-5 py-4">
+                        <div className="font-bold text-[11px] text-slate-900">{emp.transferredToWorkspaceName || 'Linked Unit'}</div>
+                        <div className="text-[10px] font-medium text-slate-500">{emp.transferredToWorkspaceLocation || 'Location not set'}</div>
+                      </td>
+                      <td className="px-5 py-4 text-[12px] font-medium text-slate-500">{formatTransferDate(emp.transferredAt)}</td>
+                    </tr>
+                  ))}
+                  {(!selectedDepartment.transferredEmployees || selectedDepartment.transferredEmployees.length === 0) && (
+                    <tr><td colSpan={4} className="text-center py-20 text-slate-400 font-semibold"><Users size={32} className="mx-auto mb-3 opacity-30"/>No transferred records for this department yet.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -1817,6 +1916,7 @@ export function OrganizationPage() {
         </div>
       )}
 
+        </div>
       </PageFrame>
 
       {/* 3. Assign Manager Modal */}

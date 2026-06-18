@@ -55,7 +55,7 @@ export const chatbotFlow: ChatbotFlowItem[] = [
     ],
   },
   {
-    id: "plans-pricing",
+    id: "resource-pricing",
     generalQuestion: "Can you explain plans or pricing?",
     initialResponse: "We have flexible plans designed for every stage of growth.",
     firstStepId: "user-type",

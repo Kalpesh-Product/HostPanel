@@ -2,14 +2,16 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   BadgeCheck, Building2, CalendarDays, CheckCircle2,
-  ChevronRight, Mail, Phone, RotateCcw,Eye,
+  ChevronRight, Mail, Phone, RotateCcw, Eye,
   Search, ShieldCheck, Sparkles, Target, User, X,
+  Briefcase, DollarSign, Home, Clock, Tag,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useFreshCurrentUser } from "../../../hooks/useFreshCurrentUser";
 import { createReport } from "../../../services/reports";
 import { getSalesTourLeads, getWebsiteLeads } from "../../../services/sales-leads";
+import { getUnitTourLeads } from "../../../services/visitors";
 import { downloadReportFile } from "../../../utils/report-download";
 import PageFrame from "../../../components/Pages/PageFrame";
 
@@ -64,6 +66,62 @@ function buildLeadReportRows(leads = [], filters = {}, stats = {}) {
     });
   });
   return rows;
+}
+
+// Map visitor log from backend to the lead shape used in the UI
+function visitorToLead(visitor) {
+  const name = visitor.pocName || visitor.name || visitor.fullName || "";
+  const phone = visitor.pocPhone || visitor.phone || "";
+  const email = visitor.pocEmail || visitor.email || "";
+  const company = visitor.company || "";
+  const dateAdded = formatDateLabel(visitor.checkInAt || visitor.createdAt);
+  const lastContact = formatDateLabel(visitor.followUpDate || visitor.updatedAt || visitor.createdAt);
+  
+  return {
+    id: visitor.id || visitor.recordId || visitor._id || "",
+    visitorCode: visitor.visitorCode || "",
+    name,
+    phone,
+    email,
+    company,
+    industry: visitor.industry || "",
+    teamSize: visitor.teamSize || "",
+    seatCount: visitor.seatCount || "",
+    preferredSpace: visitor.preferredSpace || "",
+    budgetRange: visitor.budgetRange || "",
+    moveInTimeline: visitor.moveInTimeline || "",
+    pocName: visitor.pocName || "",
+    pocDesignation: visitor.pocDesignation || "",
+    pocPhone: visitor.pocPhone || "",
+    pocEmail: visitor.pocEmail || "",
+    preferredContactMethod: visitor.preferredContactMethod || "",
+    followUpDate: visitor.followUpDate || "",
+    requirements: visitor.tourNotes || visitor.notes || "",
+    purpose: visitor.purpose || "Workspace Tour",
+    source: "visitor-management",
+    sourceLabel: "Visitor Management",
+    status: "New",
+    priority: visitor.budgetRange?.includes("5L+") || visitor.budgetRange?.includes("3L") ? "High" : visitor.budgetRange ? "Medium" : "Low",
+    dateAdded,
+    lastContact,
+    checkInAt: visitor.checkInAt || null,
+    checkOutAt: visitor.checkOutAt || null,
+    qualification: {
+      pocName: visitor.pocName || "",
+      pocDesignation: visitor.pocDesignation || "",
+      pocPhone: visitor.pocPhone || "",
+      pocEmail: visitor.pocEmail || "",
+      preferredContactMethod: visitor.preferredContactMethod || "",
+      followUpDate: visitor.followUpDate ? formatDateLabel(visitor.followUpDate) : "",
+    },
+    activities: [
+      {
+        type: "Check-in",
+        date: formatDateLabel(visitor.checkInAt || visitor.createdAt),
+        note: `Visitor checked in at frontdesk for a workspace tour. ${visitor.tourNotes ? `Notes: ${visitor.tourNotes}` : ""}`.trim(),
+      },
+    ],
+  };
 }
 
 function TablePageSkeleton({ rows = 6, columns = 6 }) {
@@ -152,8 +210,14 @@ export default function LeadsManagementPage() {
   const loadLeads = async () => {
     setIsLoading(true);
     try {
-      const result = await getSalesTourLeads({ limit: 100 });
-      const nextLeads = Array.isArray(result?.data?.leads) ? result.data.leads : [];
+      const result = await getUnitTourLeads({ limit: 100 });
+      // The visitor overview returns visitors array; filter for Workspace Tour purpose
+      const allVisitors = Array.isArray(result?.visitors) ? result.visitors : [];
+      const tourVisitors = allVisitors.filter((v) => {
+        const purpose = String(v.purpose || "").toLowerCase();
+        return purpose.includes("tour") || purpose.includes("workspace") || purpose.includes("enquiry");
+      });
+      const nextLeads = tourVisitors.map(visitorToLead);
       setLeads(nextLeads);
       setLeadStages((current) => {
         const nextStages = { ...current };
@@ -164,7 +228,22 @@ export default function LeadsManagementPage() {
       });
       setError("");
     } catch (fetchError) {
-      setError(fetchError.message || "Unable to load sales leads right now.");
+      // Fallback: try the old sales-leads endpoint
+      try {
+        const fallback = await getSalesTourLeads({ limit: 100 });
+        const nextLeads = Array.isArray(fallback?.data?.leads) ? fallback.data.leads : [];
+        setLeads(nextLeads);
+        setLeadStages((current) => {
+          const nextStages = { ...current };
+          nextLeads.forEach((lead) => {
+            if (!nextStages[lead.id]) nextStages[lead.id] = lead.status || "New";
+          });
+          return nextStages;
+        });
+        setError("");
+      } catch {
+        setError(fetchError.message || "Unable to load unit tour leads right now.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -448,11 +527,11 @@ export default function LeadsManagementPage() {
             <table className="w-full text-left min-w-[860px]">
               <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                 <tr>
-                  <th className="px-5 py-4">Lead Names</th>
-                  <th className="px-5 py-4">Contact</th>
-                  <th className="px-5 py-4">Purpose</th>
+                  <th className="px-5 py-4">Lead Details</th>
+                  <th className="px-5 py-4">Contact Info</th>
+                  <th className="px-5 py-4">Requirements</th>
                   <th className="px-5 py-4">Stage</th>
-                  <th className="px-5 py-4">Date Added</th>
+                  <th className="px-5 py-4">Timeline</th>
                   <th className="px-5 py-4 text-center">Action</th>
                 </tr>
               </thead>
@@ -463,29 +542,39 @@ export default function LeadsManagementPage() {
                   return (
                     <tr key={lead.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-5 py-4">
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-[10px] font-black text-white shadow-sm">{getInitials(lead.name)}</div>
-                          <div>
-                            <p className="text-[12px] font-bold text-slate-900">{lead.name}</p>
+                        <div className="flex items-start gap-2.5">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-[10px] font-black text-white shadow-sm">{getInitials(lead.name)}</div>
+                          <div className="min-w-0">
+                            <p className="text-[12px] font-bold text-slate-900 truncate">{lead.name}</p>
+                            <p className="mt-0.5 text-[10px] font-semibold text-slate-500 flex items-center gap-1">
+                              <Building2 size={10} className="text-slate-400" /> {lead.company || "Individual"} {lead.industry && `• ${lead.industry}`}
+                            </p>
+                            {lead.visitorCode && <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-blue-600 flex items-center gap-1"><BadgeCheck size={9} /> {lead.visitorCode}</p>}
                           </div>
                         </div>
                       </td>
                       <td className="px-5 py-4">
-                        <div className="space-y-0.5 text-[12px] font-semibold text-slate-600">
-                          <p className="flex items-center gap-1.5"><Phone size={11} className="text-slate-400" /> {lead.phone || "Not shared"}</p>
-                          <p className="flex items-center gap-1.5"><Mail size={11} className="text-slate-400" /> {lead.email || "Not shared"}</p>
+                        <div className="space-y-1 text-[11px] font-semibold text-slate-600">
+                          <p className="flex items-center gap-1.5 truncate"><Phone size={11} className="text-slate-400" /> {lead.phone || "Not shared"}</p>
+                          <p className="flex items-center gap-1.5 truncate"><Mail size={11} className="text-slate-400" /> {lead.email || "Not shared"}</p>
+                          {lead.qualification?.preferredContactMethod && <p className="mt-1 text-[9px] font-black uppercase tracking-widest text-slate-400">Prefers: {lead.qualification.preferredContactMethod}</p>}
                         </div>
                       </td>
                       <td className="px-5 py-4">
-                        <p className="text-[12px] font-bold text-slate-700">{lead.purpose || "Unit Tour"}</p>
-                        <div className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${priorityMeta.tone}`}>{priorityMeta.label} priority</div>
+                        <div className="space-y-1">
+                           <p className="text-[11px] font-bold text-slate-700 flex items-center gap-1"><Home size={11} className="text-slate-400" /> {lead.preferredSpace || lead.purpose || "Unit Tour"} {lead.seatCount && `(${lead.seatCount} seats)`}</p>
+                           {lead.budgetRange && <p className="text-[11px] font-semibold text-slate-600 flex items-center gap-1"><DollarSign size={11} className="text-emerald-500" /> {lead.budgetRange}</p>}
+                           <div className={`mt-1.5 inline-flex rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-widest ${priorityMeta.tone}`}>{priorityMeta.label} priority</div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 align-top">
+                        <div className={`inline-flex rounded-lg border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${stageMeta.tone}`}>{stageMeta.label}</div>
                       </td>
                       <td className="px-5 py-4">
-                        <div className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${stageMeta.tone}`}>{stageMeta.label}</div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <p className="flex items-center gap-1.5 text-[12px] font-bold text-slate-700"><CalendarDays size={11} className="text-slate-400" /> {lead.dateAdded}</p>
-                        <p className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Last contact: {lead.lastContact}</p>
+                        <div className="space-y-1.5">
+                          <p className="flex items-center gap-1.5 text-[11px] font-bold text-slate-700"><CalendarDays size={11} className="text-blue-500" /> {lead.dateAdded}</p>
+                          {lead.moveInTimeline && <p className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600"><Clock size={11} className="text-amber-500" /> {lead.moveInTimeline}</p>}
+                        </div>
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-center gap-1.5">
