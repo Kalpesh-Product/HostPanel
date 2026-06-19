@@ -109,11 +109,10 @@ function TabButton({ label, isActive, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-xl px-3 py-1.5 text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
-        isActive
-          ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
-          : "bg-transparent text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
-      }`}
+      className={`rounded-xl px-3 py-1.5 text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${isActive
+        ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
+        : "bg-transparent text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
+        }`}
     >
       {label}
     </button>
@@ -410,17 +409,17 @@ export default function WorkspaceManagementPage() {
   const currentUser = getStoredUser();
   const workspaceCount = getWorkspaceCount(
     (auth?.user as { workspaceCount?: number } | null)?.workspaceCount ??
-      (currentUser as { workspaceCount?: number } | null)?.workspaceCount,
+    (currentUser as { workspaceCount?: number } | null)?.workspaceCount,
   );
   const planLabel = String(
     (auth?.user as { workspace?: { selectedPlan?: string }; selectedPlan?: string } | null)?.workspace
       ?.selectedPlan ||
-      (auth?.user as { selectedPlan?: string } | null)?.selectedPlan ||
-      "basic",
+    (auth?.user as { selectedPlan?: string } | null)?.selectedPlan ||
+    "basic",
   )
     .trim()
     .toLowerCase();
-  const isWorkspaceManagementLocked = !(planLabel === "professional" && workspaceCount > 1);
+  const isWorkspaceManagementLocked = !(workspaceCount > 1);
   const [departmentFilter, setDepartmentFilter] = useState("All departments");
   const [workspaceFilter, setWorkspaceFilter] = useState("all");
   const [overview, setOverview] = useState(null);
@@ -628,409 +627,408 @@ export default function WorkspaceManagementPage() {
 
   return (
     <>
-    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+      <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
         <PageFrame>
-        {isLoading ? (
-          <CardsGridSkeleton />
-        ) : (
-        <div className="flex flex-col gap-4 text-slate-700 font-sans">
+          {isLoading ? (
+            <CardsGridSkeleton />
+          ) : (
+            <div className="flex flex-col gap-4 text-slate-700 font-sans">
 
-          {/* 1. HEADER */}
-          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
-            <div>
-              <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Unit Management
-              </h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">
-                Review every unit linked to this founder account and compare operational health from one place.
-              </p>
-            </div>
-            <div className="h-9 inline-flex items-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 shadow-sm whitespace-nowrap">
-              Current Unit: <span className="text-[#0F172A] ml-1.5">{activeWorkspaceName}</span>
-            </div>
-          </div>
-
-          {/* 2. STAT CARDS (4-col grid, border-l-4 accents per DESIGN.md) */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
-            <MetricCard icon={Users} label="Employees" value={summary.totalEmployees} tone="blue" />
-            <MetricCard icon={Briefcase} label="Departments" value={summary.totalDepartments} tone="emerald" />
-            <MetricCard icon={Ticket} label="Tickets" value={summary.totalTickets} tone="amber" />
-            <MetricCard icon={CheckCircle2} label="Tasks" value={summary.totalTasks} tone="violet" />
-            <MetricCard icon={Package} label="Assets" value={summary.totalAssets || 0} tone="blue" />
-            <MetricCard icon={Boxes} label="Inventory" value={summary.totalInventory || 0} tone="emerald" />
-            <MetricCard icon={CalendarDays} label="Meeting Bookings" value={summary.totalMeetingBookings || 0} tone="amber" />
-            <MetricCard icon={BarChart3} label="Performance" value={`${summary.performance?.overallScore || 0}%`} tone="violet" />
-          </div>
-
-          {/* 3. DATA PANEL */}
-          <section className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-            {/* Header row: inner title + filters + action */}
-            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-              <div>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">All Units</p>
-                <p className="mt-1 text-[11px] font-medium leading-6 text-slate-500">
-                  {departmentFilter === "All departments"
-                    ? "Founder-level combined view across every active unit."
-                    : `Metrics filtered to ${departmentFilter}.`}
-                </p>
+              {/* 1. HEADER */}
+              <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+                <div>
+                  <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+                    Unit Management
+                  </h2>
+                  <p className="text-xs font-medium text-slate-500 mt-1">
+                    Review every unit linked to this founder account and compare operational health from one place.
+                  </p>
+                </div>
+                <div className="h-9 inline-flex items-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 shadow-sm whitespace-nowrap">
+                  Current Unit: <span className="text-[#0F172A] ml-1.5">{activeWorkspaceName}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-                {/* Unit filter */}
-                <div className="relative flex-1 min-w-[140px]">
-                  <select
-                    value={workspaceFilter}
-                    onChange={(event) => {
-                      setWorkspaceFilter(event.target.value);
-                      setExpandedWorkspaceId("");
-                    }}
-                    className="w-full pl-4 pr-9 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all appearance-none cursor-pointer"
-                  >
-                    <option value="all">All units</option>
-                    {workspaceList.map((workspace) => (
-                      <option key={workspace.id} value={workspace.id}>
-                        {workspace.workspaceName}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                </div>
-                {/* Department filter */}
-                <div className="relative flex-1 min-w-[160px]">
-                  <select
-                    value={departmentFilter}
-                    onChange={(event) => setDepartmentFilter(event.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none"
-                  >
-                    {departmentOptions.map((departmentName) => (
-                      <option key={departmentName} value={departmentName}>
-                        {departmentName}
-                      </option>
-                    ))}
-                  </select>
-                  <RefreshCcw size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#2563EB]" />
-                </div>
-                {/* Action button */}
-                <button
-                  type="button"
-                  onClick={() => setIsCombinedModalOpen(true)}
-                  className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
-                >
-                  <BarChart3 size={13} strokeWidth={3} />
-                  VIEW DATA
-                </button>
-              </div>
-            </div>
 
-            <div className="p-3 sm:p-4 lg:p-5">
-              {displayedWorkspaces.length === 0 ? (
-                <div className="text-center py-20 text-slate-400 font-semibold">
-                  No units found.
-                </div>
-              ) : (
-              <div className="grid gap-3.5">
-                {displayedWorkspaces.map((workspace) => (
-                  <article
-                    key={workspace.id}
-                    className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden"
-                  >
-                    <div className="p-4 sm:p-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <h3 className="text-[16px] font-black text-slate-950">
+              {/* 2. STAT CARDS (4-col grid, border-l-4 accents per DESIGN.md) */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+                <MetricCard icon={Users} label="Employees" value={summary.totalEmployees} tone="blue" />
+                <MetricCard icon={Briefcase} label="Departments" value={summary.totalDepartments} tone="emerald" />
+                <MetricCard icon={Ticket} label="Tickets" value={summary.totalTickets} tone="amber" />
+                <MetricCard icon={CheckCircle2} label="Tasks" value={summary.totalTasks} tone="violet" />
+                <MetricCard icon={Package} label="Assets" value={summary.totalAssets || 0} tone="blue" />
+                <MetricCard icon={Boxes} label="Inventory" value={summary.totalInventory || 0} tone="emerald" />
+                <MetricCard icon={CalendarDays} label="Meeting Bookings" value={summary.totalMeetingBookings || 0} tone="amber" />
+                <MetricCard icon={BarChart3} label="Performance" value={`${summary.performance?.overallScore || 0}%`} tone="violet" />
+              </div>
+
+              {/* 3. DATA PANEL */}
+              <section className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+                {/* Header row: inner title + filters + action */}
+                <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+                  <div>
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">All Units</p>
+                    <p className="mt-1 text-[11px] font-medium leading-6 text-slate-500">
+                      {departmentFilter === "All departments"
+                        ? "Founder-level combined view across every active unit."
+                        : `Metrics filtered to ${departmentFilter}.`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                    {/* Unit filter */}
+                    <div className="relative flex-1 min-w-[140px]">
+                      <select
+                        value={workspaceFilter}
+                        onChange={(event) => {
+                          setWorkspaceFilter(event.target.value);
+                          setExpandedWorkspaceId("");
+                        }}
+                        className="w-full pl-4 pr-9 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="all">All units</option>
+                        {workspaceList.map((workspace) => (
+                          <option key={workspace.id} value={workspace.id}>
                             {workspace.workspaceName}
-                          </h3>
-                          <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                            {workspace.status}
-                          </span>
-                        </div>
-                        <p className="mt-1.5 text-[12px] font-semibold text-slate-600">
-                          {workspace.businessName || "Business name not set"}
-                        </p>
-                        <div className="mt-2.5 flex flex-wrap items-center gap-3 text-[12px] font-medium text-slate-500">
-                          <span className="inline-flex items-center gap-1.5">
-                            <MapPin className="h-3.5 w-3.5" />
-                            {workspace.location || "Location not set"}
-                          </span>
-                          <span className="inline-flex items-center gap-1.5">
-                            <CalendarDays className="h-3.5 w-3.5" />
-                            {workspace.createdAt ? new Date(workspace.createdAt).toLocaleDateString() : "Date unavailable"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2">
-                        <div
-                          className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-[12px] font-semibold ${
-                            workspace.isActiveWorkspace
-                              ? "border-blue-200 bg-blue-50 text-[#2563EB]"
-                              : "border-slate-200 bg-white text-slate-600"
-                          }`}
-                        >
-                          {workspace.isActiveWorkspace ? (
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                          ) : (
-                            <Building2 className="h-3.5 w-3.5" />
-                          )}
-                          {workspace.isActiveWorkspace ? "Current Unit" : "Linked Unit"}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleWorkspace(workspace.id)}
-                          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-                        >
-                          {expandedWorkspaceId === workspace.id ? (
-                            <ChevronUp className="h-3.5 w-3.5" />
-                          ) : (
-                            <ChevronDown className="h-3.5 w-3.5" />
-                          )}
-                          {expandedWorkspaceId === workspace.id ? "Hide Details" : "View Details"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(workspace)}
-                          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                          Edit Unit
-                        </button>
-                      </div>
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     </div>
-
-                    <div className="px-4 sm:px-5 pb-4 sm:pb-5 grid gap-3 grid-cols-2 md:grid-cols-4">
-                      <MetricCard icon={Users} label="Employees" value={workspace.metrics.totalEmployees} tone="blue" />
-                      <MetricCard icon={Briefcase} label="Departments" value={workspace.metrics.totalDepartments} tone="emerald" />
-                      <MetricCard icon={Ticket} label="Tickets" value={workspace.metrics.totalTickets} tone="amber" />
-                      <MetricCard icon={CheckCircle2} label="Tasks" value={workspace.metrics.totalTasks} tone="violet" />
-                      <MetricCard icon={Package} label="Assets" value={workspace.metrics.totalAssets || 0} tone="blue" />
-                      <MetricCard icon={Boxes} label="Inventory" value={workspace.metrics.totalInventory || 0} tone="emerald" />
-                      <MetricCard icon={CalendarDays} label="Bookings" value={workspace.metrics.totalMeetingBookings || 0} tone="amber" />
-                      <MetricCard icon={BarChart3} label="Performance" value={`${workspace.metrics.performance?.overallScore || 0}%`} tone="violet" />
+                    {/* Department filter */}
+                    <div className="relative flex-1 min-w-[160px]">
+                      <select
+                        value={departmentFilter}
+                        onChange={(event) => setDepartmentFilter(event.target.value)}
+                        className="w-full pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none"
+                      >
+                        {departmentOptions.map((departmentName) => (
+                          <option key={departmentName} value={departmentName}>
+                            {departmentName}
+                          </option>
+                        ))}
+                      </select>
+                      <RefreshCcw size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#2563EB]" />
                     </div>
+                    {/* Action button */}
+                    <button
+                      type="button"
+                      onClick={() => setIsCombinedModalOpen(true)}
+                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                    >
+                      <BarChart3 size={13} strokeWidth={3} />
+                      VIEW DATA
+                    </button>
+                  </div>
+                </div>
 
-                    {expandedWorkspaceId === workspace.id ? (
-                    <div className="border-t border-slate-100/60 bg-slate-50/50 p-4 sm:p-5">
-                      <div className="flex items-center gap-1 rounded-2xl bg-slate-100/70 p-1 flex-wrap">
-                        <TabButton
-                          label="Employees"
-                          isActive={getActiveTab(workspace.id) === "employees"}
-                          onClick={() => setActiveTab(workspace.id, "employees")}
-                        />
-                        <TabButton
-                          label="Roles"
-                          isActive={getActiveTab(workspace.id) === "roles"}
-                          onClick={() => setActiveTab(workspace.id, "roles")}
-                        />
-                        <TabButton
-                          label="Work Items"
-                          isActive={getActiveTab(workspace.id) === "work"}
-                          onClick={() => setActiveTab(workspace.id, "work")}
-                        />
-                        <TabButton
-                          label="Departments"
-                          isActive={getActiveTab(workspace.id) === "departments"}
-                          onClick={() => setActiveTab(workspace.id, "departments")}
-                        />
-                      </div>
+                <div className="p-3 sm:p-4 lg:p-5">
+                  {displayedWorkspaces.length === 0 ? (
+                    <div className="text-center py-20 text-slate-400 font-semibold">
+                      No units found.
+                    </div>
+                  ) : (
+                    <div className="grid gap-3.5">
+                      {displayedWorkspaces.map((workspace) => (
+                        <article
+                          key={workspace.id}
+                          className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden"
+                        >
+                          <div className="p-4 sm:p-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <h3 className="text-[16px] font-black text-slate-950">
+                                  {workspace.workspaceName}
+                                </h3>
+                                <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                  {workspace.status}
+                                </span>
+                              </div>
+                              <p className="mt-1.5 text-[12px] font-semibold text-slate-600">
+                                {workspace.businessName || "Business name not set"}
+                              </p>
+                              <div className="mt-2.5 flex flex-wrap items-center gap-3 text-[12px] font-medium text-slate-500">
+                                <span className="inline-flex items-center gap-1.5">
+                                  <MapPin className="h-3.5 w-3.5" />
+                                  {workspace.location || "Location not set"}
+                                </span>
+                                <span className="inline-flex items-center gap-1.5">
+                                  <CalendarDays className="h-3.5 w-3.5" />
+                                  {workspace.createdAt ? new Date(workspace.createdAt).toLocaleDateString() : "Date unavailable"}
+                                </span>
+                              </div>
+                            </div>
 
-                      {getActiveTab(workspace.id) === "employees" ? (
-                        <div className="mt-4 grid gap-3 md:grid-cols-2">
-                          {(workspace.details?.employees || []).length > 0 ? (
-                            workspace.details.employees.map((employee) => (
-                              <article
-                                key={employee.id || `${workspace.id}-${employee.email}`}
-                                className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4"
+                            <div className="flex flex-wrap gap-2">
+                              <div
+                                className={`inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-[12px] font-semibold ${workspace.isActiveWorkspace
+                                  ? "border-blue-200 bg-blue-50 text-[#2563EB]"
+                                  : "border-slate-200 bg-white text-slate-600"
+                                  }`}
                               >
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-bold text-slate-950">
-                                      {employee.fullName}
-                                    </p>
-                                    <p className="mt-1 truncate text-xs font-medium text-slate-500">
-                                      {employee.email}
-                                    </p>
-                                  </div>
-                                  <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 shadow-sm">
-                                    {employee.roleLabel}
-                                  </span>
+                                {workspace.isActiveWorkspace ? (
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                ) : (
+                                  <Building2 className="h-3.5 w-3.5" />
+                                )}
+                                {workspace.isActiveWorkspace ? "Current Unit" : "Linked Unit"}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleWorkspace(workspace.id)}
+                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                              >
+                                {expandedWorkspaceId === workspace.id ? (
+                                  <ChevronUp className="h-3.5 w-3.5" />
+                                ) : (
+                                  <ChevronDown className="h-3.5 w-3.5" />
+                                )}
+                                {expandedWorkspaceId === workspace.id ? "Hide Details" : "View Details"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEdit(workspace)}
+                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                Edit Unit
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="px-4 sm:px-5 pb-4 sm:pb-5 grid gap-3 grid-cols-2 md:grid-cols-4">
+                            <MetricCard icon={Users} label="Employees" value={workspace.metrics.totalEmployees} tone="blue" />
+                            <MetricCard icon={Briefcase} label="Departments" value={workspace.metrics.totalDepartments} tone="emerald" />
+                            <MetricCard icon={Ticket} label="Tickets" value={workspace.metrics.totalTickets} tone="amber" />
+                            <MetricCard icon={CheckCircle2} label="Tasks" value={workspace.metrics.totalTasks} tone="violet" />
+                            <MetricCard icon={Package} label="Assets" value={workspace.metrics.totalAssets || 0} tone="blue" />
+                            <MetricCard icon={Boxes} label="Inventory" value={workspace.metrics.totalInventory || 0} tone="emerald" />
+                            <MetricCard icon={CalendarDays} label="Bookings" value={workspace.metrics.totalMeetingBookings || 0} tone="amber" />
+                            <MetricCard icon={BarChart3} label="Performance" value={`${workspace.metrics.performance?.overallScore || 0}%`} tone="violet" />
+                          </div>
+
+                          {expandedWorkspaceId === workspace.id ? (
+                            <div className="border-t border-slate-100/60 bg-slate-50/50 p-4 sm:p-5">
+                              <div className="flex items-center gap-1 rounded-2xl bg-slate-100/70 p-1 flex-wrap">
+                                <TabButton
+                                  label="Employees"
+                                  isActive={getActiveTab(workspace.id) === "employees"}
+                                  onClick={() => setActiveTab(workspace.id, "employees")}
+                                />
+                                <TabButton
+                                  label="Roles"
+                                  isActive={getActiveTab(workspace.id) === "roles"}
+                                  onClick={() => setActiveTab(workspace.id, "roles")}
+                                />
+                                <TabButton
+                                  label="Work Items"
+                                  isActive={getActiveTab(workspace.id) === "work"}
+                                  onClick={() => setActiveTab(workspace.id, "work")}
+                                />
+                                <TabButton
+                                  label="Departments"
+                                  isActive={getActiveTab(workspace.id) === "departments"}
+                                  onClick={() => setActiveTab(workspace.id, "departments")}
+                                />
+                              </div>
+
+                              {getActiveTab(workspace.id) === "employees" ? (
+                                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                  {(workspace.details?.employees || []).length > 0 ? (
+                                    workspace.details.employees.map((employee) => (
+                                      <article
+                                        key={employee.id || `${workspace.id}-${employee.email}`}
+                                        className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4"
+                                      >
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="min-w-0">
+                                            <p className="truncate text-sm font-bold text-slate-950">
+                                              {employee.fullName}
+                                            </p>
+                                            <p className="mt-1 truncate text-xs font-medium text-slate-500">
+                                              {employee.email}
+                                            </p>
+                                          </div>
+                                          <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 shadow-sm">
+                                            {employee.roleLabel}
+                                          </span>
+                                        </div>
+                                        <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
+                                          {employee.employeeId ? (
+                                            <span className="rounded-full bg-white px-3 py-1">
+                                              {employee.employeeId}
+                                            </span>
+                                          ) : null}
+                                          {(employee.departments || []).map((departmentName) => (
+                                            <span
+                                              key={`${employee.id}-${departmentName}`}
+                                              className="rounded-full bg-blue-50 px-3 py-1 text-[#2563EB]"
+                                            >
+                                              {departmentName}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </article>
+                                    ))
+                                  ) : (
+                                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-12 text-center text-slate-400 font-semibold md:col-span-2">
+                                      No workspace members found yet.
+                                    </div>
+                                  )}
                                 </div>
-                                <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
-                                  {employee.employeeId ? (
-                                    <span className="rounded-full bg-white px-3 py-1">
-                                      {employee.employeeId}
-                                    </span>
-                                  ) : null}
-                                  {(employee.departments || []).map((departmentName) => (
-                                    <span
-                                      key={`${employee.id}-${departmentName}`}
-                                      className="rounded-full bg-blue-50 px-3 py-1 text-[#2563EB]"
-                                    >
-                                      {departmentName}
-                                    </span>
+                              ) : null}
+
+                              {getActiveTab(workspace.id) === "roles" ? (
+                                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                                  {(workspace.details?.roles || []).map((roleItem) => (
+                                    <StatusPill
+                                      key={`${workspace.id}-${roleItem.role}`}
+                                      label={roleItem.label}
+                                      value={roleItem.count}
+                                      tone="blue"
+                                    />
                                   ))}
                                 </div>
-                              </article>
-                            ))
-                          ) : (
-                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-12 text-center text-slate-400 font-semibold md:col-span-2">
-                              No workspace members found yet.
-                            </div>
-                          )}
-                        </div>
-                      ) : null}
+                              ) : null}
 
-                      {getActiveTab(workspace.id) === "roles" ? (
-                        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                          {(workspace.details?.roles || []).map((roleItem) => (
-                            <StatusPill
-                              key={`${workspace.id}-${roleItem.role}`}
-                              label={roleItem.label}
-                              value={roleItem.count}
-                              tone="blue"
-                            />
-                          ))}
-                        </div>
-                      ) : null}
-
-                      {getActiveTab(workspace.id) === "work" ? (
-                        <div className="mt-4 space-y-4">
-                          <div className="grid gap-4 xl:grid-cols-2">
-                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                              <div className="flex items-center gap-2">
-                                <Ticket className="h-4 w-4 text-amber-600" />
-                                <h4 className="text-sm font-bold text-slate-950">Ticket Status</h4>
-                              </div>
-                              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                                {(workspace.details?.tickets?.byStatus || []).map((item) => (
-                                  <StatusPill
-                                    key={`${workspace.id}-ticket-${item.status}`}
-                                    label={item.status}
-                                    value={item.count}
-                                    tone="amber"
-                                  />
-                                ))}
-                              </div>
-                            </div>
-
-                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                              <div className="flex items-center gap-2">
-                                <ClipboardList className="h-4 w-4 text-violet-600" />
-                                <h4 className="text-sm font-bold text-slate-950">Task Status</h4>
-                              </div>
-                              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                                {(workspace.details?.tasks?.byStatus || []).map((item) => (
-                                  <StatusPill
-                                    key={`${workspace.id}-task-${item.status}`}
-                                    label={item.status}
-                                    value={item.count}
-                                    tone="violet"
-                                  />
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="grid gap-4 xl:grid-cols-2">
-                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                              <h4 className="text-sm font-bold text-slate-950">Recent Tickets</h4>
-                              <div className="mt-3 space-y-3">
-                                {(workspace.details?.tickets?.recent || []).length > 0 ? (
-                                  workspace.details.tickets.recent.map((ticketItem) => (
-                                    <div
-                                      key={ticketItem.id || ticketItem.code}
-                                      className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
-                                    >
-                                      <div className="flex items-center justify-between gap-3">
-                                        <p className="text-sm font-bold text-slate-950">{ticketItem.code}</p>
-                                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">
-                                          {ticketItem.status}
-                                        </span>
+                              {getActiveTab(workspace.id) === "work" ? (
+                                <div className="mt-4 space-y-4">
+                                  <div className="grid gap-4 xl:grid-cols-2">
+                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                      <div className="flex items-center gap-2">
+                                        <Ticket className="h-4 w-4 text-amber-600" />
+                                        <h4 className="text-sm font-bold text-slate-950">Ticket Status</h4>
                                       </div>
-                                      <p className="mt-1 text-sm font-medium text-slate-600">
-                                        {ticketItem.title}
-                                      </p>
-                                      <p className="mt-2 text-xs font-semibold text-slate-500">
-                                        {ticketItem.department || "No department"} · {ticketItem.assignedTo || "Unassigned"}
-                                      </p>
-                                    </div>
-                                  ))
-                                ) : (
-                                  <p className="text-sm font-medium text-slate-500">No tickets yet.</p>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                              <h4 className="text-sm font-bold text-slate-950">Recent Tasks</h4>
-                              <div className="mt-3 space-y-3">
-                                {(workspace.details?.tasks?.recent || []).length > 0 ? (
-                                  workspace.details.tasks.recent.map((taskItem) => (
-                                    <div
-                                      key={taskItem.id || taskItem.code}
-                                      className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
-                                    >
-                                      <div className="flex items-center justify-between gap-3">
-                                        <p className="text-sm font-bold text-slate-950">{taskItem.code}</p>
-                                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">
-                                          {taskItem.status}
-                                        </span>
+                                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                        {(workspace.details?.tickets?.byStatus || []).map((item) => (
+                                          <StatusPill
+                                            key={`${workspace.id}-ticket-${item.status}`}
+                                            label={item.status}
+                                            value={item.count}
+                                            tone="amber"
+                                          />
+                                        ))}
                                       </div>
-                                      <p className="mt-1 text-sm font-medium text-slate-600">
-                                        {taskItem.title}
-                                      </p>
-                                      <p className="mt-2 text-xs font-semibold text-slate-500">
-                                        {taskItem.department || "No department"} · {taskItem.assignee || "Unassigned"}
-                                      </p>
                                     </div>
-                                  ))
-                                ) : (
-                                  <p className="text-sm font-medium text-slate-500">No tasks yet.</p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ) : null}
 
-                      {getActiveTab(workspace.id) === "departments" ? (
-                        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                          {(workspace.details?.departments || []).length > 0 ? (
-                            workspace.details.departments.map((departmentItem) => (
-                              <article
-                                key={`${workspace.id}-${departmentItem.name}`}
-                                className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <Shield className="h-4 w-4 text-emerald-600" />
-                                  <h4 className="text-sm font-bold text-slate-950">
-                                    {departmentItem.name}
-                                  </h4>
+                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                      <div className="flex items-center gap-2">
+                                        <ClipboardList className="h-4 w-4 text-violet-600" />
+                                        <h4 className="text-sm font-bold text-slate-950">Task Status</h4>
+                                      </div>
+                                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                        {(workspace.details?.tasks?.byStatus || []).map((item) => (
+                                          <StatusPill
+                                            key={`${workspace.id}-task-${item.status}`}
+                                            label={item.status}
+                                            value={item.count}
+                                            tone="violet"
+                                          />
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid gap-4 xl:grid-cols-2">
+                                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                      <h4 className="text-sm font-bold text-slate-950">Recent Tickets</h4>
+                                      <div className="mt-3 space-y-3">
+                                        {(workspace.details?.tickets?.recent || []).length > 0 ? (
+                                          workspace.details.tickets.recent.map((ticketItem) => (
+                                            <div
+                                              key={ticketItem.id || ticketItem.code}
+                                              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                                            >
+                                              <div className="flex items-center justify-between gap-3">
+                                                <p className="text-sm font-bold text-slate-950">{ticketItem.code}</p>
+                                                <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">
+                                                  {ticketItem.status}
+                                                </span>
+                                              </div>
+                                              <p className="mt-1 text-sm font-medium text-slate-600">
+                                                {ticketItem.title}
+                                              </p>
+                                              <p className="mt-2 text-xs font-semibold text-slate-500">
+                                                {ticketItem.department || "No department"} · {ticketItem.assignedTo || "Unassigned"}
+                                              </p>
+                                            </div>
+                                          ))
+                                        ) : (
+                                          <p className="text-sm font-medium text-slate-500">No tickets yet.</p>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                      <h4 className="text-sm font-bold text-slate-950">Recent Tasks</h4>
+                                      <div className="mt-3 space-y-3">
+                                        {(workspace.details?.tasks?.recent || []).length > 0 ? (
+                                          workspace.details.tasks.recent.map((taskItem) => (
+                                            <div
+                                              key={taskItem.id || taskItem.code}
+                                              className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
+                                            >
+                                              <div className="flex items-center justify-between gap-3">
+                                                <p className="text-sm font-bold text-slate-950">{taskItem.code}</p>
+                                                <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">
+                                                  {taskItem.status}
+                                                </span>
+                                              </div>
+                                              <p className="mt-1 text-sm font-medium text-slate-600">
+                                                {taskItem.title}
+                                              </p>
+                                              <p className="mt-2 text-xs font-semibold text-slate-500">
+                                                {taskItem.department || "No department"} · {taskItem.assignee || "Unassigned"}
+                                              </p>
+                                            </div>
+                                          ))
+                                        ) : (
+                                          <p className="text-sm font-medium text-slate-500">No tasks yet.</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="mt-4 grid gap-3">
-                                  <StatusPill label="Employees" value={departmentItem.totalEmployees} tone="blue" />
-                                  <StatusPill label="Tickets" value={departmentItem.totalTickets} tone="amber" />
-                                  <StatusPill label="Tasks" value={departmentItem.totalTasks} tone="violet" />
+                              ) : null}
+
+                              {getActiveTab(workspace.id) === "departments" ? (
+                                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                  {(workspace.details?.departments || []).length > 0 ? (
+                                    workspace.details.departments.map((departmentItem) => (
+                                      <article
+                                        key={`${workspace.id}-${departmentItem.name}`}
+                                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <Shield className="h-4 w-4 text-emerald-600" />
+                                          <h4 className="text-sm font-bold text-slate-950">
+                                            {departmentItem.name}
+                                          </h4>
+                                        </div>
+                                        <div className="mt-4 grid gap-3">
+                                          <StatusPill label="Employees" value={departmentItem.totalEmployees} tone="blue" />
+                                          <StatusPill label="Tickets" value={departmentItem.totalTickets} tone="amber" />
+                                          <StatusPill label="Tasks" value={departmentItem.totalTasks} tone="violet" />
+                                        </div>
+                                      </article>
+                                    ))
+                                  ) : (
+                                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-12 text-center text-slate-400 font-semibold md:col-span-2 xl:col-span-3">
+                                      No department data is available for this workspace yet.
+                                    </div>
+                                  )}
                                 </div>
-                              </article>
-                            ))
-                          ) : (
-                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-12 text-center text-slate-400 font-semibold md:col-span-2 xl:col-span-3">
-                              No department data is available for this workspace yet.
+                              ) : null}
                             </div>
-                          )}
-                        </div>
-                      ) : null}
+                          ) : null}
+                        </article>
+                      ))}
                     </div>
-                    ) : null}
-                  </article>
-                ))}
-              </div>
-              )}
+                  )}
+                </div>
+              </section>
             </div>
-          </section>
-        </div>
-        )}
+          )}
         </PageFrame>
-    </div>
+      </div>
 
       {editingWorkspace ? (
         <WorkspaceEditModal
