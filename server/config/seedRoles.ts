@@ -20,7 +20,7 @@ const dropLegacyIndexes = async () => {
  * and replaces each string value with the matching Role document's ObjectId.
  * Safe to run multiple times — skips docs that already have a valid ObjectId.
  */
-const migrateLegacyStringRoles = async () => {
+export const migrateLegacyStringRoles = async () => {
   try {
     const col = mongoose.connection.collection("workspacemembers");
     // Use the raw collection so Mongoose doesn't try to cast "founder" → ObjectId
@@ -30,18 +30,32 @@ const migrateLegacyStringRoles = async () => {
 
     console.log(`Migrating ${legacyDocs.length} WorkspaceMember(s) with legacy string roles…`);
 
+    // Normalize legacy labels to their canonical system-role names so that
+    // values like "owner" (legacy alias for founder) still resolve correctly.
+    const canonicalRoleName = (raw: string): string => {
+      const lower = String(raw || "").trim().toLowerCase();
+      if (lower === "owner") return "founder";
+      if (lower === "superadmin") return "super_admin";
+      return lower;
+    };
+
     const roleCache = new Map<string, mongoose.Types.ObjectId>();
 
     for (const doc of legacyDocs) {
-      const roleName = String(doc.role);
+      const roleName = canonicalRoleName(doc.role);
       if (!roleCache.has(roleName)) {
-        const roleDoc = await Role.findOne({ name: roleName, workspaceId: null }).lean().exec();
+        // Prefer the global system role; fall back to any matching role
+        // (per-workspace) so members aren't skipped when the global seed
+        // is missing or stored under a non-null workspaceId.
+        const roleDoc =
+          (await Role.findOne({ name: roleName, workspaceId: null }).lean().exec()) ||
+          (await Role.findOne({ name: roleName }).lean().exec());
         if (roleDoc) roleCache.set(roleName, roleDoc._id as mongoose.Types.ObjectId);
       }
 
       const roleId = roleCache.get(roleName);
       if (!roleId) {
-        console.warn(`No system Role found for legacy string "${roleName}" — skipping member ${doc._id}`);
+        console.warn(`No system Role found for legacy string "${doc.role}" — skipping member ${doc._id}`);
         continue;
       }
 

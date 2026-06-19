@@ -105,3 +105,54 @@ export const resolveAccessibleWorkspaceMemberships = async (userId: any) => {
 
   return memberships;
 };
+
+/**
+ * Resolve a single WorkspaceMember for a specific (workspace, user) pair with
+ * the `role` field populated, while tolerating legacy rows where `role` is
+ * still stored as a plain string (e.g. "founder"). Such legacy values would
+ * otherwise throw a Mongoose CastError during `.populate("role")` and bubble
+ * up as a 500 — which is exactly what blocked founder → super_admin invites.
+ *
+ * Callers receive a membership whose `role` is either a populated Role doc or
+ * the original string; downstream helpers (getRoleBand / normalizeRoleForStorage)
+ * already handle both shapes.
+ */
+export const resolveMembershipByWorkspace = async (
+  workspaceId: any,
+  userId: any,
+  select = "",
+) => {
+  const baseFilter = { workspace: workspaceId, user: userId, isActive: true };
+
+  // Fast path — populate role in a single query.
+  try {
+    const query = WorkspaceMember.findOne(baseFilter).sort({
+      isPrimary: -1,
+      createdAt: 1,
+    });
+    if (select) query.select(select);
+    return await query.populate("role").lean().exec();
+  } catch (err: any) {
+    if (err?.name !== "CastError" && err?.kind !== "ObjectId") throw err;
+  }
+
+  // Safe fallback — no populate, manual role resolution.
+  const rawQuery = WorkspaceMember.findOne(baseFilter).sort({
+    isPrimary: -1,
+    createdAt: 1,
+  });
+  if (select) rawQuery.select(select);
+  const raw = await rawQuery.lean().exec();
+
+  if (raw?.role) {
+    try {
+      const roleDoc = await Role.findById(raw.role).lean().exec();
+      if (roleDoc) (raw as any).role = roleDoc;
+    } catch {
+      // role is a legacy string (e.g. "founder") — leave as-is; callers fall
+      // back to string-based role normalization so the request still succeeds.
+    }
+  }
+
+  return raw;
+};

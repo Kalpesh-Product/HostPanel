@@ -14,6 +14,7 @@ import {
   ORGANIZATION_MEMBER_GRANT_ALIASES,
   ORGANIZATION_PERMISSION_KEYS,
 } from "../config/organizationPermissionMap.js";
+import { resolveMembershipByWorkspace } from "../utils/resolveMembership.js";
 
 const DEFAULT_DEPARTMENTS = [
   { name: "HR", description: "People operations and hiring", isActive: true },
@@ -645,15 +646,11 @@ export const inviteOrganizationMember = async (req, res, next) => {
     if (!user || !workspace) {
       return res.status(404).json({ message: "Workspace not found for this user." });
     }
-    const actorMembership = await WorkspaceMember.findOne({
-      workspace: workspace._id,
-      user: req.user,
-      isActive: true,
-    })
-      .select("role grantedModules")
-      .populate("role")
-      .lean()
-      .exec();
+    const actorMembership = await resolveMembershipByWorkspace(
+      workspace._id,
+      req.user,
+      "role grantedModules",
+    );
     if (!actorMembership) {
       return res.status(403).json({ message: "You do not have workspace access." });
     }
