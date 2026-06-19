@@ -28,7 +28,7 @@ import { getWorkspaceCount } from "../../utils/workspacePlanAccess";
 import {
   getWorkspaceManagementOverview,
   updateManagedWorkspace,
-} from "../../services/workspace-management";
+} from "../../services/unit-management";
 import PageFrame from "../../components/Pages/PageFrame";
 
 const getStoredUser = () => {
@@ -53,25 +53,53 @@ const COMBINED_RECENT_LIMIT = 12;
 
 function MetricCard({ icon: Icon, label, value, tone = "blue" }) {
   const toneClassName = {
-    blue: "bg-blue-50 text-[#2563EB]",
-    emerald: "bg-emerald-50 text-emerald-700",
-    amber: "bg-amber-50 text-amber-700",
-    violet: "bg-violet-50 text-violet-700",
+    blue: "bg-blue-50 text-blue-600",
+    emerald: "bg-emerald-50 text-emerald-600",
+    amber: "bg-amber-50 text-amber-600",
+    violet: "bg-violet-50 text-violet-600",
+    slate: "bg-slate-50 text-slate-600",
+  }[tone];
+
+  const accentClassName = {
+    blue: "border-l-4 border-l-blue-500",
+    emerald: "border-l-4 border-l-emerald-500",
+    amber: "border-l-4 border-l-amber-500",
+    violet: "border-l-4 border-l-violet-500",
+    slate: "",
   }[tone];
 
   return (
-    <div className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-            {label}
-          </p>
-          <p className="mt-1 text-[20px] leading-none font-black text-slate-950">{value}</p>
-        </div>
-        <span className={`inline-flex shrink-0 items-center justify-center rounded-xl p-1.5 ${toneClassName}`}>
-          <Icon className="h-4 w-4" />
-        </span>
+    <div className={`w-full bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${accentClassName}`}>
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+          {label}
+        </p>
+        <p className="text-[15px] font-black text-slate-900 truncate">{value}</p>
       </div>
+      <div className={`p-2 rounded-2xl ${toneClassName} shrink-0`}>
+        <Icon size={16} />
+      </div>
+    </div>
+  );
+}
+
+function CardsGridSkeleton({ count = 8 }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+        {Array.from({ length: count }).map((_, i) => (
+          <div key={i} className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center animate-pulse">
+            <div className="min-w-0">
+              <div className="h-3 w-20 bg-slate-200 rounded mb-2" />
+              <div className="h-5 w-12 bg-slate-200 rounded" />
+            </div>
+            <div className="p-2 rounded-2xl bg-slate-100 shrink-0">
+              <div className="h-4 w-4 bg-slate-200 rounded" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="bg-white/80 rounded-2xl border border-slate-100 shadow-sm min-h-[400px] animate-pulse" />
     </div>
   );
 }
@@ -81,10 +109,10 @@ function TabButton({ label, isActive, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
+      className={`rounded-xl px-3 py-1.5 text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
         isActive
-          ? "bg-[#2563EB] text-white shadow-sm"
-          : "bg-white text-slate-600 hover:bg-slate-50"
+          ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
+          : "bg-transparent text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
       }`}
     >
       {label}
@@ -103,10 +131,10 @@ function StatusPill({ label, value, tone = "slate" }) {
 
   return (
     <div className={`rounded-2xl border px-3 py-2 ${toneClassName}`}>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-80">
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
         {label}
       </p>
-      <p className="mt-1 text-base font-black">{value}</p>
+      <p className="mt-1 text-[15px] font-black text-slate-900">{value}</p>
     </div>
   );
 }
@@ -120,10 +148,10 @@ function WorkspaceEditModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
-      <div className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
+      <div className="w-full max-w-xl rounded-2xl border border-slate-100 bg-white p-6 shadow-[0_30px_90px_rgba(15,23,42,0.22)]">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-slate-950">Edit Unit</h2>
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Edit Unit</p>
             <p className="mt-1 text-[12px] font-medium text-slate-500">
               Update the unit identity without changing unrelated founder settings.
             </p>
@@ -132,21 +160,21 @@ function WorkspaceEditModal({
             type="button"
             onClick={onClose}
             disabled={isSaving}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+            className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 px-4 text-[12px] font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
           >
             Close
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="mt-4 grid gap-3 md:grid-cols-2">
+        <form onSubmit={onSubmit} className="mt-5 grid gap-3 md:grid-cols-2">
           <label className="grid gap-2 md:col-span-2">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
               Unit Name
             </span>
             <input
               value={form.workspaceName}
               onChange={(event) => onChange("workspaceName", event.target.value)}
-              className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
+              className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
               required
               maxLength={120}
             />
@@ -156,7 +184,7 @@ function WorkspaceEditModal({
             <button
               type="submit"
               disabled={isSaving}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 text-[12px] font-semibold text-white shadow-sm transition hover:bg-[#1e4fd1] disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#2563EB] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/95 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
               {isSaving ? "Saving..." : "Save Changes"}
@@ -221,8 +249,8 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
             <MetricCard icon={BarChart3} label="Performance" value={`${summary.performance?.overallScore || 0}%`} tone="violet" />
           </div>
 
-          <div className="mt-5 rounded-3xl border border-slate-200 bg-white p-3.5">
-            <div className="flex flex-wrap gap-2">
+          <div className="mt-5 rounded-2xl border border-slate-100 bg-white/80 backdrop-blur-md p-3.5">
+            <div className="flex items-center gap-1 rounded-2xl bg-slate-100/70 p-1 flex-wrap">
               {tabs.map((tab) => (
                 <TabButton
                   key={tab.key}
@@ -600,62 +628,30 @@ export default function WorkspaceManagementPage() {
 
   return (
     <>
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
         <PageFrame>
-        <div className="w-full space-y-5 p-2 lg:p-2.5">
-          <header className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        {isLoading ? (
+          <CardsGridSkeleton />
+        ) : (
+        <div className="flex flex-col gap-4 text-slate-700 font-sans">
+
+          {/* 1. HEADER */}
+          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
-              <h2 className="text-title font-pmedium text-primary uppercase">
+              <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Unit Management
               </h2>
-              <p className="mt-2 max-w-3xl text-[12px] font-medium leading-6 text-slate-500">
+              <p className="text-xs font-medium text-slate-500 mt-1">
                 Review every unit linked to this founder account and compare operational health from one place.
               </p>
             </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="h-11 inline-flex items-center rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] font-semibold text-slate-600 whitespace-nowrap">
-                Current unit: <span className="text-slate-950 ml-1">{activeWorkspaceName}</span>
-              </div>
-              <label className="grid gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Unit Filter
-                </span>
-                <select
-                  value={workspaceFilter}
-                  onChange={(event) => {
-                    setWorkspaceFilter(event.target.value);
-                    setExpandedWorkspaceId("");
-                  }}
-                  className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
-                >
-                  <option value="all">All units</option>
-                  {workspaceList.map((workspace) => (
-                    <option key={workspace.id} value={workspace.id}>
-                      {workspace.workspaceName}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="grid gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Department Filter
-                </span>
-                <select
-                  value={departmentFilter}
-                  onChange={(event) => setDepartmentFilter(event.target.value)}
-                  className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
-                >
-                  {departmentOptions.map((departmentName) => (
-                    <option key={departmentName} value={departmentName}>
-                      {departmentName}
-                    </option>
-                  ))}
-                </select>
-              </label>
+            <div className="h-9 inline-flex items-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 shadow-sm whitespace-nowrap">
+              Current Unit: <span className="text-[#0F172A] ml-1.5">{activeWorkspaceName}</span>
             </div>
-            </header>
+          </div>
 
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-8">
+          {/* 2. STAT CARDS (4-col grid, border-l-4 accents per DESIGN.md) */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             <MetricCard icon={Users} label="Employees" value={summary.totalEmployees} tone="blue" />
             <MetricCard icon={Briefcase} label="Departments" value={summary.totalDepartments} tone="emerald" />
             <MetricCard icon={Ticket} label="Tickets" value={summary.totalTickets} tone="amber" />
@@ -663,58 +659,87 @@ export default function WorkspaceManagementPage() {
             <MetricCard icon={Package} label="Assets" value={summary.totalAssets || 0} tone="blue" />
             <MetricCard icon={Boxes} label="Inventory" value={summary.totalInventory || 0} tone="emerald" />
             <MetricCard icon={CalendarDays} label="Meeting Bookings" value={summary.totalMeetingBookings || 0} tone="amber" />
-            <MetricCard icon={BarChart3} label="Performance" value={`${summary.performance?.overallScore || 0}%`} tone="blue" />
-          </section>
+            <MetricCard icon={BarChart3} label="Performance" value={`${summary.performance?.overallScore || 0}%`} tone="violet" />
+          </div>
 
-          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
+          {/* 3. DATA PANEL */}
+          <section className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+            {/* Header row: inner title + filters + action */}
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
               <div>
-                <h2 className="text-[16px] font-bold text-slate-950">All Units</h2>
-                <p className="mt-1 text-[12px] font-medium text-slate-500">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">All Units</p>
+                <p className="mt-1 text-[11px] font-medium leading-6 text-slate-500">
                   {departmentFilter === "All departments"
                     ? "Founder-level combined view across every active unit."
                     : `Metrics filtered to ${departmentFilter}.`}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                {/* Unit filter */}
+                <div className="relative flex-1 min-w-[140px]">
+                  <select
+                    value={workspaceFilter}
+                    onChange={(event) => {
+                      setWorkspaceFilter(event.target.value);
+                      setExpandedWorkspaceId("");
+                    }}
+                    className="w-full pl-4 pr-9 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all appearance-none cursor-pointer"
+                  >
+                    <option value="all">All units</option>
+                    {workspaceList.map((workspace) => (
+                      <option key={workspace.id} value={workspace.id}>
+                        {workspace.workspaceName}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                </div>
+                {/* Department filter */}
+                <div className="relative flex-1 min-w-[160px]">
+                  <select
+                    value={departmentFilter}
+                    onChange={(event) => setDepartmentFilter(event.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none"
+                  >
+                    {departmentOptions.map((departmentName) => (
+                      <option key={departmentName} value={departmentName}>
+                        {departmentName}
+                      </option>
+                    ))}
+                  </select>
+                  <RefreshCcw size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#2563EB]" />
+                </div>
+                {/* Action button */}
                 <button
                   type="button"
                   onClick={() => setIsCombinedModalOpen(true)}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 text-[12px] font-semibold text-[#2563EB] transition hover:bg-blue-100"
+                  className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                 >
-                  <BarChart3 className="h-3.5 w-3.5" />
-                  View Units Data
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDepartmentFilter("All departments")}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 px-3 text-[12px] font-semibold text-slate-600 transition hover:bg-slate-50"
-                >
-                  <RefreshCcw className="h-3.5 w-3.5" />
-                  Reset Filter
+                  <BarChart3 size={13} strokeWidth={3} />
+                  VIEW DATA
                 </button>
               </div>
             </div>
 
-            {isLoading ? (
-              <div className="mt-6 flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading unit management...
-              </div>
-            ) : (
-              <div className="mt-5 grid gap-3.5">
+            <div className="p-3 sm:p-4 lg:p-5">
+              {displayedWorkspaces.length === 0 ? (
+                <div className="text-center py-20 text-slate-400 font-semibold">
+                  No units found.
+                </div>
+              ) : (
+              <div className="grid gap-3.5">
                 {displayedWorkspaces.map((workspace) => (
                   <article
                     key={workspace.id}
-                    className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+                    className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden"
                   >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="p-4 sm:p-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <h3 className="text-[16px] font-black text-slate-950">
                             {workspace.workspaceName}
                           </h3>
-                          <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500 shadow-sm">
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
                             {workspace.status}
                           </span>
                         </div>
@@ -771,20 +796,20 @@ export default function WorkspaceManagementPage() {
                       </div>
                     </div>
 
-                    <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-8">
+                    <div className="px-4 sm:px-5 pb-4 sm:pb-5 grid gap-3 grid-cols-2 md:grid-cols-4">
                       <MetricCard icon={Users} label="Employees" value={workspace.metrics.totalEmployees} tone="blue" />
                       <MetricCard icon={Briefcase} label="Departments" value={workspace.metrics.totalDepartments} tone="emerald" />
                       <MetricCard icon={Ticket} label="Tickets" value={workspace.metrics.totalTickets} tone="amber" />
                       <MetricCard icon={CheckCircle2} label="Tasks" value={workspace.metrics.totalTasks} tone="violet" />
                       <MetricCard icon={Package} label="Assets" value={workspace.metrics.totalAssets || 0} tone="blue" />
                       <MetricCard icon={Boxes} label="Inventory" value={workspace.metrics.totalInventory || 0} tone="emerald" />
-                      <MetricCard icon={CalendarDays} label="Meeting Bookings" value={workspace.metrics.totalMeetingBookings || 0} tone="amber" />
-                      <MetricCard icon={BarChart3} label="Performance" value={`${workspace.metrics.performance?.overallScore || 0}%`} tone="blue" />
+                      <MetricCard icon={CalendarDays} label="Bookings" value={workspace.metrics.totalMeetingBookings || 0} tone="amber" />
+                      <MetricCard icon={BarChart3} label="Performance" value={`${workspace.metrics.performance?.overallScore || 0}%`} tone="violet" />
                     </div>
 
                     {expandedWorkspaceId === workspace.id ? (
-                    <div className="mt-5 rounded-3xl border border-slate-200 bg-white p-4">
-                      <div className="flex flex-wrap gap-2">
+                    <div className="border-t border-slate-100/60 bg-slate-50/50 p-4 sm:p-5">
+                      <div className="flex items-center gap-1 rounded-2xl bg-slate-100/70 p-1 flex-wrap">
                         <TabButton
                           label="Employees"
                           isActive={getActiveTab(workspace.id) === "employees"}
@@ -846,7 +871,7 @@ export default function WorkspaceManagementPage() {
                               </article>
                             ))
                           ) : (
-                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm font-medium text-slate-500 md:col-span-2">
+                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-12 text-center text-slate-400 font-semibold md:col-span-2">
                               No workspace members found yet.
                             </div>
                           )}
@@ -988,7 +1013,7 @@ export default function WorkspaceManagementPage() {
                               </article>
                             ))
                           ) : (
-                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm font-medium text-slate-500 md:col-span-2 xl:col-span-3">
+                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-12 text-center text-slate-400 font-semibold md:col-span-2 xl:col-span-3">
                               No department data is available for this workspace yet.
                             </div>
                           )}
@@ -999,10 +1024,13 @@ export default function WorkspaceManagementPage() {
                   </article>
                 ))}
               </div>
-            )}
+              )}
+            </div>
           </section>
         </div>
+        )}
         </PageFrame>
+    </div>
 
       {editingWorkspace ? (
         <WorkspaceEditModal

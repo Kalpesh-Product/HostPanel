@@ -250,6 +250,7 @@ export const getMyProfile = async (req, res) => {
         workspace: workspace._id,
       })
         .sort({ isPrimary: -1, createdAt: 1 })
+        .populate("role")
         .lean()
         .exec();
     }
@@ -307,7 +308,7 @@ export const getMyProfile = async (req, res) => {
           companyName: company?.companyName || user?.companyName || "",
           workspaceMembership: workspaceMembership
             ? {
-                role: workspaceMembership.role,
+                role: workspaceMembership.role?.name || (typeof workspaceMembership.role === "string" ? workspaceMembership.role : "member"),
                 isPrimary: workspaceMembership.isPrimary,
                 isActive: workspaceMembership.isActive,
               }

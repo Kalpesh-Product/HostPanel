@@ -187,16 +187,14 @@ const Header = ({
     } catch { return null; }
   })();
   const hasTenantRole = Boolean(storedTenantRole || auth?.user?.tenantRole);
-  // const roleLabel = hasTenantRole
-  //   ? (storedTenantRole === "tenant-manager" || auth?.user?.tenantRole === "tenant-manager"
-  //       ? "Tenant Manager"
-  //       : "Tenant Employee")
-  //   : isFounderRole || isFounderByFlag || hasFounderPermission
-  //     ? "Founder"
-  //     : roleLabelMap[normalizedRole] || "Team Member";
-  const roleLabel = auth?.user?.workspaceMembership?.role;
-  const normalizeRole = roleLabel?.replace(/_/g, " ");
-  const capitalizeRole = normalizeRole?.charAt(0).toUpperCase() + normalizeRole?.slice(1);
+  const headerRoleLabel = isFounderRole || isFounderByFlag || hasFounderPermission
+    ? "Founder"
+    : roleLabelMap[normalizedRole];
+  const roleLabel = headerRoleLabel || (hasTenantRole
+    ? (storedTenantRole === "tenant-manager" || auth?.user?.tenantRole === "tenant-manager"
+        ? "Tenant Manager"
+        : "Tenant Employee")
+    : "Team Member");
 
   return (
     <>
@@ -254,7 +252,7 @@ const Header = ({
                   {auth?.user?.name?.split(" ")[0] || ""}
                 </h1>
                 <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
-                  {capitalizeRole}
+                  {roleLabel}
                 </p>
               </div>
             )}

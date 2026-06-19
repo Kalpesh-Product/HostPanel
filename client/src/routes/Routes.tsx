@@ -141,11 +141,11 @@ import CreateWorkspacePage from "../pages/WorkspaceSetup/CreateWorkspacePage";
 import SetupModulesPage from "../pages/WorkspaceSetup/SetupModulesPage";
 import FinalizeSetupPage from "../pages/WorkspaceSetup/FinalizeSetupPage";
 import OrganizationPage from "../pages/Organization/OrganizationPage";
-import WorkspaceSettingsPage from "../pages/WorkspaceSettings/WorkspaceSettingsPage";
-import WorkspaceManagementPage from "../pages/WorkspaceSettings/WorkspaceManagementPage";
+import UnitSettingsPage from "../pages/UnitSettings/UnitSettingsPage";
+import UnitManagementPage from "../pages/UnitSettings/UnitManagementPage";
 import CustomerSupportPage from "../pages/CustomerSupport/CustomerSupportPage";
 import TenantCompaniesPage from "../pages/Sales/TenantCompanies/TenantCompaniesPage";
-import PricingPackagesPage from "../pages/Sales/PricingPackages/Plans&Pricing";
+import ResourcePricingPage from "../pages/Sales/ResourcePricing/Resource&Pricing";
 import LeadsManagementPage from "../pages/Sales/LeadsManagement/LeadsManagementPage";
 import SalesArchitecturePage from "../pages/Sales/SalesArchitecture/SalesArchitecturePage";
 import AdministrationTenantCompaniesPage from "../pages/Administration/TenantCompanies/TenantCompaniesPage";
@@ -510,11 +510,11 @@ export const routes = createBrowserRouter([
                   },
                   {
                     path: "workspace-settings",
-                    element: <WorkspaceSettingsPage />,
+                    element: <UnitSettingsPage />,
                   },
                   {
                     path: "workspace-management",
-                    element: <WorkspaceManagementPage />,
+                    element: <UnitManagementPage />,
                   },
                   {
                     path: "customer-support",
@@ -950,7 +950,7 @@ export const routes = createBrowserRouter([
                   },
                   {
                     path: "resource-pricing",
-                    element: <PricingPackagesPage />,
+                    element: <ResourcePricingPage />,
                   },
                   {
                     path: "leads-management",
