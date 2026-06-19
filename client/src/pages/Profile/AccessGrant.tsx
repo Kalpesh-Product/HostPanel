@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -12,6 +12,9 @@ import {
   ArrowRight,
   ArrowRightLeft,
   Users,
+  Filter,
+  UserCheck,
+  UserCog,
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 import useAxiosPrivate from '../../hooks/useAxiosPrivate';
@@ -1194,9 +1197,28 @@ export default function AccessGrantsPage() {
   const ownerName = currentUser?.fullName || currentUser?.name || 'Founder';
   const accessGrantsModeLabel = canEditAccessGrants ? 'Founder edit access' : 'Read-only access';
 
+  const [statusFilter, setStatusFilter] = useState('All');
+
+  const statusFilteredUsers = useMemo(() => {
+    if (statusFilter === 'All') return filteredUsers;
+    if (statusFilter === 'Active') return filteredUsers.filter(u => u.status === 'joined');
+    if (statusFilter === 'Disabled') return filteredUsers.filter(u => u.status === 'disabled');
+    return filteredUsers;
+  }, [filteredUsers, statusFilter]);
+
   if (isLoading) {
     return (
-      <PageFrame>      <div className='p-6 lg:p-8'>Loading access grants...</div>
+      <PageFrame>
+        <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+          <div className="flex flex-col gap-4 animate-pulse">
+            <div className="h-8 bg-slate-200 rounded w-1/4" />
+            <div className="h-4 bg-slate-200 rounded w-1/2" />
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-20 bg-slate-200 rounded-[2rem]" />)}
+            </div>
+            <div className="h-96 bg-slate-200 rounded-2xl" />
+          </div>
+        </div>
       </PageFrame>
     );
   }
@@ -1204,109 +1226,150 @@ export default function AccessGrantsPage() {
   return (
     <PageFrame>
       <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
-        <div className="space-y-3">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+        <div className="flex flex-col gap-4">
+
+          {/* 1. HEADER */}
+          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
-              <h2 className="text-title font-pmedium text-primary uppercase">Access Grants</h2>
+              <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+                Access Grants
+              </h2>
               <p className="text-xs font-medium text-slate-500 mt-1">
-                Manage user roles and founder access for {workspace?.workspaceName || 'this unit'}.
+                Manage user roles and module access for {workspace?.workspaceName || 'this unit'}.
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-            {todayCounts.map((stat) => {
-              const iconBg = {
-                Founder: 'bg-violet-50 text-violet-600',
-                'Super-Admin': 'bg-rose-50 text-rose-600',
-                Admin: 'bg-amber-50 text-amber-600',
-                Manager: 'bg-blue-50 text-[#2563EB]',
-                Employee: 'bg-emerald-50 text-emerald-600',
-              }[stat.label] || 'bg-slate-50 text-slate-600';
+          {/* 2. MAIN TABS — role filter pill nav */}
+          <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            {ROLE_FILTERS.map((role) => (
+              <button
+                key={role}
+                onClick={() => setSelectedRole(role)}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                  selectedRole === role
+                    ? 'bg-[#2563EB] text-white shadow-sm'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                {role === 'All Roles' ? 'All' : role}
+                {role !== 'All Roles' && (() => {
+                  const count = users.filter(u => u.roleGroup === role).length;
+                  return count > 0 ? (
+                    <span className={`ml-1.5 px-1.5 py-0.5 rounded-md text-[8px] font-bold ${
+                      selectedRole === role ? 'bg-white/20 text-white' : 'bg-red-100 text-red-600'
+                    }`}>{count}</span>
+                  ) : null;
+                })()}
+              </button>
+            ))}
+          </div>
 
-              const valueColor = {
-                Founder: 'text-violet-600',
-                'Super-Admin': 'text-rose-600',
-                Admin: 'text-amber-600',
-                Manager: 'text-[#2563EB]',
-                Employee: 'text-emerald-600',
-              }[stat.label] || 'text-slate-800';
-
+          {/* 3. STAT CARDS — 5-col grid matching DESIGN.md pattern */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 shrink-0">
+            {[
+              { key: 'total', label: 'Total Members', value: users.length, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md', iconClass: 'bg-slate-50 text-slate-600', Icon: Users },
+              { key: 'founder', label: 'Founder', value: stats.owner, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-violet-500', iconClass: 'bg-violet-50 text-violet-600', Icon: Shield },
+              { key: 'admin', label: 'Admin', value: stats.superAdmin + stats.admin, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500', iconClass: 'bg-amber-50 text-amber-600', Icon: Shield },
+              { key: 'manager', label: 'Manager', value: stats.manager, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500', iconClass: 'bg-blue-50 text-blue-600', Icon: UserCheck },
+              { key: 'employee', label: 'Employee', value: stats.employee, cardClass: 'bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500', iconClass: 'bg-emerald-50 text-emerald-600', Icon: UserCog },
+            ].map((card) => {
+              const Icon = card.Icon;
               return (
-                <div key={stat.label} className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
-                    <p className={`text-[15px] font-black ${valueColor}`}>{stat.value}</p>
+                <div key={card.key} className={card.cardClass}>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-black text-slate-900">{card.value}</p>
                   </div>
-                  <div className={`p-2 rounded-2xl ${iconBg}`}>
-                    <Shield size={16} />
-                  </div>
+                  <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}><Icon size={16} /></div>
                 </div>
               );
             })}
           </div>
 
-          <div className="bg-gradient-to-br from-[#2563EB] to-blue-700 p-2.5 rounded-[2rem] shadow-md shadow-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all group"
-            onClick={() => {
-              setTransferTargetUserId(eligibleOwnershipCandidates[0]?.id || '');
-              setShowTransferWarning(false);
-              setShowTransferDialog(true);
-            }}
-            style={{ pointerEvents: (!canEditAccessGrants || eligibleOwnershipCandidates.length === 0) ? 'none' : 'auto', opacity: (!canEditAccessGrants || eligibleOwnershipCandidates.length === 0) ? 0.6 : 1 }}
-          >
-            <div>
-              <p className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Founder Action</p>
-              <p className="text-[13px] leading-none font-black text-white group-hover:scale-105 transition-transform origin-left">Transfer Founder Access</p>
-              <p className="text-[10px] font-medium text-blue-100 mt-1">{eligibleOwnershipCandidates.length} eligible Super-Admin{eligibleOwnershipCandidates.length !== 1 ? 's' : ''} • {accessGrantsModeLabel}</p>
-            </div>
-            <div className="p-2 rounded-2xl bg-white/20 text-white border border-white/30">
-              <Users size={16} />
-            </div>
-          </div>
+          {/* 4. DATA PANEL */}
+          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
 
-          <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-0">
-            <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-2.5 shrink-0">
-              <div className="relative w-full md:w-88">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input
-                  type="text"
-                  placeholder="Search by name, email, or department..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                />
+            {/* Inner header: search + role filter dropdown + transfer founder action */}
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+
+              {/* LEFT: status sub-tab pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                {['All', 'Active', 'Disabled'].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setStatusFilter(s)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
+                      statusFilter === s
+                        ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                        : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+
+              {/* RIGHT: Search + Dept filter + Transfer action */}
+              <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                {/* Search */}
+                <div className="relative flex-1 min-w-[180px]">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input
+                    type="text"
+                    placeholder="Search by name, email, or dept..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                  />
+                </div>
+
+                {/* Role dropdown filter */}
+                <div className="relative">
+                  <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
+                  <select
+                    value={selectedRole}
+                    onChange={(e) => setSelectedRole(e.target.value)}
+                    className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[110px]"
+                  >
+                    {ROLE_FILTERS.map((role) => (
+                      <option key={role} value={role}>{role}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Transfer Founder Access */}
+                {canEditAccessGrants && eligibleOwnershipCandidates.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setTransferTargetUserId(eligibleOwnershipCandidates[0]?.id || '');
+                      setShowTransferWarning(false);
+                      setShowTransferDialog(true);
+                    }}
+                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
+                  >
+                    <ArrowRightLeft size={13} strokeWidth={2.5} />
+                    Transfer Founder
+                  </button>
+                )}
               </div>
             </div>
 
-            <div className="px-4 pb-3.5 flex flex-col md:flex-row gap-2.5 md:gap-3">
-              <div className="w-full md:w-48">
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Role</label>
-                <select
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
-                >
-                  {ROLE_FILTERS.map((role) => (
-                    <option key={role} value={role}>{role}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto flex-1 p-2">
+            {/* Table */}
+            <div className="overflow-x-auto flex-1">
               <table className="w-full text-left">
-                <thead className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 sticky top-0 bg-white z-10">
+                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
-                    <th className="px-3.5 py-2">Platform User</th>
-                    <th className="px-3.5 py-2">Access Role</th>
-                    <th className="px-3.5 py-2">Department</th>
-                    <th className="px-3.5 py-2">Status</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
+                    <th className="px-5 py-4">Platform User</th>
+                    <th className="px-5 py-4">Access Role</th>
+                    <th className="px-5 py-4">Department</th>
+                    <th className="px-5 py-4">Status</th>
+                    <th className="px-5 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {filteredUsers.length > 0 ? (
-                    filteredUsers.map((user) => {
+                <tbody className="divide-y divide-slate-100/60">
+                  {statusFilteredUsers.length > 0 ? (
+                    statusFilteredUsers.map((user) => {
                       const currentUserId = String(currentUser?.id || currentUser?._id || '').trim();
                       const rowUserId = String(user?.userId || user?.id || '').trim();
                       const hideAccessButtonForSelfSuperAdmin =
@@ -1327,70 +1390,74 @@ export default function AccessGrantsPage() {
                         : (normalizedDepartments.length > 0 ? normalizedDepartments : [user.department]).filter(Boolean);
 
                       return (
-                      <tr key={user.id} className={`transition-all ${user.roleGroup === 'Founder' ? 'bg-slate-50/50' : 'hover:bg-blue-50/30'}`}>
-                        <td className="px-3.5 py-2">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-[10px] shadow-sm ${user.roleGroup === 'Founder' ? 'bg-[#111827]' : 'bg-gradient-to-br from-[#2563EB] to-blue-700'}`}>
-                              {getInitials(user.name)}
+                        <tr key={user.id} className="hover:bg-slate-50/50 transition-colors group">
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-[10px] shadow-sm shrink-0 ${
+                                user.roleGroup === 'Founder' ? 'bg-[#111827]' : 'bg-gradient-to-br from-[#2563EB] to-blue-700'
+                              }`}>
+                                {getInitials(user.name)}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-bold text-[11px] text-slate-900 truncate">{user.name}</div>
+                                <div className="text-[10px] font-medium text-slate-500 truncate">{user.email}</div>
+                              </div>
                             </div>
-                            <div>
-                              <div className="font-bold text-[11px] text-slate-900">{user.name}</div>
-                              <div className="text-[10px] font-medium text-slate-500">{user.email}</div>
+                          </td>
+                          <td className="px-5 py-4">{getRoleBadge(user.roleGroup)}</td>
+                          <td className="px-5 py-4">
+                            <div className="flex flex-wrap gap-1.5 max-w-56">
+                              {departmentBadges.map((dept, i) => (
+                                <span key={i} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[9px] font-bold tracking-wide">{dept}</span>
+                              ))}
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-3.5 py-2">{getRoleBadge(user.roleGroup)}</td>
-                        <td className="px-3.5 py-2">
-                          <div className="flex flex-wrap gap-1.5 max-w-56">
-                            {departmentBadges.map((dept, i) => (
-                              <span key={i} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[9px] font-bold tracking-wide">{dept}</span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-3.5 py-2">
-                          <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.14em] w-max ${
-                            user.status === 'joined' ? 'bg-emerald-100 text-emerald-700' :
-                            user.status === 'disabled' ? 'bg-slate-200 text-slate-700' :
-                            user.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                            user.status === 'invited' ? 'bg-violet-100 text-violet-700' :
-                            'bg-slate-100 text-slate-600'
-                          }`}>
-                            {user.status}
-                          </span>
-                        </td>
-                        <td className="px-3.5 py-2">
-                          <div className="flex items-center justify-end gap-2">
-                            {user.roleGroup === 'Founder' ? (
-                              <span className="px-3 py-1 bg-[#111827] text-white rounded-lg text-[10px] font-black uppercase tracking-widest">Founder</span>
-                            ) : (
-                              <>
-                                {!hideAccessButtonForSelfSuperAdmin ? (
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.14em] w-max ${
+                              user.status === 'joined' ? 'bg-emerald-100 text-emerald-700' :
+                              user.status === 'disabled' ? 'bg-slate-200 text-slate-700' :
+                              user.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                              user.status === 'invited' ? 'bg-violet-100 text-violet-700' :
+                              'bg-slate-100 text-slate-600'
+                            }`}>
+                              {user.status === 'joined' ? 'Active' : user.status}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center justify-end gap-2">
+                              {user.roleGroup === 'Founder' ? (
+                                <span className="px-3 py-1.5 bg-[#111827] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest">Founder</span>
+                              ) : (
+                                <>
+                                  {!hideAccessButtonForSelfSuperAdmin ? (
+                                    <button
+                                      onClick={() => openMemberAccessDialog(user)}
+                                      type="button"
+                                      disabled={!canManageModuleAccess}
+                                      className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all disabled:opacity-55 disabled:cursor-not-allowed"
+                                      title="Manage Sidebar Access"
+                                    >
+                                      <Shield size={15} strokeWidth={2.5} />
+                                    </button>
+                                  ) : null}
                                   <button
-                                    onClick={() => openMemberAccessDialog(user)}
+                                    onClick={() => handleOpenDetails(user)}
                                     type="button"
-                                    disabled={!canManageModuleAccess}
-                                    className="px-3 py-1.5 bg-[#2563EB] text-white rounded-lg font-bold text-[10px] transition-all shadow-sm shadow-blue-200 disabled:opacity-55 disabled:cursor-not-allowed"
+                                    className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
+                                    title={canEditAccessGrants ? 'Manage Role' : 'View Role'}
                                   >
-                                    Access
+                                    <UserCog size={15} strokeWidth={2.5} />
                                   </button>
-                                ) : null}
-                                <button
-                                  onClick={() => handleOpenDetails(user)}
-                                  type="button"
-                                  className="px-3 py-1.5 bg-[#2563EB] hover:bg-blue-700 text-white rounded-lg font-bold text-[10px] transition-all shadow-sm shadow-blue-200"
-                                >
-                                  {canEditAccessGrants ? 'Manage' : 'View'}
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )})
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
-                      <td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-bold">
-                        <Shield size={32} className="mx-auto mb-3 opacity-50" />
+                      <td colSpan={5} className="text-center py-20 text-slate-400 font-semibold">
                         No members found.
                       </td>
                     </tr>

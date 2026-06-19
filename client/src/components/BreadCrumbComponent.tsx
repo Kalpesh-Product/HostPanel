@@ -404,9 +404,17 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
   },
   {
     pattern: "/sales-crm/leads-management",
+    fromSection: "department-accesses",
     crumbs: [
       { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
       { label: "Sales Department", path: "/module-sections/department-accesses/sales-department" },
+      { label: "Leads Management" },
+    ],
+  },
+  {
+    pattern: "/sales-crm/leads-management",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
       { label: "Leads Management" },
     ],
   },
@@ -419,11 +427,11 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
-    pattern: "/sales-crm/plans-pricing",
+    pattern: "/sales-crm/resource-pricing",
     crumbs: [
       { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
       { label: "Sales Department", path: "/module-sections/department-accesses/sales-department" },
-      { label: "Plans & Pricing" },
+      { label: "Resource & Pricing" },
     ],
   },
   {

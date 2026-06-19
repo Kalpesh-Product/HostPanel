@@ -176,7 +176,7 @@ const ICON_BY_ID: Record<string, ElementType> = {
   "workspace-layout": LayoutDashboard,
   "leads-management": Magnet,
   "tenant-companies-sales": Building2,
-  "plans-pricing": Tag,
+  "resource-pricing": Tag,
   "sales-architecture": ShoppingCart,
   "finance-budget": Wallet,
   "billing-payments": Receipt,
@@ -219,7 +219,7 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
       { id: "visitor-management", label: "Visitor Management", route: "/visitors/visitor-management", implemented: true, unlockedInWorkspace: true },
       { id: "website-builder", label: "Website Builder", route: "/company-settings/website-builder", implemented: true, unlockedInWorkspace: true },
       { id: "wono-nomad", label: "Wono Nomad", route: "/company-settings/wono-nomad", implemented: true, unlockedInWorkspace: true },
-      { id: "website-leads", label: "Website Leads", route: "/company-settings/website-builder/leads", implemented: true, unlockedInWorkspace: true },
+      { id: "leads-management", label: "Leads Management", route: "/sales-crm/leads-management", implemented: true, unlockedInWorkspace: true },
     ],
   },
   "founder-core-modules": {
@@ -685,14 +685,22 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
 
   const cards = useMemo(() => {
     const rawItems = Array.isArray(sectionData?.items) ? sectionData.items : [];
+    const remappedItems = rawItems.map((item) => {
+      const itemId = String(item?.id || "").trim();
+      if (itemId === "website-leads")
+        return { ...item, id: "leads-management", label: "Leads Management", route: "/sales-crm/leads-management" };
+      if (itemId === "resource-pricing")
+        return { ...item, label: "Resource & Pricing" };
+      return item;
+    });
 
     const items = departmentId && sectionId === "department-accesses"
       ? (() => {
-          const dept = rawItems.find(i => String(i?.id || "").trim() === departmentId);
+          const dept = remappedItems.find(i => String(i?.id || "").trim() === departmentId);
           const tabs = dept && Array.isArray(dept.tabs) ? dept.tabs : [];
           return tabs.map(t => ({ ...t, _parentDept: dept?.label || departmentId }));
         })()
-      : rawItems;
+      : remappedItems;
 
     return items
       .map((item): LandingCard | null => {

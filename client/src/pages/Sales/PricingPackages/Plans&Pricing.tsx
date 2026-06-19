@@ -1509,6 +1509,7 @@ export default function PricingPackagesPage() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
+            title="Export PDF"
             onClick={() => handleExportPackagesReport('PDF')}
             disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'}
             className="px-4 py-2.5 bg-white text-[#e01313] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
@@ -1517,6 +1518,7 @@ export default function PricingPackagesPage() {
           </button>
           <button
             type="button"
+            title="Export Excel"
             onClick={() => handleExportPackagesReport('Excel')}
             disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'}
             className="px-4 py-2.5 bg-[#ffffff] text-[#1fd628] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
@@ -1526,57 +1528,61 @@ export default function PricingPackagesPage() {
           {activeTab === 'resource' ? (
             <>
               <input ref={bulkUploadInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleBulkFileSelected} />
-              <button onClick={() => { setBulkUploadSummary(null); setBulkUploadFileName(''); setErrorMessage(''); setIsBulkUploadOpen(true); }} className="flex items-center justify-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-[10px] font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300">
-                <UploadCloud size={16} /> BULK UPLOAD
+              
+              <button title="Bulk Upload" onClick={() => { setBulkUploadSummary(null); setBulkUploadFileName(''); setErrorMessage(''); setIsBulkUploadOpen(true); }} className="flex items-center justify-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-[10px] font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300">
+                <UploadCloud size={16} />
               </button>
-              <button onClick={openAddResourceModal} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
-                <Plus size={16} /> ADD RESOURCE
-              </button>
+              
             </>
-          ) : (
-            <button onClick={() => openPackageModal(activeTab === 'membership' ? 'Membership' : 'Tenant')} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
-              <Plus size={16} /> ADD NEW PACKAGE
-            </button>
-          )}
+          ) : null}
         </div>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-4">
-        <button type="button" onClick={() => setActiveTab('resource')} className={`bg-white p-2.5 rounded-[2rem] border text-left shadow-sm transition-all hover:shadow-md ${activeTab === 'resource' ? 'border-[#2563EB]' : 'border-slate-100'}`}>
-          <div className="flex h-full flex-col items-start gap-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Resources priced</p>
-            <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-2xl flex items-center justify-center ${activeTab === 'resource' ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600'}`}><Monitor size={16} /></div>
-              <p className="text-[15px] font-black text-slate-900">{resources.length}</p>
-            </div>
+      {/* 2. MAIN TABS (pill-style matching DESIGN.md) */}
+      <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+        {[
+          { key: 'resource', label: 'Resources', icon: Monitor },
+          { key: 'membership', label: 'Memberships', icon: CreditCard },
+          { key: 'tenant', label: 'Tenant Packages', icon: Building2 },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${activeTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+            ><Icon size={14} /> {tab.label}</button>
+          );
+        })}
+      </div>
+
+      {/* 3. STAT CARDS (DESIGN.md 4-col grid with border-left accents) */}
+      <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4 shrink-0">
+        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Resources Priced</p>
+            <p className="text-[15px] font-black text-slate-900">{resources.length}</p>
           </div>
-        </button>
-        <button type="button" onClick={() => setActiveTab('membership')} className={`bg-white p-2.5 rounded-[2rem] border text-left shadow-sm transition-all hover:shadow-md ${activeTab === 'membership' ? 'border-[#2563EB]' : 'border-slate-100'}`}>
-          <div className="flex h-full flex-col items-start gap-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Membership packages</p>
-            <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-2xl flex items-center justify-center ${activeTab === 'membership' ? 'bg-blue-600 text-white' : 'bg-indigo-50 text-indigo-600'}`}><CreditCard size={16} /></div>
-              <p className="text-[15px] font-black text-slate-900">{membershipPackages.length}</p>
-            </div>
+          <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><Monitor size={16}/></div>
+        </div>
+        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-indigo-500">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Membership Packages</p>
+            <p className="text-[15px] font-black text-slate-900">{membershipPackages.length}</p>
           </div>
-        </button>
-        <button type="button" onClick={() => setActiveTab('tenant')} className={`bg-white p-2.5 rounded-[2rem] border text-left shadow-sm transition-all hover:shadow-md ${activeTab === 'tenant' ? 'border-[#2563EB]' : 'border-slate-100'}`}>
-          <div className="flex h-full flex-col items-start gap-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Tenant packages</p>
-            <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-2xl flex items-center justify-center ${activeTab === 'tenant' ? 'bg-blue-600 text-white' : 'bg-emerald-50 text-emerald-600'}`}><Building2 size={16} /></div>
-              <p className="text-[15px] font-black text-slate-900">{tenantPackages.length}</p>
-            </div>
+          <div className="p-2 rounded-2xl bg-indigo-50 text-indigo-600 shrink-0"><CreditCard size={16}/></div>
+        </div>
+        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tenant Packages</p>
+            <p className="text-[15px] font-black text-slate-900">{tenantPackages.length}</p>
           </div>
-        </button>
-        <div className="bg-white p-2.5 rounded-[2rem] border border-slate-100 text-left shadow-sm transition-all hover:shadow-md">
-          <div className="flex h-full flex-col items-start gap-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Recommended packages</p>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-2xl flex items-center justify-center bg-amber-50 text-amber-600"><Tag size={16} /></div>
-              <p className="text-[15px] font-black text-slate-900">{packages.filter((item) => item.isRecommended).length}</p>
-            </div>
+          <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><Building2 size={16}/></div>
+        </div>
+        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Recommended</p>
+            <p className="text-[15px] font-black text-slate-900">{packages.filter((item) => item.isRecommended).length}</p>
           </div>
+          <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Tag size={16}/></div>
         </div>
       </div>
 
@@ -1598,6 +1604,15 @@ export default function PricingPackagesPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input type="text" placeholder={`Search ${activeTab === 'resource' ? 'resources' : 'packages'}...`} className="w-full px-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
+          {activeTab === 'resource' ? (
+            <button onClick={openAddResourceModal} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
+              <Plus size={16} /> ADD RESOURCE
+            </button>
+          ) : (
+            <button onClick={() => openPackageModal(activeTab === 'membership' ? 'Membership' : 'Tenant')} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
+              <Plus size={16} /> ADD {activeTab === 'membership' ? 'MEMBERSHIP' : 'PACKAGE'}
+            </button>
+          )}
         </div>
 
         {activeTab === 'resource' ? (

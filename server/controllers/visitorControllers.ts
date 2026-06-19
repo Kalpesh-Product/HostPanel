@@ -165,6 +165,20 @@ const formatVisitor = (visitor: any) => ({
   rejectionReason: visitor?.rejectionReason || "",
   notes: visitor?.notes || "",
   badgeNo: visitor?.badgeNo || "",
+  // Tour-specific fields
+  pocName: visitor?.pocName || "",
+  pocDesignation: visitor?.pocDesignation || "",
+  pocPhone: visitor?.pocPhone || "",
+  pocEmail: visitor?.pocEmail || "",
+  preferredContactMethod: visitor?.preferredContactMethod || "",
+  industry: visitor?.industry || "",
+  teamSize: visitor?.teamSize || "",
+  seatCount: visitor?.seatCount || "",
+  preferredSpace: visitor?.preferredSpace || "",
+  budgetRange: visitor?.budgetRange || "",
+  moveInTimeline: visitor?.moveInTimeline || "",
+  followUpDate: visitor?.followUpDate || "",
+  tourNotes: visitor?.tourNotes || "",
   checkInAt: visitor?.checkInAt || null,
   checkedInByUserId: toId(visitor?.checkedInByUser),
   checkedInByName: visitor?.checkedInByName || "",
@@ -400,6 +414,10 @@ export const listVisitors = async (req, res, next) => {
     const query: any = { workspace: workspace._id };
     if (req.query?.status) query.status = String(req.query.status);
     if (req.query?.approvalStatus) query.approvalStatus = String(req.query.approvalStatus);
+    if (req.query?.purpose) {
+      const purposeFilter = String(req.query.purpose).trim();
+      query.purpose = { $regex: purposeFilter, $options: "i" };
+    }
 
     const visitors = await VisitorLog.find(query).sort({ createdAt: -1 }).limit(limit).lean().exec();
     const formatted = visitors.map(formatVisitor);
@@ -434,13 +452,14 @@ export const createVisitor = async (req, res, next) => {
     }
 
     const payload = req.body || {};
-    const firstName = String(payload.firstName || "").trim();
-    const lastName = String(payload.lastName || "").trim();
-    const fullName = String(payload.fullName || `${firstName} ${lastName}` || "").trim();
+    const rawFullName = String(payload.fullName || "").trim();
+    const firstName = String(payload.firstName || "").trim() || rawFullName.split(" ")[0] || "";
+    const lastName = String(payload.lastName || "").trim() || rawFullName.split(" ").slice(1).join(" ") || "";
+    const fullName = rawFullName || `${firstName} ${lastName}`.trim();
     const purpose = String(payload.purpose || "").trim();
     const reason = String(payload.reason || "").trim();
-    if (!firstName || !lastName || !fullName || !purpose) {
-      return res.status(400).json({ message: "firstName, lastName and purpose are required." });
+    if (!fullName || !purpose) {
+      return res.status(400).json({ message: "fullName and purpose are required." });
     }
 
     const requestedStatus = String(payload.status || "pending").trim().toLowerCase();
@@ -488,6 +507,20 @@ export const createVisitor = async (req, res, next) => {
       checkedInByName: isDirectCheckIn ? actorName : "",
       badgeNo: buildBadgeNo(),
       notes: String(payload.notes || "").trim(),
+      // Unit Tour / Sales tour fields
+      pocName: String(payload.pocName || "").trim(),
+      pocDesignation: String(payload.pocDesignation || "").trim(),
+      pocPhone: String(payload.pocPhone || "").trim(),
+      pocEmail: String(payload.pocEmail || "").trim(),
+      preferredContactMethod: String(payload.preferredContactMethod || "").trim(),
+      industry: String(payload.industry || "").trim(),
+      teamSize: String(payload.teamSize || "").trim(),
+      seatCount: String(payload.seatCount || "").trim(),
+      preferredSpace: String(payload.preferredSpace || "").trim(),
+      budgetRange: String(payload.budgetRange || "").trim(),
+      moveInTimeline: String(payload.moveInTimeline || "").trim(),
+      followUpDate: String(payload.followUpDate || "").trim(),
+      tourNotes: String(payload.tourNotes || "").trim(),
       source: "frontdesk",
     });
 

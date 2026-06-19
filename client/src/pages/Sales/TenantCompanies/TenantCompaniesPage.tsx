@@ -2765,7 +2765,7 @@ export default function TenantCompaniesPage() {
         </div>
         <input ref={bulkUploadInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleBulkFileSelected} className="hidden" />
 
-        <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+        <div className="mb-8 mt-8 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
           <button
             type="button"
             onClick={() => setActiveTab('companies')}
@@ -2782,7 +2782,7 @@ export default function TenantCompaniesPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8 shrink-0">
           {summaryCards.map((card) => {
             const Icon = card.icon;
 

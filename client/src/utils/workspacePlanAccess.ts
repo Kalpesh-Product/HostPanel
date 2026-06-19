@@ -28,7 +28,7 @@ const BASIC_DEPARTMENT_IDS = [
   "house-keeping",
   "leads-management",
   "tenant-companies-sales",
-  "plans-pricing",
+  "resource-pricing",
   "sales-architecture",
   "it-repair-logs",
 ] as const;
@@ -37,7 +37,7 @@ const PROFESSIONAL_EXTRA_IDS = [
   "meeting-room-system",
   "leads-management",
   "tenant-companies-sales",
-  "plans-pricing",
+  "resource-pricing",
   "sales-architecture",
 ] as const;
 
@@ -69,7 +69,7 @@ const ALL_LEAF_IDS = [
   "workspace-layout",
   "leads-management",
   "tenant-companies-sales",
-  "plans-pricing",
+  "resource-pricing",
   "sales-architecture",
   "finance-budget",
   "billing-payments",
