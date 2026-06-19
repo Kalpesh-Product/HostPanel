@@ -104,10 +104,10 @@ function getTenantPackageScope(locationMappings = []) {
 function getTenantScopeResources(resources = [], floor = '', wing = '') {
   return Array.isArray(resources)
     ? resources.filter((resource) => {
-        const matchesFloor = floor ? resource.floor === floor : true;
-        const matchesWing = wing ? String(resource.wing || '').trim().toUpperCase() === String(wing || '').trim().toUpperCase() : true;
-        return matchesFloor && matchesWing;
-      })
+      const matchesFloor = floor ? resource.floor === floor : true;
+      const matchesWing = wing ? String(resource.wing || '').trim().toUpperCase() === String(wing || '').trim().toUpperCase() : true;
+      return matchesFloor && matchesWing;
+    })
     : [];
 }
 
@@ -301,8 +301,8 @@ function isDeskCategory(category = '') {
 
 function deriveResourceTypeFromCategory(category = '') {
   if (!category) return '';
-  if (category === 'open_desk') return 'Desk';
-  if (category === 'cabin_desk') return 'Cabin';
+  if (category === 'open_desk') return 'Open Desk';
+  if (category === 'cabin_desk') return 'Cabin Desk';
   if (category === 'conference_room') return 'Conference Room';
   if (category === 'virtual_office') return 'Virtual Office';
   return 'Meeting Room';
@@ -381,18 +381,18 @@ function normalizePackage(entry = {}) {
   const durationMonths = Number(entry.durationMonths || packageDetails.durationMonths || 1) || 1;
   const monthlyRent = Number(
     entry.monthlyRent
-      || packageDetails.monthlyRent
-      || (dailyRateTotal > 0 ? dailyRateTotal * TENANT_PACKAGE_MONTH_DAYS : 0)
-      || (Number(entry.price || packageDetails.totalContractValue || packageDetails.price || 0) > 0 && durationMonths > 0
-        ? Number(entry.price || packageDetails.totalContractValue || packageDetails.price || 0) / durationMonths
-        : 0),
+    || packageDetails.monthlyRent
+    || (dailyRateTotal > 0 ? dailyRateTotal * TENANT_PACKAGE_MONTH_DAYS : 0)
+    || (Number(entry.price || packageDetails.totalContractValue || packageDetails.price || 0) > 0 && durationMonths > 0
+      ? Number(entry.price || packageDetails.totalContractValue || packageDetails.price || 0) / durationMonths
+      : 0),
   );
   const totalContractValue = Number(
     entry.totalContractValue
-      || entry.price
-      || packageDetails.totalContractValue
-      || packageDetails.price
-      || (monthlyRent > 0 && durationMonths > 0 ? monthlyRent * durationMonths : 0),
+    || entry.price
+    || packageDetails.totalContractValue
+    || packageDetails.price
+    || (monthlyRent > 0 && durationMonths > 0 ? monthlyRent * durationMonths : 0),
   );
   const status = entry.isCustom && entry.category === 'Tenant'
     ? 'Active'
@@ -552,9 +552,9 @@ function buildResourcesExportRows(items = [], scopeLabel = 'Resources', filters 
 }
 
 function statusBadge(status) {
-  if (status === 'Active') return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-md text-[10px] font-black uppercase tracking-wider"><CheckCircle2 size={12}/> Active</span>;
-  if (status === 'Under Maintenance') return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[10px] font-black uppercase tracking-wider"><AlertTriangle size={12}/> Maintenance</span>;
-  return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-md text-[10px] font-black uppercase tracking-wider"><XCircle size={12}/> Disabled</span>;
+  if (status === 'Active') return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-md text-[10px] font-black uppercase tracking-wider"><CheckCircle2 size={12} /> Active</span>;
+  if (status === 'Under Maintenance') return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[10px] font-black uppercase tracking-wider"><AlertTriangle size={12} /> Maintenance</span>;
+  return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-md text-[10px] font-black uppercase tracking-wider"><XCircle size={12} /> Disabled</span>;
 }
 
 const RESOURCE_FULL_DAY_HOURS = 24;
@@ -807,13 +807,13 @@ export default function PricingPackagesPage() {
   const viewPackageDailyRateTotal = viewPackageCategory === 'Tenant'
     ? (Number(selectedPackage.dailyRateTotal || 0)
       || ((Number(selectedPackageSnapshot.openDesks || selectedPackageCompanyDetails.openDesks || selectedPackage.openDesks || selectedPackage.packageDetails?.openDesks || 0) * viewPackageRatePerOpenDesk)
-      + (Number(selectedPackageSnapshot.cabinDesks || selectedPackageCompanyDetails.cabinDesks || selectedPackage.cabinDesks || selectedPackage.packageDetails?.cabinDesks || 0) * viewPackageRatePerCabinDesk)))
+        + (Number(selectedPackageSnapshot.cabinDesks || selectedPackageCompanyDetails.cabinDesks || selectedPackage.cabinDesks || selectedPackage.packageDetails?.cabinDesks || 0) * viewPackageRatePerCabinDesk)))
     : Number(selectedPackage.dailyRateTotal || 0);
   const viewPackageMonthlyRate = viewPackageCategory === 'Tenant'
     ? (viewPackagePrice > 0 && viewPackageDurationMonths > 0
       ? Math.round(viewPackagePrice / viewPackageDurationMonths)
       : Number(selectedPackageBillingDetails.monthlyRent || selectedPackageSnapshot.monthlyRent || selectedPackage.monthlyRate || selectedPackage.monthlyRent || 0)
-        || (viewPackageDailyRateTotal * TENANT_PACKAGE_MONTH_DAYS))
+      || (viewPackageDailyRateTotal * TENANT_PACKAGE_MONTH_DAYS))
     : (Number(selectedPackageBillingDetails.monthlyRent || selectedPackage.monthlyRate || selectedPackage.monthlyRent || 0));
   const viewPackageTotalContractValue = Number(selectedPackageBillingDetails.totalContractAmount || selectedPackageSnapshot.totalContractValue || selectedPackage.totalContractValue || selectedPackage.price || selectedPackage.packageDetails?.totalContractValue || 0)
     || (viewPackageCategory === 'Tenant' && viewPackageMonthlyRate > 0 && viewPackageDurationMonths > 0
@@ -953,7 +953,7 @@ export default function PricingPackagesPage() {
     return {
       payload: {
         name,
-        type: resourceCategory === 'open_desk' ? 'Desk' : resourceCategory === 'cabin_desk' ? 'Cabin' : resourceCategory === 'conference_room' ? 'Conference Room' : resourceCategory === 'virtual_office' ? 'Virtual Office' : 'Meeting Room',
+        type: resourceCategory === 'open_desk' ? 'Open Desk' : resourceCategory === 'cabin_desk' ? 'Cabin Desk' : resourceCategory === 'conference_room' ? 'Conference Room' : resourceCategory === 'virtual_office' ? 'Virtual Office' : 'Meeting Room',
         resourceCategory,
         inventoryMode: resourceCategory === 'virtual_office' ? 'single' : inventoryMode,
         location,
@@ -1148,17 +1148,17 @@ export default function PricingPackagesPage() {
       : 0;
     const nextTenantScope = category === 'Tenant'
       ? getTenantPackageScope(item?.locationMappings || item?.packageDetails?.locationMappings) || (() => {
-          const firstScopeResource = tenantAreaResources[0] || null;
-          return firstScopeResource ? { floor: firstScopeResource.floor, wing: firstScopeResource.wing } : { floor: tenantFloorOptions[0] || '501', wing: tenantWingOptions[0] || 'A' };
-        })()
+        const firstScopeResource = tenantAreaResources[0] || null;
+        return firstScopeResource ? { floor: firstScopeResource.floor, wing: firstScopeResource.wing } : { floor: tenantFloorOptions[0] || '501', wing: tenantWingOptions[0] || 'A' };
+      })()
       : { floor: '', wing: '' };
     const nextTenantScopeResources = category === 'Tenant'
       ? getTenantScopeResources(resources, nextTenantScope.floor, nextTenantScope.wing)
       : [];
     const nextSelectedResourceIds = category === 'Tenant'
       ? ((item?.locationMappings?.length > 0 || item?.packageDetails?.locationMappings?.length > 0)
-          ? getTenantSelectedResourceIds(nextTenantScopeResources, item.locationMappings?.length > 0 ? item.locationMappings : item.packageDetails.locationMappings)
-          : getTenantPresetResourceIds(nextTenantScopeResources, 'all'))
+        ? getTenantSelectedResourceIds(nextTenantScopeResources, item.locationMappings?.length > 0 ? item.locationMappings : item.packageDetails.locationMappings)
+        : getTenantPresetResourceIds(nextTenantScopeResources, 'all'))
       : [];
 
     setPackageForm({
@@ -1290,29 +1290,29 @@ export default function PricingPackagesPage() {
         }
         const payload = isTenantPackageRateEdit && selectedItem?.assignedTenantCompanyId
           ? {
-              ratePerOpenDesk: Number(packageForm.ratePerOpenDesk || 0),
-              ratePerCabinDesk: Number(packageForm.ratePerCabinDesk || 0),
-            }
+            ratePerOpenDesk: Number(packageForm.ratePerOpenDesk || 0),
+            ratePerCabinDesk: Number(packageForm.ratePerCabinDesk || 0),
+          }
           : {
-              category: packageForm.category,
-              name: packageForm.name.trim(),
-              creditsIncluded: monthlyCredits,
-              price: isTenantPackage ? tenantPackageSummary.totalContractValue : Number(packageForm.price || 0),
-              durationMonths,
-              seatsIncluded: totalSeats,
-              totalSeats,
-              openDesks: isTenantPackage ? tenantPackageSummary.openDesks : 0,
-              cabinDesks: isTenantPackage ? tenantPackageSummary.cabinDesks : 0,
-              ratePerOpenDesk: isTenantPackage ? Number(tenantPackageSummary.ratePerOpenDesk || 0) : 0,
-              ratePerCabinDesk: isTenantPackage ? Number(tenantPackageSummary.ratePerCabinDesk || 0) : 0,
-              creditsPerSeat: isTenantPackage ? tenantPackageSummary.creditsPerSeat : 0,
-              monthlyCredits: isTenantPackage ? monthlyCredits : Number(packageForm.creditsIncluded || 0),
-              locationMappings: isTenantPackage ? tenantPackageSummary.locationMappings : [],
-              description: packageForm.description.trim(),
-              features: parseFeatures(packageForm.featuresText),
-              isRecommended: Boolean(packageForm.isRecommended),
-              status: packageForm.status,
-            };
+            category: packageForm.category,
+            name: packageForm.name.trim(),
+            creditsIncluded: monthlyCredits,
+            price: isTenantPackage ? tenantPackageSummary.totalContractValue : Number(packageForm.price || 0),
+            durationMonths,
+            seatsIncluded: totalSeats,
+            totalSeats,
+            openDesks: isTenantPackage ? tenantPackageSummary.openDesks : 0,
+            cabinDesks: isTenantPackage ? tenantPackageSummary.cabinDesks : 0,
+            ratePerOpenDesk: isTenantPackage ? Number(tenantPackageSummary.ratePerOpenDesk || 0) : 0,
+            ratePerCabinDesk: isTenantPackage ? Number(tenantPackageSummary.ratePerCabinDesk || 0) : 0,
+            creditsPerSeat: isTenantPackage ? tenantPackageSummary.creditsPerSeat : 0,
+            monthlyCredits: isTenantPackage ? monthlyCredits : Number(packageForm.creditsIncluded || 0),
+            locationMappings: isTenantPackage ? tenantPackageSummary.locationMappings : [],
+            description: packageForm.description.trim(),
+            features: parseFeatures(packageForm.featuresText),
+            isRecommended: Boolean(packageForm.isRecommended),
+            status: packageForm.status,
+          };
         const response = modalMode === 'add'
           ? await createPricingPackage(payload)
           : await updatePricingPackage(selectedItem.recordId, payload);
@@ -1384,12 +1384,12 @@ export default function PricingPackagesPage() {
           : 'Tenant Packages';
       const reportRows = activeTab === 'resource'
         ? buildResourcesExportRows(sourceItems, scopeLabel, {
-            searchQuery,
-            categoryFilter: resourceCategoryFilter,
-            floorFilter: resourceFloorFilter,
-            wingFilter: resourceWingFilter,
-            statusFilter: resourceStatusFilter,
-          })
+          searchQuery,
+          categoryFilter: resourceCategoryFilter,
+          floorFilter: resourceFloorFilter,
+          wingFilter: resourceWingFilter,
+          statusFilter: resourceStatusFilter,
+        })
         : buildPackagesExportRows(sourceItems, scopeLabel, { searchQuery });
 
       const response = await createReport({
@@ -1492,306 +1492,305 @@ export default function PricingPackagesPage() {
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
-      {errorMessage ? (
-        <div className="mb-4 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
-          <AlertTriangle size={16} className="text-red-500 shrink-0" />
-          <p className="text-[12px] font-medium text-red-700 flex-1">{errorMessage}</p>
-          <button type="button" onClick={() => setErrorMessage('')} className="text-red-400 hover:text-red-600"><X size={14} /></button>
-        </div>
-      ) : null}
-      <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div>
-          <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-            Resource &amp; Pricing
-          </h2>
-          <p className="text-xs font-medium text-slate-500 mt-1">Manage resources, pricing, credits, and membership packages.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            title="Export PDF"
-            onClick={() => handleExportPackagesReport('PDF')}
-            disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'}
-            className="px-4 py-2.5 bg-white text-[#e01313] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <FileDown size={15} /> 
-          </button>
-          <button
-            type="button"
-            title="Export Excel"
-            onClick={() => handleExportPackagesReport('Excel')}
-            disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'}
-            className="px-4 py-2.5 bg-[#ffffff] text-[#1fd628] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <FileSpreadsheet size={15} /> 
-          </button>
-          {activeTab === 'resource' ? (
-            <>
-              <input ref={bulkUploadInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleBulkFileSelected} />
-              
-              <button title="Bulk Upload" onClick={() => { setBulkUploadSummary(null); setBulkUploadFileName(''); setErrorMessage(''); setIsBulkUploadOpen(true); }} className="flex items-center justify-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-[10px] font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300">
-                <UploadCloud size={16} />
-              </button>
-              
-            </>
-          ) : null}
-        </div>
-      </div>
-
-      {/* 2. MAIN TABS (pill-style matching DESIGN.md) */}
-      <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-        {[
-          { key: 'resource', label: 'Resources', icon: Monitor },
-          { key: 'membership', label: 'Memberships', icon: CreditCard },
-          { key: 'tenant', label: 'Tenant Packages', icon: Building2 },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${activeTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
-            ><Icon size={14} /> {tab.label}</button>
-          );
-        })}
-      </div>
-
-      {/* 3. STAT CARDS (DESIGN.md 4-col grid with border-left accents) */}
-      <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4 shrink-0">
-        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Resources Priced</p>
-            <p className="text-[15px] font-black text-slate-900">{resources.length}</p>
-          </div>
-          <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><Monitor size={16}/></div>
-        </div>
-        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-indigo-500">
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Membership Packages</p>
-            <p className="text-[15px] font-black text-slate-900">{membershipPackages.length}</p>
-          </div>
-          <div className="p-2 rounded-2xl bg-indigo-50 text-indigo-600 shrink-0"><CreditCard size={16}/></div>
-        </div>
-        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tenant Packages</p>
-            <p className="text-[15px] font-black text-slate-900">{tenantPackages.length}</p>
-          </div>
-          <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><Building2 size={16}/></div>
-        </div>
-        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Recommended</p>
-            <p className="text-[15px] font-black text-slate-900">{packages.filter((item) => item.isRecommended).length}</p>
-          </div>
-          <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Tag size={16}/></div>
-        </div>
-      </div>
-
-      <div className="flex min-h-110 flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-slate-100 bg-slate-50/50 p-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="flex items-center gap-2 text-[15px] font- font-pmedium text-primary">
-              {activeTab === 'resource' && <><Monitor size={18} className="text-blue-600" /> Resource Pricing</>}
-              {activeTab === 'membership' && <><CreditCard size={18} className="text-indigo-600" /> Credit Memberships</>}
-              {activeTab === 'tenant' && <><Building2 size={18} className="text-emerald-600" /> Tenant Packages</>}
-            </h2>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-0.5">
-              {activeTab === 'resource' && 'Update rates and credits by category, area block, floor, and wing.'}
-              {activeTab === 'membership' && 'Create credit plans for recurring users.'}
-              {activeTab === 'tenant' && 'Create contract bundles used by tenant companies.'}
-            </p>
-          </div>
-          <div className="relative w-full lg:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input type="text" placeholder={`Search ${activeTab === 'resource' ? 'resources' : 'packages'}...`} className="w-full px-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-          </div>
-          {activeTab === 'resource' ? (
-            <button onClick={openAddResourceModal} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
-              <Plus size={16} /> ADD RESOURCE
-            </button>
-          ) : (
-            <button onClick={() => openPackageModal(activeTab === 'membership' ? 'Membership' : 'Tenant')} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
-              <Plus size={16} /> ADD {activeTab === 'membership' ? 'MEMBERSHIP' : 'PACKAGE'}
-            </button>
-          )}
-        </div>
-
-        {activeTab === 'resource' ? (
-          <div className="border-b border-slate-100 bg-white p-3">
-            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Filters</p>
-                <p className="mt-1 text-sm font-semibold text-slate-600">Narrow resources by category, floor, wing, and status.</p>
-              </div>
-              <button
-                type="button"
-                onClick={clearResourceFilters}
-                className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 shadow-sm transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-              >
-                <X size={14} /> Reset Filters
-              </button>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Category</label>
-                <select
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
-                  value={resourceCategoryFilter}
-                  onChange={(event) => setResourceCategoryFilter(event.target.value)}
-                >
-                  <option>All Categories</option>
-                  {resourceCategoryOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Floor</label>
-                <select
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
-                  value={resourceFloorFilter}
-                  onChange={(event) => setResourceFloorFilter(event.target.value)}
-                >
-                  <option>All Floors</option>
-                  {availableResourceFloors.map((floor) => (
-                    <option key={floor} value={floor}>{floor}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Wing</label>
-                <select
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
-                  value={resourceWingFilter}
-                  onChange={(event) => setResourceWingFilter(event.target.value)}
-                >
-                  <option>All Wings</option>
-                  {availableResourceWings.map((wing) => (
-                    <option key={wing} value={wing}>{wing}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Status</label>
-                <select
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
-                  value={resourceStatusFilter}
-                  onChange={(event) => setResourceStatusFilter(event.target.value)}
-                >
-                  <option>All Status</option>
-                  {resourceStatusOptions.map((status) => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+        {errorMessage ? (
+          <div className="mb-4 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+            <AlertTriangle size={16} className="text-red-500 shrink-0" />
+            <p className="text-[12px] font-medium text-red-700 flex-1">{errorMessage}</p>
+            <button type="button" onClick={() => setErrorMessage('')} className="text-red-400 hover:text-red-600"><X size={14} /></button>
           </div>
         ) : null}
+        <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+              Resource &amp; Pricing
+            </h2>
+            <p className="text-xs font-medium text-slate-500 mt-1">Manage resources, pricing, credits, and membership packages.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              title="Export PDF"
+              onClick={() => handleExportPackagesReport('PDF')}
+              disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'}
+              className="px-4 py-2.5 bg-white text-[#e01313] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <FileDown size={15} />
+            </button>
+            <button
+              type="button"
+              title="Export Excel"
+              onClick={() => handleExportPackagesReport('Excel')}
+              disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'}
+              className="px-4 py-2.5 bg-[#ffffff] text-[#1fd628] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <FileSpreadsheet size={15} />
+            </button>
+            {activeTab === 'resource' ? (
+              <>
+                <input ref={bulkUploadInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleBulkFileSelected} />
 
-        <div className="flex-1 overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 bg-white">
-              {activeTab === 'resource' ? (
-                <tr><th className="px-3.5 py-2 w-8 text-center">#</th><th className="px-3.5 py-2">Resource</th><th className="px-3.5 py-2">Category</th><th className="px-3.5 py-2">Inventory</th><th className="px-3.5 py-2">Floor</th><th className="px-3.5 py-2">Wing</th><th className="px-3.5 py-2">Capacity</th><th className="px-3.5 py-2">Hourly</th><th className="px-3.5 py-2">Daily</th><th className="px-3.5 py-2">Credits</th><th className="px-3.5 py-2 text-center">Status</th><th className="px-3.5 py-2 text-center">Actions</th></tr>
-              ) : activeTab === 'membership' ? (
-                <tr><th className="px-3.5 py-2">Plan Name</th><th className="px-3.5 py-2">Credits</th><th className="px-3.5 py-2">Duration</th><th className="px-3.5 py-2">Price</th><th className="px-3.5 py-2 text-center">Status</th><th className="px-3.5 py-2 text-center">Actions</th></tr>
-              ) : (
-                <tr><th className="px-3.5 py-2">Package Name</th><th className="px-3.5 py-2">Coverage</th><th className="px-3.5 py-2">Monthly Credits</th><th className="px-3.5 py-2">Duration</th><th className="px-3.5 py-2">Contract Value</th><th className="px-3.5 py-2 text-center">Status</th><th className="px-3.5 py-2 text-center">Actions</th></tr>
-              )}
-            </thead>
+                <button title="Bulk Upload" onClick={() => { setBulkUploadSummary(null); setBulkUploadFileName(''); setErrorMessage(''); setIsBulkUploadOpen(true); }} className="flex items-center justify-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-[10px] font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300">
+                  <UploadCloud size={16} />
+                </button>
 
-            <tbody className="divide-y divide-slate-50">
-              {activeTab === 'resource' ? filteredResources.map((item, index) => (
-                <tr key={item.recordId} className="transition-all hover:bg-blue-50/30">
-                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-500 text-center">{index + 1}</td>
-                  <td className="px-3.5 py-2 text-[12px] font-bold text-slate-900">{item.name}</td>
-                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{getResourceCategoryLabel(item.resourceCategory)}</td>
-                  <td className="px-3.5 py-2">
-                    {isDeskCategory(item.resourceCategory) ? (
-                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${
-                        item.inventoryMode === 'area'
+              </>
+            ) : null}
+          </div>
+        </div>
+
+        {/* 2. MAIN TABS (pill-style matching DESIGN.md) */}
+        <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          {[
+            { key: 'resource', label: 'Resources', icon: Monitor },
+            { key: 'membership', label: 'Memberships', icon: CreditCard },
+            { key: 'tenant', label: 'Tenant Packages', icon: Building2 },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${activeTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+              ><Icon size={14} /> {tab.label}</button>
+            );
+          })}
+        </div>
+
+        {/* 3. STAT CARDS (DESIGN.md 4-col grid with border-left accents) */}
+        <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4 shrink-0">
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Resources Priced</p>
+              <p className="text-[15px] font-black text-slate-900">{resources.length}</p>
+            </div>
+            <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><Monitor size={16} /></div>
+          </div>
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-indigo-500">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Membership Packages</p>
+              <p className="text-[15px] font-black text-slate-900">{membershipPackages.length}</p>
+            </div>
+            <div className="p-2 rounded-2xl bg-indigo-50 text-indigo-600 shrink-0"><CreditCard size={16} /></div>
+          </div>
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tenant Packages</p>
+              <p className="text-[15px] font-black text-slate-900">{tenantPackages.length}</p>
+            </div>
+            <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><Building2 size={16} /></div>
+          </div>
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Recommended</p>
+              <p className="text-[15px] font-black text-slate-900">{packages.filter((item) => item.isRecommended).length}</p>
+            </div>
+            <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Tag size={16} /></div>
+          </div>
+        </div>
+
+        <div className="flex min-h-110 flex-col overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-sm">
+          <div className="flex flex-col gap-4 border-b border-slate-100 bg-slate-50/50 p-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 text-[15px] font- font-pmedium text-primary">
+                {activeTab === 'resource' && <><Monitor size={18} className="text-blue-600" /> Resource Pricing</>}
+                {activeTab === 'membership' && <><CreditCard size={18} className="text-indigo-600" /> Credit Memberships</>}
+                {activeTab === 'tenant' && <><Building2 size={18} className="text-emerald-600" /> Tenant Packages</>}
+              </h2>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-0.5">
+                {activeTab === 'resource' && 'Update rates and credits by category, area block, floor, and wing.'}
+                {activeTab === 'membership' && 'Create credit plans for recurring users.'}
+                {activeTab === 'tenant' && 'Create contract bundles used by tenant companies.'}
+              </p>
+            </div>
+            <div className="relative w-full lg:w-80">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input type="text" placeholder={`Search ${activeTab === 'resource' ? 'resources' : 'packages'}...`} className="w-full px-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            </div>
+            {activeTab === 'resource' ? (
+              <button onClick={openAddResourceModal} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
+                <Plus size={16} /> ADD RESOURCE
+              </button>
+            ) : (
+              <button onClick={() => openPackageModal(activeTab === 'membership' ? 'Membership' : 'Tenant')} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
+                <Plus size={16} /> ADD {activeTab === 'membership' ? 'MEMBERSHIP' : 'PACKAGE'}
+              </button>
+            )}
+          </div>
+
+          {activeTab === 'resource' ? (
+            <div className="border-b border-slate-100 bg-white p-3">
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Filters</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-600">Narrow resources by category, floor, wing, and status.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={clearResourceFilters}
+                  className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 shadow-sm transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                >
+                  <X size={14} /> Reset Filters
+                </button>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Category</label>
+                  <select
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                    value={resourceCategoryFilter}
+                    onChange={(event) => setResourceCategoryFilter(event.target.value)}
+                  >
+                    <option>All Categories</option>
+                    {resourceCategoryOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Floor</label>
+                  <select
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                    value={resourceFloorFilter}
+                    onChange={(event) => setResourceFloorFilter(event.target.value)}
+                  >
+                    <option>All Floors</option>
+                    {availableResourceFloors.map((floor) => (
+                      <option key={floor} value={floor}>{floor}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Wing</label>
+                  <select
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                    value={resourceWingFilter}
+                    onChange={(event) => setResourceWingFilter(event.target.value)}
+                  >
+                    <option>All Wings</option>
+                    {availableResourceWings.map((wing) => (
+                      <option key={wing} value={wing}>{wing}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-slate-400">Status</label>
+                  <select
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                    value={resourceStatusFilter}
+                    onChange={(event) => setResourceStatusFilter(event.target.value)}
+                  >
+                    <option>All Status</option>
+                    {resourceStatusOptions.map((status) => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="flex-1 overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100 bg-white">
+                {activeTab === 'resource' ? (
+                  <tr><th className="px-3.5 py-2 w-8 text-center">#</th><th className="px-3.5 py-2">Resource</th><th className="px-3.5 py-2">Category</th><th className="px-3.5 py-2">Inventory</th><th className="px-3.5 py-2">Floor</th><th className="px-3.5 py-2">Wing</th><th className="px-3.5 py-2">Capacity</th><th className="px-3.5 py-2">Hourly</th><th className="px-3.5 py-2">Daily</th><th className="px-3.5 py-2">Credits</th><th className="px-3.5 py-2 text-center">Status</th><th className="px-3.5 py-2 text-center">Actions</th></tr>
+                ) : activeTab === 'membership' ? (
+                  <tr><th className="px-3.5 py-2">Plan Name</th><th className="px-3.5 py-2">Credits</th><th className="px-3.5 py-2">Duration</th><th className="px-3.5 py-2">Price</th><th className="px-3.5 py-2 text-center">Status</th><th className="px-3.5 py-2 text-center">Actions</th></tr>
+                ) : (
+                  <tr><th className="px-3.5 py-2">Package Name</th><th className="px-3.5 py-2">Coverage</th><th className="px-3.5 py-2">Monthly Credits</th><th className="px-3.5 py-2">Duration</th><th className="px-3.5 py-2">Contract Value</th><th className="px-3.5 py-2 text-center">Status</th><th className="px-3.5 py-2 text-center">Actions</th></tr>
+                )}
+              </thead>
+
+              <tbody className="divide-y divide-slate-50">
+                {activeTab === 'resource' ? filteredResources.map((item, index) => (
+                  <tr key={item.recordId} className="transition-all hover:bg-blue-50/30">
+                    <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-500 text-center">{index + 1}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-bold text-slate-900">{item.name}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{getResourceCategoryLabel(item.resourceCategory)}</td>
+                    <td className="px-3.5 py-2">
+                      {isDeskCategory(item.resourceCategory) ? (
+                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${item.inventoryMode === 'area'
                           ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
                           : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                      }`}>
-                        {getInventoryModeLabel(item.inventoryMode)}
-                      </span>
-                    ) : (
-                      <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                        Not applicable
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.floor || '--'}</td>
-                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.wing || '--'}</td>
-                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.capacity} Pax</td>
-                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.pricePerHour > 0 ? `${formatCurrency(item.pricePerHour)} ` : item.pricing || '--'}</td>
-                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.pricePerDay > 0 ? `${formatCurrency(item.pricePerDay)} ` : item.pricing || '--'}</td>
-                  <td className="px-3.5 py-2 text-[12px] font-bold text-slate-900 text-center">{getResourceCreditValue(item)}</td>
-                  <td className="px-3.5 py-2 text-center">{statusBadge(item.status)}</td>
-                  <td className="px-3.5 py-2">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <button type="button" onClick={() => openResourceViewModal(item)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900" title="View Details"><Eye size={14} /></button>
-                      <button type="button" onClick={() => openResourceModal(item)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600" title="Edit Pricing & Credits"><Edit2 size={14} /></button>
-                      <button type="button" onClick={() => handleToggleResourceStatus(item)} className={`rounded-lg border p-2 shadow-sm transition-all ${item.status === 'Active' ? 'border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300' : 'border-emerald-200 bg-white text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300'}`} title={item.status === 'Active' ? 'Disable Resource' : 'Enable Resource'}>
-                        {item.status === 'Active' ? <XCircle size={14} /> : <CheckCircle2 size={14} />}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )) : filteredPackages.map((item) => (
-                <tr key={item.recordId} className={`transition-all hover:bg-indigo-50/30 ${item.status === 'Disabled' ? 'opacity-60' : ''}`}>
-                  <td className="px-3.5 py-2">
-                    <p className="text-[12px] font-bold text-slate-900">{item.name}</p>
-                    <p className="mt-0.5 max-w-65 truncate text-[10px] font-bold text-slate-500" title={item.description}>{item.description || 'No description added.'}</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {item.isRecommended ? <span className="inline-flex rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-amber-700">Recommended</span> : null}
-                      {item.isCustom ? <span className="inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">Custom</span> : null}
-                      {item.assignedTenantCompanyId ? (
-                        <span className="inline-flex rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-rose-700">
-                          Locked to {item.assignedTenantCompanyName || 'tenant'}
+                          }`}>
+                          {getInventoryModeLabel(item.inventoryMode)}
                         </span>
-                      ) : null}
-                    </div>
-                  </td>
-                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">
-                    {item.category === 'Tenant' ? (
-                      <div className="space-y-1">
-                        <p>{Array.from(new Set((item.locationMappings || []).map((mapping) => getTenantResourceLocation(mapping)).filter(Boolean))).join(', ') || 'Unassigned'}</p>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                          {Number(item.openDesks || 0)} open / {Number(item.cabinDesks || 0)} cabin / {Number(item.totalSeats || item.seatsIncluded || 0)} seats
-                        </p>
+                      ) : (
+                        <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          Not applicable
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.floor || '--'}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.wing || '--'}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.capacity} Pax</td>
+                    <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.pricePerHour > 0 ? `${formatCurrency(item.pricePerHour)} ` : item.pricing || '--'}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{item.pricePerDay > 0 ? `${formatCurrency(item.pricePerDay)} ` : item.pricing || '--'}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-bold text-slate-900 text-center">{getResourceCreditValue(item)}</td>
+                    <td className="px-3.5 py-2 text-center">{statusBadge(item.status)}</td>
+                    <td className="px-3.5 py-2">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button type="button" onClick={() => openResourceViewModal(item)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900" title="View Details"><Eye size={14} /></button>
+                        <button type="button" onClick={() => openResourceModal(item)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600" title="Edit Pricing & Credits"><Edit2 size={14} /></button>
+                        <button type="button" onClick={() => handleToggleResourceStatus(item)} className={`rounded-lg border p-2 shadow-sm transition-all ${item.status === 'Active' ? 'border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300' : 'border-emerald-200 bg-white text-emerald-600 hover:bg-emerald-50 hover:border-emerald-300'}`} title={item.status === 'Active' ? 'Disable Resource' : 'Enable Resource'}>
+                          {item.status === 'Active' ? <XCircle size={14} /> : <CheckCircle2 size={14} />}
+                        </button>
                       </div>
-                    ) : 'N/A'}
-                  </td>
-                  <td className="px-3.5 py-2">
-                    {item.category === 'Tenant' ? (
-                      <div className="flex flex-col gap-1">
-                        <span className="inline-flex items-center gap-1 rounded border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-[10px] font-black uppercase text-indigo-700">
-                          <Tag size={10} /> {Number(item.monthlyCredits || item.creditsIncluded || 0)} Monthly Credits
-                        </span>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                          {Math.round(Number(item.creditsPerSeat || 0))} / seat, expires monthly
-                        </span>
+                    </td>
+                  </tr>
+                )) : filteredPackages.map((item) => (
+                  <tr key={item.recordId} className={`transition-all hover:bg-indigo-50/30 ${item.status === 'Disabled' ? 'opacity-60' : ''}`}>
+                    <td className="px-3.5 py-2">
+                      <p className="text-[12px] font-bold text-slate-900">{item.name}</p>
+                      <p className="mt-0.5 max-w-65 truncate text-[10px] font-bold text-slate-500" title={item.description}>{item.description || 'No description added.'}</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {item.isRecommended ? <span className="inline-flex rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-amber-700">Recommended</span> : null}
+                        {item.isCustom ? <span className="inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">Custom</span> : null}
+                        {item.assignedTenantCompanyId ? (
+                          <span className="inline-flex rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-rose-700">
+                            Locked to {item.assignedTenantCompanyName || 'tenant'}
+                          </span>
+                        ) : null}
                       </div>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 rounded border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-[10px] font-black uppercase text-indigo-700"><Tag size={10} /> {item.creditsIncluded} Credits</span>
-                    )}
-                  </td>
-                  <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{durationLabel(item.durationMonths)}</td>
-                  <td className="px-3.5 py-2 text-[12px] font-bold text-emerald-600">
-                    <div>{formatCurrency(item.price)}</div>
-                    <div className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                      {item.category === 'Tenant' && item.durationMonths > 0
-                        ? `${formatCurrency(item.price / item.durationMonths)} / month`
-                        : 'Total price'}
-                    </div>
-                  </td>
-                  <td className="px-3.5 py-2 text-center">{statusBadge(item.status)}</td>
-                  <td className="px-3.5 py-2">
-                    <div className="flex justify-center gap-2">
+                    </td>
+                    <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">
+                      {item.category === 'Tenant' ? (
+                        <div className="space-y-1">
+                          <p>{Array.from(new Set((item.locationMappings || []).map((mapping) => getTenantResourceLocation(mapping)).filter(Boolean))).join(', ') || 'Unassigned'}</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                            {Number(item.openDesks || 0)} open / {Number(item.cabinDesks || 0)} cabin / {Number(item.totalSeats || item.seatsIncluded || 0)} seats
+                          </p>
+                        </div>
+                      ) : 'N/A'}
+                    </td>
+                    <td className="px-3.5 py-2">
+                      {item.category === 'Tenant' ? (
+                        <div className="flex flex-col gap-1">
+                          <span className="inline-flex items-center gap-1 rounded border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-[10px] font-black uppercase text-indigo-700">
+                            <Tag size={10} /> {Number(item.monthlyCredits || item.creditsIncluded || 0)} Monthly Credits
+                          </span>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                            {Math.round(Number(item.creditsPerSeat || 0))} / seat, expires monthly
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-[10px] font-black uppercase text-indigo-700"><Tag size={10} /> {item.creditsIncluded} Credits</span>
+                      )}
+                    </td>
+                    <td className="px-3.5 py-2 text-[12px] font-semibold text-slate-700">{durationLabel(item.durationMonths)}</td>
+                    <td className="px-3.5 py-2 text-[12px] font-bold text-emerald-600">
+                      <div>{formatCurrency(item.price)}</div>
+                      <div className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        {item.category === 'Tenant' && item.durationMonths > 0
+                          ? `${formatCurrency(item.price / item.durationMonths)} / month`
+                          : 'Total price'}
+                      </div>
+                    </td>
+                    <td className="px-3.5 py-2 text-center">{statusBadge(item.status)}</td>
+                    <td className="px-3.5 py-2">
+                      <div className="flex justify-center gap-2">
                         <button
                           type="button"
                           onClick={() => openPackageModal(item.category, item, 'view')}
@@ -1814,1267 +1813,1266 @@ export default function PricingPackagesPage() {
                           type="button"
                           onClick={() => handleDeletePackage(item)}
                           disabled={Boolean(item.assignedTenantCompanyId)}
-                        className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-600"
-                      >
-                        <Trash size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                          className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-600"
+                        >
+                          <Trash size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
 
-              {((activeTab === 'resource' && filteredResources.length === 0) || (activeTab !== 'resource' && filteredPackages.length === 0)) ? (
-                <tr>
-                  <td colSpan={activeTab === 'resource' ? 12 : activeTab === 'membership' ? 6 : 7} className="bg-slate-50/50 py-20 text-center text-slate-400">
-                    <div className="mx-auto max-w-md">
-                      <p className="text-sm font-bold">{activeTab === 'resource' ? 'No resources found.' : 'No packages found yet.'}</p>
-                      <p className="mt-2 text-xs font-medium leading-relaxed">
-                        {activeTab === 'resource' ? 'Add resources from Resource Management first, then price them here.' : 'Create a package to make it available for tenant companies.'}
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
+                {((activeTab === 'resource' && filteredResources.length === 0) || (activeTab !== 'resource' && filteredPackages.length === 0)) ? (
+                  <tr>
+                    <td colSpan={activeTab === 'resource' ? 12 : activeTab === 'membership' ? 6 : 7} className="bg-slate-50/50 py-20 text-center text-slate-400">
+                      <div className="mx-auto max-w-md">
+                        <p className="text-sm font-bold">{activeTab === 'resource' ? 'No resources found.' : 'No packages found yet.'}</p>
+                        <p className="mt-2 text-xs font-medium leading-relaxed">
+                          {activeTab === 'resource' ? 'Add resources from Resource Management first, then price them here.' : 'Create a package to make it available for tenant companies.'}
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
 
-      {/* ── Bulk Upload Modal ─────────────────────────────────────────── */}
-      {isBulkUploadOpen ? (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
-          <div className="flex w-full max-w-2xl max-h-[85vh] flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/70 p-5">
-              <div>
-                <h2 className="flex items-center gap-2 text-sm font-pmedium text-primary tracking-tight">
-                  <UploadCloud size={20} /> Bulk Upload Resources
-                </h2>
-                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Import resources from Excel or CSV</p>
-              </div>
-              <button onClick={() => setIsBulkUploadOpen(false)} className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100">
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="space-y-4 overflow-y-auto bg-slate-50/60 p-5">
-              <button
-                type="button"
-                onClick={() => setIsTemplateInfoOpen(!isTemplateInfoOpen)}
-                className="flex w-full items-center justify-between rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-left transition-all hover:bg-blue-100"
-              >
-                <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Template required</p>
-                <ChevronDown
-                  size={16}
-                  className={`text-blue-500 transition-transform duration-200 ${isTemplateInfoOpen ? 'rotate-0' : '-rotate-90'}`}
-                />
-              </button>
-
-              {isTemplateInfoOpen ? (
-                <div className="space-y-4 pl-2">
-                  <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 shadow-sm">
-                    <p className="text-sm font-semibold text-blue-800">
-                      Download the template first to avoid validation errors. Cabin desks are area blocks only, so single cabin rows will be rejected.
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Fields (from Add Resource form)</p>
-                    <div className="grid gap-2 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-md bg-red-50 px-2 py-0.5 text-[10px] font-black text-red-600">Required</span>
-                        <span className="font-semibold text-slate-700">name, location, resourceCategory, floor, capacity</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-600">Conditional</span>
-                        <span className="font-semibold text-slate-700">inventoryMode (for open desks)</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">Optional</span>
-                        <span className="font-semibold text-slate-700">wing, description, pricePerHour, pricePerDay, credits, status</span>
-                      </div>
-                    </div>
-                  </div>
+        {/* ── Bulk Upload Modal ─────────────────────────────────────────── */}
+        {isBulkUploadOpen ? (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
+            <div className="flex w-full max-w-2xl max-h-[85vh] flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70">
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-blue-50/70 p-5">
+                <div>
+                  <h2 className="flex items-center gap-2 text-sm font-pmedium text-primary tracking-tight">
+                    <UploadCloud size={20} /> Bulk Upload Resources
+                  </h2>
+                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Import resources from Excel or CSV</p>
                 </div>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={() => setIsAllowedValuesOpen(!isAllowedValuesOpen)}
-                className="flex w-full items-center justify-between rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-left transition-all hover:bg-blue-100"
-              >
-                <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Allowed values</p>
-                <ChevronDown
-                  size={16}
-                  className={`text-blue-500 transition-transform duration-200 ${isAllowedValuesOpen ? 'rotate-0' : '-rotate-90'}`}
-                />
-              </button>
-
-              {isAllowedValuesOpen ? (
-                <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 shadow-sm">
-                  <p className="text-sm font-semibold text-blue-800 leading-6">
-                    Categories: {resourceCategoryOptions.map((option) => `${option.label} (${option.value})`).join(', ')}
-                    <br />
-                    Inventory: {inventoryModeOptions.map((option) => option.value).join(', ')}
-                    <br />
-                    Status: {resourceStatusOptions.join(', ')}
-                    <br />
-                    Capacity rules: open desk area = 1-10, cabin desk area = 4/6/8/10, single desk = 1, virtual office = 1.
-                  </p>
-                </div>
-              ) : null}
-
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <button type="button" onClick={downloadBulkTemplate} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm flex-1 py-3 text-sm font-black inline-flex items-center justify-center gap-2 transition-all hover:border-blue-200 hover:text-blue-600">
-                  <Download size={16} /> Download Template
+                <button onClick={() => setIsBulkUploadOpen(false)} className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100">
+                  <X size={18} />
                 </button>
+              </div>
+
+              <div className="space-y-4 overflow-y-auto bg-slate-50/60 p-5">
                 <button
                   type="button"
-                  onClick={() => bulkUploadInputRef.current?.click()}
-                  disabled={isBulkImporting}
-                  className="flex-1 rounded-lg bg-blue-600 py-3 text-sm font-black text-white shadow-sm transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none inline-flex items-center justify-center gap-2"
+                  onClick={() => setIsTemplateInfoOpen(!isTemplateInfoOpen)}
+                  className="flex w-full items-center justify-between rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-left transition-all hover:bg-blue-100"
                 >
-                  <UploadCloud size={16} /> {isBulkImporting ? 'Importing...' : 'Choose File'}
+                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Template required</p>
+                  <ChevronDown
+                    size={16}
+                    className={`text-blue-500 transition-transform duration-200 ${isTemplateInfoOpen ? 'rotate-0' : '-rotate-90'}`}
+                  />
+                </button>
+
+                {isTemplateInfoOpen ? (
+                  <div className="space-y-4 pl-2">
+                    <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 shadow-sm">
+                      <p className="text-sm font-semibold text-blue-800">
+                        Download the template first to avoid validation errors. Cabin desks are area blocks only, so single cabin rows will be rejected.
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Fields (from Add Resource form)</p>
+                      <div className="grid gap-2 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-md bg-red-50 px-2 py-0.5 text-[10px] font-black text-red-600">Required</span>
+                          <span className="font-semibold text-slate-700">name, location, resourceCategory, floor, capacity</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-600">Conditional</span>
+                          <span className="font-semibold text-slate-700">inventoryMode (for open desks)</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">Optional</span>
+                          <span className="font-semibold text-slate-700">wing, description, pricePerHour, pricePerDay, credits, status</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => setIsAllowedValuesOpen(!isAllowedValuesOpen)}
+                  className="flex w-full items-center justify-between rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-left transition-all hover:bg-blue-100"
+                >
+                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Allowed values</p>
+                  <ChevronDown
+                    size={16}
+                    className={`text-blue-500 transition-transform duration-200 ${isAllowedValuesOpen ? 'rotate-0' : '-rotate-90'}`}
+                  />
+                </button>
+
+                {isAllowedValuesOpen ? (
+                  <div className="rounded-2xl border border-blue-100 bg-white px-4 py-3 shadow-sm">
+                    <p className="text-sm font-semibold text-blue-800 leading-6">
+                      Categories: {resourceCategoryOptions.map((option) => `${option.label} (${option.value})`).join(', ')}
+                      <br />
+                      Inventory: {inventoryModeOptions.map((option) => option.value).join(', ')}
+                      <br />
+                      Status: {resourceStatusOptions.join(', ')}
+                      <br />
+                      Capacity rules: open desk area = 1-10, cabin desk area = 4/6/8/10, single desk = 1, virtual office = 1.
+                    </p>
+                  </div>
+                ) : null}
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button type="button" onClick={downloadBulkTemplate} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm flex-1 py-3 text-sm font-black inline-flex items-center justify-center gap-2 transition-all hover:border-blue-200 hover:text-blue-600">
+                    <Download size={16} /> Download Template
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => bulkUploadInputRef.current?.click()}
+                    disabled={isBulkImporting}
+                    className="flex-1 rounded-lg bg-blue-600 py-3 text-sm font-black text-white shadow-sm transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none inline-flex items-center justify-center gap-2"
+                  >
+                    <UploadCloud size={16} /> {isBulkImporting ? 'Importing...' : 'Choose File'}
+                  </button>
+                </div>
+
+                {bulkUploadFileName ? (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Selected file</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-800">{bulkUploadFileName}</p>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="flex flex-col gap-3 border-t border-slate-100 bg-white p-5 sm:flex-row">
+                <button type="button" onClick={() => setIsBulkUploadOpen(false)} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm flex-1 py-3 text-sm font-black transition-all hover:bg-slate-50">
+                  Close
                 </button>
               </div>
-
-              {bulkUploadFileName ? (
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Selected file</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-800">{bulkUploadFileName}</p>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="flex flex-col gap-3 border-t border-slate-100 bg-white p-5 sm:flex-row">
-              <button type="button" onClick={() => setIsBulkUploadOpen(false)} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm flex-1 py-3 text-sm font-black transition-all hover:bg-slate-50">
-                Close
-              </button>
             </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      {bulkUploadSummary ? (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-[2.5rem] bg-white shadow-2xl border border-white/70 overflow-hidden">
-            <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 p-3 sm:p-4">
-              <div>
-                <h2 className="flex items-center gap-2 text-sm font-pmedium text-white"><UploadCloud size={16} /> Bulk Upload Results</h2>
-                <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">Import completed for {bulkUploadSummary.fileName}</p>
-              </div>
-              <button type="button" onClick={() => setBulkUploadSummary(null)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-600 text-white transition-all hover:bg-red-700"><X size={16} /></button>
-            </div>
-            <div className="p-4 sm:p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-center">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Created</p>
-                  <p className="mt-1 text-2xl font-black text-emerald-700">{bulkUploadSummary.createdCount}</p>
+        {bulkUploadSummary ? (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-[2.5rem] bg-white shadow-2xl border border-white/70 overflow-hidden">
+              <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 p-3 sm:p-4">
+                <div>
+                  <h2 className="flex items-center gap-2 text-sm font-pmedium text-white"><UploadCloud size={16} /> Bulk Upload Results</h2>
+                  <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">Import completed for {bulkUploadSummary.fileName}</p>
                 </div>
-                <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-center">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-red-600">Failed</p>
-                  <p className="mt-1 text-2xl font-black text-red-700">{bulkUploadSummary.failedCount}</p>
+                <button type="button" onClick={() => setBulkUploadSummary(null)} className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-600 text-white transition-all hover:bg-red-700"><X size={16} /></button>
+              </div>
+              <div className="p-4 sm:p-5 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-center">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Created</p>
+                    <p className="mt-1 text-2xl font-black text-emerald-700">{bulkUploadSummary.createdCount}</p>
+                  </div>
+                  <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-center">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-red-600">Failed</p>
+                    <p className="mt-1 text-2xl font-black text-red-700">{bulkUploadSummary.failedCount}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Processed {bulkUploadSummary.processedRows} of {bulkUploadSummary.totalRows} rows</p>
-              </div>
-              {bulkUploadSummary.failedRows.length > 0 ? (
-                <div className="rounded-xl border border-red-100 bg-red-50 p-3">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-red-600 mb-2">Errors (first 5)</p>
-                  <ul className="space-y-1">
-                    {bulkUploadSummary.failedRows.map((msg, i) => <li key={i} className="text-[11px] font-medium text-red-700">{msg}</li>)}
-                  </ul>
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Processed {bulkUploadSummary.processedRows} of {bulkUploadSummary.totalRows} rows</p>
                 </div>
-              ) : null}
-              <button type="button" onClick={() => setBulkUploadSummary(null)} className="w-full rounded-xl bg-blue-600 py-2.5 text-[11px] font-bold text-white transition-all hover:bg-blue-700">CLOSE</button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {isModalOpen ? (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
-          <div className={`flex max-h-[95vh] w-full flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70 ${modalKind === 'package' && (isViewingPackage ? viewPackageCategory === 'Tenant' : packageForm.category === 'Tenant') ? 'max-w-5xl' : 'max-w-2xl'}`}>
-            <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 p-3 sm:p-4">
-              <div>
-                <h2 className="flex items-center gap-2 text-sm font-pmedium text-white">
-                  {modalKind === 'resource' ? (modalMode === 'add' ? <Plus size={16} /> : isViewingResource ? <Eye size={16} /> : <Monitor size={16} />) : isViewingPackage ? <Eye size={16} /> : <Plus size={16} />}
-                  {modalKind === 'resource' ? (modalMode === 'add' ? 'Add New Resource' : isViewingResource ? 'View Resource Details' : 'Edit Resource Pricing & Credits') : isViewingPackage ? 'View Package Details' : `${modalMode === 'add' ? 'Add New' : 'Edit'} Package`}
-                </h2>
-                <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">
-                  {modalKind === 'resource' ? (modalMode === 'add' ? 'Create a new resource with pricing and credits. This will sync to Resource Management.' : isViewingResource ? 'Viewing resource details in read-only mode.' : 'Edit resource details, pricing, and credits. Changes sync back to Resource Management.') : isViewingPackage ? 'Viewing tenant package details in read-only mode.' : 'Package changes drive tenant company onboarding.'}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                {isViewingPackage ? (
-                  <>
-                    <button type="button" onClick={() => handleExportPackageReport(selectedPackage, 'PDF')} disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'} className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-slate-300 transition-all hover:bg-red-600 hover:text-white" title="Download PDF"><FileDown size={16} /></button>
-                    <button type="button" onClick={() => handleExportPackageReport(selectedPackage, 'Excel')} disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'} className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-slate-300 transition-all hover:bg-emerald-600 hover:text-white" title="Download Excel"><FileSpreadsheet size={16} /></button>
-                  </>
+                {bulkUploadSummary.failedRows.length > 0 ? (
+                  <div className="rounded-xl border border-red-100 bg-red-50 p-3">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-red-600 mb-2">Errors (first 5)</p>
+                    <ul className="space-y-1">
+                      {bulkUploadSummary.failedRows.map((msg, i) => <li key={i} className="text-[11px] font-medium text-red-700">{msg}</li>)}
+                    </ul>
+                  </div>
                 ) : null}
-                <button type="button" onClick={closeModal} className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-600 text-white transition-all hover:bg-red-700"><X size={16} /></button>
+                <button type="button" onClick={() => setBulkUploadSummary(null)} className="w-full rounded-xl bg-blue-600 py-2.5 text-[11px] font-bold text-white transition-all hover:bg-blue-700">CLOSE</button>
               </div>
             </div>
+          </div>
+        ) : null}
 
-            <form onSubmit={handleSave} className="flex-1 overflow-y-auto bg-white p-3 sm:p-4">
-              {modalKind === 'resource' && modalMode === 'add' ? (
-                <div className="space-y-3">
+        {isModalOpen ? (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0F172A]/40 p-4 backdrop-blur-sm">
+            <div className={`flex max-h-[95vh] w-full flex-col overflow-hidden rounded-[2.5rem] bg-white shadow-2xl border border-white/70 ${modalKind === 'package' && (isViewingPackage ? viewPackageCategory === 'Tenant' : packageForm.category === 'Tenant') ? 'max-w-5xl' : 'max-w-2xl'}`}>
+              <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 p-3 sm:p-4">
+                <div>
+                  <h2 className="flex items-center gap-2 text-sm font-pmedium text-white">
+                    {modalKind === 'resource' ? (modalMode === 'add' ? <Plus size={16} /> : isViewingResource ? <Eye size={16} /> : <Monitor size={16} />) : isViewingPackage ? <Eye size={16} /> : <Plus size={16} />}
+                    {modalKind === 'resource' ? (modalMode === 'add' ? 'Add New Resource' : isViewingResource ? 'View Resource Details' : 'Edit Resource Pricing & Credits') : isViewingPackage ? 'View Package Details' : `${modalMode === 'add' ? 'Add New' : 'Edit'} Package`}
+                  </h2>
+                  <p className="mt-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                    {modalKind === 'resource' ? (modalMode === 'add' ? 'Create a new resource with pricing and credits. This will sync to Resource Management.' : isViewingResource ? 'Viewing resource details in read-only mode.' : 'Edit resource details, pricing, and credits. Changes sync back to Resource Management.') : isViewingPackage ? 'Viewing tenant package details in read-only mode.' : 'Package changes drive tenant company onboarding.'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isViewingPackage ? (
+                    <>
+                      <button type="button" onClick={() => handleExportPackageReport(selectedPackage, 'PDF')} disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'} className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-slate-300 transition-all hover:bg-red-600 hover:text-white" title="Download PDF"><FileDown size={16} /></button>
+                      <button type="button" onClick={() => handleExportPackageReport(selectedPackage, 'Excel')} disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'} className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-slate-300 transition-all hover:bg-emerald-600 hover:text-white" title="Download Excel"><FileSpreadsheet size={16} /></button>
+                    </>
+                  ) : null}
+                  <button type="button" onClick={closeModal} className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-600 text-white transition-all hover:bg-red-700"><X size={16} /></button>
+                </div>
+              </div>
 
-                  <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 shadow-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Resource snapshot</p>
-                        <p className="mt-0.5 text-[11px] font-semibold text-slate-500">Summary before saving.</p>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        <span className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">
-                          {getResourceCategoryLabel(addResourceForm.resourceCategory)}
-                        </span>
-                        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-600">
-                          {addResourceForm.location || 'Location pending'}
-                        </span>
-                        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-600">
-                          Floor {addResourceForm.floor || '--'}
-                        </span>
-                        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-600">
-                          Wing {addResourceForm.wing || 'N/A'}
-                        </span>
-                        {isDeskCategory(addResourceForm.resourceCategory) ? (
-                          <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">
-                            {getInventoryModeLabel(addResourceForm.inventoryMode)}
+              <form onSubmit={handleSave} className="flex-1 overflow-y-auto bg-white p-3 sm:p-4">
+                {modalKind === 'resource' && modalMode === 'add' ? (
+                  <div className="space-y-3">
+
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 shadow-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Resource snapshot</p>
+                          <p className="mt-0.5 text-[11px] font-semibold text-slate-500">Summary before saving.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          <span className="rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">
+                            {getResourceCategoryLabel(addResourceForm.resourceCategory)}
                           </span>
-                        ) : null}
+                          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-600">
+                            {addResourceForm.location || 'Location pending'}
+                          </span>
+                          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-600">
+                            Floor {addResourceForm.floor || '--'}
+                          </span>
+                          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-600">
+                            Wing {addResourceForm.wing || 'N/A'}
+                          </span>
+                          {isDeskCategory(addResourceForm.resourceCategory) ? (
+                            <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">
+                              {getInventoryModeLabel(addResourceForm.inventoryMode)}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Resource Name *</label>
-                    <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.name} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, name: e.target.value }))} />
-                  </div>
-
-                  <div className={`grid grid-cols-1 gap-3 ${addResourceForm.resourceCategory === 'open_desk' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Location *</label>
-                      {locationMode === 'custom' ? (
-                        <div className="space-y-1.5">
-                          <input required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.location} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, location: e.target.value }))} placeholder="Enter new location" />
-                          <button type="button" onClick={() => { setLocationMode('select'); setAddResourceForm((prev) => ({ ...prev, location: '' })); }} className="text-[10px] font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>
-                        </div>
-                      ) : (
-                        <div className="relative">
-                          <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.location || ''} onChange={(e) => {
-                            const nextValue = e.target.value;
-                            if (nextValue === ADD_NEW_OPTION) { setLocationMode('custom'); setAddResourceForm((prev) => ({ ...prev, location: '' })); return; }
-                            setAddResourceForm((prev) => ({ ...prev, location: nextValue }));
-                          }}>
-                            <option value="">Select location</option>
-                            {availableResourceLocations.map((location) => (<option key={location} value={location}>{location}</option>))}
-                            <option value={ADD_NEW_OPTION}>Add new location</option>
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                        </div>
-                      )}
-                    </div>
 
                     <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Category *</label>
-                      <select required className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.resourceCategory} onChange={(e) => {
-                        const nextCategory = e.target.value;
-                        const nextInventoryMode = nextCategory === 'virtual_office' ? 'single' : nextCategory === 'cabin_desk' ? 'area' : isDeskCategory(nextCategory) ? '' : 'area';
-                        setAddResourceForm((prev) => ({
-                          ...prev,
-                          resourceCategory: nextCategory,
-                          type: deriveResourceTypeFromCategory(nextCategory),
-                          inventoryMode: nextInventoryMode,
-                          capacity: normalizeCapacityForSelection(nextCategory, nextInventoryMode, nextCategory === 'virtual_office' ? '1' : prev.capacity),
-                        }));
-                      }}>
-                        <option value="">Select category</option>
-                        {resourceCategoryOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                      </select>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Resource Name *</label>
+                      <input required type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.name} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, name: e.target.value }))} />
                     </div>
 
-                    {addResourceForm.resourceCategory === 'open_desk' ? (
+                    <div className={`grid grid-cols-1 gap-3 ${addResourceForm.resourceCategory === 'open_desk' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
                       <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Inventory *</label>
-                        <div className="relative">
-                          <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.inventoryMode} onChange={(e) => {
-                            const nextInventoryMode = e.target.value;
-                            setAddResourceForm((prev) => ({
-                              ...prev,
-                              inventoryMode: nextInventoryMode,
-                              capacity: normalizeCapacityForSelection(prev.resourceCategory, nextInventoryMode, nextInventoryMode === 'single' ? '1' : prev.capacity),
-                            }));
-                          }}>
-                            <option value="">Select inventory</option>
-                            {inventoryModeOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                        </div>
-                      </div>
-                    ) : null}
-
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Floor *</label>
-                      {floorMode === 'custom' ? (
-                        <div className="space-y-1.5">
-                          <input required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.floor} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, floor: e.target.value }))} placeholder="Enter new floor" />
-                          <button type="button" onClick={() => { setFloorMode('select'); setAddResourceForm((prev) => ({ ...prev, floor: '' })); }} className="text-[10px] font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>
-                        </div>
-                      ) : (
-                        <div className="relative">
-                          <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.floor || ''} onChange={(e) => {
-                            const nextValue = e.target.value;
-                            if (nextValue === ADD_NEW_OPTION) { setFloorMode('custom'); setAddResourceForm((prev) => ({ ...prev, floor: '' })); return; }
-                            setAddResourceForm((prev) => ({ ...prev, floor: nextValue }));
-                          }}>
-                            <option value="">Select floor</option>
-                            {availableResourceFloors.map((floor) => (<option key={floor} value={floor}>{floor}</option>))}
-                            <option value={ADD_NEW_OPTION}>Add new floor</option>
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Wing</label>
-                      {wingMode === 'custom' ? (
-                        <div className="space-y-1.5">
-                          <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.wing} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, wing: e.target.value }))} placeholder="Enter new wing" />
-                          <button type="button" onClick={() => { setWingMode('select'); setAddResourceForm((prev) => ({ ...prev, wing: '' })); }} className="text-[10px] font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>
-                        </div>
-                      ) : (
-                        <div className="relative">
-                          <select className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.wing || ''} onChange={(e) => {
-                            const nextValue = e.target.value;
-                            if (nextValue === ADD_NEW_OPTION) { setWingMode('custom'); setAddResourceForm((prev) => ({ ...prev, wing: '' })); return; }
-                            setAddResourceForm((prev) => ({ ...prev, wing: nextValue }));
-                          }}>
-                            <option value="">Select wing</option>
-                            {availableResourceWings.map((wing) => (<option key={wing} value={wing}>{wing}</option>))}
-                            <option value={ADD_NEW_OPTION}>Add new wing</option>
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">
-                      {isDeskCategory(addResourceForm.resourceCategory) ? 'Seats *' : 'Capacity *'}
-                    </label>
-                    {(() => {
-                      const capacityOptions = getCapacityOptions(addResourceForm.resourceCategory, addResourceForm.inventoryMode);
-                      const isSingleDeskInventory = addResourceForm.resourceCategory === 'open_desk' && addResourceForm.inventoryMode === 'single';
-                      const selectedDeskCapacity = normalizeCapacityForSelection(addResourceForm.resourceCategory, addResourceForm.inventoryMode, addResourceForm.capacity);
-                      return isDeskCategory(addResourceForm.resourceCategory) && capacityOptions.length > 0 ? (
-                        <div className="space-y-1.5">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Location *</label>
+                        {locationMode === 'custom' ? (
+                          <div className="space-y-1.5">
+                            <input required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.location} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, location: e.target.value }))} placeholder="Enter new location" />
+                            <button type="button" onClick={() => { setLocationMode('select'); setAddResourceForm((prev) => ({ ...prev, location: '' })); }} className="text-[10px] font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>
+                          </div>
+                        ) : (
                           <div className="relative">
-                            <select required disabled={isSingleDeskInventory} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" value={selectedDeskCapacity} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, capacity: e.target.value }))}>
-                              {capacityOptions.map((option) => (
-                                <option key={option} value={String(option)}>{option} {isSingleDeskInventory && option === 1 ? 'desk fixed' : option === 1 ? 'desk' : 'seats'}</option>
-                              ))}
+                            <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.location || ''} onChange={(e) => {
+                              const nextValue = e.target.value;
+                              if (nextValue === ADD_NEW_OPTION) { setLocationMode('custom'); setAddResourceForm((prev) => ({ ...prev, location: '' })); return; }
+                              setAddResourceForm((prev) => ({ ...prev, location: nextValue }));
+                            }}>
+                              <option value="">Select location</option>
+                              {availableResourceLocations.map((location) => (<option key={location} value={location}>{location}</option>))}
+                              <option value={ADD_NEW_OPTION}>Add new location</option>
                             </select>
                             <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                           </div>
-                          {isSingleDeskInventory ? (
-                            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-[12px] font-semibold text-emerald-800">Single desks are fixed to 1 desk.</div>
-                          ) : null}
+                        )}
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Category *</label>
+                        <select required className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.resourceCategory} onChange={(e) => {
+                          const nextCategory = e.target.value;
+                          const nextInventoryMode = nextCategory === 'virtual_office' ? 'single' : nextCategory === 'cabin_desk' ? 'area' : isDeskCategory(nextCategory) ? '' : 'area';
+                          setAddResourceForm((prev) => ({
+                            ...prev,
+                            resourceCategory: nextCategory,
+                            type: deriveResourceTypeFromCategory(nextCategory),
+                            inventoryMode: nextInventoryMode,
+                            capacity: normalizeCapacityForSelection(nextCategory, nextInventoryMode, nextCategory === 'virtual_office' ? '1' : prev.capacity),
+                          }));
+                        }}>
+                          <option value="">Select category</option>
+                          {resourceCategoryOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                        </select>
+                      </div>
+
+                      {addResourceForm.resourceCategory === 'open_desk' ? (
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Inventory *</label>
+                          <div className="relative">
+                            <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.inventoryMode} onChange={(e) => {
+                              const nextInventoryMode = e.target.value;
+                              setAddResourceForm((prev) => ({
+                                ...prev,
+                                inventoryMode: nextInventoryMode,
+                                capacity: normalizeCapacityForSelection(prev.resourceCategory, nextInventoryMode, nextInventoryMode === 'single' ? '1' : prev.capacity),
+                              }));
+                            }}>
+                              <option value="">Select inventory</option>
+                              {inventoryModeOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                          </div>
                         </div>
-                      ) : (
-                        <input required type="number" min="1" placeholder="Enter capacity" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none ring-1 ring-slate-200 transition focus:ring-2 focus:ring-blue-500" value={addResourceForm.capacity} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, capacity: e.target.value }))} />
-                      );
-                    })()}
-                  </div>
+                      ) : null}
 
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Description / Amenities</label>
-                    <textarea rows={2} className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-medium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.description} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
-                  </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Floor *</label>
+                        {floorMode === 'custom' ? (
+                          <div className="space-y-1.5">
+                            <input required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.floor} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, floor: e.target.value }))} placeholder="Enter new floor" />
+                            <button type="button" onClick={() => { setFloorMode('select'); setAddResourceForm((prev) => ({ ...prev, floor: '' })); }} className="text-[10px] font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <select required className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.floor || ''} onChange={(e) => {
+                              const nextValue = e.target.value;
+                              if (nextValue === ADD_NEW_OPTION) { setFloorMode('custom'); setAddResourceForm((prev) => ({ ...prev, floor: '' })); return; }
+                              setAddResourceForm((prev) => ({ ...prev, floor: nextValue }));
+                            }}>
+                              <option value="">Select floor</option>
+                              {availableResourceFloors.map((floor) => (<option key={floor} value={floor}>{floor}</option>))}
+                              <option value={ADD_NEW_OPTION}>Add new floor</option>
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                          </div>
+                        )}
+                      </div>
 
-                  <div className="border-t border-slate-100 pt-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-2">Pricing & Credits (set by Sales)</p>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-800">Price Per Hour (&#8377;)</label>
-                        <input type="number" min="0" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.pricePerHour} onChange={(e) => setAddResourceForm((current) => {
-                          const nextHour = e.target.value;
-                          if (nextHour === '') return { ...current, pricePerHour: '', pricePerDay: '' };
-                          const hourly = Number(nextHour);
-                          if (!Number.isFinite(hourly) || hourly < 0) return { ...current, pricePerHour: nextHour };
-                          return { ...current, pricePerHour: nextHour, pricePerDay: formatAutoPriceValue(hourly * RESOURCE_FULL_DAY_HOURS) };
-                        })} />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-800">Price Per Day (&#8377;)</label>
-                        <input type="number" min="0" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.pricePerDay} onChange={(e) => setAddResourceForm((current) => {
-                          const nextDay = e.target.value;
-                          if (nextDay === '') return { ...current, pricePerDay: '', pricePerHour: '' };
-                          const daily = Number(nextDay);
-                          if (!Number.isFinite(daily) || daily < 0) return { ...current, pricePerDay: nextDay };
-                          return { ...current, pricePerDay: nextDay, pricePerHour: formatAutoPriceValue(daily / RESOURCE_FULL_DAY_HOURS) };
-                        })} />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-800">Credits</label>
-                        <input type="number" min="1" className="w-full px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.credits} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
+                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Wing</label>
+                        {wingMode === 'custom' ? (
+                          <div className="space-y-1.5">
+                            <input className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.wing} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, wing: e.target.value }))} placeholder="Enter new wing" />
+                            <button type="button" onClick={() => { setWingMode('select'); setAddResourceForm((prev) => ({ ...prev, wing: '' })); }} className="text-[10px] font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <select className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.wing || ''} onChange={(e) => {
+                              const nextValue = e.target.value;
+                              if (nextValue === ADD_NEW_OPTION) { setWingMode('custom'); setAddResourceForm((prev) => ({ ...prev, wing: '' })); return; }
+                              setAddResourceForm((prev) => ({ ...prev, wing: nextValue }));
+                            }}>
+                              <option value="">Select wing</option>
+                              {availableResourceWings.map((wing) => (<option key={wing} value={wing}>{wing}</option>))}
+                              <option value={ADD_NEW_OPTION}>Add new wing</option>
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Status</label>
-                    <select className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.status} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, status: e.target.value }))}>
-                      {resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
-                    </select>
-                  </div>
-                </div>
-              ) : modalKind === 'resource' ? (
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-blue-500">Resource</p>
-                    <p className="mt-1 text-base font-black text-blue-900">{resourceForm.name || selectedItem?.name}</p>
-                    <p className="text-[12px] font-semibold text-blue-700">{resourceForm.type || selectedItem?.type}</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
-                        {getResourceCategoryLabel(resourceForm.resourceCategory)}
-                      </span>
-                      <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
-                        {isDeskCategory(resourceForm.resourceCategory) ? getInventoryModeLabel(resourceForm.inventoryMode) : 'Not applicable'}
-                      </span>
-                      <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
-                        Floor {resourceForm.floor || '--'}
-                      </span>
-                      <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
-                        Wing {resourceForm.wing || '--'}
-                      </span>
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                        {isDeskCategory(addResourceForm.resourceCategory) ? 'Seats *' : 'Capacity *'}
+                      </label>
+                      {(() => {
+                        const capacityOptions = getCapacityOptions(addResourceForm.resourceCategory, addResourceForm.inventoryMode);
+                        const isSingleDeskInventory = addResourceForm.resourceCategory === 'open_desk' && addResourceForm.inventoryMode === 'single';
+                        const selectedDeskCapacity = normalizeCapacityForSelection(addResourceForm.resourceCategory, addResourceForm.inventoryMode, addResourceForm.capacity);
+                        return isDeskCategory(addResourceForm.resourceCategory) && capacityOptions.length > 0 ? (
+                          <div className="space-y-1.5">
+                            <div className="relative">
+                              <select required disabled={isSingleDeskInventory} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-8 text-[12px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" value={selectedDeskCapacity} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, capacity: e.target.value }))}>
+                                {capacityOptions.map((option) => (
+                                  <option key={option} value={String(option)}>{option} {isSingleDeskInventory && option === 1 ? 'desk fixed' : option === 1 ? 'desk' : 'seats'}</option>
+                                ))}
+                              </select>
+                              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                            </div>
+                            {isSingleDeskInventory ? (
+                              <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-[12px] font-semibold text-emerald-800">Single desks are fixed to 1 desk.</div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <input required type="number" min="1" placeholder="Enter capacity" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-bold text-slate-900 outline-none ring-1 ring-slate-200 transition focus:ring-2 focus:ring-blue-500" value={addResourceForm.capacity} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, capacity: e.target.value }))} />
+                        );
+                      })()}
                     </div>
-                  </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Resource Name *</label>
-                    <input required disabled={isViewingResource} type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.name} onChange={(e) => setResourceForm((prev) => ({ ...prev, name: e.target.value }))} />
-                  </div>
-
-                  <div className={`grid grid-cols-1 gap-4 ${resourceForm.resourceCategory === 'open_desk' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Location *</label>
-                      {locationMode === 'custom' ? (
-                        <div className="space-y-2">
-                          <input required disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.location} onChange={(e) => setResourceForm((prev) => ({ ...prev, location: e.target.value }))} placeholder="Enter new location" />
-                          {!isViewingResource && <button type="button" onClick={() => { setLocationMode('select'); setResourceForm((prev) => ({ ...prev, location: '' })); }} className="text-xs font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>}
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Description / Amenities</label>
+                      <textarea rows={2} className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[12px] font-medium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value={addResourceForm.description} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 mb-2">Pricing & Credits (set by Sales)</p>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-800">Price Per Hour (&#8377;)</label>
+                          <input type="number" min="0" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.pricePerHour} onChange={(e) => setAddResourceForm((current) => {
+                            const nextHour = e.target.value;
+                            if (nextHour === '') return { ...current, pricePerHour: '', pricePerDay: '' };
+                            const hourly = Number(nextHour);
+                            if (!Number.isFinite(hourly) || hourly < 0) return { ...current, pricePerHour: nextHour };
+                            return { ...current, pricePerHour: nextHour, pricePerDay: formatAutoPriceValue(hourly * RESOURCE_FULL_DAY_HOURS) };
+                          })} />
                         </div>
-                      ) : (
-                        <div className="relative">
-                          <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.location || ''} onChange={(e) => {
-                            const nextValue = e.target.value;
-                            if (nextValue === ADD_NEW_OPTION) { setLocationMode('custom'); setResourceForm((prev) => ({ ...prev, location: '' })); return; }
-                            setResourceForm((prev) => ({ ...prev, location: nextValue }));
-                          }}>
-                            <option value="">Select location</option>
-                            {availableResourceLocations.map((location) => (<option key={location} value={location}>{location}</option>))}
-                            {!isViewingResource && <option value={ADD_NEW_OPTION}>Add new location</option>}
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-800">Price Per Day (&#8377;)</label>
+                          <input type="number" min="0" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.pricePerDay} onChange={(e) => setAddResourceForm((current) => {
+                            const nextDay = e.target.value;
+                            if (nextDay === '') return { ...current, pricePerDay: '', pricePerHour: '' };
+                            const daily = Number(nextDay);
+                            if (!Number.isFinite(daily) || daily < 0) return { ...current, pricePerDay: nextDay };
+                            return { ...current, pricePerDay: nextDay, pricePerHour: formatAutoPriceValue(daily / RESOURCE_FULL_DAY_HOURS) };
+                          })} />
                         </div>
-                      )}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-800">Credits</label>
+                          <input type="number" min="1" className="w-full px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.credits} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
+                        </div>
+                      </div>
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Category *</label>
-                      <select required disabled={isViewingResource} className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.resourceCategory} onChange={(e) => {
-                        const nextCategory = e.target.value;
-                        const nextInventoryMode = nextCategory === 'virtual_office' ? 'single' : nextCategory === 'cabin_desk' ? 'area' : isDeskCategory(nextCategory) ? '' : 'area';
-                        setResourceForm((prev) => ({
-                          ...prev,
-                          resourceCategory: nextCategory,
-                          type: deriveResourceTypeFromCategory(nextCategory),
-                          inventoryMode: nextInventoryMode,
-                          capacity: normalizeCapacityForSelection(nextCategory, nextInventoryMode, nextCategory === 'virtual_office' ? '1' : prev.capacity),
-                        }));
-                      }}>
-                        <option value="">Select category</option>
-                        {resourceCategoryOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Status</label>
+                      <select className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={addResourceForm.status} onChange={(e) => setAddResourceForm((prev) => ({ ...prev, status: e.target.value }))}>
+                        {resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
                       </select>
                     </div>
-
-                    {resourceForm.resourceCategory === 'open_desk' ? (
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Inventory *</label>
-                        <div className="relative">
-                          <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.inventoryMode} onChange={(e) => {
-                            const nextInventoryMode = e.target.value;
-                            setResourceForm((prev) => ({
-                              ...prev,
-                              inventoryMode: nextInventoryMode,
-                              capacity: normalizeCapacityForSelection(prev.resourceCategory, nextInventoryMode, nextInventoryMode === 'single' ? '1' : prev.capacity),
-                            }));
-                          }}>
-                            <option value="">Select inventory</option>
-                            {inventoryModeOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        </div>
-                      </div>
-                    ) : null}
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Floor *</label>
-                      {floorMode === 'custom' ? (
-                        <div className="space-y-2">
-                          <input required disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.floor} onChange={(e) => setResourceForm((prev) => ({ ...prev, floor: e.target.value }))} placeholder="Enter new floor" />
-                          {!isViewingResource && <button type="button" onClick={() => { setFloorMode('select'); setResourceForm((prev) => ({ ...prev, floor: '' })); }} className="text-xs font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>}
-                        </div>
-                      ) : (
-                        <div className="relative">
-                          <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.floor || ''} onChange={(e) => {
-                            const nextValue = e.target.value;
-                            if (nextValue === ADD_NEW_OPTION) { setFloorMode('custom'); setResourceForm((prev) => ({ ...prev, floor: '' })); return; }
-                            setResourceForm((prev) => ({ ...prev, floor: nextValue }));
-                          }}>
-                            <option value="">Select floor</option>
-                            {availableResourceFloors.map((floor) => (<option key={floor} value={floor}>{floor}</option>))}
-                            {!isViewingResource && <option value={ADD_NEW_OPTION}>Add new floor</option>}
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Wing</label>
-                      {wingMode === 'custom' ? (
-                        <div className="space-y-2">
-                          <input disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.wing} onChange={(e) => setResourceForm((prev) => ({ ...prev, wing: e.target.value }))} placeholder="Enter new wing" />
-                          {!isViewingResource && <button type="button" onClick={() => { setWingMode('select'); setResourceForm((prev) => ({ ...prev, wing: '' })); }} className="text-xs font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>}
-                        </div>
-                      ) : (
-                        <div className="relative">
-                          <select disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.wing || ''} onChange={(e) => {
-                            const nextValue = e.target.value;
-                            if (nextValue === ADD_NEW_OPTION) { setWingMode('custom'); setResourceForm((prev) => ({ ...prev, wing: '' })); return; }
-                            setResourceForm((prev) => ({ ...prev, wing: nextValue }));
-                          }}>
-                            <option value="">Select wing</option>
-                            {availableResourceWings.map((wing) => (<option key={wing} value={wing}>{wing}</option>))}
-                            {!isViewingResource && <option value={ADD_NEW_OPTION}>Add new wing</option>}
-                          </select>
-                          <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        </div>
-                      )}
-                    </div>
                   </div>
+                ) : modalKind === 'resource' ? (
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-blue-500">Resource</p>
+                      <p className="mt-1 text-base font-black text-blue-900">{resourceForm.name || selectedItem?.name}</p>
+                      <p className="text-[12px] font-semibold text-blue-700">{resourceForm.type || selectedItem?.type}</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
+                          {getResourceCategoryLabel(resourceForm.resourceCategory)}
+                        </span>
+                        <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
+                          {isDeskCategory(resourceForm.resourceCategory) ? getInventoryModeLabel(resourceForm.inventoryMode) : 'Not applicable'}
+                        </span>
+                        <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
+                          Floor {resourceForm.floor || '--'}
+                        </span>
+                        <span className="rounded-full border border-blue-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
+                          Wing {resourceForm.wing || '--'}
+                        </span>
+                      </div>
+                    </div>
 
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      {isDeskCategory(resourceForm.resourceCategory) ? 'Seats *' : 'Capacity *'}
-                    </label>
-                    {(() => {
-                      const capacityOptions = getCapacityOptions(resourceForm.resourceCategory, resourceForm.inventoryMode);
-                      const isSingleDeskInventory = resourceForm.resourceCategory === 'open_desk' && resourceForm.inventoryMode === 'single';
-                      const selectedDeskCapacity = normalizeCapacityForSelection(resourceForm.resourceCategory, resourceForm.inventoryMode, resourceForm.capacity);
-                      return isDeskCategory(resourceForm.resourceCategory) && capacityOptions.length > 0 ? (
-                        <div className="space-y-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Resource Name *</label>
+                      <input required disabled={isViewingResource} type="text" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.name} onChange={(e) => setResourceForm((prev) => ({ ...prev, name: e.target.value }))} />
+                    </div>
+
+                    <div className={`grid grid-cols-1 gap-4 ${resourceForm.resourceCategory === 'open_desk' ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Location *</label>
+                        {locationMode === 'custom' ? (
+                          <div className="space-y-2">
+                            <input required disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.location} onChange={(e) => setResourceForm((prev) => ({ ...prev, location: e.target.value }))} placeholder="Enter new location" />
+                            {!isViewingResource && <button type="button" onClick={() => { setLocationMode('select'); setResourceForm((prev) => ({ ...prev, location: '' })); }} className="text-xs font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>}
+                          </div>
+                        ) : (
                           <div className="relative">
-                            <select required disabled={isViewingResource || isSingleDeskInventory} className="w-full appearance-none cursor-pointer rounded-2xl border border-slate-200 bg-white px-4 py-3.5 pr-10 text-sm font-bold text-slate-900 shadow-sm outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" value={selectedDeskCapacity} onChange={(e) => setResourceForm((prev) => ({ ...prev, capacity: e.target.value }))}>
-                              {capacityOptions.map((option) => (
-                                <option key={option} value={String(option)}>{option} {isSingleDeskInventory && option === 1 ? 'desk fixed' : option === 1 ? 'desk' : 'seats'}</option>
-                              ))}
+                            <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.location || ''} onChange={(e) => {
+                              const nextValue = e.target.value;
+                              if (nextValue === ADD_NEW_OPTION) { setLocationMode('custom'); setResourceForm((prev) => ({ ...prev, location: '' })); return; }
+                              setResourceForm((prev) => ({ ...prev, location: nextValue }));
+                            }}>
+                              <option value="">Select location</option>
+                              {availableResourceLocations.map((location) => (<option key={location} value={location}>{location}</option>))}
+                              {!isViewingResource && <option value={ADD_NEW_OPTION}>Add new location</option>}
                             </select>
                             <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                           </div>
-                          {isSingleDeskInventory ? (
-                            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">Single desks are fixed to 1 desk.</div>
+                        )}
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Category *</label>
+                        <select required disabled={isViewingResource} className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.resourceCategory} onChange={(e) => {
+                          const nextCategory = e.target.value;
+                          const nextInventoryMode = nextCategory === 'virtual_office' ? 'single' : nextCategory === 'cabin_desk' ? 'area' : isDeskCategory(nextCategory) ? '' : 'area';
+                          setResourceForm((prev) => ({
+                            ...prev,
+                            resourceCategory: nextCategory,
+                            type: deriveResourceTypeFromCategory(nextCategory),
+                            inventoryMode: nextInventoryMode,
+                            capacity: normalizeCapacityForSelection(nextCategory, nextInventoryMode, nextCategory === 'virtual_office' ? '1' : prev.capacity),
+                          }));
+                        }}>
+                          <option value="">Select category</option>
+                          {resourceCategoryOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                        </select>
+                      </div>
+
+                      {resourceForm.resourceCategory === 'open_desk' ? (
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Inventory *</label>
+                          <div className="relative">
+                            <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.inventoryMode} onChange={(e) => {
+                              const nextInventoryMode = e.target.value;
+                              setResourceForm((prev) => ({
+                                ...prev,
+                                inventoryMode: nextInventoryMode,
+                                capacity: normalizeCapacityForSelection(prev.resourceCategory, nextInventoryMode, nextInventoryMode === 'single' ? '1' : prev.capacity),
+                              }));
+                            }}>
+                              <option value="">Select inventory</option>
+                              {inventoryModeOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                          </div>
+                        </div>
+                      ) : null}
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Floor *</label>
+                        {floorMode === 'custom' ? (
+                          <div className="space-y-2">
+                            <input required disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.floor} onChange={(e) => setResourceForm((prev) => ({ ...prev, floor: e.target.value }))} placeholder="Enter new floor" />
+                            {!isViewingResource && <button type="button" onClick={() => { setFloorMode('select'); setResourceForm((prev) => ({ ...prev, floor: '' })); }} className="text-xs font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>}
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <select required disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.floor || ''} onChange={(e) => {
+                              const nextValue = e.target.value;
+                              if (nextValue === ADD_NEW_OPTION) { setFloorMode('custom'); setResourceForm((prev) => ({ ...prev, floor: '' })); return; }
+                              setResourceForm((prev) => ({ ...prev, floor: nextValue }));
+                            }}>
+                              <option value="">Select floor</option>
+                              {availableResourceFloors.map((floor) => (<option key={floor} value={floor}>{floor}</option>))}
+                              {!isViewingResource && <option value={ADD_NEW_OPTION}>Add new floor</option>}
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Wing</label>
+                        {wingMode === 'custom' ? (
+                          <div className="space-y-2">
+                            <input disabled={isViewingResource} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.wing} onChange={(e) => setResourceForm((prev) => ({ ...prev, wing: e.target.value }))} placeholder="Enter new wing" />
+                            {!isViewingResource && <button type="button" onClick={() => { setWingMode('select'); setResourceForm((prev) => ({ ...prev, wing: '' })); }} className="text-xs font-black uppercase tracking-widest text-blue-600">Back to dropdown</button>}
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <select disabled={isViewingResource} className="w-full appearance-none cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.wing || ''} onChange={(e) => {
+                              const nextValue = e.target.value;
+                              if (nextValue === ADD_NEW_OPTION) { setWingMode('custom'); setResourceForm((prev) => ({ ...prev, wing: '' })); return; }
+                              setResourceForm((prev) => ({ ...prev, wing: nextValue }));
+                            }}>
+                              <option value="">Select wing</option>
+                              {availableResourceWings.map((wing) => (<option key={wing} value={wing}>{wing}</option>))}
+                              {!isViewingResource && <option value={ADD_NEW_OPTION}>Add new wing</option>}
+                            </select>
+                            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        {isDeskCategory(resourceForm.resourceCategory) ? 'Seats *' : 'Capacity *'}
+                      </label>
+                      {(() => {
+                        const capacityOptions = getCapacityOptions(resourceForm.resourceCategory, resourceForm.inventoryMode);
+                        const isSingleDeskInventory = resourceForm.resourceCategory === 'open_desk' && resourceForm.inventoryMode === 'single';
+                        const selectedDeskCapacity = normalizeCapacityForSelection(resourceForm.resourceCategory, resourceForm.inventoryMode, resourceForm.capacity);
+                        return isDeskCategory(resourceForm.resourceCategory) && capacityOptions.length > 0 ? (
+                          <div className="space-y-2">
+                            <div className="relative">
+                              <select required disabled={isViewingResource || isSingleDeskInventory} className="w-full appearance-none cursor-pointer rounded-2xl border border-slate-200 bg-white px-4 py-3.5 pr-10 text-sm font-bold text-slate-900 shadow-sm outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500" value={selectedDeskCapacity} onChange={(e) => setResourceForm((prev) => ({ ...prev, capacity: e.target.value }))}>
+                                {capacityOptions.map((option) => (
+                                  <option key={option} value={String(option)}>{option} {isSingleDeskInventory && option === 1 ? 'desk fixed' : option === 1 ? 'desk' : 'seats'}</option>
+                                ))}
+                              </select>
+                              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                            </div>
+                            {isSingleDeskInventory ? (
+                              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">Single desks are fixed to 1 desk.</div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <input required disabled={isViewingResource} type="number" min="1" placeholder="Enter capacity" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-bold text-slate-900 outline-none ring-1 ring-slate-200 transition focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.capacity} onChange={(e) => setResourceForm((prev) => ({ ...prev, capacity: e.target.value }))} />
+                        );
+                      })()}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Description / Amenities</label>
+                      <textarea disabled={isViewingResource} rows={3} className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.description} onChange={(e) => setResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-4">
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-amber-600 mb-3">Pricing & Credits (set by Sales)</p>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-bold text-slate-800">Price Per Hour (&#8377;)</label>
+                          <input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerHour} onChange={(e) => setResourceForm((current) => {
+                            const nextHour = e.target.value;
+                            if (nextHour === '') return { ...current, pricePerHour: '', pricePerDay: '' };
+                            const hourly = Number(nextHour);
+                            if (!Number.isFinite(hourly) || hourly < 0) return { ...current, pricePerHour: nextHour };
+                            return { ...current, pricePerHour: nextHour, pricePerDay: formatAutoPriceValue(hourly * RESOURCE_FULL_DAY_HOURS) };
+                          })} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-bold text-slate-800">Price Per Day (&#8377;)</label>
+                          <input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerDay} onChange={(e) => setResourceForm((current) => {
+                            const nextDay = e.target.value;
+                            if (nextDay === '') return { ...current, pricePerDay: '', pricePerHour: '' };
+                            const daily = Number(nextDay);
+                            if (!Number.isFinite(daily) || daily < 0) return { ...current, pricePerDay: nextDay };
+                            return { ...current, pricePerDay: nextDay, pricePerHour: formatAutoPriceValue(daily / RESOURCE_FULL_DAY_HOURS) };
+                          })} />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-bold text-slate-800">Credits</label>
+                          <input type="number" min="1" step="1" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.credits} onChange={(e) => setResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Status</label>
+                      <select disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.status} onChange={(e) => setResourceForm((prev) => ({ ...prev, status: e.target.value }))}>
+                        {resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                      </select>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Preview</p>
+                      <p className="mt-1 text-sm font-bold text-slate-800">
+                        {resourceForm.pricePerHour ? `${formatCurrency(resourceForm.pricePerHour)} / hr` : 'Hourly rate not set'} &bull; {resourceForm.pricePerDay ? `${formatCurrency(resourceForm.pricePerDay)} / day` : 'Daily rate not set'}
+                      </p>
+                      <p className="mt-1 text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                        {getResourceCreditSummary({
+                          ...selectedItem,
+                          credits: Number(resourceForm.credits || selectedItem?.credits || 1),
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                ) : isViewingPackage ? (
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-slate-200 bg-linear-to-br from-slate-50 to-white p-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Package Details</p>
+                          <h3 className="mt-1 text-lg font-black text-slate-900">{selectedPackage.name || '--'}</h3>
+                          <p className="mt-0.5 text-[12px] font-bold text-slate-600">{viewPackageCategory} Package</p>
+                          {selectedPackage.assignedTenantCompanyName ? (
+                            <p className="mt-0.5 text-[11px] font-bold text-slate-500">Assigned to {selectedPackage.assignedTenantCompanyName}</p>
                           ) : null}
                         </div>
-                      ) : (
-                        <input required disabled={isViewingResource} type="number" min="1" placeholder="Enter capacity" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-bold text-slate-900 outline-none ring-1 ring-slate-200 transition focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.capacity} onChange={(e) => setResourceForm((prev) => ({ ...prev, capacity: e.target.value }))} />
-                      );
-                    })()}
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Description / Amenities</label>
-                    <textarea disabled={isViewingResource} rows={3} className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.description} onChange={(e) => setResourceForm((prev) => ({ ...prev, description: e.target.value }))} />
-                  </div>
-
-                  <div className="border-t border-slate-100 pt-4">
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-amber-600 mb-3">Pricing & Credits (set by Sales)</p>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-bold text-slate-800">Price Per Hour (&#8377;)</label>
-                        <input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerHour} onChange={(e) => setResourceForm((current) => {
-                          const nextHour = e.target.value;
-                          if (nextHour === '') return { ...current, pricePerHour: '', pricePerDay: '' };
-                          const hourly = Number(nextHour);
-                          if (!Number.isFinite(hourly) || hourly < 0) return { ...current, pricePerHour: nextHour };
-                          return { ...current, pricePerHour: nextHour, pricePerDay: formatAutoPriceValue(hourly * RESOURCE_FULL_DAY_HOURS) };
-                        })} />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-bold text-slate-800">Price Per Day (&#8377;)</label>
-                        <input type="number" min="0" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.pricePerDay} onChange={(e) => setResourceForm((current) => {
-                          const nextDay = e.target.value;
-                          if (nextDay === '') return { ...current, pricePerDay: '', pricePerHour: '' };
-                          const daily = Number(nextDay);
-                          if (!Number.isFinite(daily) || daily < 0) return { ...current, pricePerDay: nextDay };
-                          return { ...current, pricePerDay: nextDay, pricePerHour: formatAutoPriceValue(daily / RESOURCE_FULL_DAY_HOURS) };
-                        })} />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[11px] font-bold text-slate-800">Credits</label>
-                        <input type="number" min="1" step="1" disabled={isViewingResource} className="w-full px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.credits} onChange={(e) => setResourceForm((prev) => ({ ...prev, credits: e.target.value }))} />
+                        <div className="flex flex-wrap gap-2">
+                          {statusBadge(selectedPackage.status || packageForm.status)}
+                          {(selectedPackage.isRecommended ?? packageForm.isRecommended) ? (
+                            <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-amber-700">
+                              Recommended
+                            </span>
+                          ) : null}
+                          {hasMeaningfulValue(selectedPackage.packageCode) ? (
+                            <span className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-700">
+                              Code {selectedPackage.packageCode}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Status</label>
-                    <select disabled={isViewingResource} className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60" value={resourceForm.status} onChange={(e) => setResourceForm((prev) => ({ ...prev, status: e.target.value }))}>
-                      {resourceStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Preview</p>
-                    <p className="mt-1 text-sm font-bold text-slate-800">
-                      {resourceForm.pricePerHour ? `${formatCurrency(resourceForm.pricePerHour)} / hr` : 'Hourly rate not set'} &bull; {resourceForm.pricePerDay ? `${formatCurrency(resourceForm.pricePerDay)} / day` : 'Daily rate not set'}
-                    </p>
-                    <p className="mt-1 text-[11px] font-bold uppercase tracking-widest text-slate-400">
-                      {getResourceCreditSummary({
-                        ...selectedItem,
-                        credits: Number(resourceForm.credits || selectedItem?.credits || 1),
-                      })}
-                    </p>
-                  </div>
-                </div>
-              ) : isViewingPackage ? (
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-slate-200 bg-linear-to-br from-slate-50 to-white p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Package Details</p>
-                        <h3 className="mt-1 text-lg font-black text-slate-900">{selectedPackage.name || '--'}</h3>
-                        <p className="mt-0.5 text-[12px] font-bold text-slate-600">{viewPackageCategory} Package</p>
-                        {selectedPackage.assignedTenantCompanyName ? (
-                          <p className="mt-0.5 text-[11px] font-bold text-slate-500">Assigned to {selectedPackage.assignedTenantCompanyName}</p>
-                        ) : null}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {statusBadge(selectedPackage.status || packageForm.status)}
-                        {(selectedPackage.isRecommended ?? packageForm.isRecommended) ? (
-                          <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-amber-700">
-                            Recommended
-                          </span>
-                        ) : null}
-                        {hasMeaningfulValue(selectedPackage.packageCode) ? (
-                          <span className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-slate-700">
-                            Code {selectedPackage.packageCode}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-
-                  {viewPackageCategory === 'Tenant' ? (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-                        {hasMeaningfulValue(viewPackageDurationMonths) ? (
-                          <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-blue-500">Contract Duration</p>
-                            <p className="mt-1 text-base font-black text-blue-900">{viewPackageDurationMonths} months</p>
-                          </div>
-                        ) : null}
-                        {(hasMeaningfulValue(viewPackageRatePerOpenDesk) || hasMeaningfulValue(viewPackageRatePerCabinDesk)) ? (
-                          <div className="rounded-xl border border-amber-100 bg-amber-50 p-3">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-amber-700">Desk Rates</p>
-                            <p className="mt-1 text-[12px] font-black text-amber-900">
-                              {hasMeaningfulValue(viewPackageRatePerOpenDesk) ? `${formatCurrency(viewPackageRatePerOpenDesk)} open` : null}
-                              {hasMeaningfulValue(viewPackageRatePerOpenDesk) && hasMeaningfulValue(viewPackageRatePerCabinDesk) ? ' / ' : null}
-                              {hasMeaningfulValue(viewPackageRatePerCabinDesk) ? `${formatCurrency(viewPackageRatePerCabinDesk)} cabin` : null}
-                            </p>
-                          </div>
-                        ) : null}
-                        {hasMeaningfulValue(viewPackageMonthlyRate) ? (
-                          <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Monthly Rent</p>
-                            <p className="mt-1 text-base font-black text-emerald-700">{formatCurrency(viewPackageMonthlyRate)}</p>
-                            <p className="mt-0.5 text-[10px] font-medium text-emerald-700">{hasMeaningfulValue(viewPackageDailyRateTotal) ? `${formatCurrency(viewPackageDailyRateTotal)} / day` : ''}</p>
-                          </div>
-                        ) : null}
-                        {hasMeaningfulValue(viewPackageTotalContractValue) ? (
-                          <div className="rounded-xl border border-purple-200 bg-purple-50 p-3">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-purple-600">Total Contract Value</p>
-                            <p className="mt-1 text-base font-black text-purple-700">{formatCurrency(viewPackageTotalContractValue)}</p>
-                            <p className="mt-0.5 text-[10px] font-medium text-purple-600">Monthly rent x duration</p>
-                          </div>
-                        ) : null}
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                        <div className="rounded-xl border border-slate-200 bg-white p-4">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Scope</p>
-                          <dl className="mt-3 space-y-3">
-                            {hasMeaningfulValue(getTenantPackageScope(viewPackageLocationMappings)?.floor || selectedPackage.floor || packageForm.floor) ? (
-                              <div>
-                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Floor</dt>
-                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{getTenantPackageScope(viewPackageLocationMappings)?.floor || selectedPackage.floor || packageForm.floor}</dd>
-                              </div>
-                            ) : null}
-                            {hasMeaningfulValue(getTenantPackageScope(viewPackageLocationMappings)?.wing || selectedPackage.wing || packageForm.wing) ? (
-                              <div>
-                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Wing</dt>
-                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{getTenantPackageScope(viewPackageLocationMappings)?.wing || selectedPackage.wing || packageForm.wing}</dd>
-                              </div>
-                            ) : null}
-                            {hasMeaningfulValue(viewPackageLocationMappings.length) ? (
-                              <div>
-                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Selected Blocks</dt>
-                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageLocationMappings.length}</dd>
-                              </div>
-                            ) : null}
-                            {hasMeaningfulValue(selectedPackage.locationLabel) ? (
-                              <div>
-                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Location Label</dt>
-                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedPackage.locationLabel}</dd>
-                              </div>
-                            ) : null}
-                          </dl>
+                    {viewPackageCategory === 'Tenant' ? (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                          {hasMeaningfulValue(viewPackageDurationMonths) ? (
+                            <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-blue-500">Contract Duration</p>
+                              <p className="mt-1 text-base font-black text-blue-900">{viewPackageDurationMonths} months</p>
+                            </div>
+                          ) : null}
+                          {(hasMeaningfulValue(viewPackageRatePerOpenDesk) || hasMeaningfulValue(viewPackageRatePerCabinDesk)) ? (
+                            <div className="rounded-xl border border-amber-100 bg-amber-50 p-3">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-amber-700">Desk Rates</p>
+                              <p className="mt-1 text-[12px] font-black text-amber-900">
+                                {hasMeaningfulValue(viewPackageRatePerOpenDesk) ? `${formatCurrency(viewPackageRatePerOpenDesk)} open` : null}
+                                {hasMeaningfulValue(viewPackageRatePerOpenDesk) && hasMeaningfulValue(viewPackageRatePerCabinDesk) ? ' / ' : null}
+                                {hasMeaningfulValue(viewPackageRatePerCabinDesk) ? `${formatCurrency(viewPackageRatePerCabinDesk)} cabin` : null}
+                              </p>
+                            </div>
+                          ) : null}
+                          {hasMeaningfulValue(viewPackageMonthlyRate) ? (
+                            <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Monthly Rent</p>
+                              <p className="mt-1 text-base font-black text-emerald-700">{formatCurrency(viewPackageMonthlyRate)}</p>
+                              <p className="mt-0.5 text-[10px] font-medium text-emerald-700">{hasMeaningfulValue(viewPackageDailyRateTotal) ? `${formatCurrency(viewPackageDailyRateTotal)} / day` : ''}</p>
+                            </div>
+                          ) : null}
+                          {hasMeaningfulValue(viewPackageTotalContractValue) ? (
+                            <div className="rounded-xl border border-purple-200 bg-purple-50 p-3">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-purple-600">Total Contract Value</p>
+                              <p className="mt-1 text-base font-black text-purple-700">{formatCurrency(viewPackageTotalContractValue)}</p>
+                              <p className="mt-0.5 text-[10px] font-medium text-purple-600">Monthly rent x duration</p>
+                            </div>
+                          ) : null}
                         </div>
 
-                        <div className="rounded-xl border border-slate-200 bg-white p-4">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Allocation</p>
-                          <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            {hasMeaningfulValue(viewPackageOpenDesks) ? (
-                              <div>
-                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Open Desks</dt>
-                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageOpenDesks}</dd>
-                              </div>
-                            ) : null}
-                            {hasMeaningfulValue(viewPackageCabinDesks) ? (
-                              <div>
-                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Cabin Desks</dt>
-                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageCabinDesks}</dd>
-                              </div>
-                            ) : null}
+                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                          <div className="rounded-xl border border-slate-200 bg-white p-4">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Scope</p>
+                            <dl className="mt-3 space-y-3">
+                              {hasMeaningfulValue(getTenantPackageScope(viewPackageLocationMappings)?.floor || selectedPackage.floor || packageForm.floor) ? (
+                                <div>
+                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Floor</dt>
+                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{getTenantPackageScope(viewPackageLocationMappings)?.floor || selectedPackage.floor || packageForm.floor}</dd>
+                                </div>
+                              ) : null}
+                              {hasMeaningfulValue(getTenantPackageScope(viewPackageLocationMappings)?.wing || selectedPackage.wing || packageForm.wing) ? (
+                                <div>
+                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Wing</dt>
+                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{getTenantPackageScope(viewPackageLocationMappings)?.wing || selectedPackage.wing || packageForm.wing}</dd>
+                                </div>
+                              ) : null}
+                              {hasMeaningfulValue(viewPackageLocationMappings.length) ? (
+                                <div>
+                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Selected Blocks</dt>
+                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageLocationMappings.length}</dd>
+                                </div>
+                              ) : null}
+                              {hasMeaningfulValue(selectedPackage.locationLabel) ? (
+                                <div>
+                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Location Label</dt>
+                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedPackage.locationLabel}</dd>
+                                </div>
+                              ) : null}
+                            </dl>
+                          </div>
+
+                          <div className="rounded-xl border border-slate-200 bg-white p-4">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Allocation</p>
+                            <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              {hasMeaningfulValue(viewPackageOpenDesks) ? (
+                                <div>
+                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Open Desks</dt>
+                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageOpenDesks}</dd>
+                                </div>
+                              ) : null}
+                              {hasMeaningfulValue(viewPackageCabinDesks) ? (
+                                <div>
+                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Cabin Desks</dt>
+                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageCabinDesks}</dd>
+                                </div>
+                              ) : null}
+                              {hasMeaningfulValue(viewPackageTotalSeats) ? (
+                                <div>
+                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Seats</dt>
+                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageTotalSeats}</dd>
+                                </div>
+                              ) : null}
+                              {hasMeaningfulValue(viewPackageCreditsPerSeat) ? (
+                                <div>
+                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Credits / Seat</dt>
+                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageCreditsPerSeat}</dd>
+                                </div>
+                              ) : null}
+                              {hasMeaningfulValue(viewPackageMonthlyCredits) ? (
+                                <div>
+                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Monthly Credits</dt>
+                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageMonthlyCredits}</dd>
+                                </div>
+                              ) : null}
+                              {hasMeaningfulValue(selectedPackage.assignedTenantCompanyName) ? (
+                                <div className="sm:col-span-2">
+                                  <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Assigned Company</dt>
+                                  <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedPackage.assignedTenantCompanyName}</dd>
+                                </div>
+                              ) : null}
+                            </dl>
+                          </div>
+                        </div>
+
+                        {viewPackageLocationMappings.length > 0 ? (
+                          <div className="rounded-xl border border-slate-200 bg-white p-4">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Included Blocks</p>
+                            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                              {viewPackageLocationMappings.map((mapping) => (
+                                <div key={`${mapping.locationCode || mapping.label || 'block'}-${mapping.floor || ''}-${mapping.wing || ''}`} className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
+                                  <p className="text-[12px] font-black text-slate-900">{mapping.label || '--'}</p>
+                                  <p className="mt-0.5 text-[10px] font-medium text-slate-500">
+                                    {hasMeaningfulValue(mapping.floor) ? `Floor ${mapping.floor}` : null}
+                                    {hasMeaningfulValue(mapping.floor) && hasMeaningfulValue(mapping.wing) ? ' / ' : ''}
+                                    {hasMeaningfulValue(mapping.wing) ? `Wing ${mapping.wing}` : null}
+                                  </p>
+                                  <p className="mt-0.5 text-[10px] font-bold text-slate-500">
+                                    {hasMeaningfulValue(mapping.seatType) ? `${mapping.seatType} desk` : 'Desk'}{hasMeaningfulValue(mapping.seatsAllocated) ? ` / ${mapping.seatsAllocated} seats` : ''}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {hasMeaningfulValue(selectedPackage.description) ? (
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Description</p>
+                            <p className="mt-1 text-[12px] leading-relaxed text-slate-700">{selectedPackage.description}</p>
+                          </div>
+                        ) : null}
+
+                        {viewPackageFeatures.length > 0 ? (
+                          <div className="rounded-xl border border-slate-200 bg-white p-4">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Feature Bullets</p>
+                            <ul className="mt-2 space-y-1.5">
+                              {viewPackageFeatures.map((feature) => (
+                                <li key={feature} className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-[12px] font-medium text-slate-700">
+                                  {feature}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                          {hasMeaningfulValue(selectedPackage.creditsIncluded) ? (
+                            <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-indigo-600">Credits Included</p>
+                              <p className="mt-1 text-base font-black text-indigo-900">{selectedPackage.creditsIncluded}</p>
+                            </div>
+                          ) : null}
+                          {hasMeaningfulValue(viewPackagePrice) ? (
+                            <div className="rounded-xl border border-slate-200 bg-white p-3">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Price</p>
+                              <p className="mt-1 text-base font-black text-slate-900">{formatCurrency(viewPackagePrice)}</p>
+                            </div>
+                          ) : null}
+                          {hasMeaningfulValue(viewPackageDurationMonths) ? (
+                            <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Duration</p>
+                              <p className="mt-1 text-base font-black text-emerald-700">{viewPackageDurationMonths} months</p>
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Summary</p>
+                          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                             {hasMeaningfulValue(viewPackageTotalSeats) ? (
                               <div>
-                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Seats</dt>
-                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageTotalSeats}</dd>
-                              </div>
-                            ) : null}
-                            {hasMeaningfulValue(viewPackageCreditsPerSeat) ? (
-                              <div>
-                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Credits / Seat</dt>
-                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageCreditsPerSeat}</dd>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Seats Included</p>
+                                <p className="mt-1 text-sm font-bold text-slate-700">{viewPackageTotalSeats}</p>
                               </div>
                             ) : null}
                             {hasMeaningfulValue(viewPackageMonthlyCredits) ? (
                               <div>
-                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Monthly Credits</dt>
-                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{viewPackageMonthlyCredits}</dd>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Monthly Credits</p>
+                                <p className="mt-1 text-sm font-bold text-slate-700">{viewPackageMonthlyCredits}</p>
+                              </div>
+                            ) : null}
+                            {(selectedPackage.isRecommended ?? packageForm.isRecommended) ? (
+                              <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Recommended</p>
+                                <p className="mt-1 text-sm font-bold text-slate-700">Yes</p>
                               </div>
                             ) : null}
                             {hasMeaningfulValue(selectedPackage.assignedTenantCompanyName) ? (
                               <div className="sm:col-span-2">
-                                <dt className="text-[9px] font-black uppercase tracking-widest text-slate-400">Assigned Company</dt>
-                                <dd className="mt-0.5 text-[12px] font-bold text-slate-900">{selectedPackage.assignedTenantCompanyName}</dd>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Assigned Company</p>
+                                <p className="mt-1 text-sm font-bold text-slate-700">{selectedPackage.assignedTenantCompanyName}</p>
                               </div>
                             ) : null}
-                          </dl>
-                        </div>
-                      </div>
-
-                      {viewPackageLocationMappings.length > 0 ? (
-                        <div className="rounded-xl border border-slate-200 bg-white p-4">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Included Blocks</p>
-                          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            {viewPackageLocationMappings.map((mapping) => (
-                              <div key={`${mapping.locationCode || mapping.label || 'block'}-${mapping.floor || ''}-${mapping.wing || ''}`} className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
-                                <p className="text-[12px] font-black text-slate-900">{mapping.label || '--'}</p>
-                                <p className="mt-0.5 text-[10px] font-medium text-slate-500">
-                                  {hasMeaningfulValue(mapping.floor) ? `Floor ${mapping.floor}` : null}
-                                  {hasMeaningfulValue(mapping.floor) && hasMeaningfulValue(mapping.wing) ? ' / ' : ''}
-                                  {hasMeaningfulValue(mapping.wing) ? `Wing ${mapping.wing}` : null}
-                                </p>
-                                <p className="mt-0.5 text-[10px] font-bold text-slate-500">
-                                  {hasMeaningfulValue(mapping.seatType) ? `${mapping.seatType} desk` : 'Desk'}{hasMeaningfulValue(mapping.seatsAllocated) ? ` / ${mapping.seatsAllocated} seats` : ''}
-                                </p>
-                              </div>
-                            ))}
                           </div>
                         </div>
-                      ) : null}
 
-                      {hasMeaningfulValue(selectedPackage.description) ? (
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Description</p>
-                          <p className="mt-1 text-[12px] leading-relaxed text-slate-700">{selectedPackage.description}</p>
-                        </div>
-                      ) : null}
-
-                      {viewPackageFeatures.length > 0 ? (
-                        <div className="rounded-xl border border-slate-200 bg-white p-4">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Feature Bullets</p>
-                          <ul className="mt-2 space-y-1.5">
-                            {viewPackageFeatures.map((feature) => (
-                              <li key={feature} className="rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-1.5 text-[12px] font-medium text-slate-700">
-                                {feature}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                        {hasMeaningfulValue(selectedPackage.creditsIncluded) ? (
-                          <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-indigo-600">Credits Included</p>
-                            <p className="mt-1 text-base font-black text-indigo-900">{selectedPackage.creditsIncluded}</p>
+                        {hasMeaningfulValue(selectedPackage.description) ? (
+                          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Description</p>
+                            <p className="mt-2 text-sm leading-relaxed text-slate-700">{selectedPackage.description}</p>
                           </div>
                         ) : null}
-                        {hasMeaningfulValue(viewPackagePrice) ? (
-                          <div className="rounded-xl border border-slate-200 bg-white p-3">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Price</p>
-                            <p className="mt-1 text-base font-black text-slate-900">{formatCurrency(viewPackagePrice)}</p>
-                          </div>
-                        ) : null}
-                        {hasMeaningfulValue(viewPackageDurationMonths) ? (
-                          <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Duration</p>
-                            <p className="mt-1 text-base font-black text-emerald-700">{viewPackageDurationMonths} months</p>
+
+                        {viewPackageFeatures.length > 0 ? (
+                          <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Feature Bullets</p>
+                            <ul className="mt-3 space-y-2">
+                              {viewPackageFeatures.map((feature) => (
+                                <li key={feature} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
+                                  {feature}
+                                </li>
+                              ))}
+                            </ul>
                           </div>
                         ) : null}
                       </div>
-
-                      <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Summary</p>
-                        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                          {hasMeaningfulValue(viewPackageTotalSeats) ? (
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Seats Included</p>
-                              <p className="mt-1 text-sm font-bold text-slate-700">{viewPackageTotalSeats}</p>
-                            </div>
-                          ) : null}
-                          {hasMeaningfulValue(viewPackageMonthlyCredits) ? (
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Monthly Credits</p>
-                              <p className="mt-1 text-sm font-bold text-slate-700">{viewPackageMonthlyCredits}</p>
-                            </div>
-                          ) : null}
-                          {(selectedPackage.isRecommended ?? packageForm.isRecommended) ? (
-                            <div>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Recommended</p>
-                              <p className="mt-1 text-sm font-bold text-slate-700">Yes</p>
-                            </div>
-                          ) : null}
-                          {hasMeaningfulValue(selectedPackage.assignedTenantCompanyName) ? (
-                            <div className="sm:col-span-2">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Assigned Company</p>
-                              <p className="mt-1 text-sm font-bold text-slate-700">{selectedPackage.assignedTenantCompanyName}</p>
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      {hasMeaningfulValue(selectedPackage.description) ? (
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Description</p>
-                          <p className="mt-2 text-sm leading-relaxed text-slate-700">{selectedPackage.description}</p>
-                        </div>
-                      ) : null}
-
-                      {viewPackageFeatures.length > 0 ? (
-                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Feature Bullets</p>
-                          <ul className="mt-3 space-y-2">
-                            {viewPackageFeatures.map((feature) => (
-                              <li key={feature} className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
-                                {feature}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-[13px] font-bold text-slate-400">Package Name *</label>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-[13px] font-bold text-slate-400">Package Name *</label>
                       <input
                         required
                         type="text"
                         disabled={isTenantPackageRateEdit}
                         className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                      value={packageForm.name}
-                      onChange={(e) => setPackageForm((current) => ({ ...current, name: e.target.value }))}
-                    />
-                  </div>
-
-                  {packageForm.category === 'Tenant' ? (
-                    <div className="space-y-4">
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
-                        <div className="mb-3 flex items-center gap-2">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white"><Building2 size={14} /></div>
-                          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-700">Location Scope</p>
-                        </div>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-400">Floor *</label>
-                              <select
-                              required
-                              disabled={isTenantPackageRateEdit}
-                              className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                              value={packageForm.floor}
-                              onChange={(e) => {
-                                const nextFloor = e.target.value;
-                                const nextWingOptions = Array.from(new Set(
-                                  getTenantScopeResources(tenantAreaResources, nextFloor, '')
-                                    .map((resource) => String(resource.wing || '').trim().toUpperCase())
-                                    .filter(Boolean),
-                                ));
-                                updateTenantScopeSelection(nextFloor, nextWingOptions[0] || '');
-                              }}
-                            >
-                              <option value="">Select floor</option>
-                              {tenantFloorOptions.map((floor) => <option key={floor} value={floor}>{floor}</option>)}
-                            </select>
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-400">Wing *</label>
-                              <select
-                              required
-                              disabled={isTenantPackageRateEdit}
-                              className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                              value={packageForm.wing}
-                              onChange={(e) => updateTenantScopeSelection(packageForm.floor, e.target.value.toUpperCase())}
-                            >
-                              <option value="">Select wing</option>
-                              {tenantWingOptions.map((wing) => <option key={wing} value={wing}>{wing}</option>)}
-                            </select>
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-slate-400">Block Mix</label>
-                            <select
-                              disabled={isTenantPackageRateEdit}
-                              className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                              value={tenantSelectionPreset}
-                              onChange={(e) => handleTenantSelectionPresetChange(e.target.value)}
-                            >
-                              <option value="all">{getTenantSelectionPresetLabel('all')}</option>
-                              <option value="open">{getTenantSelectionPresetLabel('open')}</option>
-                              <option value="cabin">{getTenantSelectionPresetLabel('cabin')}</option>
-                              <option value="custom">{getTenantSelectionPresetLabel('custom')}</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-
-                      {tenantPackageScopeResources.length > 0 ? (
-                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                          <div className="rounded-2xl border border-emerald-200 bg-white p-3">
-                            <div className="mb-2 flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-100 text-emerald-700"><LayoutGrid size={12} /></div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Open Desk Blocks</p>
-                              </div>
-                              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">
-                                {tenantOpenDeskResources.filter((resource) => packageForm.selectedResourceIds.includes(getTenantResourceSelectionId(resource))).length}/{tenantOpenDeskResources.length}
-                              </span>
-                            </div>
-                            <div className="max-h-52 space-y-1.5 overflow-y-auto pr-1">
-                              {tenantOpenDeskResources.length > 0 ? tenantOpenDeskResources.map((resource) => {
-                                const selected = packageForm.selectedResourceIds.includes(getTenantResourceSelectionId(resource));
-                                return (
-                                  <label key={resource.recordId} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 transition-all ${selected ? 'border-emerald-300 bg-emerald-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-emerald-200'}`}>
-                                    <input type="checkbox" disabled={isTenantPackageRateEdit} className="h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" checked={selected} onChange={() => toggleTenantResourceSelection(resource.recordId)} />
-                                    <div className="min-w-0 flex-1">
-                                      <p className="truncate text-[12px] font-bold text-slate-900">{resource.name}</p>
-                                      <p className="text-[10px] font-bold text-slate-400">{resource.capacity} seats &bull; {formatCurrency(resource.pricePerDay)}/day &bull; {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
-                                      {Array.isArray(resource.seatLabels) && resource.seatLabels.length > 0 && (
-                                        <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                          {resource.seatLabels.map((seatLabel) => (
-                                            <span key={`${resource.recordId}-${seatLabel}`} className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">
-                                              {seatLabel}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </label>
-                                );
-                              }) : (
-                                <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/50 px-3 py-4 text-center text-xs font-medium text-emerald-700">No open desk blocks in this scope.</div>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="rounded-2xl border border-blue-200 bg-white p-3">
-                            <div className="mb-2 flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 text-blue-700"><LayoutGrid size={12} /></div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Cabin Desk Blocks</p>
-                              </div>
-                              <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">
-                                {tenantCabinDeskResources.filter((resource) => packageForm.selectedResourceIds.includes(getTenantResourceSelectionId(resource))).length}/{tenantCabinDeskResources.length}
-                              </span>
-                            </div>
-                            <div className="max-h-52 space-y-1.5 overflow-y-auto pr-1">
-                              {tenantCabinDeskResources.length > 0 ? tenantCabinDeskResources.map((resource) => {
-                                const selected = packageForm.selectedResourceIds.includes(getTenantResourceSelectionId(resource));
-                                return (
-                                  <label key={resource.recordId} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 transition-all ${selected ? 'border-blue-300 bg-blue-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-blue-200'}`}>
-                                    <input type="checkbox" disabled={isTenantPackageRateEdit} className="h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked={selected} onChange={() => toggleTenantResourceSelection(resource.recordId)} />
-                                    <div className="min-w-0 flex-1">
-                                      <p className="truncate text-[12px] font-bold text-slate-900">{resource.name}</p>
-                                      <p className="text-[10px] font-bold text-slate-400">{resource.capacity} seats &bull; {formatCurrency(resource.pricePerDay)}/day &bull; {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
-                                      {Array.isArray(resource.seatLabels) && resource.seatLabels.length > 0 && (
-                                        <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                          {resource.seatLabels.map((seatLabel) => (
-                                            <span key={`${resource.recordId}-${seatLabel}`} className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">
-                                              {seatLabel}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </label>
-                                );
-                              }) : (
-                                <div className="rounded-xl border border-dashed border-blue-200 bg-blue-50/50 px-3 py-4 text-center text-xs font-medium text-blue-700">No cabin desk blocks in this scope.</div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
-                          <LayoutGrid size={24} className="mx-auto mb-2 text-slate-300" />
-                          <p className="text-[12px] font-bold text-slate-500">No area blocks found</p>
-                          <p className="mt-1 text-[10px] font-medium text-slate-400">Add open desk and cabin desk area blocks in Resource Management first.</p>
-                        </div>
-                      )}
-
-                      <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
-                        <div className="mb-3 flex items-center gap-2">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500 text-white">
-                            <Tag size={14} />
-                          </div>
-                          <p className="text-[11px] font-bold uppercase tracking-widest text-amber-800">Tenant Package Rates</p>
-                        </div>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-amber-800">Open Desk Rate / Day *</label>
-                            <input
-                              required
-                              type="number"
-                              min="0"
-                              className="w-full px-3 py-2.5 bg-white border border-amber-300 rounded-xl text-[12px] font-medium focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 outline-none transition-all"
-                              value={packageForm.ratePerOpenDesk}
-                              onChange={(e) => setPackageForm((current) => ({ ...current, ratePerOpenDesk: e.target.value }))}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-amber-800">Cabin Desk Rate / Day *</label>
-                            <input
-                              required
-                              type="number"
-                              min="0"
-                              className="w-full px-3 py-2.5 bg-white border border-amber-300 rounded-xl text-[12px] font-medium focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 outline-none transition-all"
-                              value={packageForm.ratePerCabinDesk}
-                              onChange={(e) => setPackageForm((current) => ({ ...current, ratePerCabinDesk: e.target.value }))}
-                            />
-                          </div>
-                        </div>
-                        <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
-                          <div className="rounded-xl border border-white/70 bg-white p-2.5">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Daily Rent</p>
-                            <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.dailyRateTotal)}</p>
-                          </div>
-                          <div className="rounded-xl border border-white/70 bg-white p-2.5">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Monthly Rent</p>
-                            <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.monthlyRate)}</p>
-                          </div>
-                          <div className="rounded-xl border border-white/70 bg-white p-2.5">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Contract Value</p>
-                            <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.totalContractValue)}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-slate-200 bg-linear-to-br from-slate-50 to-white p-4">
-                        <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-slate-500">Package Summary</p>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                          <div className="rounded-xl border border-emerald-100 bg-white p-2.5 text-center shadow-sm">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Seats</p>
-                            <p className="mt-1 text-base font-black text-slate-900">{tenantPackageSummary.totalSeats}</p>
-                            <p className="text-[9px] font-bold text-slate-400">{tenantPackageSummary.openDesks} open / {tenantPackageSummary.cabinDesks} cabin</p>
-                          </div>
-                          <div className="rounded-xl border border-indigo-100 bg-white p-2.5 text-center shadow-sm">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Credits / Seat</p>
-                        <p className="mt-1 text-base font-black text-slate-900">{tenantPackageSummary.creditsPerSeat}</p>
-                            <p className="text-[9px] font-bold text-slate-400">per month</p>
-                          </div>
-                          <div className="rounded-xl border-2 border-purple-300 bg-purple-50/70 p-2.5 text-center shadow-sm">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-purple-600">Total Monthly Credits</p>
-                            <p className="mt-1 text-base font-black text-purple-700">{tenantPackageSummary.monthlyCredits}</p>
-                            <p className="text-[9px] font-bold text-purple-600">auto-renews</p>
-                          </div>
-                          <div className="rounded-xl border border-blue-100 bg-white p-2.5 text-center shadow-sm">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Monthly Rate</p>
-                            <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.monthlyRate)}</p>
-                            <p className="text-[9px] font-bold text-slate-400">{formatCurrency(tenantPackageSummary.dailyRateTotal)} / day</p>
-                          </div>
-                          <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50/70 p-2.5 text-center shadow-sm">
-                            <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Contract Value</p>
-                            <p className="mt-1 text-sm font-black text-emerald-700">{formatCurrency(tenantPackageSummary.totalContractValue)}</p>
-                            <p className="text-[9px] font-bold text-emerald-600">{Math.max(TENANT_PACKAGE_MIN_DURATION_MONTHS, Number(packageForm.durationMonths || 0) || TENANT_PACKAGE_MIN_DURATION_MONTHS)} months</p>
-                          </div>
-                        </div>
-                      </div>
+                        value={packageForm.name}
+                        onChange={(e) => setPackageForm((current) => ({ ...current, name: e.target.value }))}
+                      />
                     </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div className="space-y-1">
-                        <label className="text-[13px] font-bold text-slate-400">Credits Included *</label>
+
+                    {packageForm.category === 'Tenant' ? (
+                      <div className="space-y-4">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+                          <div className="mb-3 flex items-center gap-2">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white"><Building2 size={14} /></div>
+                            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-700">Location Scope</p>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-bold text-slate-400">Floor *</label>
+                              <select
+                                required
+                                disabled={isTenantPackageRateEdit}
+                                className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                                value={packageForm.floor}
+                                onChange={(e) => {
+                                  const nextFloor = e.target.value;
+                                  const nextWingOptions = Array.from(new Set(
+                                    getTenantScopeResources(tenantAreaResources, nextFloor, '')
+                                      .map((resource) => String(resource.wing || '').trim().toUpperCase())
+                                      .filter(Boolean),
+                                  ));
+                                  updateTenantScopeSelection(nextFloor, nextWingOptions[0] || '');
+                                }}
+                              >
+                                <option value="">Select floor</option>
+                                {tenantFloorOptions.map((floor) => <option key={floor} value={floor}>{floor}</option>)}
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-bold text-slate-400">Wing *</label>
+                              <select
+                                required
+                                disabled={isTenantPackageRateEdit}
+                                className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                                value={packageForm.wing}
+                                onChange={(e) => updateTenantScopeSelection(packageForm.floor, e.target.value.toUpperCase())}
+                              >
+                                <option value="">Select wing</option>
+                                {tenantWingOptions.map((wing) => <option key={wing} value={wing}>{wing}</option>)}
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-bold text-slate-400">Block Mix</label>
+                              <select
+                                disabled={isTenantPackageRateEdit}
+                                className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                                value={tenantSelectionPreset}
+                                onChange={(e) => handleTenantSelectionPresetChange(e.target.value)}
+                              >
+                                <option value="all">{getTenantSelectionPresetLabel('all')}</option>
+                                <option value="open">{getTenantSelectionPresetLabel('open')}</option>
+                                <option value="cabin">{getTenantSelectionPresetLabel('cabin')}</option>
+                                <option value="custom">{getTenantSelectionPresetLabel('custom')}</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+
+                        {tenantPackageScopeResources.length > 0 ? (
+                          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                            <div className="rounded-2xl border border-emerald-200 bg-white p-3">
+                              <div className="mb-2 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-100 text-emerald-700"><LayoutGrid size={12} /></div>
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Open Desk Blocks</p>
+                                </div>
+                                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">
+                                  {tenantOpenDeskResources.filter((resource) => packageForm.selectedResourceIds.includes(getTenantResourceSelectionId(resource))).length}/{tenantOpenDeskResources.length}
+                                </span>
+                              </div>
+                              <div className="max-h-52 space-y-1.5 overflow-y-auto pr-1">
+                                {tenantOpenDeskResources.length > 0 ? tenantOpenDeskResources.map((resource) => {
+                                  const selected = packageForm.selectedResourceIds.includes(getTenantResourceSelectionId(resource));
+                                  return (
+                                    <label key={resource.recordId} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 transition-all ${selected ? 'border-emerald-300 bg-emerald-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-emerald-200'}`}>
+                                      <input type="checkbox" disabled={isTenantPackageRateEdit} className="h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" checked={selected} onChange={() => toggleTenantResourceSelection(resource.recordId)} />
+                                      <div className="min-w-0 flex-1">
+                                        <p className="truncate text-[12px] font-bold text-slate-900">{resource.name}</p>
+                                        <p className="text-[10px] font-bold text-slate-400">{resource.capacity} seats &bull; {formatCurrency(resource.pricePerDay)}/day &bull; {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
+                                        {Array.isArray(resource.seatLabels) && resource.seatLabels.length > 0 && (
+                                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                            {resource.seatLabels.map((seatLabel) => (
+                                              <span key={`${resource.recordId}-${seatLabel}`} className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">
+                                                {seatLabel}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </label>
+                                  );
+                                }) : (
+                                  <div className="rounded-xl border border-dashed border-emerald-200 bg-emerald-50/50 px-3 py-4 text-center text-xs font-medium text-emerald-700">No open desk blocks in this scope.</div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="rounded-2xl border border-blue-200 bg-white p-3">
+                              <div className="mb-2 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-100 text-blue-700"><LayoutGrid size={12} /></div>
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Cabin Desk Blocks</p>
+                                </div>
+                                <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">
+                                  {tenantCabinDeskResources.filter((resource) => packageForm.selectedResourceIds.includes(getTenantResourceSelectionId(resource))).length}/{tenantCabinDeskResources.length}
+                                </span>
+                              </div>
+                              <div className="max-h-52 space-y-1.5 overflow-y-auto pr-1">
+                                {tenantCabinDeskResources.length > 0 ? tenantCabinDeskResources.map((resource) => {
+                                  const selected = packageForm.selectedResourceIds.includes(getTenantResourceSelectionId(resource));
+                                  return (
+                                    <label key={resource.recordId} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 transition-all ${selected ? 'border-blue-300 bg-blue-50/70' : 'border-slate-100 bg-slate-50/50 hover:border-blue-200'}`}>
+                                      <input type="checkbox" disabled={isTenantPackageRateEdit} className="h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500" checked={selected} onChange={() => toggleTenantResourceSelection(resource.recordId)} />
+                                      <div className="min-w-0 flex-1">
+                                        <p className="truncate text-[12px] font-bold text-slate-900">{resource.name}</p>
+                                        <p className="text-[10px] font-bold text-slate-400">{resource.capacity} seats &bull; {formatCurrency(resource.pricePerDay)}/day &bull; {Math.max(0, Number(resource.credits || 0))} cr/seat</p>
+                                        {Array.isArray(resource.seatLabels) && resource.seatLabels.length > 0 && (
+                                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                            {resource.seatLabels.map((seatLabel) => (
+                                              <span key={`${resource.recordId}-${seatLabel}`} className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-blue-700">
+                                                {seatLabel}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </label>
+                                  );
+                                }) : (
+                                  <div className="rounded-xl border border-dashed border-blue-200 bg-blue-50/50 px-3 py-4 text-center text-xs font-medium text-blue-700">No cabin desk blocks in this scope.</div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
+                            <LayoutGrid size={24} className="mx-auto mb-2 text-slate-300" />
+                            <p className="text-[12px] font-bold text-slate-500">No area blocks found</p>
+                            <p className="mt-1 text-[10px] font-medium text-slate-400">Add open desk and cabin desk area blocks in Resource Management first.</p>
+                          </div>
+                        )}
+
+                        <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+                          <div className="mb-3 flex items-center gap-2">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500 text-white">
+                              <Tag size={14} />
+                            </div>
+                            <p className="text-[11px] font-bold uppercase tracking-widest text-amber-800">Tenant Package Rates</p>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-bold text-amber-800">Open Desk Rate / Day *</label>
+                              <input
+                                required
+                                type="number"
+                                min="0"
+                                className="w-full px-3 py-2.5 bg-white border border-amber-300 rounded-xl text-[12px] font-medium focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 outline-none transition-all"
+                                value={packageForm.ratePerOpenDesk}
+                                onChange={(e) => setPackageForm((current) => ({ ...current, ratePerOpenDesk: e.target.value }))}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-bold text-amber-800">Cabin Desk Rate / Day *</label>
+                              <input
+                                required
+                                type="number"
+                                min="0"
+                                className="w-full px-3 py-2.5 bg-white border border-amber-300 rounded-xl text-[12px] font-medium focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 outline-none transition-all"
+                                value={packageForm.ratePerCabinDesk}
+                                onChange={(e) => setPackageForm((current) => ({ ...current, ratePerCabinDesk: e.target.value }))}
+                              />
+                            </div>
+                          </div>
+                          <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+                            <div className="rounded-xl border border-white/70 bg-white p-2.5">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Daily Rent</p>
+                              <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.dailyRateTotal)}</p>
+                            </div>
+                            <div className="rounded-xl border border-white/70 bg-white p-2.5">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Monthly Rent</p>
+                              <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.monthlyRate)}</p>
+                            </div>
+                            <div className="rounded-xl border border-white/70 bg-white p-2.5">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Contract Value</p>
+                              <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.totalContractValue)}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-linear-to-br from-slate-50 to-white p-4">
+                          <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-slate-500">Package Summary</p>
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                            <div className="rounded-xl border border-emerald-100 bg-white p-2.5 text-center shadow-sm">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Seats</p>
+                              <p className="mt-1 text-base font-black text-slate-900">{tenantPackageSummary.totalSeats}</p>
+                              <p className="text-[9px] font-bold text-slate-400">{tenantPackageSummary.openDesks} open / {tenantPackageSummary.cabinDesks} cabin</p>
+                            </div>
+                            <div className="rounded-xl border border-indigo-100 bg-white p-2.5 text-center shadow-sm">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Credits / Seat</p>
+                              <p className="mt-1 text-base font-black text-slate-900">{tenantPackageSummary.creditsPerSeat}</p>
+                              <p className="text-[9px] font-bold text-slate-400">per month</p>
+                            </div>
+                            <div className="rounded-xl border-2 border-purple-300 bg-purple-50/70 p-2.5 text-center shadow-sm">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-purple-600">Total Monthly Credits</p>
+                              <p className="mt-1 text-base font-black text-purple-700">{tenantPackageSummary.monthlyCredits}</p>
+                              <p className="text-[9px] font-bold text-purple-600">auto-renews</p>
+                            </div>
+                            <div className="rounded-xl border border-blue-100 bg-white p-2.5 text-center shadow-sm">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Monthly Rate</p>
+                              <p className="mt-1 text-sm font-black text-slate-900">{formatCurrency(tenantPackageSummary.monthlyRate)}</p>
+                              <p className="text-[9px] font-bold text-slate-400">{formatCurrency(tenantPackageSummary.dailyRateTotal)} / day</p>
+                            </div>
+                            <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50/70 p-2.5 text-center shadow-sm">
+                              <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600">Contract Value</p>
+                              <p className="mt-1 text-sm font-black text-emerald-700">{formatCurrency(tenantPackageSummary.totalContractValue)}</p>
+                              <p className="text-[9px] font-bold text-emerald-600">{Math.max(TENANT_PACKAGE_MIN_DURATION_MONTHS, Number(packageForm.durationMonths || 0) || TENANT_PACKAGE_MIN_DURATION_MONTHS)} months</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <label className="text-[13px] font-bold text-slate-400">Credits Included *</label>
                           <input
                             required
                             type="number"
                             min="0"
                             disabled={isTenantPackageRateEdit}
                             className="w-full px-3 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-indigo-600 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
-                          value={packageForm.creditsIncluded}
-                          onChange={(e) => setPackageForm((current) => ({ ...current, creditsIncluded: e.target.value }))}
-                        />
-                      </div>
+                            value={packageForm.creditsIncluded}
+                            onChange={(e) => setPackageForm((current) => ({ ...current, creditsIncluded: e.target.value }))}
+                          />
+                        </div>
 
-                      <div className="space-y-1">
-                        <label className="text-[13px] font-bold text-slate-400">Price (₹) *</label>
+                        <div className="space-y-1">
+                          <label className="text-[13px] font-bold text-slate-400">Price (₹) *</label>
                           <input
                             required
                             type="number"
                             min="0"
                             disabled={isTenantPackageRateEdit}
                             className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                          value={packageForm.price}
-                          onChange={(e) => setPackageForm((current) => ({ ...current, price: e.target.value }))}
+                            value={packageForm.price}
+                            onChange={(e) => setPackageForm((current) => ({ ...current, price: e.target.value }))}
+                          />
+                        </div>
+
+                      </div>
+
+                    )}
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div className="space-y-1">
+                        <label className="text-[13px] font-bold text-slate-400">Duration (months)</label>
+                        <input
+                          required
+                          type="number"
+                          min={packageForm.category === 'Tenant' ? TENANT_PACKAGE_MIN_DURATION_MONTHS : 1}
+                          disabled={isTenantPackageRateEdit}
+                          className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                          value={packageForm.durationMonths}
+                          onChange={(e) => setPackageForm((current) => ({ ...current, durationMonths: e.target.value }))}
                         />
                       </div>
-
-                      </div>
-
-                  )}
-
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div className="space-y-1">
-                      <label className="text-[13px] font-bold text-slate-400">Duration (months)</label>
-                      <input
-                        required
-                        type="number"
-                        min={packageForm.category === 'Tenant' ? TENANT_PACKAGE_MIN_DURATION_MONTHS : 1}
-                        disabled={isTenantPackageRateEdit}
-                        className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                        value={packageForm.durationMonths}
-                        onChange={(e) => setPackageForm((current) => ({ ...current, durationMonths: e.target.value }))}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[13px] font-regular text-slate-400">
-                        {packageForm.category === 'Tenant' ? 'Seats Included (auto-calculated)' : 'Seats Included (optional)'}
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        readOnly={packageForm.category === 'Tenant'}
-                        disabled={isTenantPackageRateEdit}
-                        className={`w-full px-3 py-2.5 border rounded-xl text-[12px] font-medium outline-none transition-all ${
-                          packageForm.category === 'Tenant'
+                      <div className="space-y-1">
+                        <label className="text-[13px] font-regular text-slate-400">
+                          {packageForm.category === 'Tenant' ? 'Seats Included (auto-calculated)' : 'Seats Included (optional)'}
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          readOnly={packageForm.category === 'Tenant'}
+                          disabled={isTenantPackageRateEdit}
+                          className={`w-full px-3 py-2.5 border rounded-xl text-[12px] font-medium outline-none transition-all ${packageForm.category === 'Tenant'
                             ? 'cursor-not-allowed border-dashed border-emerald-200 bg-emerald-50 text-emerald-900'
                             : 'bg-slate-50 border-slate-200 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10'
-                        }`}
-                        value={packageForm.category === 'Tenant' ? computedTotalSeats : packageForm.seatsIncluded}
-                        onChange={(e) => setPackageForm((current) => ({ ...current, seatsIncluded: e.target.value }))}
-                      />
+                            }`}
+                          value={packageForm.category === 'Tenant' ? computedTotalSeats : packageForm.seatsIncluded}
+                          onChange={(e) => setPackageForm((current) => ({ ...current, seatsIncluded: e.target.value }))}
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[13px] font-bold text-slate-400">Description</label>
-                    <textarea
-                      rows={3}
-                      disabled={isTenantPackageRateEdit}
-                      className="w-full resize-none px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                      value={packageForm.description}
-                      onChange={(e) => setPackageForm((current) => ({ ...current, description: e.target.value }))}
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[13px] font-bold text-slate-400">Feature Bullets</label>
-                    <textarea
-                      rows={4}
-                      placeholder="One feature per line"
-                      disabled={isTenantPackageRateEdit}
-                      className="w-full resize-none px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                      value={packageForm.featuresText}
-                      onChange={(e) => setPackageForm((current) => ({ ...current, featuresText: e.target.value }))}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-1">
-                      <label className="text-[13px] font-bold text-slate-400">Status</label>
-                      <select
+                      <label className="text-[13px] font-bold text-slate-400">Description</label>
+                      <textarea
+                        rows={3}
                         disabled={isTenantPackageRateEdit}
-                        className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                        value={packageForm.status}
-                        onChange={(e) => setPackageForm((current) => ({ ...current, status: e.target.value }))}
-                      >
-                        {packageStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
-                      </select>
-                    </div>
-                    <label className="h-10 mt-6 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                      <input
-                        type="checkbox"
-                        disabled={isTenantPackageRateEdit}
-                        checked={packageForm.isRecommended}
-                        onChange={(e) => setPackageForm((current) => ({ ...current, isRecommended: e.target.checked }))}
+                        className="w-full resize-none px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                        value={packageForm.description}
+                        onChange={(e) => setPackageForm((current) => ({ ...current, description: e.target.value }))}
                       />
-                      <span className="text-[13px] font-medium text-slate-600">Mark as recommended</span>
-                    </label>
-                  </div>
-
-                  {packageForm.category === 'Tenant' ? (
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                      <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Tenant package note</p>
-                      <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-600">
-                        Tenant packages should reflect the number of open desks and private cabins granted to the company. Monthly credits are derived from total seats multiplied by credits per seat and automatically renew each month.
-                      </p>
                     </div>
-                  ) : null}
-                </div>
-              )}
+
+                    <div className="space-y-1">
+                      <label className="text-[13px] font-bold text-slate-400">Feature Bullets</label>
+                      <textarea
+                        rows={4}
+                        placeholder="One feature per line"
+                        disabled={isTenantPackageRateEdit}
+                        className="w-full resize-none px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                        value={packageForm.featuresText}
+                        onChange={(e) => setPackageForm((current) => ({ ...current, featuresText: e.target.value }))}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div className="space-y-1">
+                        <label className="text-[13px] font-bold text-slate-400">Status</label>
+                        <select
+                          disabled={isTenantPackageRateEdit}
+                          className="w-full cursor-pointer px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                          value={packageForm.status}
+                          onChange={(e) => setPackageForm((current) => ({ ...current, status: e.target.value }))}
+                        >
+                          {packageStatusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                        </select>
+                      </div>
+                      <label className="h-10 mt-6 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                        <input
+                          type="checkbox"
+                          disabled={isTenantPackageRateEdit}
+                          checked={packageForm.isRecommended}
+                          onChange={(e) => setPackageForm((current) => ({ ...current, isRecommended: e.target.checked }))}
+                        />
+                        <span className="text-[13px] font-medium text-slate-600">Mark as recommended</span>
+                      </label>
+                    </div>
+
+                    {packageForm.category === 'Tenant' ? (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Tenant package note</p>
+                        <p className="mt-1 text-[11px] font-medium leading-relaxed text-slate-600">
+                          Tenant packages should reflect the number of open desks and private cabins granted to the company. Monthly credits are derived from total seats multiplied by credits per seat and automatically renew each month.
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
 
                 <div className="sticky bottom-0 bg-white border-t border-slate-100 p-3 sm:p-4">
-                <div className="flex flex-col gap-2 sm:flex-row">
-                <button type="button" onClick={closeModal} className="flex-1 rounded-xl bg-blue-600 py-2.5 text-[11px] font-bold text-white transition-all hover:bg-blue-700">{isViewingPackage || isViewingResource ? 'CLOSE DETAILS' : 'CANCEL'}</button>
-                {!isViewingPackage && !isViewingResource ? (
-                  <button type="submit" className="flex-1 flex items-center justify-center gap-3 rounded-xl bg-[#2563EB] py-2.5 text-[11px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
-                    <Save size={14} />
-                    {modalKind === 'resource' && modalMode === 'add' ? 'CREATE RESOURCE' : isTenantPackageRateEdit ? 'SAVE DESK PRICES' : 'SAVE CONFIGURATION'}
-                  </button>
-                ) : null}
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <button type="button" onClick={closeModal} className="flex-1 rounded-xl bg-blue-600 py-2.5 text-[11px] font-bold text-white transition-all hover:bg-blue-700">{isViewingPackage || isViewingResource ? 'CLOSE DETAILS' : 'CANCEL'}</button>
+                    {!isViewingPackage && !isViewingResource ? (
+                      <button type="submit" className="flex-1 flex items-center justify-center gap-3 rounded-xl bg-[#2563EB] py-2.5 text-[11px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
+                        <Save size={14} />
+                        {modalKind === 'resource' && modalMode === 'add' ? 'CREATE RESOURCE' : isTenantPackageRateEdit ? 'SAVE DESK PRICES' : 'SAVE CONFIGURATION'}
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
       </PageFrame>
     </div>
   );
