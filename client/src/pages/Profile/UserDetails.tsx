@@ -56,7 +56,7 @@ const UserDetails = () => {
     city: workspaceProfile?.workspace?.city || "",
     businessTypes:
       Array.isArray(workspaceProfile?.workspace?.businessTypes) &&
-      workspaceProfile.workspace.businessTypes.length > 0
+        workspaceProfile.workspace.businessTypes.length > 0
         ? workspaceProfile.workspace.businessTypes.join(", ")
         : "",
     selectedPlan: workspaceProfile?.workspace?.selectedPlan || "",
@@ -96,8 +96,8 @@ const UserDetails = () => {
       .replace(/_/g, "-");
   const roleArrayTitles = Array.isArray(auth?.user?.role)
     ? auth.user.role
-        .map((entry: any) => entry?.roleTitle || entry?.title || entry?.name)
-        .filter(Boolean)
+      .map((entry: any) => entry?.roleTitle || entry?.title || entry?.name)
+      .filter(Boolean)
     : [];
   const roleCandidates = [
     auth?.user?.workspaceMembership?.role,
@@ -114,9 +114,9 @@ const UserDetails = () => {
     roleCandidates.some((role) => role === "owner" || role === "founder" || role.includes("founder")) ||
     Boolean(
       auth?.user?.isOwner ||
-        auth?.user?.isFounder ||
-        auth?.user?.workspaceMembership?.isOwner ||
-        auth?.user?.workspaceMembership?.isFounder,
+      auth?.user?.isFounder ||
+      auth?.user?.workspaceMembership?.isOwner ||
+      auth?.user?.workspaceMembership?.isFounder,
     ) ||
     rawPermissions.some((permission: any) =>
       String(permission || "").toLowerCase().includes("owner") ||
@@ -133,13 +133,15 @@ const UserDetails = () => {
   };
   const storedTenantRole = getStoredTenantRole();
   const hasTenantRole = Boolean(storedTenantRole || auth?.user?.tenantRole);
-  const resolvedRoleLabel = hasTenantRole
-    ? (storedTenantRole === "tenant-manager" || auth?.user?.tenantRole === "tenant-manager"
-        ? "Tenant Manager"
-        : "Tenant Employee")
-    : isFounder
-      ? "Founder"
-      : roleLabelMap[roleCandidates[0] || ""] || "Team Member";
+  // const resolvedRoleLabel = hasTenantRole
+  //   ? (storedTenantRole === "tenant-manager" || auth?.user?.tenantRole === "tenant-manager"
+  //       ? "Tenant Manager"
+  //       : "Tenant Employee")
+  //   : isFounder
+  //     ? "Founder"
+  //     : roleLabelMap[roleCandidates[0] || ""] || "Team Member";
+  const resolvedRoleLabel = auth?.user?.workspaceMembership?.role;
+  // console.log('resolvedRoleLabel', auth?.user?.workspaceMembership?.role);
 
   const mutation = useMutation({
     mutationFn: async (updatedData) =>
@@ -229,39 +231,39 @@ const UserDetails = () => {
                 return (
                   <div key={name}>
                     <div className={name === "selectedPlan" ? "flex items-center gap-2" : ""}>
-                    {isEditable ? (
-                      <Controller
-                        name={name}
-                        control={control}
-                        rules={{ required: `${label} is required` }}
-                        render={({ field, fieldState: { error } }) => (
-                          <TextField
-                            {...field}
-                            size="small"
-                            fullWidth
-                            label={label}
-                            InputLabelProps={{ shrink: true }}
-                            error={!!error}
-                            helperText={error?.message}
-                          />
-                        )}
-                      />
-                    ) : (
-                      <Controller
-                        name={name}
-                        control={control}
-                        render={({ field }) => (
-                          <TextField
-                            {...field}
-                            size="small"
-                            fullWidth
-                            label={label}
-                            InputLabelProps={{ shrink: true }}
-                            disabled
-                          />
-                        )}
-                      />
-                    )}
+                      {isEditable ? (
+                        <Controller
+                          name={name}
+                          control={control}
+                          rules={{ required: `${label} is required` }}
+                          render={({ field, fieldState: { error } }) => (
+                            <TextField
+                              {...field}
+                              size="small"
+                              fullWidth
+                              label={label}
+                              InputLabelProps={{ shrink: true }}
+                              error={!!error}
+                              helperText={error?.message}
+                            />
+                          )}
+                        />
+                      ) : (
+                        <Controller
+                          name={name}
+                          control={control}
+                          render={({ field }) => (
+                            <TextField
+                              {...field}
+                              size="small"
+                              fullWidth
+                              label={label}
+                              InputLabelProps={{ shrink: true }}
+                              disabled
+                            />
+                          )}
+                        />
+                      )}
                     </div>
                   </div>
                 );
