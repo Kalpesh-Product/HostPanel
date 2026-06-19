@@ -158,6 +158,10 @@ const LoginPage = () => {
             hydratedUser = {
               ...(loginUser || {}),
               ...profileUser,
+              workspaceMembership: {
+                ...(loginUser?.workspaceMembership || {}),
+                ...(profileUser?.workspaceMembership || {}),
+              },
               logo: profileUser?.logo ?? null,
             };
           }

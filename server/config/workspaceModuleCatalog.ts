@@ -43,8 +43,8 @@ const MODULE_GROUPS = [
     items: [
       { id: "organization-management", label: "Organization Management", route: "/company-settings/organization-management", implemented: true },
       { id: "access-grants", label: "Access Grants", route: "/company-settings/access-grants", implemented: true },
-      { id: "workspace-settings", label: "Workspace Settings", route: "/company-settings/workspace-settings", implemented: true },
-      { id: "workspace-management", label: "Workspace Management", route: "/company-settings/workspace-management", implemented: true },
+      { id: "workspace-settings", label: "Unit Settings", route: "/company-settings/workspace-settings", implemented: true },
+      { id: "workspace-management", label: "Unit Management", route: "/company-settings/workspace-management", implemented: true },
       { id: "analytics", label: "Analytics", implemented: false },
     ],
   },

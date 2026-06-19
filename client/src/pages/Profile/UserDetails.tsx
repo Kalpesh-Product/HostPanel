@@ -81,8 +81,16 @@ const UserDetails = () => {
     workLocation: auth?.user?.address || workspaceProfile?.workspace?.address || "",
     phone: auth?.user?.phone || "",
   };
+  const resolveRoleValue = (value: unknown): string => {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "object" && value !== null) {
+      return (value as any)?.name || (value as any)?.roleTitle || (value as any)?.title || "";
+    }
+    return String(value);
+  };
   const normalizeRole = (value: unknown) =>
-    String(value || "")
+    resolveRoleValue(value)
       .trim()
       .toLowerCase()
       .replace(/_/g, "-");

@@ -1555,7 +1555,7 @@ export default function PricingPackagesPage() {
         </div>
 
         {/* 3. STAT CARDS (DESIGN.md 4-col grid with border-left accents) */}
-        <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4 shrink-0">
+        <div className="mb-3 mt-8 grid grid-cols-2 gap-3 md:grid-cols-4 shrink-0">
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
             <div className="min-w-0">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Resources Priced</p>
