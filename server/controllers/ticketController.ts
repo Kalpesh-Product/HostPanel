@@ -2,6 +2,9 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import { Ticket } from "../models/Ticket.js";
 import { TicketIssueCatalog } from "../models/TicketIssueCatalog.js";
+import HostUser from "../models/HostUser.js";
+import { TenantCompany } from "../models/TenantCompany.js";
+import TenantEmployee from "../models/TenantEmployee.js";
 
 const nullableObjectIdFields = [
     "assigneeUserId",
@@ -25,8 +28,19 @@ const toNullableObjectId = (value: unknown): mongoose.Types.ObjectId | null | un
         : null;
 };
 
+const normalizePriority = (value: unknown): "Low" | "Medium" | "High" => {
+    const priority = String(value || "Medium").trim().toLowerCase();
+    if (priority === "low") return "Low";
+    if (priority === "high" || priority === "critical" || priority === "urgent") return "High";
+    return "Medium";
+};
+
 const sanitizeTicketPayload = (payload: Record<string, any>) => {
     const sanitizedPayload = { ...payload };
+
+    if (Object.prototype.hasOwnProperty.call(sanitizedPayload, "priority")) {
+        sanitizedPayload.priority = normalizePriority(sanitizedPayload.priority);
+    }
 
     for (const field of nullableObjectIdFields) {
         if (Object.prototype.hasOwnProperty.call(sanitizedPayload, field)) {
@@ -37,25 +51,88 @@ const sanitizeTicketPayload = (payload: Record<string, any>) => {
     return sanitizedPayload;
 };
 
+
+const resolveTenantTicketContext = async (userId: any, requestedTenantCompanyId?: unknown) => {
+    const user = await HostUser.findById(userId).select("name firstName lastName email").lean().exec();
+    const email = String(user?.email || "").trim().toLowerCase();
+    const tenantFilter: any = { status: "Active" };
+
+    if (requestedTenantCompanyId && mongoose.Types.ObjectId.isValid(String(requestedTenantCompanyId))) {
+        tenantFilter.tenantCompanyId = new mongoose.Types.ObjectId(String(requestedTenantCompanyId));
+    }
+
+    const employee = await TenantEmployee.findOne({
+        ...tenantFilter,
+        $or: [
+            { userId: new mongoose.Types.ObjectId(String(userId)) },
+            ...(email ? [{ email }] : []),
+        ],
+    }).lean().exec();
+
+    if (!employee) {
+        return { user, employee: null, company: null };
+    }
+
+    const company = await TenantCompany.findById(employee.tenantCompanyId).lean().exec() as any;
+    return { user, employee, company };
+};
+
+const getUserDisplayName = (user: any, fallback = "") => {
+    const composed = [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim();
+    return String(user?.name || composed || user?.email || fallback || "User").trim();
+};
+
+const buildTicketScopeFilter = async (req: Request) => {
+    const requestWorkspaceId = (req as any).workspaceMembership?.workspace;
+    if (requestWorkspaceId) {
+        return { workspaceId: requestWorkspaceId };
+    }
+
+    const tenantContext = await resolveTenantTicketContext((req as any).user, req.query?.tenantCompanyId);
+    const tenantCompany: any = tenantContext.company;
+    if (tenantCompany?._id) {
+        return {
+            workspaceId: tenantCompany.workspaceId,
+            tenantCompanyId: tenantCompany._id,
+        };
+    }
+
+    return { ownerId: (req as any).user };
+};
+
+
 // Create a new ticket
 export const createTicket = async (req: Request, res: Response): Promise<void> => {
     try {
         const ownerId = (req as any).user;
-        const workspaceId = (req as any).workspaceMembership?.workspace || null;
-        const latestTicket = await Ticket.findOne({ ownerId }).sort({ ticketNumber: -1 }).select("ticketNumber").lean();
+        const tenantContext = await resolveTenantTicketContext(ownerId, req.body?.tenantCompanyId);
+        const tenantCompany: any = tenantContext.company;
+        const workspaceId = (req as any).workspaceMembership?.workspace || tenantCompany?.workspaceId || null;
+        const ticketCounterFilter = workspaceId ? { workspaceId } : { ownerId };
+        const latestTicket = await Ticket.findOne(ticketCounterFilter).sort({ ticketNumber: -1 }).select("ticketNumber").lean();
         const ticketNumber = Number(latestTicket?.ticketNumber || 0) + 1;
-        
+
         // Strip out department: '' if present so it doesn't try to save as empty string
         const payload = sanitizeTicketPayload(req.body);
         if (payload.department === "") {
             delete payload.department;
         }
 
+        const isTenantRequester = Boolean(tenantCompany?._id);
+        const requesterName = getUserDisplayName(tenantContext.user, payload.submittedBy);
+        const targetDepartment = String(payload.department || "Administration").trim();
+
         const newTicket = new Ticket({
             ...payload,
             ownerId,
             workspaceId,
+            tenantCompanyId: isTenantRequester ? tenantCompany._id : payload.tenantCompanyId,
+            tenantCompanyName: isTenantRequester ? (tenantCompany.companyName || payload.tenantCompanyName || "") : (payload.tenantCompanyName || ""),
             requesterUserId: ownerId,
+            submittedBy: isTenantRequester ? requesterName : payload.submittedBy,
+            submittedByDept: isTenantRequester ? "tenant-company-employee" : payload.submittedByDept,
+            department: targetDepartment,
+            assignedTo: payload.assignedTo || `${targetDepartment} Queue`,
             ticketNumber,
             ticketCode: `TCK-${String(ticketNumber).padStart(4, "0")}`,
             status: "Open",
@@ -70,14 +147,15 @@ export const createTicket = async (req: Request, res: Response): Promise<void> =
 // Get all tickets (with optional filtering)
 export const getTickets = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { status, department, assigneeUserId } = req.query;
-        const requestWorkspaceId = (req as any).workspaceMembership?.workspace;
-        const filter: any = requestWorkspaceId
-            ? { workspaceId: requestWorkspaceId }
-            : { ownerId: (req as any).user };
+        const { status, department, assigneeUserId, tenantCompanyId } = req.query;
+        const filter: any = await buildTicketScopeFilter(req);
+
+        if (tenantCompanyId && mongoose.Types.ObjectId.isValid(String(tenantCompanyId))) {
+            filter.tenantCompanyId = new mongoose.Types.ObjectId(String(tenantCompanyId));
+        }
 
         if (status) filter.status = status as any;
-        
+
         if (department) {
             const deptStr = String(department).trim();
             if (mongoose.Types.ObjectId.isValid(deptStr)) {
@@ -111,10 +189,8 @@ export const getTickets = async (req: Request, res: Response): Promise<void> => 
 // Get a single ticket by ID
 export const getTicketById = async (req: Request, res: Response): Promise<void> => {
     try {
-        const requestWorkspaceId = (req as any).workspaceMembership?.workspace;
-        const queryFilter = requestWorkspaceId
-            ? { _id: req.params.id, workspaceId: requestWorkspaceId }
-            : { _id: req.params.id, ownerId: (req as any).user };
+        const scopeFilter = await buildTicketScopeFilter(req);
+        const queryFilter = { _id: req.params.id, ...scopeFilter };
 
         const ticket = await Ticket.findOne(queryFilter).populate("ownerId assigneeUserId assetId");
         if (!ticket) {
@@ -130,10 +206,8 @@ export const getTicketById = async (req: Request, res: Response): Promise<void> 
 // Update a ticket
 export const updateTicket = async (req: Request, res: Response): Promise<void> => {
     try {
-        const requestWorkspaceId = (req as any).workspaceMembership?.workspace;
-        const queryFilter = requestWorkspaceId
-            ? { _id: req.params.id, workspaceId: requestWorkspaceId }
-            : { _id: req.params.id, ownerId: (req as any).user };
+        const scopeFilter = await buildTicketScopeFilter(req);
+        const queryFilter = { _id: req.params.id, ...scopeFilter };
 
         const updatedTicket = await Ticket.findOneAndUpdate(
             queryFilter,
@@ -154,10 +228,8 @@ export const updateTicket = async (req: Request, res: Response): Promise<void> =
 // Delete a ticket
 export const deleteTicket = async (req: Request, res: Response): Promise<void> => {
     try {
-        const requestWorkspaceId = (req as any).workspaceMembership?.workspace;
-        const queryFilter = requestWorkspaceId
-            ? { _id: req.params.id, workspaceId: requestWorkspaceId }
-            : { _id: req.params.id, ownerId: (req as any).user };
+        const scopeFilter = await buildTicketScopeFilter(req);
+        const queryFilter = { _id: req.params.id, ...scopeFilter };
 
         const deletedTicket = await Ticket.findOneAndDelete(queryFilter);
         if (!deletedTicket) {

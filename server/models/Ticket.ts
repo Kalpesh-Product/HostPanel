@@ -19,6 +19,7 @@ export interface ITicket extends Document {
     department?: string;
     departmentId?: mongoose.Types.ObjectId | null;
     submittedBy: string;
+    submittedByDept?: string;
     requesterUserId?: mongoose.Types.ObjectId | null;
     submittedByDeptId?: mongoose.Types.ObjectId | null;
     assignedTo: string;
@@ -70,6 +71,7 @@ const ticketSchema = new Schema<ITicket>(
         department: { type: String, default: "", trim: true, maxlength: 120, index: true },
         departmentId: { type: Schema.Types.ObjectId, ref: "Department", default: null, index: true },
         submittedBy: { type: String, required: true, trim: true, maxlength: 120 },
+        submittedByDept: { type: String, default: "", trim: true, maxlength: 120, index: true },
         requesterUserId: { type: Schema.Types.ObjectId, ref: "HostUser", default: null, index: true },
         submittedByDeptId: { type: Schema.Types.ObjectId, ref: "Department", default: null, index: true },
         assignedTo: { type: String, required: true, trim: true, maxlength: 120 },
