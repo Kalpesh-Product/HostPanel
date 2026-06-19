@@ -1218,7 +1218,7 @@ export default function TenantCompaniesPage() {
     notes: '',
   };
   const [companyForm, setCompanyForm] = useState(initialCompanyForm);
-  const [employeeForm, setEmployeeForm] = useState({ name: '', email: '', phone: '', designation: '' });
+  const [employeeForm, setEmployeeForm] = useState({ name: '', email: '', phone: '', designation: '', role: 'Employee' });
   const [formError, setFormError] = useState('');
   const bulkUploadInputRef = useRef(null);
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
@@ -4584,7 +4584,7 @@ export default function TenantCompaniesPage() {
                   <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-white/70">
                     <div className="flex items-center justify-between p-4 border-b border-slate-100">
                       <h3 className="text-sm font-black text-slate-900">Add Employee</h3>
-                      <button onClick={() => { setEmployeeModalOpen(false); setEmployeeForm({ name: '', email: '', phone: '', designation: '' }); }} className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"><X size={14}/></button>
+                      <button onClick={() => { setEmployeeModalOpen(false); setEmployeeForm({ name: '', email: '', phone: '', designation: '', role: 'Employee' }); }} className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors"><X size={14}/></button>
                     </div>
                     <form onSubmit={handleAddEmployee} className="p-4 space-y-4">
                       <div>
@@ -4606,6 +4606,14 @@ export default function TenantCompaniesPage() {
                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Designation</label>
                         <input type="text" value={employeeForm.designation} onChange={(e) => setEmployeeForm({ ...employeeForm, designation: e.target.value })}
                           className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 placeholder-slate-400 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Designation" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tenant Role</label>
+                        <select value={employeeForm.role} onChange={(e) => setEmployeeForm({ ...employeeForm, role: e.target.value })}
+                          className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-900 focus:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-100">
+                          <option value="Employee">Employee</option>
+                          <option value="Manager">Manager</option>
+                        </select>
                       </div>
                       <div className="flex justify-end gap-2 pt-2">
                         <button type="button" onClick={() => { setEmployeeModalOpen(false); setEmployeeForm({ name: '', email: '', phone: '', designation: '' }); }}

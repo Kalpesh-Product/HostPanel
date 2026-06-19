@@ -14,13 +14,17 @@ export default function RegisterOtpVerification() {
   const { token } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const flow = location.state?.flow === "forgot-password" ? "forgot-password" : "register";
+  const flow = location.state?.flow === "forgot-password" ? "forgot-password"
+    : location.state?.flow === "tenant-register" ? "tenant-register"
+    : "register";
   const [otp, setOtp] = useState("");
   const [showRegistrationSuccess, setShowRegistrationSuccess] = useState(false);
   const [emailInput] = useState(location.state?.email || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const email = location.state?.email || "";
   const fullName = location.state?.fullName || "";
+  const companyName = location.state?.companyName || "";
+  const inviteToken = location.state?.inviteToken || "";
   const selectedPlan = location.state?.selectedPlan || "basic";
   const businessName = location.state?.businessName || "";
   const inviteType = location.state?.inviteType === "workspace" ? "workspace" : "master";
@@ -51,12 +55,16 @@ export default function RegisterOtpVerification() {
       const endpoint =
         flow === "forgot-password"
           ? "/api/auth/forgot-password/verify-otp"
+          : flow === "tenant-register"
+          ? "/api/auth/tenant-register/verify-otp"
           : token
           ? `/api/auth/register/${token}/verify-otp`
           : "/api/auth/register/verify-otp";
       const payload =
         flow === "forgot-password"
           ? { email: email || emailInput, otp }
+          : flow === "tenant-register"
+          ? { inviteToken, otp }
           : token
           ? { otp }
           : { email: emailInput, otp };
@@ -93,7 +101,7 @@ export default function RegisterOtpVerification() {
         }
         return;
       }
-      if (token && email) {
+      if (token && email && flow !== "tenant-register") {
         writeInviteOnboardingState({
           source: "invite",
           email,
@@ -137,7 +145,9 @@ export default function RegisterOtpVerification() {
                 Registration Successful
               </h1>
               <p className="text-[14px] md:text-[15px] leading-relaxed text-[#4b5e80] max-w-[520px] mx-auto">
-                Redirecting to Sign In page. Use the same credentials to sign in.
+                {flow === "tenant-register" && companyName
+                  ? `You are now registered as a team member of ${companyName}. Use the same credentials to sign in.`
+                  : "Redirecting to Sign In page. Use the same credentials to sign in."}
               </p>
               <p className="mt-4 text-[12px] text-[#6b7fa7] font-medium">
                 Redirecting in a few seconds...

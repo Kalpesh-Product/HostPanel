@@ -1361,6 +1361,188 @@ export const registerTenantEmployee = async (req, res, next) => {
   }
 };
 
+export const sendTenantRegisterOtp = async (req, res, next) => {
+  try {
+    const { inviteToken, password, confirmPassword } = req.body;
+    if (!inviteToken) return res.status(400).json({ message: "Invite token is required." });
+    if (!password || !confirmPassword) {
+      return res.status(400).json({ message: "Password and confirm password are required." });
+    }
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match." });
+    }
+    const strengthMessage = validateStrongPassword(password);
+    if (strengthMessage) return res.status(400).json({ message: strengthMessage });
+
+    const employee = await TenantEmployee.findOne({ inviteToken }).exec();
+    if (!employee) {
+      return res.status(400).json({ message: "Invalid or expired invite link." });
+    }
+    if (employee.inviteTokenExpiresAt && new Date(employee.inviteTokenExpiresAt).getTime() < Date.now()) {
+      return res.status(400).json({ message: "Invite link has expired. Contact your manager for a new invite." });
+    }
+    if (employee.inviteStatus === "Registered" || employee.userId) {
+      return res.status(409).json({ message: "Account is already registered. Please sign in." });
+    }
+
+    const email = employee.email;
+    if (!email) {
+      return res.status(400).json({ message: "Employee email not found in invite record." });
+    }
+
+    const company = await TenantCompany.findById(employee.tenantCompanyId).lean().exec();
+    if (!company) {
+      return res.status(400).json({ message: "Tenant company not found." });
+    }
+
+    const otp = `${Math.floor(100000 + Math.random() * 900000)}`;
+    await Otp.updateMany(
+      { email, purpose: "registration", isUsed: false },
+      { $set: { isUsed: true } },
+    );
+    await Otp.create({
+      email,
+      code: otp,
+      purpose: "registration",
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      payload: {
+        fullName: employee.name,
+        email,
+        password,
+        inviteToken,
+        tenantCompanyId: String(company._id),
+        role: employee.role,
+      },
+    });
+
+    await sendMail({
+      to: email,
+      subject: "WONO Registration OTP",
+      html: `
+        <p>Hi ${employee.name},</p>
+        <p>Your OTP for registration is:</p>
+        <h2>${otp}</h2>
+        <p>This OTP expires in 10 minutes.</p>
+        <p>If you didn't request this, please ignore this email.</p>
+      `,
+    });
+
+    return res.status(200).json({
+      message: "OTP sent successfully.",
+      email,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const verifyTenantRegisterOtpAndComplete = async (req, res, next) => {
+  try {
+    const { inviteToken, otp } = req.body;
+    if (!inviteToken) return res.status(400).json({ message: "Invite token is required." });
+    if (!otp) return res.status(400).json({ message: "OTP is required." });
+
+    const employee = await TenantEmployee.findOne({ inviteToken }).exec();
+    if (!employee) {
+      return res.status(400).json({ message: "Invalid or expired invite link." });
+    }
+    if (employee.inviteStatus === "Registered" || employee.userId) {
+      return res.status(409).json({ message: "Account is already registered. Please sign in." });
+    }
+
+    const email = employee.email;
+    if (!email) {
+      return res.status(400).json({ message: "Employee email not found in invite record." });
+    }
+
+    const otpRecord = await Otp.findOne({
+      email,
+      purpose: "registration",
+      isUsed: false,
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!otpRecord) {
+      return res.status(400).json({ message: "Please request OTP first." });
+    }
+    if (new Date(otpRecord.expiresAt).getTime() < Date.now()) {
+      await Otp.updateOne({ _id: otpRecord._id }, { $set: { isUsed: true } });
+      return res.status(400).json({ message: "OTP expired. Please request a new OTP." });
+    }
+    if (otpRecord.attempts >= 5) {
+      await Otp.updateOne({ _id: otpRecord._id }, { $set: { isUsed: true } });
+      return res.status(429).json({ message: "OTP attempts exceeded. Request a new OTP." });
+    }
+    if (String(otpRecord.code) !== String(otp)) {
+      await Otp.updateOne({ _id: otpRecord._id }, { $inc: { attempts: 1 } });
+      return res.status(400).json({ message: "Invalid OTP." });
+    }
+
+    const payload = otpRecord.payload || {};
+    const payloadPassword = payload.password;
+    if (!payloadPassword) {
+      return res.status(400).json({ message: "Registration session expired. Start again." });
+    }
+
+    const company = await TenantCompany.findById(employee.tenantCompanyId).exec();
+    if (!company) {
+      return res.status(400).json({ message: "Tenant company not found." });
+    }
+
+    const fallbackCompany = await Company.findOne({}).lean().exec();
+    const fallbackCompanyId = fallbackCompany
+      ? `${fallbackCompany.companyId}-dev-${Date.now().toString().slice(-6)}`
+      : `tenant-dev-${Date.now().toString().slice(-6)}`;
+
+    let user = await HostUser.findOne({ email: normalizeInviteEmail(email) }).exec();
+    if (!user) {
+      user = await HostUser.create({
+        company: fallbackCompany?._id || null,
+        companyId: fallbackCompanyId,
+        name: employee.name || "",
+        email: normalizeInviteEmail(email),
+        isActive: true,
+        hasCompletedWorkspaceSetup: false,
+        password: payloadPassword,
+      });
+    } else {
+      if (user.password) {
+        return res.status(409).json({ message: "Account is already registered. Please sign in." });
+      }
+      user.name = employee.name || user.name;
+      user.password = payloadPassword;
+      user.isActive = true;
+      await user.save();
+    }
+
+    const now = new Date();
+    employee.userId = user._id;
+    employee.inviteStatus = "Registered";
+    employee.inviteAcceptedAt = now;
+    employee.registeredAt = now;
+    employee.updatedAt = now;
+    if (employee.role === "Manager") {
+      employee.tenantRole = "tenant-manager";
+      company.managerEmployeeId = employee.id;
+      await company.save();
+    } else {
+      employee.tenantRole = "tenant-employee";
+    }
+    await employee.save();
+    await Otp.updateOne({ _id: otpRecord._id }, { $set: { isUsed: true } });
+
+    return res.status(200).json({
+      message: "Registration completed successfully. You can now sign in.",
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({ message: "Account already exists. Please sign in." });
+    }
+    next(error);
+  }
+};
+
 export const getTenantProfile = async (req, res, next) => {
   try {
     const userId = req.user;

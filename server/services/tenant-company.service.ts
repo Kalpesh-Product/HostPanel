@@ -7,6 +7,7 @@ import HostUser from "../models/HostUser.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
 import { uploadFileToS3 } from "../config/s3config.js";
+import Department from "../models/Department.js";
 import TenantEmployee from "../models/TenantEmployee.js";
 import TenantCreditRequest from "../models/TenantCreditRequest.js";
 import TenantCreditLedger from "../models/TenantCreditLedger.js";
@@ -127,6 +128,7 @@ async function resolveWorkspaceAccess(userId) {
     isActive: true,
     ...(user.primaryWorkspace ? { workspace: user.primaryWorkspace } : {}),
   })
+    .populate("role", "name")
     .sort({ isPrimary: -1, createdAt: 1 })
     .lean();
 
@@ -143,27 +145,39 @@ async function resolveWorkspaceAccess(userId) {
     throw err;
   }
 
-  const role = normalizeText(member.role).toLowerCase();
-  const isAdmin = ADMIN_ROLES.has(role);
+  const roleName = member.role && typeof member.role === "object"
+    ? normalizeText(member.role.name).toLowerCase()
+    : normalizeText(member.role).toLowerCase();
+  const isAdmin = ADMIN_ROLES.has(roleName);
   const grantedModules = (member.grantedModules || []).map((m) => normalizeText(m).toLowerCase());
-  const departments = (member.departments || []).map((d) => normalizeText(d).toLowerCase());
+
+  const departmentIds = (member.departments || []).filter(Boolean);
+  let departmentNames = [];
+  let departmentModuleIds = [];
+  if (departmentIds.length > 0) {
+    const depts = await Department.find({ _id: { $in: departmentIds } }).select("name moduleIds").lean();
+    departmentNames = depts.map((d) => normalizeText(d.name).toLowerCase());
+    departmentModuleIds = depts.flatMap((d) => (d.moduleIds || []).map((m) => normalizeText(m).toLowerCase()));
+  }
 
   const hasSalesAccess = isAdmin || grantedModules.includes(TENANT_COMPANIES_SALES_MODULE)
-    || departments.some((d) => d.includes("sales"));
+    || departmentModuleIds.includes(TENANT_COMPANIES_SALES_MODULE)
+    || departmentNames.some((d) => d.includes("sales"));
   const hasAdminAccess = isAdmin || grantedModules.includes(TENANT_COMPANIES_ADMIN_MODULE)
-    || departments.some((d) => d.includes("administration") || d.includes("admin"));
+    || departmentModuleIds.includes(TENANT_COMPANIES_ADMIN_MODULE)
+    || departmentNames.some((d) => d.includes("administration") || d.includes("admin"));
 
   return {
     user,
     workspace,
     member,
     workspaceId: toId(member.workspace),
-    role,
+    role: roleName,
     isAdmin,
     hasSalesAccess,
     hasAdminAccess,
     grantedModules,
-    departments,
+    departments: departmentNames,
   };
 }
 
@@ -182,11 +196,39 @@ async function sendEmployeeInviteEmail(email, name, invitedByName, role, company
       to: email,
       subject: `You're invited to join ${companyName} as a ${role}`,
       html: `
-        <p>Hello ${name},</p>
-        <p><strong>${invitedByName}</strong> has invited you to join <strong>${companyName}</strong> as a <strong>${role}</strong>.</p>
-        <p>Click the link below to accept the invitation and set up your account:</p>
-        <p><a href="${inviteUrl}" style="background:#4f46e5;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">Accept Invitation</a></p>
-        <p>This invite expires in 7 days.</p>
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"></head>
+        <body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:40px 20px;">
+            <tr><td align="center">
+              <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+                <tr><td style="background:#1e3a5f;padding:32px 40px;text-align:center;">
+                  <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;">Welcome to ${companyName}</h1>
+                </td></tr>
+                <tr><td style="padding:36px 40px 28px;">
+                  <p style="margin:0 0 16px;font-size:15px;color:#333;line-height:1.6;">Hello ${name},</p>
+                  <p style="margin:0 0 16px;font-size:15px;color:#333;line-height:1.6;">
+                    <strong>${invitedByName}</strong> has invited you to join <strong>${companyName}</strong> as a
+                    <strong>${role}</strong>. Click the button below to set up your account and get started.
+                  </p>
+                  <table cellpadding="0" cellspacing="0" style="margin:24px 0;">
+                    <tr>
+                      <td align="center" style="background:#2563eb;border-radius:8px;padding:0;">
+                        <a href="${inviteUrl}" style="display:inline-block;padding:14px 40px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">Accept Invitation</a>
+                      </td>
+                    </tr>
+                  </table>
+                  <p style="margin:16px 0 0;font-size:13px;color:#888;line-height:1.5;">This invite link will expire in 7 days. If you have any questions, please contact your manager.</p>
+                </td></tr>
+                <tr><td style="padding:20px 40px;border-top:1px solid #eee;text-align:center;">
+                  <p style="margin:0;font-size:12px;color:#aaa;">&copy; ${new Date().getFullYear()} WONO Nomads. All rights reserved.</p>
+                </td></tr>
+              </table>
+            </td></tr>
+          </table>
+        </body>
+        </html>
       `,
     });
   } catch (err) {
@@ -201,9 +243,37 @@ async function sendEmployeeAccessEmail(email, name, companyName, loginUrl) {
       to: email,
       subject: `Access granted to ${companyName}`,
       html: `
-        <p>Hello ${name},</p>
-        <p>You now have access to <strong>${companyName}</strong> as a team member.</p>
-        <p>Log in here: <a href="${loginUrl}">${loginUrl}</a></p>
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="utf-8"></head>
+        <body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:40px 20px;">
+            <tr><td align="center">
+              <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+                <tr><td style="background:#1e3a5f;padding:32px 40px;text-align:center;">
+                  <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;">Access Granted</h1>
+                </td></tr>
+                <tr><td style="padding:36px 40px 28px;">
+                  <p style="margin:0 0 16px;font-size:15px;color:#333;line-height:1.6;">Hello ${name},</p>
+                  <p style="margin:0 0 16px;font-size:15px;color:#333;line-height:1.6;">
+                    You now have access to <strong>${companyName}</strong> as a team member. Sign in with your existing credentials to continue.
+                  </p>
+                  <table cellpadding="0" cellspacing="0" style="margin:24px 0;">
+                    <tr>
+                      <td align="center" style="background:#2563eb;border-radius:8px;padding:0;">
+                        <a href="${loginUrl}" style="display:inline-block;padding:14px 40px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">Sign In</a>
+                      </td>
+                    </tr>
+                  </table>
+                </td></tr>
+                <tr><td style="padding:20px 40px;border-top:1px solid #eee;text-align:center;">
+                  <p style="margin:0;font-size:12px;color:#aaa;">&copy; ${new Date().getFullYear()} WONO Nomads. All rights reserved.</p>
+                </td></tr>
+              </table>
+            </td></tr>
+          </table>
+        </body>
+        </html>
       `,
     });
   } catch (err) {
@@ -682,34 +752,21 @@ export async function addTenantCompanyEmployeeForCurrentUser(userId, tenantCompa
     inviteId: null,
   };
 
+  const rawToken = email ? crypto.randomBytes(32).toString("hex") : null;
+  if (rawToken) {
+    employeeData.inviteToken = rawToken;
+    employeeData.inviteTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  }
+
   let inviteSent = false;
+  if (email && rawToken) {
+    const frontendBase = String(process.env.FRONTEND_PROD_LINK || process.env.CLIENT_URL || "http://localhost:3006")
+      .trim()
+      .replace(/\/$/, "");
+    const inviteUrl = `${frontendBase}/register?inviteToken=${rawToken}&email=${encodeURIComponent(email)}&fullName=${encodeURIComponent(name)}`;
 
-  if (email) {
-    const existingUser = await HostUser.findOne({ email });
-    if (existingUser) {
-      employeeData.userId = existingUser._id;
-      employeeData.inviteStatus = "Registered";
-      employeeData.registeredAt = existingUser.createdAt || now;
-      employeeData.lastLoginAt = existingUser.lastLoginAt || null;
-      employeeData.inviteAcceptedAt = now;
-
-      const frontendBase = String(process.env.FRONTEND_PROD_LINK || process.env.CLIENT_URL || "http://localhost:3006")
-        .trim()
-        .replace(/\/$/, "");
-      await sendEmployeeAccessEmail(email, name, company.companyName, `${frontendBase}/login`);
-      inviteSent = true;
-    } else {
-      const rawToken = crypto.randomBytes(32).toString("hex");
-      employeeData.inviteToken = rawToken;
-      employeeData.inviteTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      const frontendBase = String(process.env.FRONTEND_PROD_LINK || process.env.CLIENT_URL || "http://localhost:3006")
-        .trim()
-        .replace(/\/$/, "");
-      const inviteUrl = `${frontendBase}/register?inviteToken=${rawToken}&email=${encodeURIComponent(email)}&fullName=${encodeURIComponent(name)}`;
-
-      await sendEmployeeInviteEmail(email, name, access.user?.name || "Administration", role, company.companyName, inviteUrl);
-      inviteSent = true;
-    }
+    await sendEmployeeInviteEmail(email, name, access.user?.name || "Administration", role, company.companyName, inviteUrl);
+    inviteSent = true;
   }
 
   let employeeDoc;
