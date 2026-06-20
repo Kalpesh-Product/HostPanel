@@ -279,20 +279,20 @@ export const getOrganizationOverview = async (req, res, next) => {
 
       const selfEntry = selfMember
         ? {
-            id: toId(selfMember._id),
-            userId: toId(selfMember.user?._id),
-            name: selfMember.user?.name || "",
-            email: selfMember.user?.email || "",
-            role: toRoleLabel(selfMember.role),
-            status: selfMember.isActive === false ? "disabled" : "joined",
-            departmentNames: Array.isArray(selfMember.departments)
-              ? selfMember.departments.map((d: any) => d.name || String(d))
-              : [],
-            grantedModules: Array.isArray(selfMember.grantedModules) ? selfMember.grantedModules : [],
-            enabledModules: Array.isArray(selfMember.enabledModules) ? selfMember.enabledModules : [],
-            workspaceAccesses: [],
-            joinedAt: selfMember.createdAt,
-          }
+          id: toId(selfMember._id),
+          userId: toId(selfMember.user?._id),
+          name: selfMember.user?.name || "",
+          email: selfMember.user?.email || "",
+          role: toRoleLabel(selfMember.role),
+          status: selfMember.isActive === false ? "disabled" : "joined",
+          departmentNames: Array.isArray(selfMember.departments)
+            ? selfMember.departments.map((d: any) => d.name || String(d))
+            : [],
+          grantedModules: Array.isArray(selfMember.grantedModules) ? selfMember.grantedModules : [],
+          enabledModules: Array.isArray(selfMember.enabledModules) ? selfMember.enabledModules : [],
+          workspaceAccesses: [],
+          joinedAt: selfMember.createdAt,
+        }
         : null;
 
       return res.status(200).json({
@@ -421,16 +421,16 @@ export const getOrganizationOverview = async (req, res, next) => {
           }),
           availableCoreModules: Array.isArray(workspace.modules)
             ? workspace.modules.flatMap((category) =>
-                Array.isArray(category?.items)
-                  ? category.items
-                      .filter((item) => item?.active !== false)
-                      .map((item) => ({
-                        id: String(item?.id || "").trim(),
-                        name: String(item?.name || "").trim(),
-                      }))
-                      .filter((item) => item.id)
-                  : [],
-              )
+              Array.isArray(category?.items)
+                ? category.items
+                  .filter((item) => item?.active !== false)
+                  .map((item) => ({
+                    id: String(item?.id || "").trim(),
+                    name: String(item?.name || "").trim(),
+                  }))
+                  .filter((item) => item.id)
+                : [],
+            )
             : [],
           organizationDepartments: departments.map((d) => ({
             _id: d.id,
@@ -1039,13 +1039,13 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
       : [];
     const workspaceModuleMapIds = Array.isArray(workspace?.moduleMap?.sections)
       ? workspace.moduleMap.sections.flatMap((section: any) =>
-          (Array.isArray(section?.items) ? section.items : []).flatMap((item: any) => [
-            String(item?.id || "").trim(),
-            ...(Array.isArray(item?.tabs)
-              ? item.tabs.map((tab: any) => String(tab?.id || "").trim())
-              : []),
-          ]),
-        ).filter(Boolean)
+        (Array.isArray(section?.items) ? section.items : []).flatMap((item: any) => [
+          String(item?.id || "").trim(),
+          ...(Array.isArray(item?.tabs)
+            ? item.tabs.map((tab: any) => String(tab?.id || "").trim())
+            : []),
+        ]),
+      ).filter(Boolean)
       : [];
     const allowedModuleKeys = expandAliases([
       ...workspaceEnabledModuleIds,
@@ -1276,5 +1276,40 @@ export const transferOrganizationOwnership = async (req, res, next) => {
     return res.status(200).json({ message: "Founder access transferred successfully." });
   } catch (error) {
     next(error);
+  }
+};
+
+export const getDepartments = async (req, res) => {
+  try {
+    const workspaceId = req.workspaceMembership?.workspace || req.query.workspaceId;
+
+    if (!workspaceId) {
+      return res.status(400).json({
+        success: false,
+        message: "Workspace ID is required"
+      });
+    }
+
+    const departments = await Department.find({
+      workspaceId,
+      isActive: true
+    })
+      .select("_id name description")
+      .sort({ name: 1 })
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      data: departments.map(d => ({
+        id: d._id,
+        name: d.name,
+        description: d.description || ""
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to fetch departments"
+    });
   }
 };

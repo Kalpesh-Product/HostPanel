@@ -4,6 +4,7 @@ import { Ticket } from "../models/Ticket.js";
 import { TicketIssueCatalog } from "../models/TicketIssueCatalog.js";
 import HostUser from "../models/HostUser.js";
 import { TenantCompany } from "../models/TenantCompany.js";
+import Department from "../models/Department.js";
 import TenantEmployee from "../models/TenantEmployee.js";
 
 const nullableObjectIdFields = [
@@ -105,42 +106,91 @@ const buildTicketScopeFilter = async (req: Request) => {
 export const createTicket = async (req: Request, res: Response): Promise<void> => {
     try {
         const ownerId = (req as any).user;
-        const tenantContext = await resolveTenantTicketContext(ownerId, req.body?.tenantCompanyId);
+        const requestedTenantCompanyId = req.body?.tenantCompanyId;
+
+        // Step 1: Try to resolve tenant context
+        const tenantContext = await resolveTenantTicketContext(ownerId, requestedTenantCompanyId);
         const tenantCompany: any = tenantContext.company;
-        const workspaceId = (req as any).workspaceMembership?.workspace || tenantCompany?.workspaceId || null;
-        const ticketCounterFilter = workspaceId ? { workspaceId } : { ownerId };
-        const latestTicket = await Ticket.findOne(ticketCounterFilter).sort({ ticketNumber: -1 }).select("ticketNumber").lean();
+
+        // Step 2: Determine workspace and tenant company
+        const workspaceId =
+            (req as any).workspaceMembership?.workspace ||
+            tenantCompany?.workspaceId ||
+            null;
+
+        // Step 3: Get ticket number
+        const ticketCounterFilter = workspaceId
+            ? { workspaceId }
+            : { ownerId };
+
+        const latestTicket = await Ticket.findOne(ticketCounterFilter)
+            .sort({ ticketNumber: -1 })
+            .select("ticketNumber")
+            .lean();
+
         const ticketNumber = Number(latestTicket?.ticketNumber || 0) + 1;
 
-        // Strip out department: '' if present so it doesn't try to save as empty string
+        // Step 4: Sanitize payload
         const payload = sanitizeTicketPayload(req.body);
         if (payload.department === "") {
             delete payload.department;
         }
 
-        const isTenantRequester = Boolean(tenantCompany?._id);
-        const requesterName = getUserDisplayName(tenantContext.user, payload.submittedBy);
-        const targetDepartment = String(payload.department || "Administration").trim();
+        // Step 5: Determine if this is a tenant-raised ticket
+        const isTenantRequester = Boolean(
+            tenantCompany?._id || requestedTenantCompanyId
+        );
 
+        const requesterName = getUserDisplayName(tenantContext.user, payload.submittedBy);
+
+        // Handle department from dropdown (departmentId) or string
+        let targetDepartment = "Administration";
+        if (payload.departmentId && mongoose.Types.ObjectId.isValid(payload.departmentId)) {
+            const dept = await Department.findById(payload.departmentId).select("name").lean();
+            if (dept) {
+                targetDepartment = dept.name;
+            }
+        } else if (payload.department) {
+            targetDepartment = String(payload.department).trim();
+        }
+
+        // Step 6: Create ticket with proper tenant fields
         const newTicket = new Ticket({
             ...payload,
             ownerId,
             workspaceId,
-            tenantCompanyId: isTenantRequester ? tenantCompany._id : payload.tenantCompanyId,
-            tenantCompanyName: isTenantRequester ? (tenantCompany.companyName || payload.tenantCompanyName || "") : (payload.tenantCompanyName || ""),
+            tenantCompanyId: isTenantRequester
+                ? tenantCompany?._id || requestedTenantCompanyId
+                : payload.tenantCompanyId || null,
+            tenantCompanyName: isTenantRequester
+                ? tenantCompany?.companyName || payload.tenantCompanyName || ""
+                : payload.tenantCompanyName || "",
             requesterUserId: ownerId,
             submittedBy: isTenantRequester ? requesterName : payload.submittedBy,
-            submittedByDept: isTenantRequester ? "tenant-company-employee" : payload.submittedByDept,
+            submittedByDept: isTenantRequester
+                ? "tenant-company-employee"
+                : payload.submittedByDept,
             department: targetDepartment,
             assignedTo: payload.assignedTo || `${targetDepartment} Queue`,
             ticketNumber,
             ticketCode: `TCK-${String(ticketNumber).padStart(4, "0")}`,
             status: "Open",
         });
+
         const savedTicket = await newTicket.save();
-        res.status(201).json({ success: true, data: savedTicket });
+
+        res.status(201).json({
+            success: true,
+            message: isTenantRequester
+                ? "Ticket raised successfully by tenant company"
+                : "Ticket created successfully",
+            data: savedTicket,
+        });
     } catch (error: any) {
-        res.status(400).json({ success: false, message: error.message });
+        res.status(400).json({
+            success: false,
+            message: error.message || "Failed to create ticket",
+        });
     }
 };
 

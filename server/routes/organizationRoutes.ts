@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { Router } from "express";
 import {
+  getDepartments,
   assignOrganizationActingManager,
   assignOrganizationDepartmentManager,
   getOrganizationOverview,
@@ -18,6 +19,7 @@ import {
 const router = Router();
 
 router.get("/overview", getOrganizationOverview);
+router.get("/departments", getDepartments);
 router.post("/departments", saveOrganizationDepartment);
 router.put("/departments/:departmentId", saveOrganizationDepartment);
 router.patch("/departments/:departmentId/manager", assignOrganizationDepartmentManager);

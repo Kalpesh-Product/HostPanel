@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import HostCompany from "../models/Company.js";
+import EmployeeProfile from "../models/EmployeeProfile.js";
 import { uploadFileToS3, deleteFileFromS3ByUrl } from "../config/s3config.js";
 import { resolveActiveWorkspaceMembership } from "../utils/resolveMembership.js";
 
@@ -260,6 +261,22 @@ export const getMyProfile = async (req, res) => {
       workspaceMembership = await resolveActiveWorkspaceMembership(user);
     }
 
+    // Fetch linked EmployeeProfile for jobTitle
+    let employeeProfile = null;
+    if (workspace?._id) {
+      employeeProfile = await EmployeeProfile.findOne({
+        $or: [
+          { linkedUserId: user._id },
+          { linkedWorkspaceMemberId: workspaceMembership?._id },
+        ],
+        workspaceId: workspace._id,
+        isActive: true,
+      })
+        .select("jobTitle fullName")
+        .lean()
+        .exec();
+    }
+
     const workspaceBusinessName = String(workspace?.businessName || "")
       .trim()
       .toLowerCase();
@@ -318,6 +335,7 @@ export const getMyProfile = async (req, res) => {
                   name: d.name,
                 }))
                 : [],
+              jobTitle: employeeProfile?.jobTitle || null,
             }
             : user?.workspaceMembership || null,
         },
