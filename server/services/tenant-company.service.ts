@@ -181,6 +181,39 @@ async function resolveWorkspaceAccess(userId) {
   };
 }
 
+// Resolves the calling user's tenant identity directly from TenantEmployee.
+// Tenant employees are linked to a HostUser by email (set during registration)
+// and do NOT have a WorkspaceMember record, so resolveWorkspaceAccess() cannot
+// be used for tenant self-service endpoints.
+async function resolveTenantEmployeeForCurrentUser(userId) {
+  const user = await HostUser.findById(userId).lean();
+  if (!user) {
+    const err = new Error("User not found.");
+    err.statusCode = 401;
+    throw err;
+  }
+
+  const employee = await TenantEmployee.findOne({
+    status: "Active",
+    $or: [
+      { userId: user._id },
+      { email: normalizeText(user.email || "").toLowerCase() },
+    ],
+  }).lean();
+
+  if (!employee) {
+    const err = new Error("No active tenant employee record found for your account.");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const workspaceId = toId(employee.workspaceId);
+  const tenantRole = normalizeText(employee.tenantRole || "tenant-employee").toLowerCase();
+  const canManage = ["tenant-admin", "admin", "manager"].some((r) => tenantRole.includes(r));
+
+  return { user, employee, workspaceId, tenantCompanyId: toId(employee.tenantCompanyId), tenantRole, canManage };
+}
+
 function ensureTenantCompanyExists(company, workspaceId) {
   if (!company || toId(company.workspaceId) !== workspaceId) {
     const err = new Error("Tenant company not found.");
@@ -995,24 +1028,9 @@ export async function uploadTenantCompanyAgreementDocumentsForCurrentUser(userId
 }
 
 export async function getMyTenantCompanyCreditRequestsForCurrentUser(userId) {
-  const access = await resolveWorkspaceAccess(userId);
-  if (!access.isAdmin && !access.hasSalesAccess && !access.hasAdminAccess) {
-    const err = new Error("You do not have permission to view credit requests.");
-    err.statusCode = 403;
-    throw err;
-  }
+  const { tenantCompanyId } = await resolveTenantEmployeeForCurrentUser(userId);
 
-  const user = await HostUser.findById(userId).lean();
-  const employee = await TenantEmployee.findOne({
-    workspaceId: access.workspaceId,
-    email: normalizeText(user?.email || "").toLowerCase(),
-  }).lean();
-
-  if (!employee) {
-    return { tenant: null, creditRequests: [], creditRequestSummary: { total: 0, pending: 0, completed: 0, rejected: 0 } };
-  }
-
-  const tenantCompany = await TenantCompany.findById(employee.tenantCompanyId).lean();
+  const tenantCompany = await TenantCompany.findById(tenantCompanyId).lean();
   if (!tenantCompany) {
     return { tenant: null, creditRequests: [], creditRequestSummary: { total: 0, pending: 0, completed: 0, rejected: 0 } };
   }
@@ -1033,26 +1051,15 @@ export async function getMyTenantCompanyCreditRequestsForCurrentUser(userId) {
 }
 
 export async function createMyTenantCompanyCreditRequestForCurrentUser(userId, input) {
-  const access = await resolveWorkspaceAccess(userId);
-  if (!access.isAdmin && !access.hasSalesAccess && !access.hasAdminAccess) {
-    const err = new Error("You do not have permission to create credit requests.");
+  const { user, employee, tenantCompanyId, canManage } = await resolveTenantEmployeeForCurrentUser(userId);
+
+  if (!canManage) {
+    const err = new Error("Only tenant admins and managers can request credits.");
     err.statusCode = 403;
     throw err;
   }
 
-  const user = await HostUser.findById(userId).lean();
-  const employee = await TenantEmployee.findOne({
-    workspaceId: access.workspaceId,
-    email: normalizeText(user?.email || "").toLowerCase(),
-  }).lean();
-
-  if (!employee) {
-    const err = new Error("Tenant employee not found for your account.");
-    err.statusCode = 404;
-    throw err;
-  }
-
-  const company = await TenantCompany.findById(employee.tenantCompanyId);
+  const company = await TenantCompany.findById(tenantCompanyId);
   if (!company) {
     const err = new Error("Tenant company not found for your account.");
     err.statusCode = 404;
@@ -1073,14 +1080,14 @@ export async function createMyTenantCompanyCreditRequestForCurrentUser(userId, i
     invoiceStatus: "Pending",
     requestedReason: normalizeText(input.requestedReason || ""),
     requestedByUserId: userId,
-    requestedByName: normalizeText(user?.name || ""),
+    requestedByName: normalizeText(user?.name || employee?.name || ""),
     requestedByEmail: normalizeText(user?.email || "").toLowerCase(),
     actionHistory: [{
       action: "REQUEST_CREATED",
       status: "PENDING_SALES_APPROVAL",
       note: normalizeText(input.requestedReason || ""),
       actorUserId: userId,
-      actorName: normalizeText(user?.name || ""),
+      actorName: normalizeText(user?.name || employee?.name || ""),
       at: now,
     }],
     requestedAt: now,
@@ -1094,11 +1101,6 @@ export async function createMyTenantCompanyCreditRequestForCurrentUser(userId, i
 
 export async function submitMyTenantCompanyCreditRequestPaymentForCurrentUser(userId, requestId, input, file) {
   const access = await resolveWorkspaceAccess(userId);
-  if (!access.isAdmin && !access.hasSalesAccess && !access.hasAdminAccess) {
-    const err = new Error("You do not have permission to submit payments.");
-    err.statusCode = 403;
-    throw err;
-  }
 
   if (!file?.buffer?.length) {
     const err = new Error("Payment proof screenshot is required.");
@@ -1131,12 +1133,33 @@ export async function submitMyTenantCompanyCreditRequestPaymentForCurrentUser(us
     throw err;
   }
 
+  // Upload the payment proof to S3 (mirrors the agreement-document upload pattern).
+  const timestamp = Date.now();
+  const safeName = (file.originalname || "payment-proof").replace(/[^a-zA-Z0-9._-]/g, "_");
+  const route = `tenant-companies/${access.workspaceId}/${employee.tenantCompanyId}/credit-requests/${request.id || requestId}/${timestamp}-${safeName}`;
+  let s3Result;
+  try {
+    s3Result = await uploadFileToS3(route, file);
+  } catch {
+    s3Result = { id: route, url: "" };
+  }
+
   const now = new Date();
   request.status = "PAYMENT_SUBMITTED";
   request.paymentTransactionId = normalizeText(input?.transactionId || "");
   request.paymentProofFileName = file.originalname || "payment-proof";
+  request.paymentProofFileUrl = s3Result.url || "";
+  request.paymentProofPublicId = s3Result.id || route;
   request.paymentSubmittedAt = now;
   request.updatedAt = now;
+  request.actionHistory.push({
+    action: "PAYMENT_SUBMITTED",
+    status: "PAYMENT_SUBMITTED",
+    note: normalizeText(input?.transactionId ? `Transaction ID: ${input.transactionId}` : "Payment proof uploaded."),
+    actorUserId: userId,
+    actorName: normalizeText(user?.name || ""),
+    at: now,
+  });
 
   await request.save();
 
@@ -1165,45 +1188,88 @@ export async function updateTenantCompanyCreditRequestForCurrentUser(userId, ten
   }
 
   const now = new Date();
+  const actorName = normalizeText(access.user?.name || "");
+  const previousStatus = request.status;
 
-  const validStatuses = [
-    "PENDING_SALES_APPROVAL", "APPROVED_AWAITING_PAYMENT", "PAYMENT_SUBMITTED",
-    "PAYMENT_CONFIRMED", "INVOICE_GENERATED", "CREDITS_ADDED", "COMPLETED",
-    "REJECTED", "PAYMENT_FAILED", "PAYMENT_REJECTED",
-  ];
+  // ─── Allowed forward state transitions (state machine) ───
+  const allowedTransitions = {
+    LOW_CREDITS_ALERT: ["PENDING_SALES_APPROVAL", "REJECTED"],
+    PENDING_SALES_APPROVAL: ["APPROVED_AWAITING_PAYMENT", "REJECTED"],
+    APPROVED_AWAITING_PAYMENT: ["PAYMENT_SUBMITTED", "REJECTED", "PAYMENT_REJECTED"],
+    PAYMENT_SUBMITTED: ["PAYMENT_CONFIRMED", "PAYMENT_FAILED", "PAYMENT_REJECTED"],
+    PAYMENT_CONFIRMED: ["INVOICE_GENERATED", "CREDITS_ADDED", "COMPLETED"],
+    INVOICE_GENERATED: ["CREDITS_ADDED", "COMPLETED"],
+    CREDITS_ADDED: ["COMPLETED"],
+    COMPLETED: [],
+    REJECTED: [],
+    PAYMENT_FAILED: ["PAYMENT_SUBMITTED", "PAYMENT_REJECTED", "REJECTED"],
+    PAYMENT_REJECTED: ["APPROVED_AWAITING_PAYMENT", "REJECTED"],
+  };
 
-  if (input.status && validStatuses.includes(input.status)) {
-    request.status = input.status;
+  let nextStatus = previousStatus;
+  if (input.status && input.status !== previousStatus) {
+    const permitted = allowedTransitions[previousStatus] || [];
+    if (!permitted.includes(input.status)) {
+      const err = new Error(`Invalid status transition from ${previousStatus} to ${input.status}.`);
+      err.statusCode = 409;
+      throw err;
+    }
+    nextStatus = input.status;
+    request.status = nextStatus;
   }
 
+  // ─── Apply editable fields ───
   if (input.salesNote !== undefined) request.salesNote = normalizeText(input.salesNote);
   if (input.financeNote !== undefined) request.financeNote = normalizeText(input.financeNote);
   if (input.approvedCredits !== undefined) request.approvedCredits = Math.max(0, Number(input.approvedCredits));
   if (input.paymentTransactionId !== undefined) request.paymentTransactionId = normalizeText(input.paymentTransactionId);
   if (input.paymentFailureReason !== undefined) request.paymentFailureReason = normalizeText(input.paymentFailureReason);
 
-  if (request.status === "APPROVED_AWAITING_PAYMENT") {
+  // ─── Recalculate totalAmount whenever approved credits or rate change ───
+  const effectiveCredits = Number(request.approvedCredits || 0) || Number(request.requestedCredits || 0);
+  request.totalAmount = Math.max(0, roundNumber(effectiveCredits * (request.ratePerCredit || 0)));
+
+  // ─── Side effects for specific transitions ───
+  if (nextStatus === "APPROVED_AWAITING_PAYMENT") {
     request.reviewedByUserId = userId;
-    request.reviewedByName = normalizeText(access.user?.name || "");
+    request.reviewedByName = actorName;
     request.reviewedAt = now;
+    // Lock in the approved credit count if not explicitly provided.
+    if (!request.approvedCredits) request.approvedCredits = Number(request.requestedCredits || 0);
   }
 
-  if (request.status === "PAYMENT_CONFIRMED") {
+  if (nextStatus === "PAYMENT_CONFIRMED") {
     request.financeVerifiedByUserId = userId;
-    request.financeVerifiedByName = normalizeText(access.user?.name || "");
+    request.financeVerifiedByName = actorName;
     request.financeVerifiedAt = now;
     request.paidAt = now;
   }
 
-  if (["CREDITS_ADDED", "COMPLETED"].includes(request.status)) {
+  // ─── Credits addition with idempotency guard ───
+  // Only add credits once: when transitioning into CREDITS_ADDED/COMPLETED
+  // from a state that has not yet credited the tenant.
+  if (["CREDITS_ADDED", "COMPLETED"].includes(nextStatus) && !request.creditsAddedAt) {
     const addCredits = roundNumber(request.approvedCredits || request.requestedCredits || 0);
     company.creditsAllocated = Math.max(0, roundNumber(company.creditsAllocated || 0) + addCredits);
     request.creditsAddedAt = now;
     request.creditsAddedByUserId = userId;
-    request.creditsAddedByName = normalizeText(access.user?.name || "");
+    request.creditsAddedByName = actorName;
     request.completedAt = now;
     request.status = "COMPLETED";
+    nextStatus = "COMPLETED";
     await company.save();
+  }
+
+  // ─── Audit trail: record an action entry for every transition + note edits ───
+  if (nextStatus !== previousStatus || input.salesNote !== undefined || input.financeNote !== undefined) {
+    request.actionHistory.push({
+      action: nextStatus !== previousStatus ? nextStatus : "NOTE_UPDATED",
+      status: nextStatus,
+      note: normalizeText(input.salesNote || input.financeNote || input.paymentFailureReason || ""),
+      actorUserId: userId,
+      actorName,
+      at: now,
+    });
   }
 
   request.updatedAt = now;

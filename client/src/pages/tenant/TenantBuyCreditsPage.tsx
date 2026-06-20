@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
   Clock,
   CreditCard,
@@ -14,12 +14,12 @@ import { getStoredTenantRole, isTenantAdminRole, isTenantManagerRole } from '@/l
 
 import PageFrame from '@/components/Pages/PageFrame';
 
-// ─── Backend service imports (uncomment when backend ready) ───
-// import { getTenantCompanies, updateTenantCompanyCreditRequest } from '@/services/tenant-companies';
-// ─── New API functions needed (not yet in services) ───
-//   getMyTenantCompanyCreditRequests(tenantCompanyId: string) => Promise<CreditRequest[]>
-//   createMyTenantCompanyCreditRequest(tenantCompanyId: string, payload: { credits: number, reason?: string }) => Promise<CreditRequest>
-//   submitMyTenantCompanyCreditRequestPayment(tenantCompanyId: string, requestId: string) => Promise<any>
+// ─── Backend service imports ───
+import {
+  getMyTenantCompanyCreditRequests,
+  createMyTenantCompanyCreditRequest,
+  submitMyTenantCompanyCreditRequestPayment,
+} from '@/services/tenant-companies';
 
 function normalizeText(value: unknown): string {
   return String(value ?? '').trim();
@@ -38,20 +38,44 @@ function formatDate(value: string): string {
 
 function getStatusTone(status: string): string {
   const n = normalizeId(status);
-  if (n === 'approved' || n === 'completed') return 'border-emerald-200 bg-emerald-100 text-emerald-700';
-  if (n === 'rejected' || n === 'cancelled' || n === 'failed') return 'border-rose-200 bg-rose-100 text-rose-700';
-  if (n === 'paid' || n === 'payment received') return 'border-blue-200 bg-blue-100 text-blue-700';
+  if (n === 'completed' || n === 'credits_added') return 'border-emerald-200 bg-emerald-100 text-emerald-700';
+  if (n === 'rejected' || n === 'payment_failed' || n === 'payment_rejected') return 'border-rose-200 bg-rose-100 text-rose-700';
+  if (n === 'payment_confirmed' || n === 'invoice_generated' || n === 'payment_submitted') return 'border-blue-200 bg-blue-100 text-blue-700';
   return 'border-amber-200 bg-amber-100 text-amber-700';
+}
+
+function getStatusLabel(status: string): string {
+  const n = normalizeId(status);
+  const map: Record<string, string> = {
+    low_credits_alert: 'Low Credits',
+    pending_sales_approval: 'Pending Approval',
+    approved_awaiting_payment: 'Awaiting Payment',
+    payment_submitted: 'Payment Submitted',
+    payment_confirmed: 'Payment Confirmed',
+    invoice_generated: 'Invoice Generated',
+    credits_added: 'Credits Added',
+    completed: 'Completed',
+    rejected: 'Rejected',
+    payment_failed: 'Payment Failed',
+    payment_rejected: 'Payment Rejected',
+  };
+  return map[n] || normalizeText(status || 'Pending');
 }
 
 interface CreditRequest {
   id: string;
-  credits: number;
-  reason: string;
+  requestedCredits: number;
+  approvedCredits: number;
+  ratePerCredit: number;
+  totalAmount: number;
+  requestedReason: string;
   status: string;
   createdAt: string;
   updatedAt: string;
-  paymentLink?: string;
+  requestedAt?: string;
+  paymentProofFileUrl?: string;
+  invoiceFileUrl?: string;
+  paymentTransactionId?: string;
 }
 
 export default function TenantBuyCreditsPage() {
@@ -71,6 +95,9 @@ export default function TenantBuyCreditsPage() {
   const [showNewRequestForm, setShowNewRequestForm] = useState(false);
   const [newCredits, setNewCredits] = useState('');
   const [newReason, setNewReason] = useState('');
+  const [payingRequestId, setPayingRequestId] = useState<string | null>(null);
+  const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
+  const [transactionId, setTransactionId] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -79,9 +106,19 @@ export default function TenantBuyCreditsPage() {
       setIsLoading(true);
       setErrorMessage('');
       try {
-        // Credit request APIs (getMyTenantCompanyCreditRequests, etc.)
-        // are not yet implemented in the services layer.
-        // State will remain at default empty values until backend is ready.
+        const response = await getMyTenantCompanyCreditRequests();
+        const payload = response?.data || {};
+        const requests = Array.isArray(payload.creditRequests) ? payload.creditRequests : [];
+        const tenant = payload.tenant || {};
+        if (active) {
+          setCreditRequests(requests);
+          setCompanyCreditsAllocated(Number(tenant.creditsAllocated || 0));
+          if (typeof tenant.creditsRemaining === 'number') {
+            setCompanyCreditsRemaining(Number(tenant.creditsRemaining || 0));
+          } else {
+            setCompanyCreditsRemaining(Math.max(0, Number(tenant.creditsAllocated || 0) - Number(tenant.creditsUsed || 0)));
+          }
+        }
       } catch (error: any) {
         if (active) setErrorMessage(error?.message || 'Unable to load credit requests.');
       } finally {
@@ -102,21 +139,26 @@ export default function TenantBuyCreditsPage() {
     setIsSubmitting(true);
     setErrorMessage('');
     try {
-      // ─── Backend call (uncomment when backend ready) ───
-      // if (tenantCompanyId) {
-      //   await createMyTenantCompanyCreditRequest(tenantCompanyId, {
-      //     credits,
-      //     reason: newReason.trim(),
-      //     price: credits * 10,
-      //   });
-      // }
+      await createMyTenantCompanyCreditRequest({
+        requestedCredits: credits,
+        requestedReason: newReason.trim(),
+      });
       setNoticeMessage(`Credit request for ${credits} credits submitted successfully.`);
       setShowNewRequestForm(false);
       setNewCredits('');
       setNewReason('');
-      // Reload requests
-      // const requests = await getMyTenantCompanyCreditRequests(tenantCompanyId);
-      // setCreditRequests(Array.isArray(requests) ? requests : []);
+      // Reload requests + credit balance
+      const response = await getMyTenantCompanyCreditRequests();
+      const payload = response?.data || {};
+      const requests = Array.isArray(payload.creditRequests) ? payload.creditRequests : [];
+      const tenant = payload.tenant || {};
+      setCreditRequests(requests);
+      setCompanyCreditsAllocated(Number(tenant.creditsAllocated || 0));
+      if (typeof tenant.creditsRemaining === 'number') {
+        setCompanyCreditsRemaining(Number(tenant.creditsRemaining || 0));
+      } else {
+        setCompanyCreditsRemaining(Math.max(0, Number(tenant.creditsAllocated || 0) - Number(tenant.creditsUsed || 0)));
+      }
     } catch (error: any) {
       setErrorMessage(error?.message || 'Unable to create credit request.');
     } finally {
@@ -124,32 +166,35 @@ export default function TenantBuyCreditsPage() {
     }
   };
 
-  const handlePayRequest = async (request: CreditRequest) => {
-    if (!request.id || !tenantCompanyId) return;
+  const handlePayRequest = async (request: CreditRequest, file?: File | null) => {
+    if (!request.id) return;
+    if (!file) {
+      setErrorMessage('Please attach a payment proof screenshot before submitting.');
+      return;
+    }
     setIsSubmitting(true);
     setErrorMessage('');
     try {
-      // ─── Backend call (uncomment when backend ready) ───
-      // const result = await submitMyTenantCompanyCreditRequestPayment(tenantCompanyId, request.id);
-      // if (result?.paymentUrl) {
-      //   window.open(result.paymentUrl, '_blank');
-      // }
-      setNoticeMessage('Payment link generated. You will be redirected shortly.');
+      await submitMyTenantCompanyCreditRequestPayment(request.id, {
+        paymentProof: file,
+        transactionId: transactionId.trim(),
+      });
+      setNoticeMessage('Payment proof submitted. Awaiting finance verification.');
+      // Reset the inline payment form
+      setPayingRequestId(null);
+      setPaymentProofFile(null);
+      setTransactionId('');
+      // Reload requests to reflect the updated status
+      const response = await getMyTenantCompanyCreditRequests();
+      const payload = response?.data || {};
+      const requests = Array.isArray(payload.creditRequests) ? payload.creditRequests : [];
+      setCreditRequests(requests);
     } catch (error: any) {
-      setErrorMessage(error?.message || 'Unable to process payment.');
+      setErrorMessage(error?.message || 'Unable to submit payment proof.');
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const pendingCredits = useMemo(
-    () => creditRequests.filter((r) => normalizeId(r.status) === 'pending').reduce((sum, r) => sum + Number(r.credits || 0), 0),
-    [creditRequests],
-  );
-  const approvedCredits = useMemo(
-    () => creditRequests.filter((r) => normalizeId(r.status) === 'approved' || normalizeId(r.status) === 'completed').reduce((sum, r) => sum + Number(r.credits || 0), 0),
-    [creditRequests],
-  );
 
   if (isLoading) return <CardsGridSkeleton count={4} />;
 
@@ -224,37 +269,66 @@ export default function TenantBuyCreditsPage() {
               {creditRequests.length > 0 ? (
                 creditRequests.map((request) => {
                   const reqStatus = normalizeId(request.status);
-                  const needsPayment = reqStatus === 'pending' || reqStatus === 'approved';
+                  const needsPayment = reqStatus === 'approved_awaiting_payment';
+                  const awaitingAction = reqStatus === 'pending_sales_approval';
+                  const isPaid = ['completed', 'credits_added', 'payment_confirmed', 'invoice_generated', 'payment_submitted'].includes(reqStatus);
+                  const showInvoice = (reqStatus === 'completed' || reqStatus === 'credits_added' || reqStatus === 'invoice_generated') && request.invoiceFileUrl;
+                  const isPaying = payingRequestId === request.id;
                   return (
                     <div key={request.id} className="flex flex-col gap-4 p-6 transition-colors hover:bg-slate-50/60 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center gap-4">
-                        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${needsPayment ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${isPaid ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
                           <CreditCard size={20} />
                         </div>
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="text-base font-pbold text-slate-900">{request.credits} Credits</h3>
+                            <h3 className="text-base font-pbold text-slate-900">{Number(request.requestedCredits || 0)} Credits</h3>
                             <span className={`rounded-md border px-2 py-0.5 text-[9px] font-pbold uppercase tracking-widest ${getStatusTone(request.status)}`}>
-                              {normalizeText(request.status || 'Pending')}
+                              {getStatusLabel(request.status)}
                             </span>
                           </div>
                           <p className="mt-1 flex items-center gap-1.5 text-xs font-pmedium text-slate-500">
-                            <Clock size={12} /> {formatDate(request.createdAt)}
+                            <Clock size={12} /> {formatDate(request.createdAt || request.requestedAt || '')}
                           </p>
-                          {request.reason && (
-                            <p className="mt-1 text-sm font-pregular text-slate-600">{request.reason}</p>
+                          {Number(request.totalAmount || 0) > 0 && (
+                            <p className="mt-1 text-xs font-pmedium text-slate-600">
+                              {Number(request.requestedCredits || 0)} CR × ₹{Number(request.ratePerCredit || 10)} = <span className="font-pbold">₹{Number(request.totalAmount).toLocaleString('en-IN')}</span>
+                            </p>
+                          )}
+                          {request.requestedReason && (
+                            <p className="mt-1 text-sm font-pregular text-slate-600">{request.requestedReason}</p>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {needsPayment && (
-                          <button disabled={isSubmitting} onClick={() => handlePayRequest(request)}
+                      <div className="flex flex-col items-end gap-2">
+                        {needsPayment && !isPaying && (
+                          <button disabled={isSubmitting} onClick={() => { setPayingRequestId(request.id); setPaymentProofFile(null); setTransactionId(''); }}
                             className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">
-                            Pay Now <ExternalLink size={14} />
+                            Upload Payment Proof <ExternalLink size={14} />
                           </button>
                         )}
-                        {reqStatus === 'paid' && (
-                          <button disabled={isSubmitting} onClick={() => window.open('#', '_blank')}
+                        {awaitingAction && (
+                          <span className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Awaiting sales approval</span>
+                        )}
+                        {isPaying && (
+                          <div className="w-full max-w-xs space-y-2 rounded-2xl border border-slate-100 bg-slate-50/60 p-3 sm:w-72">
+                            <input type="file" accept="image/*,application/pdf" disabled={isSubmitting}
+                              onChange={(e) => setPaymentProofFile(e.target.files?.[0] || null)}
+                              className="block w-full text-[11px] font-pmedium text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-[10px] file:font-pbold file:uppercase file:tracking-widest file:text-white hover:file:bg-slate-800" />
+                            <input type="text" value={transactionId} disabled={isSubmitting}
+                              onChange={(e) => setTransactionId(e.target.value)}
+                              placeholder="Transaction ID (optional)"
+                              className="w-full rounded-lg border-2 border-transparent bg-white px-3 py-2 text-[11px] font-pmedium text-slate-900 outline-none focus:border-[#2563EB]" />
+                            <div className="flex gap-2">
+                              <button type="button" disabled={isSubmitting} onClick={() => { setPayingRequestId(null); setPaymentProofFile(null); setTransactionId(''); }}
+                                className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-slate-600 hover:bg-slate-50 disabled:opacity-60">Cancel</button>
+                              <button type="button" disabled={isSubmitting || !paymentProofFile} onClick={() => handlePayRequest(request, paymentProofFile)}
+                                className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">Submit</button>
+                            </div>
+                          </div>
+                        )}
+                        {showInvoice && (
+                          <button disabled={isSubmitting} onClick={() => window.open(request.invoiceFileUrl, '_blank')}
                             className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-pbold uppercase tracking-widest text-slate-900 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
                             View Invoice <ExternalLink size={14} />
                           </button>

@@ -75,6 +75,13 @@ export const createMyTenantCompanyCreditRequest = async (payload: Record<string,
   return axiosPrivate.post("/api/v1/tenant-companies/my/credit-requests", payload);
 };
 
-export const submitMyTenantCompanyCreditRequestPayment = async (requestId: string, payload: Record<string, any>) => {
-  return axiosPrivate.post(`/api/v1/tenant-companies/my/credit-requests/${requestId}/payment`, payload);
+export const submitMyTenantCompanyCreditRequestPayment = async (requestId: string, payload: { paymentProof: File; transactionId?: string }) => {
+  const formData = new FormData();
+  formData.append("paymentProof", payload.paymentProof);
+  if (payload.transactionId) {
+    formData.append("transactionId", payload.transactionId);
+  }
+  return axiosPrivate.post(`/api/v1/tenant-companies/my/credit-requests/${requestId}/payment`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 };
