@@ -419,6 +419,15 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/sales-crm/tenant-companies/:id",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Sales Department", path: "/module-sections/department-accesses/sales-department" },
+      { label: "Tenant Companies", path: "/sales-crm/tenant-companies" },
+      { label: "Tenant Details" },
+    ],
+  },
+  {
     pattern: "/sales-crm/tenant-companies",
     crumbs: [
       { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },

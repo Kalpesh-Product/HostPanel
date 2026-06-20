@@ -82,3 +82,5 @@ export const createMyTenantCompanyCreditRequest = async (payload: Record<string,
 export const submitMyTenantCompanyCreditRequestPayment = async (requestId: string, payload: Record<string, any>) => {
   return axiosPrivate.post(`/api/v1/tenant-companies/my/credit-requests/${requestId}/payment`, payload);
 };
+
+

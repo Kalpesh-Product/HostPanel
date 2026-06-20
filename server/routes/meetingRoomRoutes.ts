@@ -12,6 +12,7 @@ import {
     getBookings,
     getMyBookings,
     getBookingById,
+    getBookingsByTenantCompany,
     cancelBooking,
     updateBooking,
     respondToInvite,
@@ -38,6 +39,7 @@ router.delete("/:id", deleteMeetingRoom);               // Soft delete room
 router.post("/bookings", createBooking);                    // Create booking
 router.get("/bookings/workspace/:workspaceId", getBookings); // All bookings in workspace
 router.get("/bookings/my", getMyBookings);                  // Current user's bookings
+router.get("/bookings/tenant-company/:tenantCompanyId", getBookingsByTenantCompany); // Bookings by tenant company
 router.get("/bookings/:id", getBookingById);                // Single booking details
 router.patch("/bookings/:id", updateBooking);                  // Reschedule or extend booking
 router.patch("/bookings/:id/cancel", cancelBooking);           // Cancel booking

@@ -145,6 +145,7 @@ import UnitSettingsPage from "../pages/UnitSettings/UnitSettingsPage";
 import UnitManagementPage from "../pages/UnitSettings/UnitManagementPage";
 import CustomerSupportPage from "../pages/CustomerSupport/CustomerSupportPage";
 import TenantCompaniesPage from "../pages/Sales/TenantCompanies/TenantCompaniesPage";
+import TenantCompanyDetailPage from "../pages/Sales/TenantCompanies/TenantCompanyDetailPage";
 import ResourcePricingPage from "../pages/Sales/ResourcePricing/Resource&Pricing";
 import LeadsManagementPage from "../pages/Sales/LeadsManagement/LeadsManagementPage";
 import SalesArchitecturePage from "../pages/Sales/SalesArchitecture/SalesArchitecturePage";
@@ -947,6 +948,10 @@ export const routes = createBrowserRouter([
                   {
                     path: "tenant-companies",
                     element: <TenantCompaniesPage />,
+                  },
+                  {
+                    path: "tenant-companies/:id",
+                    element: <TenantCompanyDetailPage />,
                   },
                   {
                     path: "resource-pricing",

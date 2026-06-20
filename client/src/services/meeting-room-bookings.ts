@@ -53,6 +53,11 @@ export const respondToMeetingRoomInvite = async (bookingId: string, payload: Rec
 // ======================
 // CLIENTS / OTHER (Added for VisitorManagement.tsx)
 // ======================
+export const getBookingsByTenantCompany = async (tenantCompanyId: string) => {
+  const response = await axiosPrivate.get(`/api/meeting-rooms/bookings/tenant-company/${tenantCompanyId}`);
+  return unwrap(response);
+};
+
 export const getMeetingRoomClients = async () => {
   // TODO: Add this route in backend if it doesn't exist yet
   const response = await axiosPrivate.get("/api/meeting-rooms/bookings/clients");

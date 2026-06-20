@@ -420,6 +420,21 @@ export const respondToInvite = async (req: AuthenticatedRequest, res: Response, 
     } catch (error: any) { next(error); }
 };
 
+export const getBookingsByTenantCompany = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+        const workspaceId = workspaceIdFor(req);
+        if (!workspaceId) return res.status(401).json({ message: "An active workspace is required" });
+        const { tenantCompanyId } = req.params;
+        if (!tenantCompanyId) return res.status(400).json({ message: "Tenant company ID is required" });
+        const bookings = await MeetingRoomBooking.find({
+            workspaceId,
+            bookedByTenantCompanyId: tenantCompanyId,
+        }).populate("roomId", "name type capacity floor wing").populate("ownerId", "name email").sort({ start: -1 }).lean().exec();
+        const transformedBookings = bookings.map((booking: any) => transformBooking(booking, req.user));
+        return res.status(200).json({ message: "Bookings fetched successfully", data: { bookings: transformedBookings } });
+    } catch (error: any) { next(error); }
+};
+
 export const getBookingById = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         const id = getValidObjectId(req.params.id);
