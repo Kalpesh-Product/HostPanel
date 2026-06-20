@@ -251,6 +251,7 @@ export const getMyProfile = async (req, res) => {
       })
         .sort({ isPrimary: -1, createdAt: 1 })
         .populate("role")
+        .populate("departments")
         .lean()
         .exec();
     }
@@ -308,10 +309,16 @@ export const getMyProfile = async (req, res) => {
           companyName: company?.companyName || user?.companyName || "",
           workspaceMembership: workspaceMembership
             ? {
-                role: workspaceMembership.role?.name || (typeof workspaceMembership.role === "string" ? workspaceMembership.role : "member"),
-                isPrimary: workspaceMembership.isPrimary,
-                isActive: workspaceMembership.isActive,
-              }
+              role: workspaceMembership.role?.name || (typeof workspaceMembership.role === "string" ? workspaceMembership.role : "member"),
+              isPrimary: workspaceMembership.isPrimary,
+              isActive: workspaceMembership.isActive,
+              departments: Array.isArray(workspaceMembership.departments)
+                ? workspaceMembership.departments.map((d: any) => ({
+                  id: d._id,
+                  name: d.name,
+                }))
+                : [],
+            }
             : user?.workspaceMembership || null,
         },
         workspace: workspace || null,
@@ -471,4 +478,3 @@ export const updateCompanyLogo = async (req, res) => {
     });
   }
 };
-
