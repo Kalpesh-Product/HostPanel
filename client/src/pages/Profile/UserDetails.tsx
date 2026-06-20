@@ -89,11 +89,6 @@ const UserDetails = () => {
     }
     return String(value);
   };
-  const normalizeRole = (value: unknown) =>
-    resolveRoleValue(value)
-      .trim()
-      .toLowerCase()
-      .replace(/_/g, "-");
   const roleArrayTitles = Array.isArray(auth?.user?.role)
     ? auth.user.role
       .map((entry: any) => entry?.roleTitle || entry?.title || entry?.name)
@@ -133,6 +128,12 @@ const UserDetails = () => {
   };
   const storedTenantRole = getStoredTenantRole();
   const hasTenantRole = Boolean(storedTenantRole || auth?.user?.tenantRole);
+  const normalizeRole = (value: unknown) =>
+    resolveRoleValue(value)
+      .trim()
+      .toUpperCase()
+      .replace(/-/g, " ");
+  // console.log(auth.user.tenantRole)
   // const resolvedRoleLabel = hasTenantRole
   //   ? (storedTenantRole === "tenant-manager" || auth?.user?.tenantRole === "tenant-manager"
   //       ? "Tenant Manager"
@@ -140,7 +141,7 @@ const UserDetails = () => {
   //   : isFounder
   //     ? "Founder"
   //     : roleLabelMap[roleCandidates[0] || ""] || "Team Member";
-  const resolvedRoleLabel = auth?.user?.workspaceMembership?.role;
+  const resolvedRoleLabel = normalizeRole(auth?.user?.workspaceMembership?.role) || normalizeRole(auth.user.tenantRole);
   // console.log('resolvedRoleLabel', auth?.user?.workspaceMembership?.role);
 
   const mutation = useMutation({
@@ -204,13 +205,13 @@ const UserDetails = () => {
               <div className="flex flex-col gap-4 text-gray-600 min-w-20">
                 <span>Email :</span>
                 <span>Role :</span>
-                {hasTenantRole && <span>Designation :</span>}
+                {/* {hasTenantRole && <span>Designation :</span>} */}
                 <span>Work Location :</span>
               </div>
               <div className="flex flex-col gap-4 text-gray-500">
                 <span>{user.email}</span>
                 <span>{resolvedRoleLabel}</span>
-                {hasTenantRole && <span>{user.designation || "—"}</span>}
+                {/* {hasTenantRole && <span>{user.designation || "—"}</span>} */}
                 <span>{user.workLocation}</span>
               </div>
             </div>
