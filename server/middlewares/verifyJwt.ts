@@ -3,6 +3,8 @@ import jwt from "jsonwebtoken";
 import HostUser from "../models/HostUser.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
+import TenantEmployee from "../models/TenantEmployee.js";
+import { TenantCompany } from "../models/TenantCompany.js";
 import { resolveActiveWorkspaceMembership } from "../utils/resolveMembership.js";
 
 const getFounderEmailForWorkspace = async (workspaceId: any) => {
@@ -37,6 +39,23 @@ const verifyJwt = (req, res, next) => {
           code: "ACCOUNT_DISABLED",
           message: "Account access disabled by founder.",
         });
+      }
+
+      // For tenant users, resolve workspace from TenantEmployee → TenantCompany regardless of hasCompletedWorkspaceSetup
+      if (user?.email) {
+        const tenantEmp = await TenantEmployee.findOne({ email: user.email, status: "Active" }).lean().exec();
+        if (tenantEmp) {
+          const company = await TenantCompany.findById(tenantEmp.tenantCompanyId).select("workspaceId").lean().exec();
+          if (company?.workspaceId) {
+            req.workspaceMembership = {
+              workspace: String(company.workspaceId),
+              role: "member",
+              isPrimary: false,
+            };
+            req.user = userId;
+            return next();
+          }
+        }
       }
 
       if (!user.hasCompletedWorkspaceSetup) {

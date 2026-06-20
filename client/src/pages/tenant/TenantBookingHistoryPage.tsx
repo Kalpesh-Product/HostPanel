@@ -19,8 +19,8 @@ import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { formatTime12h } from '@/utils/time';
 import { getStoredTenantCompanyId, getStoredTenantCompanyName, getStoredUser } from '@/lib/auth-session';
 import { getStoredTenantRole, isTenantAdminRole, isTenantManagerRole } from '@/lib/tenant-session';
-import { getTenantCompanies } from '@/services/tenant-companies';
-import { getMeetingRoomBookings, respondToMeetingRoomInvite, updateMeetingRoomBooking } from '@/services/meeting-room-bookings';
+import { getMyTenantCompany } from '@/services/tenant-companies';
+import { getMeetingRoomBookings, respondToMeetingRoomInvite, updateMeetingRoomBooking, cancelBooking } from '@/services/meeting-room-bookings';
 
 const BOOKING_SLOT_STEP_MINUTES = 5;
 const BOOKING_MIN_DURATION_MINUTES = 30;
@@ -252,14 +252,14 @@ function parseWingFromLocation(location: string): string {
 
 export default function TenantBookingHistoryPage() {
   const currentUser = getStoredUser() || {};
-  const userRole = getStoredTenantRole() || 'tenant-employee';
+  const userRole = currentUser?.tenantRole || getStoredTenantRole() || 'tenant-employee';
   const canManageTenant = isTenantAdminRole(userRole) || isTenantManagerRole(userRole);
   const currentUserId = getCurrentUserId(currentUser);
   const currentUserName = getCurrentUserName(currentUser);
   const currentUserEmail = normalizeId(currentUser?.email || '');
   const tenantCompanyName = currentUser?.tenantCompanyName || currentUser?.workspaceMembership?.tenantCompanyName || getStoredTenantCompanyName() || 'Tenant Workspace';
   const tenantCompanyId = normalizeId(currentUser?.tenantCompanyId || currentUser?.workspaceMembership?.tenantCompanyId || getStoredTenantCompanyId() || '');
-  const workspaceId = normalizeId(currentUser?.workspaceMembership?.workspaceId || currentUser?.workspaceId || '');
+  const workspaceId = normalizeId(currentUser?.primaryWorkspace || currentUser?.workspaceMembership?.workspaceId || currentUser?.workspaceId || '');
   const normalizedTenantCompanyName = normalizeId(tenantCompanyName);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -267,7 +267,7 @@ export default function TenantBookingHistoryPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [noticeMessage, setNoticeMessage] = useState('');
   const [bookings, setBookings] = useState<Record<string, any>[]>([]);
-  const [mainTab, setMainTab] = useState(canManageTenant ? 'company' : 'my');
+  const [mainTab, setMainTab] = useState('my');
   const [subTab, setSubTab] = useState('upcoming');
   const [selectedBooking, setSelectedBooking] = useState<Record<string, any> | null>(null);
   const [cancelModal, setCancelModal] = useState<Record<string, any> | null>(null);
@@ -277,6 +277,9 @@ export default function TenantBookingHistoryPage() {
   const [rescheduleForm, setRescheduleForm] = useState({ roomName: '', date: '', startTime: '', endTime: '', purpose: '' });
   const [extendMinutes, setExtendMinutes] = useState('30');
   const [tenantCompanies, setTenantCompanies] = useState<Record<string, any>[]>([]);
+  const [rescheduleInviteeOptions, setRescheduleInviteeOptions] = useState<any[]>([]);
+  const [rescheduleInviteeIds, setRescheduleInviteeIds] = useState<string[]>([]);
+  const [isRescheduleInviteesLoading, setIsRescheduleInviteesLoading] = useState(false);
 
   const currentCompany = useMemo(() => {
     if (!Array.isArray(tenantCompanies) || tenantCompanies.length === 0) return null;
@@ -299,10 +302,10 @@ export default function TenantBookingHistoryPage() {
     setErrorMessage('');
     try {
       const [bookingsResponse, companiesResponse] = await Promise.allSettled([
-        getMeetingRoomBookings(workspaceId), getTenantCompanies(),
+        getMeetingRoomBookings(workspaceId), getMyTenantCompany(),
       ]);
       const nextBookings = bookingsResponse.status === 'fulfilled' ? extractList(bookingsResponse.value, ['bookings', 'items']) : [];
-      const nextCompanies = companiesResponse.status === 'fulfilled' ? extractList(companiesResponse.value, ['tenants', 'companies']) : [];
+      const nextCompanies = companiesResponse.status === 'fulfilled' && companiesResponse.value?.data?.tenant ? [companiesResponse.value.data.tenant] : [];
 
       setBookings(nextBookings);
       setTenantCompanies(nextCompanies);
@@ -315,18 +318,39 @@ export default function TenantBookingHistoryPage() {
 
   useEffect(() => { loadBookings(); }, []);
 
+  // Auto-clear notice after 4 seconds
+  useEffect(() => {
+    if (!noticeMessage) return;
+    const t = setTimeout(() => setNoticeMessage(''), 4000);
+    return () => clearTimeout(t);
+  }, [noticeMessage]);
+
+  // Periodic refresh for real-time updates
+  useEffect(() => {
+    if (!workspaceId) return;
+    const interval = setInterval(() => { loadBookings(); }, 30000);
+    return () => clearInterval(interval);
+  }, [workspaceId]);
+
   const tenantBookings = useMemo(() => {
     return bookings.filter((b) => matchesTenantBookingScope(b, tenantCompanyId, normalizedTenantCompanyName, currentUserId, currentUserName, currentUserEmail));
   }, [bookings, currentUserId, currentUserName, currentUserEmail, normalizedTenantCompanyName, tenantCompanyId]);
 
   const myBookings = useMemo(() => {
-    if (canManageTenant) return tenantBookings.filter((b) => isMyBooking(b, currentUserId, currentUserName, currentUserEmail));
     return tenantBookings.filter((b) => isMyBooking(b, currentUserId, currentUserName, currentUserEmail) || isAcceptedInviteForUser(b, currentUserId, currentUserEmail));
-  }, [canManageTenant, currentUserEmail, currentUserId, currentUserName, tenantBookings]);
+  }, [currentUserEmail, currentUserId, currentUserName, tenantBookings]);
 
-  const companyBookings = useMemo(() => canManageTenant ? tenantBookings : myBookings, [canManageTenant, myBookings, tenantBookings]);
+  const companyBookings = useMemo(() => {
+    if (!canManageTenant) return myBookings;
+    return tenantBookings.filter((b) => !isMyBooking(b, currentUserId, currentUserName, currentUserEmail) && !isAcceptedInviteForUser(b, currentUserId, currentUserEmail));
+  }, [canManageTenant, currentUserEmail, currentUserId, currentUserName, myBookings, tenantBookings]);
   const inviteBookings = useMemo(
-    () => tenantBookings.filter((b) => Boolean(getInviteForUser(b, currentUserId, currentUserEmail))),
+    () => tenantBookings.filter((b) => {
+      const invite = getInviteForUser(b, currentUserId, currentUserEmail);
+      if (!invite) return false;
+      const inviteStatus = normalizeId(invite.status);
+      return inviteStatus === 'pending' || inviteStatus === 'rejected' || inviteStatus === 'declined';
+    }),
     [currentUserEmail, currentUserId, tenantBookings],
   );
 
@@ -415,13 +439,44 @@ export default function TenantBookingHistoryPage() {
     if (!canManageTenant && myBookings.length === 0 && tenantBookings.length > 0) setMainTab('my');
   }, [activeScope, canManageTenant, companyBookings.length, inviteBookings.length, mainTab, myBookings.length, tenantBookings.length, visibleBookings.length]);
 
+  const loadRescheduleInvitees = async (booking: Record<string, any>) => {
+    setIsRescheduleInviteesLoading(true);
+    try {
+      const response = await getMyTenantCompany();
+      const company = response?.data?.tenant || null;
+      const employees = Array.isArray(company?.employees) ? company.employees : [];
+      const currentUserEmail = (currentUser?.email || '').toLowerCase().trim();
+      const mapped = employees
+        .filter((emp: Record<string, any>) => emp.status === 'Active' && emp.userId && (emp.email || '').toLowerCase().trim() !== currentUserEmail)
+        .map((emp: Record<string, any>) => ({
+          userId: String(emp.userId),
+          fullName: emp.name || 'Unknown',
+          role: emp.tenantRole || emp.role || 'Employee',
+          designation: emp.designation || '',
+          status: emp.status || 'Active',
+        }));
+      setRescheduleInviteeOptions(mapped);
+      const existingInvitees = Array.isArray(booking.invites) ? booking.invites : [];
+      const preSelected = existingInvitees
+        .filter((i: any) => i.status !== 'rejected' && i.status !== 'declined')
+        .map((i: any) => String(i.invitedUserId || ''))
+        .filter(Boolean);
+      setRescheduleInviteeIds(preSelected);
+    } catch {
+      setRescheduleInviteeOptions([]);
+      setRescheduleInviteeIds([]);
+    } finally {
+      setIsRescheduleInviteesLoading(false);
+    }
+  };
+
   const handleRefresh = async () => { await loadBookings(); };
 
   const handleAcceptInvite = async (booking: Record<string, any>) => {
     if (!booking?.recordId) return;
     setIsSaving(true); setErrorMessage('');
     try {
-      // await respondToMeetingRoomInvite(booking.recordId, { status: 'accepted' });
+      await respondToMeetingRoomInvite(booking.recordId, { status: 'accepted' });
       setNoticeMessage('Invite accepted.');
       await loadBookings();
       setMainTab('my'); setSubTab('upcoming');
@@ -436,7 +491,7 @@ export default function TenantBookingHistoryPage() {
     if (reason === null) return;
     setIsSaving(true); setErrorMessage('');
     try {
-      // await respondToMeetingRoomInvite(booking.recordId, { status: 'rejected', responseReason: reason.trim() });
+      await respondToMeetingRoomInvite(booking.recordId, { status: 'declined', reason: reason.trim() });
       setNoticeMessage('Invite declined.');
       await loadBookings();
       setMainTab('invites'); setSubTab('upcoming');
@@ -449,15 +504,25 @@ export default function TenantBookingHistoryPage() {
   const openRescheduleModal = (booking: Record<string, any>) => {
     setRescheduleModal(booking); setExtendModal(null);
     setRescheduleForm({ roomName: booking?.roomName || '', date: booking?.date || '', startTime: booking?.startTime || '', endTime: booking?.endTime || '', purpose: booking?.purpose || '' });
+    loadRescheduleInvitees(booking);
   };
   const openExtendModal = (booking: Record<string, any>) => { setExtendModal(booking); setRescheduleModal(null); setExtendMinutes('30'); };
   const closeExtendModal = () => { setExtendModal(null); setExtendMinutes('30'); };
+  const closeRescheduleModal = () => { setRescheduleModal(null); setRescheduleInviteeOptions([]); setRescheduleInviteeIds([]); };
+  const handleToggleRescheduleInvitee = (userId: string) => {
+    setRescheduleInviteeIds((prev) => {
+      const existing = Array.isArray(prev) ? prev : [];
+      return existing.includes(userId)
+        ? existing.filter((id) => id !== userId)
+        : [...existing, userId];
+    });
+  };
 
   const handleCancelBooking = async () => {
     if (!cancelModal?.recordId) return;
     setIsSaving(true); setErrorMessage('');
     try {
-      // await updateMeetingRoomBooking(cancelModal.recordId, { status: 'cancelled', cancelReason: cancelReason.trim(), bookingCreditsRefunded: cancelModal.bookingCredits || 0 });
+      await cancelBooking(cancelModal.recordId, cancelReason.trim() || 'Cancelled by user');
       setNoticeMessage('Booking cancelled. Credits will be refunded.');
       setCancelModal(null); setCancelReason('');
       await loadBookings();
@@ -472,9 +537,14 @@ export default function TenantBookingHistoryPage() {
     if (!rescheduleAvailability.available) { setErrorMessage(rescheduleAvailability.reason); return; }
     setIsSaving(true); setErrorMessage('');
     try {
-      // await updateMeetingRoomBooking(rescheduleModal.recordId, { ...rescheduleForm, bookingCredits: rescheduleNewCredits, status: 'rescheduled' });
+      await updateMeetingRoomBooking(rescheduleModal.recordId, {
+        start: `${rescheduleForm.date}T${rescheduleForm.startTime}:00`,
+        end: `${rescheduleForm.date}T${rescheduleForm.endTime}:00`,
+        scheduleChangeType: 'rescheduled',
+        inviteeUserIds: rescheduleInviteeIds,
+      });
       setNoticeMessage('Booking rescheduled.');
-      setRescheduleModal(null);
+      closeRescheduleModal();
       await loadBookings();
     } catch (error: any) {
       setErrorMessage(error?.message || 'Unable to reschedule.');
@@ -486,11 +556,18 @@ export default function TenantBookingHistoryPage() {
     if (!extendModal?.recordId) return;
     if (!extendAvailability.available) { setErrorMessage(extendAvailability.reason); return; }
     const extra = Number(extendMinutes || 0);
-    const currentEnd = timeToMinutes(extendModal?.endTime || extendModal?.checkOut || '');
-    const nextEnd = minutesToTimeString((currentEnd || 0) + extra);
+    const extendDate = extendModal?.date || '';
+    const currentEndStr = extendModal?.endTime || extendModal?.checkOut || '';
+    const currentEndMin = timeToMinutes(currentEndStr);
+    const nextEndMin = minutesToTimeString((currentEndMin || 0) + extra);
+    const nextEndISO = `${extendDate}T${nextEndMin}:00`;
     setIsSaving(true); setErrorMessage('');
     try {
-      // await updateMeetingRoomBooking(extendModal.recordId, { endTime: nextEnd, status: 'in progress' });
+      await updateMeetingRoomBooking(extendModal.recordId, {
+        end: nextEndISO,
+        scheduleChangeType: 'extended',
+        extensionAmount: extra,
+      });
       setNoticeMessage('Booking extended.');
       closeExtendModal();
       await loadBookings();
@@ -561,13 +638,15 @@ export default function TenantBookingHistoryPage() {
             <tbody className="divide-y divide-slate-50">
               {visibleBookings.map((booking) => {
                 const invite = getInviteForUser(booking, currentUserId, currentUserEmail);
-                const canEditBooking = Boolean(canManageTenant || isMyBooking(booking, currentUserId, currentUserName, currentUserEmail));
                 const bookingStatus = getLiveBookingStatus(booking);
+                const isBooker = isMyBooking(booking, currentUserId, currentUserName, currentUserEmail);
+                const isAcceptedInvite = isAcceptedInviteForUser(booking, currentUserId, currentUserEmail);
                 const inviteStatus = invite?.status || booking?.currentInviteStatus || '';
                 const inviteDisplayStatus = normalizeId(bookingStatus) === 'cancelled' ? 'cancelled' : normalizeId(inviteStatus);
                 const areInviteActionsDisabled = inviteDisplayStatus === 'cancelled' || inviteDisplayStatus !== 'pending';
-                const canRescheduleOrCancel = canEditBooking && normalizeId(bookingStatus) === 'booked';
-                const canExtendBooking = canEditBooking && normalizeId(bookingStatus) === 'in progress';
+                const canManageAll = canManageTenant && mainTab === 'company';
+                const canRescheduleOrCancel = (isBooker || canManageAll) && normalizeId(bookingStatus) === 'booked';
+                const canExtendBooking = (isBooker || isAcceptedInvite || canManageAll) && normalizeId(bookingStatus) === 'in progress';
 
                 return (
                   <tr key={booking.recordId || booking.id} className="transition-colors hover:bg-slate-50/60">
@@ -665,25 +744,25 @@ export default function TenantBookingHistoryPage() {
       {/* Selected booking detail modal */}
       {selectedBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
-          <div className="max-h-[90vh] w-full max-w-xl overflow-hidden rounded-[2.5rem] bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-6 py-5">
+          <div className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl bg-white shadow-xl">
+            <div className="shrink-0 flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-3">
               <div>
-                <h3 className="text-xl font-pbold text-slate-900">Booking Details</h3>
-                <p className="mt-1 text-[10px] font-pbold uppercase tracking-widest text-slate-400">{selectedBooking.bookingCode || selectedBooking.id}</p>
+                <h3 className="text-sm font-pbold text-slate-900">Booking Details</h3>
+                <p className="mt-0.5 text-[10px] font-pbold uppercase tracking-widest text-slate-400">{selectedBooking.bookingCode || selectedBooking.id}</p>
               </div>
-              <button onClick={() => setSelectedBooking(null)} className="rounded-full bg-white p-2 text-slate-400 shadow-sm transition-colors hover:text-red-500"><XCircle size={18} /></button>
+              <button onClick={() => setSelectedBooking(null)} className="rounded-full bg-white p-1.5 text-slate-400 shadow-sm transition-colors hover:text-red-500"><XCircle size={16} /></button>
             </div>
-            <div className="space-y-5 overflow-y-auto p-6">
-              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 space-y-3 overflow-y-auto p-4">
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-sm font-pbold text-slate-900">{selectedBooking.roomName}</p>
-                    <p className="mt-1 text-xs font-pregular text-slate-500">{selectedBooking.roomInventoryMode || 'Meeting room'} {selectedBooking.roomCapacity ? `${selectedBooking.roomCapacity} seats` : 'Capacity not set'}</p>
+                    <p className="text-xs font-pbold text-slate-900">{selectedBooking.roomName}</p>
+                    <p className="mt-0.5 text-[11px] font-pregular text-slate-500">{selectedBooking.roomInventoryMode || 'Meeting room'} {selectedBooking.roomCapacity ? `${selectedBooking.roomCapacity} seats` : 'Capacity not set'}</p>
                   </div>
-                  <span className={`rounded-lg border px-3 py-1 text-[10px] font-pbold uppercase tracking-widest ${getStatusTone(selectedBooking.status || selectedBooking.bookingStatus)}`}>{normalizeText(selectedBooking.status || selectedBooking.bookingStatus || 'Booked')}</span>
+                  <span className={`rounded-lg border px-2.5 py-0.5 text-[10px] font-pbold uppercase tracking-widest ${getStatusTone(selectedBooking.status || selectedBooking.bookingStatus)}`}>{normalizeText(selectedBooking.status || selectedBooking.bookingStatus || 'Booked')}</span>
                 </div>
-                <p className="mt-4 flex items-center gap-1.5 text-xs font-pmedium text-slate-500"><Clock size={12} /> {formatBookingWindow(selectedBooking)}</p>
-                <div className="mt-4 grid gap-3 md:grid-cols-3 text-xs font-pmedium text-slate-600 items-stretch">
+                <p className="mt-3 flex items-center gap-1.5 text-xs font-pmedium text-slate-500"><Clock size={12} /> {formatBookingWindow(selectedBooking)}</p>
+                <div className="mt-3 grid gap-2 md:grid-cols-3 text-xs font-pmedium text-slate-600 items-stretch">
                   <div className="rounded-xl bg-white px-3 py-2 border border-slate-100 flex flex-col items-center justify-center text-center">{(function () { const loc = normalizeText(selectedBooking.location || ''); const floor = parseFloorFromLocation(loc); const wing = normalizeText(selectedBooking.roomWing || parseWingFromLocation(loc)); const parts = [loc.replace(/Floor\s+\d+.*$/i, '').trim() || 'Location:']; if (floor) parts.push(`Floor ${floor}`); if (wing) parts.push(wing); return parts.join(' '); })()}</div>
                   <div className="rounded-xl bg-white px-3 py-2 border border-slate-100 flex flex-col items-center justify-center text-center">
                     <p>Credits Used: {Number(selectedBooking.bookingCredits || 0).toFixed(2)}</p>
@@ -692,25 +771,25 @@ export default function TenantBookingHistoryPage() {
                   <div className="rounded-xl bg-white px-3 py-2 border border-slate-100 flex flex-col items-center justify-center text-center">Remaining: {Number.isFinite(companyCreditsRemaining) ? `${companyCreditsRemaining.toFixed(2)} CR` : ''}</div>
                 </div>
               </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-2xl border border-slate-100 bg-white p-4"><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Host</p><p className="mt-1 text-sm font-pmedium text-slate-900">{selectedBooking.bookedByName || 'Unknown host'}</p></div>
-                <div className="rounded-2xl border border-slate-100 bg-white p-4"><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Attendees</p><p className="mt-1 text-sm font-pmedium text-slate-900">{selectedBooking.attendees || 0}</p></div>
+              <div className="grid gap-2 md:grid-cols-2">
+                <div className="rounded-xl border border-slate-100 bg-white p-3"><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Host</p><p className="mt-1 text-xs font-pmedium text-slate-900">{selectedBooking.bookedByName || 'Unknown host'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-white p-3"><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Attendees</p><p className="mt-1 text-xs font-pmedium text-slate-900">{selectedBooking.attendees || 0}</p></div>
               </div>
-              <div className="rounded-2xl border border-slate-100 bg-white p-4"><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Purpose</p><p className="mt-2 text-sm font-pregular leading-6 text-slate-600">{selectedBooking.purpose || 'No purpose provided.'}</p></div>
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-2xl border border-slate-100 bg-white p-4"><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Booker</p><p className="mt-1 text-sm font-pmedium text-slate-900">{selectedBooking.bookedByName || 'Unknown host'}</p><p className="mt-1 text-xs text-slate-500">{selectedBooking.bookedByEmail || 'No email on file'}</p></div>
-                <div className="rounded-2xl border border-slate-100 bg-white p-4"><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Room Details</p><p className="mt-1 text-sm font-pmedium text-slate-900">{selectedBooking.roomName}</p><p className="mt-1 text-xs text-slate-500">{selectedBooking.roomDescription || 'No room description available.'}</p></div>
+              <div className="rounded-xl border border-slate-100 bg-white p-3"><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Purpose</p><p className="mt-1.5 text-xs font-pregular leading-5 text-slate-600">{selectedBooking.purpose || 'No purpose provided.'}</p></div>
+              <div className="grid gap-2 md:grid-cols-2">
+                <div className="rounded-xl border border-slate-100 bg-white p-3"><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Booker</p><p className="mt-1 text-xs font-pmedium text-slate-900">{selectedBooking.bookedByName || 'Unknown host'}</p><p className="mt-0.5 text-[11px] text-slate-500">{selectedBooking.bookedByEmail || 'No email on file'}</p></div>
+                <div className="rounded-xl border border-slate-100 bg-white p-3"><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Room Details</p><p className="mt-1 text-xs font-pmedium text-slate-900">{selectedBooking.roomName}</p><p className="mt-0.5 text-[11px] text-slate-500">{selectedBooking.roomDescription || 'No room description available.'}</p></div>
               </div>
-              <div className="rounded-2xl border border-slate-100 bg-white p-4">
+              <div className="rounded-xl border border-slate-100 bg-white p-3">
                 <div className="flex items-center justify-between"><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Invite List</p><Users size={14} className="text-slate-400" /></div>
-                <div className="mt-4 space-y-2">
+                <div className="mt-3 space-y-1.5">
                   {(Array.isArray(selectedBooking.invites) ? selectedBooking.invites : []).length > 0 ? selectedBooking.invites.map((invite: Record<string, any>) => (
                     <div key={`${invite.invitedUserId || invite.invitedName}`} className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
-                      <div><p className="text-sm font-pmedium text-slate-800">{invite.invitedName}</p><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">{invite.invitedRole || 'Member'}</p></div>
+                      <div><p className="text-xs font-pmedium text-slate-800">{invite.invitedName}</p><p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">{invite.invitedRole || 'Member'}</p></div>
                       <span className={`rounded-md border px-2 py-0.5 text-[9px] font-pbold uppercase tracking-widest ${getInviteTone(invite.status)}`}>{normalizeText(invite.status || 'pending')}</span>
                     </div>
                   )) : (
-                    <div className="rounded-xl bg-slate-50 px-3 py-4 text-sm font-pregular text-slate-500">No invite list available.</div>
+                    <div className="rounded-xl bg-slate-50 px-3 py-3 text-xs font-pregular text-slate-500">No invite list available.</div>
                   )}
                 </div>
               </div>
@@ -722,23 +801,23 @@ export default function TenantBookingHistoryPage() {
       {/* Cancel modal */}
       {cancelModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md overflow-hidden rounded-[2.5rem] bg-white shadow-2xl">
-            <div className="border-b border-slate-100 bg-red-50 px-6 py-5">
-              <h3 className="text-xl font-pbold text-red-900">Cancel Booking</h3>
-              <p className="mt-1 text-xs font-pmedium uppercase tracking-widest text-red-700">{cancelModal.roomName}</p>
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-xl">
+            <div className="border-b border-slate-100 bg-red-50 px-4 py-3">
+              <h3 className="text-sm font-pbold text-red-900">Cancel Booking</h3>
+              <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-widest text-red-700">{cancelModal.roomName}</p>
             </div>
-            <div className="space-y-4 p-6">
-              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-pregular text-slate-600">Enter a cancellation reason so the unit can keep a proper record.</div>
+            <div className="space-y-3 p-4">
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs font-pregular text-slate-600">Enter a cancellation reason so the unit can keep a proper record.</div>
               {Number(cancelModal?.bookingCredits || 0) > 0 && (
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-pmedium text-emerald-800">
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-xs font-pmedium text-emerald-800">
                   You will be refunded {Number(cancelModal.bookingCredits).toFixed(2)} CR for this booking.
                 </div>
               )}
-              <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} rows={4}
-                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition-colors focus:border-[#2563EB]" placeholder="Reason for cancellation" />
+              <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} rows={3}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition-colors focus:border-[#2563EB]" placeholder="Reason for cancellation" />
               <div className="flex gap-3">
-                <button onClick={() => setCancelModal(null)} className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Back</button>
-                <button disabled={isSaving} onClick={handleCancelBooking} className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-xs font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60">Confirm Cancel</button>
+                <button onClick={() => setCancelModal(null)} className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Back</button>
+                <button disabled={isSaving} onClick={handleCancelBooking} className="flex-1 rounded-xl bg-red-600 px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60">Confirm Cancel</button>
               </div>
             </div>
           </div>
@@ -748,24 +827,24 @@ export default function TenantBookingHistoryPage() {
       {/* Reschedule modal */}
       {rescheduleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
-          <form onSubmit={handleRescheduleBooking} className="w-full max-w-2xl overflow-hidden rounded-[2.5rem] bg-white shadow-2xl">
-            <div className="border-b border-slate-100 bg-slate-50 px-6 py-5">
-              <h3 className="text-xl font-pbold text-slate-900">Reschedule Booking</h3>
-              <p className="mt-1 text-xs font-pmedium uppercase tracking-widest text-slate-400">{rescheduleModal.roomName}</p>
+          <form onSubmit={handleRescheduleBooking} className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-xl">
+            <div className="border-b border-slate-100 bg-slate-50 px-4 py-3">
+              <h3 className="text-sm font-pbold text-slate-900">Reschedule Booking</h3>
+              <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{rescheduleModal.roomName}</p>
             </div>
-            <div className="grid gap-4 p-6 md:grid-cols-2">
-              <label className="space-y-2 text-sm font-pmedium text-slate-700"><span>Room</span>
+            <div className="grid gap-2.5 p-4 md:grid-cols-2">
+              <label className="space-y-1.5 text-xs font-pmedium text-slate-700"><span>Room</span>
                 <input value={rescheduleForm.roomName} readOnly tabIndex={-1}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500 outline-none cursor-not-allowed" />
+                  className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-xs text-slate-500 outline-none cursor-not-allowed" />
               </label>
-              <label className="space-y-2 text-sm font-pmedium text-slate-700"><span>Date</span>
+              <label className="space-y-1.5 text-xs font-pmedium text-slate-700"><span>Date</span>
                 <input type="date" value={rescheduleForm.date} min={todayValue}
                   onChange={(e) => setRescheduleForm((p) => ({ ...p, date: e.target.value }))}
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-[#2563EB]" />
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none transition-colors focus:border-[#2563EB]" />
               </label>
-              <label className="space-y-2 text-sm font-pmedium text-slate-700"><span>Start Time</span>
+              <label className="space-y-1.5 text-xs font-pmedium text-slate-700"><span>Start Time</span>
                 <div className="relative">
-                  <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                   <select required value={rescheduleForm.startTime}
                     onChange={(e) => {
                       const nextStart = e.target.value;
@@ -777,33 +856,72 @@ export default function TenantBookingHistoryPage() {
                         return { ...p, startTime: nextStart, endTime: shouldAdjust ? minEnd : p.endTime };
                       });
                     }}
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-transparent rounded-xl font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all">
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-transparent rounded-xl text-xs font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all">
                     <option value="">Select start time</option>
                     {rescheduleStartTimeOptions.map((tv) => <option key={tv} value={tv}>{formatTimeOptionLabel(tv)}</option>)}
                   </select>
                 </div>
               </label>
-              <label className="space-y-2 text-sm font-pmedium text-slate-700"><span>End Time</span>
+              <label className="space-y-1.5 text-xs font-pmedium text-slate-700"><span>End Time</span>
                 <div className="relative">
-                  <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                   <select required value={rescheduleForm.endTime}
                     onChange={(e) => setRescheduleForm((p) => ({ ...p, endTime: e.target.value }))}
-                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-transparent rounded-xl font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all">
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-transparent rounded-xl text-xs font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all">
                     <option value="">Select end time</option>
                     {rescheduleEndTimeOptions.map((tv) => <option key={tv} value={tv}>{formatTimeOptionLabel(tv)}</option>)}
                   </select>
                 </div>
               </label>
-              <label className="space-y-2 text-sm font-pmedium text-slate-700 md:col-span-2"><span>Purpose</span>
-                <textarea value={rescheduleForm.purpose} onChange={(e) => setRescheduleForm((p) => ({ ...p, purpose: e.target.value }))} rows={3}
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-[#2563EB]" />
+              <label className="space-y-1.5 text-xs font-pmedium text-slate-700 md:col-span-2"><span>Purpose</span>
+                <textarea value={rescheduleForm.purpose} onChange={(e) => setRescheduleForm((p) => ({ ...p, purpose: e.target.value }))} rows={2}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none transition-colors focus:border-[#2563EB]" />
               </label>
-              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-pregular text-slate-600 md:col-span-2">
+
+              <div className="space-y-2 rounded-xl border border-slate-100 bg-slate-50/80 p-3 md:col-span-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Invite Employees</label>
+                    <p className="text-xs font-pmedium text-slate-500">Select coworkers to receive invites for this updated booking.</p>
+                  </div>
+                  <div className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">
+                    {Array.isArray(rescheduleInviteeIds) ? rescheduleInviteeIds.length : 0} selected
+                  </div>
+                </div>
+
+                {isRescheduleInviteesLoading ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-white p-3 text-xs font-semibold text-slate-500">Loading employee list...</div>
+                ) : rescheduleInviteeOptions.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-white p-3 text-xs font-semibold text-slate-500">No additional active employees available.</div>
+                ) : (
+                  <div className="grid gap-2 md:grid-cols-2 max-h-48 overflow-y-auto pr-1">
+                    {rescheduleInviteeOptions.map((employee) => {
+                      const isSelected = Array.isArray(rescheduleInviteeIds) && rescheduleInviteeIds.includes(employee.userId);
+                      return (
+                        <button key={employee.userId} type="button" onClick={() => handleToggleRescheduleInvitee(employee.userId)}
+                          className={`rounded-xl border p-3 text-left transition-all ${isSelected ? 'border-[#2563EB] bg-blue-50 shadow-sm' : 'border-slate-200 bg-white hover:border-blue-200 hover:shadow-sm'}`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <p className="text-xs font-pbold text-slate-900">{employee.fullName}</p>
+                              <p className="text-[11px] font-pmedium text-slate-500 mt-0.5">{employee.designation || employee.role || 'Employee'}</p>
+                            </div>
+                            <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'border-[#2563EB] bg-[#2563EB] text-white' : 'border-slate-300 bg-white text-transparent'}`}>
+                              <CheckCircle2 size={12} />
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs font-pregular text-slate-600 md:col-span-2">
                 <p className="font-pmedium text-slate-800">Current credits: {Number(rescheduleModal?.bookingCredits || 0).toFixed(2)} CR</p>
                 {rescheduleForm.startTime && rescheduleForm.endTime && (
                   <>
                     <p className="mt-1 text-slate-600">New credits: {rescheduleNewCredits.toFixed(2)} CR</p>
-                    <p className={`mt-1 font-pmedium ${rescheduleCreditDiff >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    <p className={`mt-0.5 font-pmedium ${rescheduleCreditDiff >= 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                       {rescheduleCreditDiff >= 0
                         ? `You will be charged ${rescheduleCreditDiff.toFixed(2)} additional CR`
                         : `${Math.abs(rescheduleCreditDiff).toFixed(2)} CR will be refunded`}
@@ -811,11 +929,11 @@ export default function TenantBookingHistoryPage() {
                   </>
                 )}
               </div>
-              <div className={`rounded-2xl border p-4 text-sm font-pmedium md:col-span-2 ${rescheduleAvailability.available ? 'border-emerald-100 bg-emerald-50 text-emerald-800' : 'border-rose-100 bg-rose-50 text-rose-800'}`}>{rescheduleAvailability.reason}</div>
+              <div className={`rounded-xl border p-3 text-xs font-pmedium md:col-span-2 ${rescheduleAvailability.available ? 'border-emerald-100 bg-emerald-50 text-emerald-800' : 'border-rose-100 bg-rose-50 text-rose-800'}`}>{rescheduleAvailability.reason}</div>
             </div>
-            <div className="flex gap-3 border-t border-slate-100 bg-slate-50 px-6 py-5">
-              <button onClick={() => setRescheduleModal(null)} type="button" className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Back</button>
-              <button disabled={isSaving || !rescheduleAvailability.available} type="submit" className="flex-1 rounded-xl bg-[#2563EB] px-4 py-3 text-xs font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">Save Changes</button>
+            <div className="flex gap-3 border-t border-slate-100 bg-slate-50 px-4 py-3">
+              <button onClick={closeRescheduleModal} type="button" className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Back</button>
+              <button disabled={isSaving || !rescheduleAvailability.available} type="submit" className="flex-1 rounded-xl bg-[#2563EB] px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">Save Changes</button>
             </div>
           </form>
         </div>
@@ -824,20 +942,20 @@ export default function TenantBookingHistoryPage() {
       {/* Extend modal */}
       {extendModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
-          <form onSubmit={handleExtendBooking} className="w-full max-w-xl overflow-hidden rounded-[2.5rem] bg-white shadow-2xl">
-            <div className="border-b border-slate-100 bg-slate-50 px-6 py-5">
-              <h3 className="text-xl font-pbold text-slate-900">Extend Booking</h3>
-              <p className="mt-1 text-xs font-pmedium uppercase tracking-widest text-slate-400">{extendModal.roomName}</p>
+          <form onSubmit={handleExtendBooking} className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-xl">
+            <div className="border-b border-slate-100 bg-slate-50 px-4 py-3">
+              <h3 className="text-sm font-pbold text-slate-900">Extend Booking</h3>
+              <p className="mt-0.5 text-[10px] font-pmedium uppercase tracking-widest text-slate-400">{extendModal.roomName}</p>
             </div>
-            <div className="grid gap-4 p-6 md:grid-cols-2">
-              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 md:col-span-2">
+            <div className="grid gap-3 p-4 md:grid-cols-2">
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 md:col-span-2">
                 <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Current Schedule</p>
-                <p className="mt-1 text-sm font-pmedium text-slate-900">{formatBookingWindow(extendModal)}</p>
-                <p className="mt-2 text-xs font-pregular text-slate-500">Bookings are checked against room overlap before the extension is saved.</p>
+                <p className="mt-1 text-xs font-pmedium text-slate-900">{formatBookingWindow(extendModal)}</p>
+                <p className="mt-1.5 text-[11px] font-pregular text-slate-500">Bookings are checked against room overlap before the extension is saved.</p>
               </div>
-              <label className="space-y-2 text-sm font-pmedium text-slate-700 md:col-span-2"><span>Extend By</span>
+              <label className="space-y-1.5 text-xs font-pmedium text-slate-700 md:col-span-2"><span>Extend By</span>
                 <select value={extendMinutes} onChange={(e) => setExtendMinutes(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-[#2563EB]">
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none transition-colors focus:border-[#2563EB]">
                   <option value="15">15 minutes</option>
                   <option value="30">30 minutes</option>
                   <option value="45">45 minutes</option>
@@ -845,16 +963,16 @@ export default function TenantBookingHistoryPage() {
                   <option value="90">1 hour 30 minutes</option>
                 </select>
               </label>
-              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 md:col-span-2">
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 md:col-span-2">
                 <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Current Credits</p>
-                <p className="mt-1 text-sm font-pmedium text-slate-900">{Number(extendModal?.bookingCredits || 0).toFixed(2)} CR</p>
-                <p className="mt-2 text-xs font-pregular text-slate-500">The backend recalculates the extra charge from the new end time and adjusts the tenant balance automatically.</p>
+                <p className="mt-1 text-xs font-pmedium text-slate-900">{Number(extendModal?.bookingCredits || 0).toFixed(2)} CR</p>
+                <p className="mt-1.5 text-[11px] font-pregular text-slate-500">The backend recalculates the extra charge from the new end time and adjusts the tenant balance automatically.</p>
               </div>
-              <div className={`rounded-2xl border p-4 text-sm font-pmedium md:col-span-2 ${extendAvailability.available ? 'border-emerald-100 bg-emerald-50 text-emerald-800' : 'border-rose-100 bg-rose-50 text-rose-800'}`}>{extendAvailability.reason}</div>
+              <div className={`rounded-xl border p-3 text-xs font-pmedium md:col-span-2 ${extendAvailability.available ? 'border-emerald-100 bg-emerald-50 text-emerald-800' : 'border-rose-100 bg-rose-50 text-rose-800'}`}>{extendAvailability.reason}</div>
             </div>
-            <div className="flex gap-3 border-t border-slate-100 bg-slate-50 px-6 py-5">
-              <button onClick={closeExtendModal} type="button" className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Back</button>
-              <button disabled={isSaving || !extendAvailability.available} type="submit" className="flex-1 rounded-xl bg-indigo-600 px-4 py-3 text-xs font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60">Extend Meeting</button>
+            <div className="flex gap-3 border-t border-slate-100 bg-slate-50 px-4 py-3">
+              <button onClick={closeExtendModal} type="button" className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Back</button>
+              <button disabled={isSaving || !extendAvailability.available} type="submit" className="flex-1 rounded-xl bg-indigo-600 px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60">Extend Meeting</button>
             </div>
           </form>
         </div>

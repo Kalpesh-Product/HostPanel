@@ -23,7 +23,7 @@ import { getStoredTenantCompanyId, getStoredTenantCompanyName, getStoredUser } f
 import { getStoredTenantRole, isTenantAdminRole, isTenantManagerRole } from '@/lib/tenant-session';
 import { getMeetingRoomBookings } from '@/services/meeting-room-bookings';
 import { getResources } from '@/services/resources';
-import { getTenantCompanies } from '@/services/tenant-companies';
+import { getMyTenantCompany } from '@/services/tenant-companies';
 import { getTickets } from '@/services/tickets';
 
 const LOW_CREDIT_WARNING_THRESHOLD = 10;
@@ -166,6 +166,7 @@ export default function TenantDashboardPage() {
   const userRole = getStoredTenantRole() || 'tenant-employee';
   const canManageTenant = isTenantAdminRole(userRole) || isTenantManagerRole(userRole);
   const canViewWorkspaceSummary = isTenantAdminRole(userRole);
+  const workspaceId = currentUser?.primaryWorkspace || '';
 
   const tenantCompanyName =
     currentUser?.tenantCompanyName ||
@@ -277,21 +278,22 @@ export default function TenantDashboardPage() {
 
       try {
         const [bookingsResult, ticketsResult, resourcesResult, companiesResult] = await Promise.allSettled([
-          getMeetingRoomBookings({ page: 1, limit: 20 }),
+          workspaceId ? getMeetingRoomBookings(workspaceId) : Promise.reject('No workspace'),
           getTickets({ page: 1, limit: 20 }),
           getResources(),
-          getTenantCompanies({ page: 1, limit: 20 }),
+          getMyTenantCompany(),
         ]);
         const bookingPayload = bookingsResult.status === 'fulfilled' ? bookingsResult.value : null;
         const ticketPayload = ticketsResult.status === 'fulfilled' ? ticketsResult.value : null;
-        const resourcePayload = resourcesResult.status === 'fulfilled' ? resourcesResult.value : null;
-        const companiesPayload = companiesResult.status === 'fulfilled' ? companiesResult.value : null;
+        const resourcePayload = resourcesResult.status === 'fulfilled' ? resourcesResult.value?.data : null;
+        const companiesPayload = companiesResult.status === 'fulfilled' ? companiesResult.value?.data?.tenant : null;
         if (!active) return;
         setBookings(extractList(bookingPayload, ['bookings', 'items']));
         setTickets(extractList(ticketPayload, ['tickets', 'items']));
         setRooms(extractList(resourcePayload, ['resources', 'items']).map(normalizeRoom));
-        setTenantCompanies(extractList(companiesPayload, ['tenants', 'companies']));
-        setTenantSummary(companiesPayload?.summary || companiesPayload?.data?.summary || null);
+        const companyArray = companiesPayload ? [companiesPayload] : [];
+        setTenantCompanies(companyArray);
+        setTenantSummary(null);
 
       } catch (error: any) {
         if (!active) return;
@@ -337,18 +339,15 @@ export default function TenantDashboardPage() {
           </div> */}
           <div>
             <h1 className="text-title font-pmedium text-primary uppercase flex items-center gap-2">
-              Welcome back, {normalizeText(currentUser?.fullName || companyContact || 'Tenant user').split(' ')[0]}.
+              Welcome back, {currentUser?.fullName || currentUser?.name || currentUserName || 'User'}.
             </h1>
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-pmedium text-slate-600">
+                {tenantCompanyName}
+              </span>
               <span className={`rounded-md px-2.5 py-1 text-xs font-pmedium ${canManageTenant ? 'bg-purple-100 text-purple-700' : 'bg-slate-200/70 text-slate-500'}`}>
                 {canManageTenant ? 'Tenant Manager' : 'Tenant Employee'}
               </span>
-              <span className="flex items-center gap-1 text-xs font-pmedium text-[#2563EB]">
-                <Building2 size={12} /> {tenantCompanyName}
-              </span>
-              {/* <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-pbold uppercase tracking-widest text-emerald-700">
-                {companyStatus}
-              </span> */}
             </div>
           </div>
         </div>

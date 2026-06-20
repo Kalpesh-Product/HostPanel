@@ -119,17 +119,24 @@ const Header = ({
     typeof unseenCount === "number"
       ? unseenCount
       : notifications.filter((item) => !item?.isRead && !item?.read).length;
-  const roleSource = auth?.user?.role ?? storedUser?.role;
-  const roleArrayTitles = Array.isArray(roleSource)
-    ? roleSource
+  const storedTenantRole = (() => {
+    try {
+      return localStorage.getItem("hostpanel_tenant_role") || null;
+    } catch { return null; }
+  })();
+  const hasTenantRole = Boolean(auth?.user?.tenantRole);
+
+  const roleArrayTitles = Array.isArray(auth?.user?.role)
+    ? auth.user.role
       .map((entry) => entry?.roleTitle || entry?.title || entry?.name)
       .filter(Boolean)
     : [];
 
   const roleCandidates = [
+    auth?.user?.tenantRole,
     auth?.user?.workspaceMembership?.role,
-    storedUser?.workspaceMembership?.role,
     auth?.user?.role,
+    storedUser?.workspaceMembership?.role,
     storedUser?.role,
     auth?.user?.designation,
     storedUser?.designation,
@@ -141,8 +148,12 @@ const Header = ({
     storedUser?.workspaceMembership?.designation,
     ...roleArrayTitles,
   ]
-    .filter(Boolean)
-    .map((value) => value.toString().trim().toLowerCase().replace(/_/g, "-"));
+    .filter((v) => v != null && v !== "" && !(typeof v === "number" && isNaN(v)))
+    .map((value) => {
+      if (typeof value === "object") return "";
+      return String(value).trim().toLowerCase().replace(/_/g, "-");
+    })
+    .filter(Boolean);
 
   const normalizedRole = roleCandidates[0] || "";
   const rawPermissions = Array.isArray(auth?.user?.permissions?.permissions)
@@ -180,21 +191,16 @@ const Header = ({
     admin: "Department Admin",
     manager: "Department Manager",
     employee: "Employee",
+    "tenant-manager": "Tenant Manager",
+    "tenant-employee": "Tenant Employee",
   };
-  const storedTenantRole = (() => {
-    try {
-      return localStorage.getItem("hostpanel_tenant_role") || null;
-    } catch { return null; }
-  })();
-  const hasTenantRole = Boolean(storedTenantRole || auth?.user?.tenantRole);
-  const headerRoleLabel = isFounderRole || isFounderByFlag || hasFounderPermission
+  const tenantRoleFromAuth = auth?.user?.tenantRole || '';
+  const headerRoleLabel = (isFounderRole && !hasTenantRole) || (isFounderByFlag && !hasTenantRole) || (hasFounderPermission && !hasTenantRole)
     ? "Founder"
     : roleLabelMap[normalizedRole];
-  const roleLabel = headerRoleLabel || (hasTenantRole
-    ? (storedTenantRole === "tenant-manager" || auth?.user?.tenantRole === "tenant-manager"
-        ? "Tenant Manager"
-        : "Tenant Employee")
-    : "Team Member");
+  const roleLabel = hasTenantRole
+    ? (tenantRoleFromAuth === "tenant-manager" ? "Tenant Manager" : "Tenant Employee")
+    : (headerRoleLabel || "Team Member");
 
   return (
     <>

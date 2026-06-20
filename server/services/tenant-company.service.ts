@@ -460,6 +460,27 @@ export async function getTenantCompanyForCurrentUser(userId, tenantCompanyId) {
   return { tenant: await formatTenantCompany(company) };
 }
 
+export async function getMyTenantCompanyForCurrentUser(userId, userEmail) {
+  if (!userEmail) {
+    const err = new Error("User email is required.");
+    err.statusCode = 400;
+    throw err;
+  }
+  const emp = await TenantEmployee.findOne({ email: userEmail, status: "Active" }).lean().exec();
+  if (!emp) {
+    const err = new Error("Tenant employee record not found.");
+    err.statusCode = 404;
+    throw err;
+  }
+  const company = await TenantCompany.findById(emp.tenantCompanyId).lean().exec();
+  if (!company) {
+    const err = new Error("Tenant company not found.");
+    err.statusCode = 404;
+    throw err;
+  }
+  return { tenant: await formatTenantCompany(company) };
+}
+
 export async function createTenantCompanyForCurrentUser(userId, input) {
   const access = await resolveWorkspaceAccess(userId);
   if (!access.isAdmin && !access.hasSalesAccess) {

@@ -856,6 +856,7 @@ export function MeetingRoomsPage() {
     inviteeUserIds: [],
   });
   const [rescheduleData, setRescheduleData] = useState<Partial<Booking>>({});
+  const [rescheduleInviteeIds, setRescheduleInviteeIds] = useState<string[]>([]);
   const [extendBooking, setExtendBooking] = useState<Booking | null>(null);
   const [extendForm, setExtendForm] = useState<{ extraMinutes: string }>({ extraMinutes: '30' });
   const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
@@ -1169,9 +1170,9 @@ export function MeetingRoomsPage() {
     if (mainBookingTab === 'tenant_bookings') return allBookings.filter((b) => normalize(b.bookingType) === 'tenant');
     if (mainBookingTab === 'internal_booking') return allBookings.filter((b) => normalize(b.bookingType) !== 'external' && normalize(b.bookingType) !== 'tenant');
     
-    if (isEmployeeProfile) return allBookings.filter((booking) => isMyBooking(booking));
-    if (!isAdminProfile) return allBookings;
-    return allBookings.filter((booking) => isAssignedDeptBooking(booking) || isMyBooking(booking));
+    if (isEmployeeProfile) return allBookings.filter((booking) => isMyBooking(booking) && normalize(booking.bookingType) !== 'tenant');
+    if (!isAdminProfile) return allBookings.filter((b) => normalize(b.bookingType) !== 'tenant');
+    return allBookings.filter((booking) => (isAssignedDeptBooking(booking) || isMyBooking(booking)) && normalize(booking.bookingType) !== 'tenant');
   }, [allBookings, isAdminProfile, isAssignedDeptBooking, isMyBooking, isEmployeeProfile, mainBookingTab]);
 
   const displayedBookings = useMemo(() => {
@@ -1465,6 +1466,18 @@ export function MeetingRoomsPage() {
     return checkAvailability(rescheduleData, rescheduleData.recordId || null);
   }, [rescheduleData, checkAvailability]);
 
+  const rescheduleCreditEstimate = useMemo(() => {
+    if (normalize(rescheduleData.bookingType) !== 'tenant') return 0;
+    const room = roomCatalog.find(r => r.name === rescheduleData.roomName);
+    if (!room) return 0;
+    const startMinutes = timeToMinutes(rescheduleData.startTime);
+    const endMinutes = timeToMinutes(rescheduleData.endTime);
+    if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) return 0;
+    const durationHours = (endMinutes - startMinutes) / 60;
+    const rate = Number(room.credits || 0);
+    return Number((durationHours * rate).toFixed(2));
+  }, [rescheduleData.bookingType, rescheduleData.roomName, rescheduleData.startTime, rescheduleData.endTime, roomCatalog]);
+
   // --------- EXTEND BOOKING PREVIEW ---------
   const extendBookingPreview = useMemo(() => {
     if (!extendBooking || !extendForm.extraMinutes) return { available: false, reason: 'No booking selected.' };
@@ -1725,6 +1738,7 @@ export function MeetingRoomsPage() {
         start: buildBookingDateTime(rescheduleData.date, rescheduleData.startTime),
         end: buildBookingDateTime(rescheduleData.date, rescheduleData.endTime),
         scheduleChangeType: 'rescheduled',
+        ...(normalize(rescheduleData.bookingType) === 'tenant' && rescheduleInviteeIds.length > 0 ? { inviteeUserIds: rescheduleInviteeIds } : {}),
       });
       await reloadBookings();
     } catch (error: any) {
@@ -1734,6 +1748,7 @@ export function MeetingRoomsPage() {
     }
     setShowRescheduleDialog(false);
     setRescheduleData({});
+    setRescheduleInviteeIds([]);
     setIsSavingBooking(false);
   };
 
@@ -2354,7 +2369,9 @@ export function MeetingRoomsPage() {
                         <tbody className="divide-y divide-slate-100/60">
                           {displayedBookings.map((b) => {
                             const displayStatus = getBookingDisplayStatus(b);
-                            const canManageBooking = isMyBooking(b) && !b.isInvitedMeeting && canManageOwnBooking(b);
+                            const canManageBooking = mainBookingTab === 'tenant_bookings'
+                              ? canManageOwnBooking(b)
+                              : (isMyBooking(b) && !b.isInvitedMeeting && canManageOwnBooking(b));
                             const canRescheduleBooking = canManageBooking && canRescheduleOwnBooking(b);
                             const canExtendBooking = canManageBooking && canExtendOwnBooking(b);
 
@@ -2395,7 +2412,7 @@ export function MeetingRoomsPage() {
                                     <button onClick={() => setViewingBooking(b)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-primary/10 hover:text-primary rounded-lg transition-all" title="View Details"><Eye size={15} strokeWidth={2.5} /></button>
                                     {canRescheduleBooking && (
                                       <>
-                                        <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setShowRescheduleDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-purple-100 hover:text-purple-700 rounded-lg transition-all" title="Reschedule"><CalendarClock size={15} strokeWidth={2.5} /></button>
+                                        <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setRescheduleInviteeIds(b.inviteeUserIds || []); setShowRescheduleDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-purple-100 hover:text-purple-700 rounded-lg transition-all" title="Reschedule"><CalendarClock size={15} strokeWidth={2.5} /></button>
                                         <button onClick={() => { setBookingToCancel(b); setShowCancelDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600 rounded-lg transition-all" title="Cancel Booking"><XCircle size={15} strokeWidth={2.5} /></button>
                                       </>
                                     )}
@@ -2418,7 +2435,9 @@ export function MeetingRoomsPage() {
                     <div className="md:hidden flex flex-col p-4 gap-4 bg-slate-50/30">
                       {displayedBookings.map((b) => {
                         const displayStatus = getBookingDisplayStatus(b);
-                        const canManageBooking = isMyBooking(b) && !b.isInvitedMeeting && canManageOwnBooking(b);
+                        const canManageBooking = mainBookingTab === 'tenant_bookings'
+                          ? canManageOwnBooking(b)
+                          : (isMyBooking(b) && !b.isInvitedMeeting && canManageOwnBooking(b));
                         const canRescheduleBooking = canManageBooking && canRescheduleOwnBooking(b);
                         const canExtendBooking = canManageBooking && canExtendOwnBooking(b);
 
@@ -2466,7 +2485,7 @@ export function MeetingRoomsPage() {
                               <button onClick={() => setViewingBooking(b)} className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl shadow-sm">Details</button>
                               {canRescheduleBooking && (
                                 <>
-                                  <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setShowRescheduleDialog(true); }} className="flex-1 py-2 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs rounded-xl shadow-sm">Reschedule</button>
+                                  <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setRescheduleInviteeIds(b.inviteeUserIds || []); setShowRescheduleDialog(true); }} className="flex-1 py-2 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs rounded-xl shadow-sm">Reschedule</button>
                                   <button onClick={() => { setBookingToCancel(b); setShowCancelDialog(true); }} className="flex-1 py-2 bg-red-50 border border-red-200 text-red-600 font-bold text-xs rounded-xl shadow-sm">Cancel</button>
                                 </>
                               )}
@@ -3256,11 +3275,11 @@ export function MeetingRoomsPage() {
                       <div className="p-4 bg-slate-50 border border-slate-100/60 rounded-2xl italic font-semibold text-slate-700 text-[13px] leading-relaxed">"{viewingBooking.purpose}"</div>
                     </div>
 
-                    {isMyBooking(viewingBooking) && !viewingBooking.isInvitedMeeting && canManageOwnBooking(viewingBooking) && (
+                    {(mainBookingTab === 'tenant_bookings' ? canManageOwnBooking(viewingBooking) : (isMyBooking(viewingBooking) && !viewingBooking.isInvitedMeeting && canManageOwnBooking(viewingBooking))) && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                         {canRescheduleOwnBooking(viewingBooking) && (
                           <>
-                            <button onClick={() => { setRescheduleData({ ...viewingBooking, startTime: viewingBooking.startTime, endTime: viewingBooking.endTime }); setShowRescheduleDialog(true); }} className="w-full py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-2"><CalendarClock size={16} /> Reschedule</button>
+                            <button onClick={() => { setRescheduleData({ ...viewingBooking, startTime: viewingBooking.startTime, endTime: viewingBooking.endTime }); setRescheduleInviteeIds(viewingBooking.inviteeUserIds || []); setShowRescheduleDialog(true); }} className="w-full py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-2"><CalendarClock size={16} /> Reschedule</button>
                             <button onClick={() => { setBookingToCancel(viewingBooking); setShowCancelDialog(true); }} className="w-full py-3.5 bg-red-50 border border-red-200 rounded-xl font-bold text-[13px] text-red-700 hover:bg-red-100 transition-all shadow-sm flex items-center justify-center gap-2"><XCircle size={16} /> Cancel</button>
                           </>
                         )}
@@ -3452,6 +3471,12 @@ export function MeetingRoomsPage() {
                 <div className="p-4 bg-white border border-slate-200/60 rounded-2xl text-[13px] font-medium text-slate-600 shadow-sm">
                   You are cancelling the meeting on <span className="font-bold text-[#0F172A]">{bookingToCancel.date}</span> at <span className="font-bold text-[#0F172A]">{bookingToCancel.checkIn}</span>. This action cannot be undone.
                 </div>
+                {normalize(bookingToCancel.bookingType) === 'tenant' && Number(bookingToCancel.bookingCredits || 0) > 0 && (
+                  <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-[13px] font-bold text-emerald-800 flex items-center gap-2 shadow-sm">
+                    <CreditCard size={18} />
+                    You will be refunded {Number(bookingToCancel.bookingCredits).toFixed(2)} CR for this booking.
+                  </div>
+                )}
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reason for Cancellation</label>
                   <textarea
@@ -3499,6 +3524,7 @@ export function MeetingRoomsPage() {
               </div>
 
               <div className="p-6 md:p-8 space-y-6">
+                {normalize(rescheduleData.bookingType) !== 'tenant' && (
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Update Location (Optional)</label>
                   <div className="relative">
@@ -3512,6 +3538,7 @@ export function MeetingRoomsPage() {
                     <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
                   </div>
                 </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2 md:col-span-2">
@@ -3547,6 +3574,103 @@ export function MeetingRoomsPage() {
                     </select>
                   </div>
                 </div>
+
+                {normalize(rescheduleData.bookingType) === 'tenant' && (() => {
+                  const currentCredits = Number(rescheduleData.bookingCredits || 0);
+                  const newCredits = Number(rescheduleCreditEstimate);
+                  const diff = newCredits - currentCredits;
+                  const hasDiff = Math.abs(diff) > 0.01;
+                  return (
+                    <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl text-[13px] flex flex-col gap-2 shadow-sm">
+                      <div className="flex items-center gap-2 font-bold text-indigo-800">
+                        <CreditCard size={16} />
+                        Credit Summary
+                      </div>
+                      <div className="grid grid-cols-3 gap-3 text-center">
+                        <div className="rounded-xl bg-white/70 px-2 py-2 border border-indigo-100">
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Current</p>
+                          <p className="text-sm font-black text-indigo-800 mt-0.5">{currentCredits.toFixed(2)} CR</p>
+                        </div>
+                        <div className="rounded-xl bg-white/70 px-2 py-2 border border-indigo-100">
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">New Estimate</p>
+                          <p className="text-sm font-black text-indigo-800 mt-0.5">{newCredits.toFixed(2)} CR</p>
+                        </div>
+                        <div className={`rounded-xl px-2 py-2 border ${hasDiff && diff > 0 ? 'bg-red-50 border-red-200' : hasDiff && diff < 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-white/70 border-indigo-100'}`}>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{hasDiff && diff > 0 ? 'Extra Charge' : hasDiff && diff < 0 ? 'Refund' : 'Change'}</p>
+                          {hasDiff && diff > 0 ? (
+                            <p className="text-sm font-black text-red-700 mt-0.5">+{diff.toFixed(2)} CR</p>
+                          ) : hasDiff && diff < 0 ? (
+                            <p className="text-sm font-black text-emerald-700 mt-0.5">{diff.toFixed(2)} CR</p>
+                          ) : (
+                            <p className="text-sm font-black text-slate-500 mt-0.5">-</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {normalize(rescheduleData.bookingType) === 'tenant' && (
+                  <div className="space-y-4 border-t border-slate-100 pt-5">
+                    <div className="flex items-center gap-2">
+                      <div className="h-px flex-1 bg-slate-100" />
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Invite Members</span>
+                      <div className="h-px flex-1 bg-slate-100" />
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Members</span>
+                      <span className="text-[11px] font-bold text-slate-500">{rescheduleInviteeIds.length} selected</span>
+                    </div>
+
+                    <div className="max-h-48 overflow-y-auto space-y-3 pr-1">
+                      {inviteDepartments.map((group: any) => (
+                        <div key={group.department} className="rounded-xl border border-slate-200/60 bg-slate-50/70 p-3">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">{group.department}</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {group.members.map((member: any) => {
+                              const memberId = resolveMemberUserId(member);
+                              const checked = rescheduleInviteeIds.includes(memberId);
+                              const existingInvite = Array.isArray(rescheduleData.invites) ? rescheduleData.invites.find((inv: Invite) => normalize(inv.invitedUserId) === normalize(memberId)) : null;
+                              const existingStatus = existingInvite ? normalize(existingInvite.status) : '';
+                              return (
+                                <label key={memberId} className={`flex items-start gap-2 rounded-lg border p-2.5 cursor-pointer transition-colors ${checked ? 'border-[#2563EB] bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => setRescheduleInviteeIds(prev =>
+                                      checked ? prev.filter(id => id !== memberId) : [...prev, memberId]
+                                    )}
+                                    className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
+                                  />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[12px] font-bold text-[#0F172A] truncate">{resolveMemberName(member) || member.email || 'Member'}</p>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                      <span className="text-[10px] font-semibold text-slate-500">{formatInviteGroupLabel(member.role || 'General')}</span>
+                                      {existingStatus === 'accepted' && (
+                                        <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200">
+                                          <CheckCircle2 size={10} /> Accepted
+                                        </span>
+                                      )}
+                                      {existingStatus === 'pending' && (
+                                        <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200">Pending</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                      {inviteDepartments.length === 0 && (
+                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-[11px] font-semibold text-slate-400">
+                          No inviteable members found.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {!rescheduleTimeValidation.valid && (
                   <div className="p-4 bg-red-50 rounded-2xl flex items-start sm:items-center gap-3 border border-red-100 mt-2">

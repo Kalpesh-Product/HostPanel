@@ -4,6 +4,10 @@ export const getTenantCompanies = async () => {
   return axiosPrivate.get("/api/v1/tenant-companies");
 };
 
+export const getMyTenantCompany = async () => {
+  return axiosPrivate.get("/api/v1/tenant-companies/my");
+};
+
 export const getTenantCompanySectors = async () => {
   return axiosPrivate.get("/api/v1/tenant-companies/sectors");
 };

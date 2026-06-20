@@ -492,6 +492,7 @@ export const login = async (req, res, next) => {
     let tenantCompanyId = null;
     let tenantCompanyName = null;
     let tenantLastLoginAt = null;
+    let tenantWorkspaceId = null;
     if (user?.email) {
       const emp = await TenantEmployee.findOne({
         email: normalizeInviteEmail(user.email),
@@ -503,6 +504,7 @@ export const login = async (req, res, next) => {
           tenantRole = emp.tenantRole || (emp.role === "Manager" ? "tenant-manager" : "tenant-employee");
           tenantCompanyId = String(tenantCompany._id);
           tenantCompanyName = tenantCompany.companyName || "";
+          tenantWorkspaceId = String(tenantCompany.workspaceId || "");
           tenantLastLoginAt = emp.lastLoginAt || null;
           // Update lastLoginAt
           await TenantEmployee.updateOne(
@@ -523,6 +525,7 @@ export const login = async (req, res, next) => {
           accessibleWorkspaces,
           hasCompletedWorkspaceSetupForSession,
         ),
+        primaryWorkspace: tenantWorkspaceId || user?.primaryWorkspace || null,
         tenantRole,
         tenantCompanyId,
         tenantCompanyName,
