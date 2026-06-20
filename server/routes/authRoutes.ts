@@ -18,6 +18,8 @@ import {
   verifyRegisterOtpAndComplete,
   getTenantRegisterPrefill,
   registerTenantEmployee,
+  sendTenantRegisterOtp,
+  verifyTenantRegisterOtpAndComplete,
   getTenantProfile,
 } from "../controllers/authControllers.js";
 import refreshTokenController from "../controllers/refreshTokenController.js";
@@ -43,6 +45,9 @@ router.post("/register/verify-otp", verifyRegisterOtpDirect);
 
 // Tenant employee registration (invite-based, raw token)
 router.get("/tenant-register/prefill", getTenantRegisterPrefill);
+router.post("/tenant-register/send-otp", sendTenantRegisterOtp);
+router.post("/tenant-register/verify-otp", verifyTenantRegisterOtpAndComplete);
+// Legacy endpoint kept for backward compatibility
 router.post("/tenant-register/complete", registerTenantEmployee);
 
 // Tenant employee profile (authenticated)

@@ -76,8 +76,8 @@ export function normalizeResourceCategory(value = "", fallbackName = "") {
 
 export function normalizeResourceType(value = "", fallbackName = "") {
     const category = normalizeResourceCategory(value, fallbackName);
-    if (category === "open_desk") return "Desk";
-    if (category === "cabin_desk") return "Cabin";
+    if (category === "open_desk") return "Open Desk";
+    if (category === "cabin_desk") return "Cabin Desk";
     if (category === "conference_room") return "Conference Room";
     if (category === "virtual_office") return "Virtual Office";
     return "Meeting Room";

@@ -219,7 +219,7 @@ const departmentModules: NavNode[] = [
       { id: "leads-management", label: "Leads Management", icon: Magnet, route: "/sales/leads-management", disabled: false },
       { id: "tenant-companies-sales", label: "Tenant Companies", icon: Building2, route: "/sales/tenant-companies", disabled: false },
       { id: "resource-pricing", label: "Resource & Pricing", icon: Tag, route: "/sales-crm/resource-pricing", disabled: false },
-      { id: "sales-architecture", label: "Sales Architecture", icon: ShoppingCart, route: "/sales/sales-architecture", disabled: false },
+      { id: "sales-architecture", label: "Sales Architecture", icon: ShoppingCart, route: "/sales-crm/sales-architecture", disabled: false },
     ],
   },
   {

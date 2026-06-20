@@ -397,6 +397,14 @@ export async function assignResourceForOwner(workspaceId: string, ownerId: strin
     }
 
     resource!.assignedAt = new Date();
+
+    // Heal stale type values from legacy data that don't match the schema enum.
+    // e.g. "Desk" → "Open Desk", "Cabin" → "Cabin Desk"
+    const validTypes = ["Open Desk", "Meeting Room", "Conference Room", "Cabin Desk", "Virtual Office"];
+    if (!validTypes.includes(resource!.type as string)) {
+        resource!.type = normalizeResourceType(resource!.resourceCategory, resource!.name) as any;
+    }
+
     await resource!.save();
 
     return {
@@ -413,6 +421,12 @@ export async function releaseResourceAssignmentForOwner(workspaceId: string, own
     resource!.assignedDepartmentId = "";
     resource!.assignedDepartmentName = "";
     resource!.assignedAt = null as any;
+
+    // Heal stale type values from legacy data that don't match the schema enum.
+    const validTypes = ["Open Desk", "Meeting Room", "Conference Room", "Cabin Desk", "Virtual Office"];
+    if (!validTypes.includes(resource!.type as string)) {
+        resource!.type = normalizeResourceType(resource!.resourceCategory, resource!.name) as any;
+    }
 
     await resource!.save();
 

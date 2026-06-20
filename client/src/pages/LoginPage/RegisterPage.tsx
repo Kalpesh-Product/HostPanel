@@ -179,13 +179,24 @@ export default function RegisterPage() {
     try {
       setIsSubmitting(true);
       if (isTenantInvite && tenantPrefill) {
-        const response = await api.post("/api/auth/tenant-register/complete", {
+        const response = await api.post("/api/auth/tenant-register/send-otp", {
           inviteToken: tenantPrefill.inviteToken,
           password,
           confirmPassword,
         });
-        toast.success(response.data?.message || "Registration completed successfully.");
-        setRegistrationSuccess(true);
+        toast.success(response.data?.message || "OTP sent to your email.");
+        navigate("/register/verify", {
+          state: {
+            email: tenantPrefill.email,
+            fullName: tenantPrefill.fullName,
+            companyName: tenantPrefill.companyName,
+            tenantRole: tenantPrefill.tenantRole,
+            role: tenantPrefill.role,
+            tenantCompanyId: tenantPrefill.tenantCompanyId,
+            inviteToken: tenantPrefill.inviteToken,
+            flow: "tenant-register",
+          },
+        });
       } else {
         const endpoint = token
           ? `/api/auth/register/${token}/start`
