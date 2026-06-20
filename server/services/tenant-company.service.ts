@@ -1100,8 +1100,6 @@ export async function createMyTenantCompanyCreditRequestForCurrentUser(userId, i
 }
 
 export async function submitMyTenantCompanyCreditRequestPaymentForCurrentUser(userId, requestId, input, file) {
-  const access = await resolveWorkspaceAccess(userId);
-
   if (!file?.buffer?.length) {
     const err = new Error("Payment proof screenshot is required.");
     err.statusCode = 400;
@@ -1109,14 +1107,19 @@ export async function submitMyTenantCompanyCreditRequestPaymentForCurrentUser(us
   }
 
   const user = await HostUser.findById(userId).lean();
+
+  // Use tenant-specific resolver (not workspace membership)
   const employee = await TenantEmployee.findOne({
-    workspaceId: access.workspaceId,
-    email: normalizeText(user?.email || "").toLowerCase(),
+    status: "Active",
+    $or: [
+      { userId: user?._id },
+      { email: normalizeText(user?.email || "").toLowerCase() },
+    ],
   }).lean();
 
   if (!employee) {
-    const err = new Error("Tenant company not found for your account.");
-    err.statusCode = 404;
+    const err = new Error("No active tenant employee record found for your account.");
+    err.statusCode = 403;
     throw err;
   }
 
@@ -1136,7 +1139,7 @@ export async function submitMyTenantCompanyCreditRequestPaymentForCurrentUser(us
   // Upload the payment proof to S3 (mirrors the agreement-document upload pattern).
   const timestamp = Date.now();
   const safeName = (file.originalname || "payment-proof").replace(/[^a-zA-Z0-9._-]/g, "_");
-  const route = `tenant-companies/${access.workspaceId}/${employee.tenantCompanyId}/credit-requests/${request.id || requestId}/${timestamp}-${safeName}`;
+  const route = `tenant-companies/${employee.workspaceId}/${employee.tenantCompanyId}/credit-requests/${request.id || requestId}/${timestamp}-${safeName}`;
   let s3Result;
   try {
     s3Result = await uploadFileToS3(route, file);
@@ -1166,6 +1169,63 @@ export async function submitMyTenantCompanyCreditRequestPaymentForCurrentUser(us
   return {
     creditRequest: request,
     message: "Payment proof submitted successfully.",
+  };
+}
+
+export async function confirmTenantCreditRequestPaymentForCurrentUser(userId, tenantCompanyId, requestId, input = {}) {
+  const access = await resolveWorkspaceAccess(userId);
+
+  if (!access.isAdmin && !access.hasSalesAccess) {
+    const err = new Error("You do not have permission to confirm payments. Sales access required.");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const request = await TenantCreditRequest.findOne({
+    tenantCompanyId,
+    id: requestId,
+  });
+
+  if (!request) {
+    const err = new Error("Credit request not found.");
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (request.status !== "PAYMENT_SUBMITTED") {
+    const err = new Error("Only requests with status PAYMENT_SUBMITTED can be confirmed.");
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const now = new Date();
+  const actorName = normalizeText(access.user?.name || "");
+
+  request.status = "PAYMENT_CONFIRMED";
+  request.financeVerifiedByUserId = userId;
+  request.financeVerifiedByName = actorName;
+  request.financeVerifiedAt = now;
+  request.paidAt = now;
+
+  if (input.financeNote !== undefined) {
+    request.financeNote = normalizeText(input.financeNote);
+  }
+
+  request.actionHistory.push({
+    action: "PAYMENT_CONFIRMED",
+    status: "PAYMENT_CONFIRMED",
+    note: normalizeText(input.financeNote || "Payment confirmed by finance/sales."),
+    actorUserId: userId,
+    actorName,
+    at: now,
+  });
+
+  request.updatedAt = now;
+  await request.save();
+
+  return {
+    creditRequest: request,
+    message: "Payment confirmed successfully. Status changed to PAYMENT_CONFIRMED.",
   };
 }
 
@@ -1280,3 +1340,26 @@ export async function updateTenantCompanyCreditRequestForCurrentUser(userId, ten
     message: "Tenant credit request updated successfully.",
   };
 }
+
+export async function getPendingPaymentVerificationsForCurrentUser(userId) {
+  const access = await resolveWorkspaceAccess(userId);
+  if (!access.isAdmin && !access.hasSalesAccess) {
+    const err = new Error("You do not have permission to view pending payments. Sales access required.");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const requests = await TenantCreditRequest.find({
+    workspaceId: access.workspaceId,
+    status: "PAYMENT_SUBMITTED",
+  })
+    .sort({ paymentSubmittedAt: -1 })
+    .lean()
+    .exec();
+
+  return {
+    data: requests,
+    message: "Pending payment verifications fetched successfully.",
+  };
+}
+

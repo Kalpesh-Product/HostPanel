@@ -85,3 +85,19 @@ export const submitMyTenantCompanyCreditRequestPayment = async (requestId: strin
     headers: { "Content-Type": "multipart/form-data" },
   });
 };
+
+export const getPendingPaymentVerifications = async () => {
+  return axiosPrivate.get("/api/v1/tenant-companies/pending-payments");
+};
+
+export const confirmTenantCreditRequestPayment = async (
+  tenantCompanyId: string,
+  requestId: string,
+  payload: { financeNote?: string } = {}
+) => {
+  return axiosPrivate.patch(
+    `/api/v1/tenant-companies/${tenantCompanyId}/credit-requests/${requestId}/confirm-payment`,
+    payload
+  );
+};
+

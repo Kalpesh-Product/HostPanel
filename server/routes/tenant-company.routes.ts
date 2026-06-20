@@ -19,6 +19,8 @@ import {
   createMyTenantCompanyCreditRequest,
   submitMyTenantCompanyCreditRequestPayment,
   updateTenantCompanyCreditRequest,
+  confirmTenantCreditRequestPayment,
+  getPendingPaymentVerifications,
 } from "../controllers/tenant-company.controller.js";
 
 const router = express.Router();
@@ -28,6 +30,9 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 router.get("/my/credit-requests", getMyTenantCompanyCreditRequests);
 router.post("/my/credit-requests", createMyTenantCompanyCreditRequest);
 router.post("/my/credit-requests/:requestId/payment", upload.single("paymentProof"), submitMyTenantCompanyCreditRequestPayment);
+
+// Pending payment verifications (must precede /:id routes)
+router.get("/pending-payments", getPendingPaymentVerifications);
 
 // Sectors
 router.get("/sectors", getTenantCompanySectors);
@@ -58,5 +63,6 @@ router.post("/:id/agreement-documents", upload.array("documents"), uploadTenantC
 
 // Credit requests
 router.patch("/:id/credit-requests/:requestId", updateTenantCompanyCreditRequest);
+router.patch("/:id/credit-requests/:requestId/confirm-payment", confirmTenantCreditRequestPayment);
 
 export default router;

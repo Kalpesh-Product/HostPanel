@@ -1872,22 +1872,52 @@ export default function TenantCompaniesPage() {
         return;
       }
 
+      const approvedCredits = nextStatus === 'REJECTED'
+        ? 0
+        : Number(request.approvedCredits || request.requestedCredits || 0);
+      const salesNote = nextStatus === 'REJECTED'
+        ? 'Rejected by Sales.'
+        : nextStatus === 'COMPLETED'
+          ? 'Credits allocated by Sales.'
+          : nextStatus === 'PAYMENT_CONFIRMED'
+            ? 'Payment verified by Sales.'
+            : 'Approved by Sales.';
+      const financeNote = nextStatus === 'PAYMENT_CONFIRMED' ? 'Payment verified successfully.' : undefined;
+
       const response = await updateTenantCompanyCreditRequest(tenantCompanyId, requestId, {
         status: nextStatus,
-        approvedCredits: nextStatus === 'REJECTED' ? 0 : Number(request.requestedCredits || 0),
-        salesNote: nextStatus === 'REJECTED' ? 'Rejected by Sales.' : nextStatus === 'COMPLETED' ? 'Credits allocated by Sales.' : 'Approved by Sales.',
+        approvedCredits,
+        salesNote,
+        financeNote,
       });
 
       const payload = response?.data || {};
+      const updatedRequest = payload.creditRequest;
       if (payload.tenant) {
         setTenants((current) => current.map((tenant) => {
           const currentTenantId = tenant.recordId || tenant.id;
           const updatedTenantId = payload.tenant.recordId || payload.tenant.id;
           return currentTenantId === updatedTenantId ? payload.tenant : tenant;
         }));
+      } else if (updatedRequest) {
+        setTenants((current) => current.map((tenant) => {
+          const currentTenantId = String(tenant.recordId || tenant.id || '');
+          if (currentTenantId !== String(tenantCompanyId)) {
+            return tenant;
+          }
+
+          const nextRequests = Array.isArray(tenant.creditRequests)
+            ? tenant.creditRequests.map((item) => {
+              const itemRequestId = item.id || item._id;
+              return String(itemRequestId) === String(requestId) ? { ...item, ...updatedRequest } : item;
+            })
+            : [];
+
+          return { ...tenant, creditRequests: nextRequests };
+        }));
       }
 
-      toast.success(nextStatus === 'REJECTED' ? 'Request rejected.' : 'Request updated.');
+      toast.success(nextStatus === 'REJECTED' ? 'Request rejected.' : nextStatus === 'PAYMENT_CONFIRMED' ? 'Payment verified.' : 'Request updated.');
     } catch (error) {
       toast.error(error.message || 'Failed to update credit request.');
     }
@@ -3020,6 +3050,15 @@ export default function TenantCompaniesPage() {
                                     Reject
                                   </button>
                                 </>
+                              )}
+                              {request.status === 'PAYMENT_SUBMITTED' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCreditRequestAction(request, 'PAYMENT_CONFIRMED')}
+                                  className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-blue-700 transition-all hover:bg-blue-100"
+                                >
+                                  Verify payment
+                                </button>
                               )}
                               {['PAYMENT_CONFIRMED', 'INVOICE_GENERATED'].includes(request.status) && (
                                 <button

@@ -18,6 +18,8 @@ import {
   createMyTenantCompanyCreditRequestForCurrentUser,
   submitMyTenantCompanyCreditRequestPaymentForCurrentUser,
   updateTenantCompanyCreditRequestForCurrentUser,
+  confirmTenantCreditRequestPaymentForCurrentUser,
+  getPendingPaymentVerificationsForCurrentUser,
 } from "../services/tenant-company.service.js";
 
 export const getTenantCompanySectors = async (req: Request, res: Response, next: NextFunction) => {
@@ -191,3 +193,29 @@ export const updateTenantCompanyCreditRequest = async (req: Request, res: Respon
     next(error);
   }
 };
+
+
+export const confirmTenantCreditRequestPayment = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id || req.user?._id || req.user;
+    const result = await confirmTenantCreditRequestPaymentForCurrentUser(
+      userId,
+      req.params.id,
+      req.params.requestId,
+      req.body
+    );
+    return res.status(200).json(result);
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const getPendingPaymentVerifications = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id || req.user?._id || req.user;
+    const result = await getPendingPaymentVerificationsForCurrentUser(userId);
+    return res.status(200).json(result);
+  } catch (error: any) {
+    next(error);
+  }
+};
