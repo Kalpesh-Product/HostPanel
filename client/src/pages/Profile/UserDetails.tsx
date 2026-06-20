@@ -16,6 +16,17 @@ const UserDetails = () => {
   const { auth, setAuth } = useAuth();
   const [editMode, setEditMode] = useState(false);
   const [workspaceProfile, setWorkspaceProfile] = useState<any>(null);
+  const normalizeRole = (value: unknown): string => {
+    const raw = resolveRoleValue(value).trim().replace(/-/g, " ");
+    if (!raw) return "";
+
+    // Convert to Title Case (First letter capital, rest small)
+    return raw
+      .toLowerCase()
+      .split(" ")
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
 
   const { data: userDetails } = useQuery({
     queryKey: ["profileMe"],
@@ -73,8 +84,14 @@ const UserDetails = () => {
     }
   }, [buildProfileDefaults, reset]);
 
+  const formatName = (name: string) =>
+    name
+      .split(" ")
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
+
   const user = {
-    name: `${auth?.user?.name || ""}`,
+    name: formatName(auth?.user?.name || ""),
     email: auth?.user?.email || "",
     designation: auth?.user?.designation || "",
     avatarColor: "#1976d2",
@@ -128,11 +145,17 @@ const UserDetails = () => {
   };
   const storedTenantRole = getStoredTenantRole();
   const hasTenantRole = Boolean(storedTenantRole || auth?.user?.tenantRole);
-  const normalizeRole = (value: unknown) =>
-    resolveRoleValue(value)
-      .trim()
-      .toUpperCase()
-      .replace(/-/g, " ");
+  const normalizeRoles = (value: unknown): string => {
+    const raw = resolveRoleValue(value).trim().replace(/-/g, " ");
+    if (!raw) return "";
+
+    // Convert to Title Case (First letter capital, rest small)
+    return raw
+      .toLowerCase()
+      .split(" ")
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
   // console.log(auth.user.tenantRole)
   // const resolvedRoleLabel = hasTenantRole
   //   ? (storedTenantRole === "tenant-manager" || auth?.user?.tenantRole === "tenant-manager"
@@ -141,7 +164,7 @@ const UserDetails = () => {
   //   : isFounder
   //     ? "Founder"
   //     : roleLabelMap[roleCandidates[0] || ""] || "Team Member";
-  const resolvedRoleLabel = normalizeRole(auth?.user?.workspaceMembership?.role) || normalizeRole(auth.user.tenantRole);
+  const resolvedRoleLabel = normalizeRoles(auth?.user?.workspaceMembership?.role) || normalizeRoles(auth.user.tenantRole);
   // console.log('resolvedRoleLabel', auth?.user?.workspaceMembership?.role);
 
   const mutation = useMutation({
