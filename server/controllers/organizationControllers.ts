@@ -970,6 +970,7 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
     const requestedDepartmentIds = Array.isArray(req.body?.departments) ? req.body.departments : [];
     const resolvedDepartmentIds = [];
     for (const deptId of requestedDepartmentIds) {
+      if (!deptId || !mongoose.isValidObjectId(deptId)) continue;
       const dept = await Department.findOne({ _id: deptId, workspaceId: workspace._id });
       if (dept) {
         resolvedDepartmentIds.push(dept._id);
@@ -1128,6 +1129,7 @@ export const transferOrganizationMember = async (req, res, next) => {
     const requestedDepartmentIds = Array.isArray(req.body?.departments) ? req.body.departments : [];
     const resolvedDepartmentIds = [];
     for (const deptId of requestedDepartmentIds) {
+      if (!deptId || !mongoose.isValidObjectId(deptId)) continue;
       const dept = await Department.findOne({ _id: deptId, workspaceId: targetWorkspace._id });
       if (dept) {
         resolvedDepartmentIds.push(dept._id);

@@ -38,13 +38,26 @@ const app = express();
 dotenv.config();
 const PORT = process.env.PORT || 5006;
 
+// Start the HTTP server immediately and connect to the DB in parallel. This keeps
+// `tsx watch` auto-restart working and avoids any startup delay. Mongoose buffers
+// queries until the connection is ready, so the brief connect window is invisible.
+const server = app.listen(PORT, () => {
+  console.log(`server is running on PORT ${PORT}`);
+});
+
 mongoose
   .connect(process.env.DB_URL)
   .then(async () => {
     console.log("connected to mongoDB");
-    await seedSystemRoles();
+    // Run idempotent seeds/migrations in the BACKGROUND so they never delay
+    // request serving. No-ops once the data is already clean.
+    seedSystemRoles().catch((error) => {
+      console.error("seed/migration error:", error?.message || error);
+    });
   })
   .catch((error) => {
+    // Do NOT exit the process — exiting breaks `tsx watch` auto-restart and takes
+    // the server down on transient DB blips. Log and let mongoose keep retrying.
     console.error("mongoDB connection error:", error?.message || error);
   });
 
@@ -108,8 +121,4 @@ app.use((err, req, res, next) => {
   return res.status(statusCode).json({
     message: err?.message || "Internal server error",
   });
-});
-
-app.listen(PORT, () => {
-  console.log(`server is running on PORT ${PORT}`);
 });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LuHardDriveUpload } from "react-icons/lu";
 import { SiGoogleadsense } from "react-icons/si";
 import { MdOutlineRateReview } from "react-icons/md";
@@ -66,6 +66,10 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
   const [isCheckingWebsite, setIsCheckingWebsite] = useState(true);
   const [workspaceBusinessName, setWorkspaceBusinessName] = useState("");
   const [workspaceBusinessTypes, setWorkspaceBusinessTypes] = useState<string[]>([]);
+  // Prevents the checkExistingWebsite effect from re-running (and re-showing the spinner)
+  // when workspaceBusinessName resolves asynchronously after the first API call already
+  // found/didn't find a website.
+  const hasCheckedWebsiteRef = useRef(false);
   // const [workspacePlan, setWorkspacePlan] = useState("");
   const builderBasePath = location.pathname.includes("/company-settings/website-builder")
     ? "/company-settings/website-builder"
@@ -107,6 +111,10 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
   useEffect(() => {
     const checkExistingWebsite = async () => {
       // Dynamic-only mode: keep existing website lookup enabled.
+      // Guard: once we've got a result (found or not found), don't re-run when
+      // workspaceBusinessName resolves asynchronously and re-triggers this effect.
+      if (hasCheckedWebsiteRef.current) return;
+
       try {
         setIsCheckingWebsite(true);
         const businessName = String(
@@ -139,6 +147,7 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
           ) || null;
 
         if (found) {
+          hasCheckedWebsiteRef.current = true;
           setExistingWebsite(found);
           return;
         }
@@ -165,6 +174,7 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
               String(subscription?.publishedProjectId || "").trim() ||
               publishedUrl
             ) {
+              hasCheckedWebsiteRef.current = true;
               setExistingWebsite({
                 _id: subscription?.publishedProjectId || subscriptionId,
                 searchKey: publishedSearchKey || businessName.toLowerCase().replace(/\s+/g, "-"),
@@ -182,8 +192,10 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
           }
         }
 
+        hasCheckedWebsiteRef.current = true;
         setExistingWebsite(null);
       } catch (error) {
+        hasCheckedWebsiteRef.current = true;
         setExistingWebsite(null);
       } finally {
         setIsCheckingWebsite(false);
@@ -239,7 +251,12 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
     const targetWebsite = existingWebsite;
     const editSearchKey = String(targetWebsite?.searchKey || "").trim();
     if (!editSearchKey) return;
-    const isDraftOnly = targetWebsite?.isDraft === true && targetWebsite?.isPublished !== true;
+    // isDraftOnly: has the draft flag but no published state and no saved draftData snapshot
+    // (old single-page websites have neither isDraft nor draftData — they should still edit normally)
+    const isDraftOnly =
+      targetWebsite?.isDraft === true &&
+      targetWebsite?.isPublished !== true &&
+      !targetWebsite?.draftData;
 
     if (!canEditExistingWebsite) {
       navigate(createOrEditRoute, { replace: true });
@@ -296,16 +313,8 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
       const resolvedSearchKey = String(found?.searchKey || "").trim();
 
       if (found && resolvedSearchKey) {
-        const isDraftOnly = found?.isDraft === true && found?.isPublished !== true;
-        const canResumeDraft = isDraftOnly || Boolean(found?.draftData);
-        if (!canResumeDraft) {
-          navigate(createOrEditRoute);
-          return;
-        }
-        if (isDraftOnly) {
-          navigate(createOrEditRoute);
-          return;
-        }
+        // Any existing website record (even old single-page ones without draftData)
+        // should open the edit flow, not loop back to create.
         const existingVertical = String(found?.vertical || "").trim();
         const existingVerticalLabel = String(found?.verticalLabel || "").trim();
         const mappedVerticalKey = BUSINESS_TYPE_TO_VERTICAL_KEY[existingVerticalLabel];

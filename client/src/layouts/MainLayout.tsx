@@ -115,17 +115,17 @@ const MainLayout = () => {
           </aside>
         )}
 
-        <div className="w-full">
+        <div className="w-full min-w-0">
           <main className="w-full bg-[#F7F8FA] p-3 flex flex-col gap-2">
             <div className="p-4 rounded-t-md bg-white">
               <BreadCrumbComponent />
             </div>
             <div
               id="scrollable-content"
-              className="bg-white h-[80vh] overflow-y-auto flex flex-col justify-between"
+              className="bg-white h-[80vh] overflow-y-auto flex flex-col justify-between min-w-0"
             >
               <ScrollToTop />
-              <div key={outletKey} className="w-full">
+              <div key={outletKey} className="w-full min-w-0">
                 <Outlet />
               </div>
 

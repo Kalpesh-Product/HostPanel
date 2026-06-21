@@ -155,7 +155,10 @@ async function resolveWorkspaceAccess(userId) {
   let departmentNames = [];
   let departmentModuleIds = [];
   if (departmentIds.length > 0) {
-    const depts = await Department.find({ _id: { $in: departmentIds } }).select("name moduleIds").lean();
+    const validDeptIds = departmentIds.filter((id) => mongoose.isValidObjectId(id));
+    const depts = validDeptIds.length > 0
+      ? await Department.find({ _id: { $in: validDeptIds } }).select("name moduleIds").lean()
+      : [];
     departmentNames = depts.map((d) => normalizeText(d.name).toLowerCase());
     departmentModuleIds = depts.flatMap((d) => (d.moduleIds || []).map((m) => normalizeText(m).toLowerCase()));
   }
