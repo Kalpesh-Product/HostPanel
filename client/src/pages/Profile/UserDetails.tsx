@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useCallback, useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useQuery, useMutation } from "@tanstack/react-query";

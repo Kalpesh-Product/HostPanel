@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
 import {
   BadgeCheck, Building2, CalendarDays, CheckCircle2,

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { RiPagesLine } from "react-icons/ri";
 import { MdFormatListBulleted, MdMiscellaneousServices } from "react-icons/md";
 import { CgProfile } from "react-icons/cg";

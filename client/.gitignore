@@ -30,3 +30,7 @@ dist-ssr
 *.sln
 *.sw?
 DESIGN.md
+
+# Documentation files (local development only)
+/.md files/
+.md files/

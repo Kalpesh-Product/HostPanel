@@ -1,13 +1,12 @@
-// @ts-nocheck
 import dayjs from "dayjs";
 
-const humanDate = (date) => {
+const humanDate = (date: string | Date | null | undefined): string => {
   if (!date) return "—";
 
   try {
     const parsedDate = new Date(date);
 
-    if (isNaN(parsedDate)) return "N/A";
+    if (isNaN(parsedDate.getTime())) return "N/A";
 
     // return new Intl.DateTimeFormat("en-GB", {
     //   day: "2-digit",

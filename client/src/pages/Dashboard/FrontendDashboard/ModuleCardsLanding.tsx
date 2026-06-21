@@ -59,6 +59,7 @@ type SectionType =
   | "common-modules"
   | "extra-common-modules"
   | "key-apps"
+  | "company-settings"
   | "founder-core-modules"
   | "department-accesses";
 

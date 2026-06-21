@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createBrowserRouter, Navigate, Outlet, useLocation } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import AuthLayout from "../layouts/AuthLayout";
@@ -585,7 +584,7 @@ export const routes = createBrowserRouter([
                   },
                   {
                     path: "change-password",
-                    element: <ChangePassword />,
+                    element: <ChangePassword pageTitle="Change Password" />,
                   },
                   // {
                   //   path: "permissions",

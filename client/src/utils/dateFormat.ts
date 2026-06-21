@@ -1,8 +1,12 @@
-// @ts-nocheck
-import dayjs from "dayjs"
+import dayjs from "dayjs";
+import duration from "dayjs/plugin/duration";
 
+dayjs.extend(duration);
 
-export const convertToISOFormat = (dateStr, timeStr) => {
+export const convertToISOFormat = (
+  dateStr: string,
+  timeStr: string
+): string | null => {
   // Check for invalid inputs
   if (!dateStr || !timeStr) {
     console.warn("Invalid date or time:", { dateStr, timeStr });
@@ -51,7 +55,7 @@ export const convertToISOFormat = (dateStr, timeStr) => {
   return `${formattedDate}T${formattedTime}`;
 };
 
-export const formatDuration = (start, end) => {
+export const formatDuration = (start: string | Date, end: string | Date): string => {
   const diffMs = dayjs(end).diff(dayjs(start));
   const duration = dayjs.duration(diffMs);
   const hours = duration.hours().toString().padStart(2, "0");

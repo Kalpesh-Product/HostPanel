@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link, useParams, useLocation, useSearchParams } from "react-router-dom";
 import { Container, Box, Grid, TextField } from "@mui/material";

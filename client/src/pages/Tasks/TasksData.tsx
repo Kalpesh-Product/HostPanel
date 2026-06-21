@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Avatar, AvatarGroup, Chip } from "@mui/material";
 
 // ----------------------------- Bar Graph Task allocation Start --------------------------- //

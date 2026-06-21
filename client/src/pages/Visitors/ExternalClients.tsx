@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useState } from "react";
 import AgTable from "../../components/AgTable";
 import PrimaryButton from "../../components/PrimaryButton";
