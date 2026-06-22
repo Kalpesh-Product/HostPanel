@@ -270,6 +270,7 @@ const SECTION_ABBR: Record<string, string> = {
   "key-apps": "KEY",
   "founder-core-modules": "FND",
   "department-accesses": "DEP",
+  "add-ons": "ADO",
 };
 
 const ROUTE_BY_ID: Record<string, string> = {
@@ -420,11 +421,9 @@ const NavItem = ({
   <button
     type="button"
     title={tooltip || (disabled ? (disabledTitle || "Coming soon") : "")}
-    className={`w-full flex items-center justify-between py-2 px-3 select-none rounded-md transition-colors ${
-      isActive ? "bg-gray-200 font-medium" : "hover:bg-gray-200"
-    } ${isRed ? "text-red-500 hover:text-red-600" : "text-gray-700 hover:text-gray-900"} ${
-      locked ? "opacity-75 cursor-not-allowed" : unavailable ? "cursor-default" : "cursor-pointer"
-    }`}
+    className={`w-full flex items-center justify-between py-2 px-3 select-none rounded-md transition-colors ${isActive ? "bg-gray-200 font-medium" : "hover:bg-gray-200"
+      } ${isRed ? "text-red-500 hover:text-red-600" : "text-gray-700 hover:text-gray-900"} ${locked ? "opacity-75 cursor-not-allowed" : unavailable ? "cursor-default" : "cursor-pointer"
+      }`}
     style={{ paddingLeft: `${depth * 1.25 + 0.75}rem` }}
     onClick={onClick}
   >
@@ -696,19 +695,19 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const resolveMasterCompanyId = async () => {
     const authUser = auth.user as
       | {
-          company?: string | { _id?: string; id?: string };
-          companyId?: string;
-          hostLeadCompanyId?: string;
-          companyName?: string;
-        }
+        company?: string | { _id?: string; id?: string };
+        companyId?: string;
+        hostLeadCompanyId?: string;
+        companyName?: string;
+      }
       | null;
     const directCompanyId = String(
       authUser?.hostLeadCompanyId ||
-        (typeof authUser?.company === "string"
-          ? authUser.company
-          : authUser?.company?._id || authUser?.company?.id) ||
-        authUser?.companyId ||
-        "",
+      (typeof authUser?.company === "string"
+        ? authUser.company
+        : authUser?.company?._id || authUser?.company?.id) ||
+      authUser?.companyId ||
+      "",
     ).trim();
 
     const legacyCompanyId = String(authUser?.companyId || "").trim();
@@ -1019,7 +1018,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
             ? "Upgrade plan to unlock this"
             : !roleUnlocked
               ? "You do not have access to this module"
-          : undefined),
+              : undefined),
       };
     }).filter(Boolean);
     let sortedItems = sortEnabledFirst(mappedItems);
@@ -1090,31 +1089,30 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   };
 
   const navigateFromSidebar = (route: string, sectionKey?: string) => {
-  navigate(route, { state: { fromSection: sectionKey }, flushSync: true });
-  if (onCloseDrawer) onCloseDrawer();
-};
-
-const onNavigate = (item: NavNode, sectionKey?: string) => {
-  if (item.id === "logout") {
-    void logout();
+    navigate(route, { state: { fromSection: sectionKey }, flushSync: true });
     if (onCloseDrawer) onCloseDrawer();
-    return;
-  }
-  if (item.disabled) {
-    if (item.upgradeLocked && upgradePlanCards.length > 0) {
-      setIsUpgradeModalOpen(true);
+  };
+
+  const onNavigate = (item: NavNode, sectionKey?: string) => {
+    if (item.id === "logout") {
+      void logout();
+      if (onCloseDrawer) onCloseDrawer();
+      return;
     }
-    return;
-  }
-  if (!item.route) return;
-  navigateFromSidebar(item.route, sectionKey);
-};
+    if (item.disabled) {
+      if (item.upgradeLocked && upgradePlanCards.length > 0) {
+        setIsUpgradeModalOpen(true);
+      }
+      return;
+    }
+    if (!item.route) return;
+    navigateFromSidebar(item.route, sectionKey);
+  };
 
   return (
     <div
-      className={`${
-        collapsed ? "w-16" : "w-64"
-      } h-[90vh] bg-[#f3f4f6] flex flex-col border-r border-gray-200 shadow-sm overflow-hidden transition-all duration-100`}
+      className={`${collapsed ? "w-16" : "w-64"
+        } h-[90vh] bg-[#f3f4f6] flex flex-col border-r border-gray-200 shadow-sm overflow-hidden transition-all duration-100`}
     >
       <div className="px-4 py-3 flex justify-center">
         <span className="text-[10px] font-bold tracking-wider text-gray-600 bg-gray-200 px-3 py-1 rounded-full uppercase">
@@ -1153,45 +1151,66 @@ const onNavigate = (item: NavNode, sectionKey?: string) => {
         ) : (
           (mappedSections.length > 0
             ? (() => {
-                const hasKeyApps = mappedSections.some(s => s.key === "key-apps");
-                if (hasKeyApps) {
-                  return mappedSections.map(s =>
-                    s.key === "key-apps"
-                      ? { ...s, items: [...s.items, ...keyAppsItems.filter(k => k.route && !k.disabled && !s.items.some(ex => ex.id === k.id))] }
-                      : s
-                  );
-                }
-                return [...mappedSections, { key: "key-apps", title: "Key Apps", items: keyAppsItems }];
-              })()
-          : [
-          { key: "company-settings", title: "Company Settings", items: companySettingsItems },
-          { key: "key-apps", title: "Key Apps", items: keyAppsItems },
-          { key: "department-accesses", title: "Department Accesses", items: departmentItems },
-          ]).map((section) => (
-          <div key={section.key}>
-            {!collapsed ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setOpenSections((current) => ({
-                      ...current,
-                      [section.key]: !(current?.[section.key] ?? section.key === "common-modules"),
-                    }))
-                  }
-                  className="w-full mb-2 px-3 flex items-center justify-between text-left"
-                >
-                  <span className="text-[12px] font-pbold text-gray-500 tracking-wider uppercase">
-                    {section.title}
-                  </span>
-                  {openSections?.[section.key] ?? section.key === "common-modules" ? (
-                    <ChevronDown size={14} className="text-gray-400" />
-                  ) : (
-                    <ChevronRight size={14} className="text-gray-400" />
-                  )}
-                </button>
-                {(openSections?.[section.key] ?? section.key === "common-modules") ? (
+              const hasKeyApps = mappedSections.some(s => s.key === "key-apps");
+              if (hasKeyApps) {
+                return mappedSections.map(s =>
+                  s.key === "key-apps"
+                    ? { ...s, items: [...s.items, ...keyAppsItems.filter(k => k.route && !k.disabled && !s.items.some(ex => ex.id === k.id))] }
+                    : s
+                );
+              }
+              return [...mappedSections, { key: "key-apps", title: "Key Apps", items: keyAppsItems }];
+            })()
+            : [
+              { key: "company-settings", title: "Company Settings", items: companySettingsItems },
+              { key: "key-apps", title: "Key Apps", items: keyAppsItems },
+              { key: "department-accesses", title: "Department Accesses", items: departmentItems },
+            ]).map((section) => (
+              <div key={section.key}>
+                {!collapsed ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenSections((current) => ({
+                          ...current,
+                          [section.key]: !(current?.[section.key] ?? section.key === "common-modules"),
+                        }))
+                      }
+                      className="w-full mb-2 px-3 flex items-center justify-between text-left"
+                    >
+                      <span className="text-[12px] font-pbold text-gray-500 tracking-wider uppercase">
+                        {section.title}
+                      </span>
+                      {openSections?.[section.key] ?? section.key === "common-modules" ? (
+                        <ChevronDown size={14} className="text-gray-400" />
+                      ) : (
+                        <ChevronRight size={14} className="text-gray-400" />
+                      )}
+                    </button>
+                    {(openSections?.[section.key] ?? section.key === "common-modules") ? (
+                      <div className="space-y-1">
+                        {section.items.map((item) => (
+                          <NavGroup
+                            key={`${section.key}-${item.id}`}
+                            item={item}
+                            collapsed={collapsed}
+                            pathname={location.pathname}
+                            onNavigate={onNavigate}
+                            sectionKey={section.key}
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
                   <div className="space-y-1">
+                    <div className="px-2 pt-1 pb-2">
+                      <div className="text-[10px] font-pbold tracking-wider text-gray-500 uppercase text-center">
+                        {SECTION_ABBR[section.key] || section.title.slice(0, 3).toUpperCase()}
+                      </div>
+                      <div className="mt-2 h-px bg-gray-300" />
+                    </div>
                     {section.items.map((item) => (
                       <NavGroup
                         key={`${section.key}-${item.id}`}
@@ -1203,30 +1222,9 @@ const onNavigate = (item: NavNode, sectionKey?: string) => {
                       />
                     ))}
                   </div>
-                ) : null}
-              </>
-            ) : (
-              <div className="space-y-1">
-                <div className="px-2 pt-1 pb-2">
-                  <div className="text-[10px] font-pbold tracking-wider text-gray-500 uppercase text-center">
-                    {SECTION_ABBR[section.key] || section.title.slice(0, 3).toUpperCase()}
-                  </div>
-                  <div className="mt-2 h-px bg-gray-300" />
-                </div>
-                {section.items.map((item) => (
-                  <NavGroup
-                    key={`${section.key}-${item.id}`}
-                    item={item}
-                    collapsed={collapsed}
-                    pathname={location.pathname}
-                    onNavigate={onNavigate}
-                    sectionKey={section.key}
-                  />
-                ))}
+                )}
               </div>
-            )}
-          </div>
-          ))
+            ))
         )}
 
         <div>
@@ -1285,11 +1283,9 @@ const onNavigate = (item: NavNode, sectionKey?: string) => {
             </div>
 
             <div
-              className={`grid grid-cols-1 ${
-                upgradePlanCards.length > 1 ? "md:grid-cols-2" : ""
-              } gap-4 mx-auto ${
-                upgradePlanCards.length > 1 ? "max-w-[700px]" : "max-w-[320px]"
-              }`}
+              className={`grid grid-cols-1 ${upgradePlanCards.length > 1 ? "md:grid-cols-2" : ""
+                } gap-4 mx-auto ${upgradePlanCards.length > 1 ? "max-w-[700px]" : "max-w-[320px]"
+                }`}
             >
               {upgradePlanCards.map((plan) => (
                 <div
