@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { TextField, Select, MenuItem, CircularProgress } from "@mui/material";

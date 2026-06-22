@@ -329,13 +329,20 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
       departmentsByWorkspace.set(wId, current);
     }
 
+    // Build a lookup map from Department ObjectId → name so we can resolve
+    // member.department entries even when the DB contains plain strings (e.g. "HR")
+    // instead of ObjectIds.
+    const departmentNameById = new Map<string, string>();
+    for (const dept of allDepartments) {
+      departmentNameById.set(String(dept._id), dept.name || "");
+    }
+
     const activeMemberships = await WorkspaceMember.find({
       workspace: { $in: workspaceIds },
       isActive: true,
     })
       .populate("user", "name email")
       .populate("role")
-      .populate("departments")
       .lean()
       .exec();
 
@@ -366,7 +373,10 @@ export const getWorkspaceManagementOverview = async (req, res, next) => {
           roleLabel,
           status: String(member?.status || "active"),
           departments: Array.isArray(member?.departments)
-            ? member.departments.map((d: any) => d.name || String(d))
+            ? member.departments.map((d: any) => {
+                const str = String(d?._id || d);
+                return departmentNameById.get(str) || str;
+              })
             : [],
           employeeId: "",
         };

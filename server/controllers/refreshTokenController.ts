@@ -178,36 +178,39 @@ const refreshTokenController = async (req, res, next) => {
       }
       hasCompletedWorkspaceSetupForSession = false;
     }
-    const company = await resolveCompanyForActiveWorkspace(user, activeMembership);
     if (!user) {
       return res.sendStatus(401);
     }
+
+    // Run all independent queries in parallel — previously sequential, causing
+    // 8-10 DB round-trips on every page load (PersistLogin fires this on mount).
+    const [company, workspaceCount, accessibleWorkspaces, tenantEmp] = await Promise.all([
+      resolveCompanyForActiveWorkspace(user, activeMembership),
+      WorkspaceMember.countDocuments({ user: user._id, isActive: true }),
+      getAccessibleWorkspaces(user._id),
+      user?.email
+        ? TenantEmployee.findOne({ email: normalizeInviteEmail(user.email), status: "Active" }).lean().exec()
+        : Promise.resolve(null),
+    ]);
+
     // Check if user is a tenant employee
     let tenantRole = null;
     let tenantCompanyId = null;
     let tenantCompanyName = null;
     let tenantLastLoginAt = null;
-    if (user?.email) {
-      const emp = await TenantEmployee.findOne({
-        email: normalizeInviteEmail(user.email),
-        status: "Active",
-      }).exec();
-      if (emp) {
-        const tenantCompany = await TenantCompany.findById(emp.tenantCompanyId).lean().exec();
-        if (tenantCompany) {
-          tenantRole = emp.tenantRole || (emp.role === "Manager" ? "tenant-manager" : "tenant-employee");
-          tenantCompanyId = String(tenantCompany._id);
-          tenantCompanyName = tenantCompany.companyName || "";
-          tenantLastLoginAt = emp.lastLoginAt || null;
-        }
+    let tenantWorkspaceId = null;
+    if (tenantEmp) {
+      const tenantCompany = await TenantCompany.findById(tenantEmp.tenantCompanyId).lean().exec();
+      if (tenantCompany) {
+        tenantRole = tenantEmp.tenantRole || (tenantEmp.role === "Manager" ? "tenant-manager" : "tenant-employee");
+        tenantCompanyId = String(tenantCompany._id);
+        tenantCompanyName = tenantCompany.companyName || "";
+        tenantWorkspaceId = String(tenantCompany.workspaceId || "");
+        tenantLastLoginAt = tenantEmp.lastLoginAt || null;
       }
     }
-    const workspaceCount = await WorkspaceMember.countDocuments({
-      user: user._id,
-      isActive: true,
-    });
+
     const workspaceMembership = activeMembership;
-    const accessibleWorkspaces = await getAccessibleWorkspaces(user._id);
     jwt.verify(
       refreshToken,
       process.env.REFRESH_TOKEN_SECRET,
@@ -232,6 +235,7 @@ const refreshTokenController = async (req, res, next) => {
               accessibleWorkspaces,
               hasCompletedWorkspaceSetupForSession,
             ),
+            primaryWorkspace: tenantWorkspaceId || user?.primaryWorkspace || null,
             tenantRole,
             tenantCompanyId,
             tenantCompanyName,

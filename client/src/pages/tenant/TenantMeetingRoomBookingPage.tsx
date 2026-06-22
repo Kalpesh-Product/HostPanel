@@ -3,12 +3,11 @@ import PageFrame from '@/components/Pages/PageFrame';
 import {
   Calendar, Clock, MapPin, Search, Users, Building2, X, CheckCircle2, AlertCircle, Plus, Presentation, Monitor,
 } from 'lucide-react';
-// import { toast } from 'sonner';
 import { CardsGridSkeleton } from '@/components/ui/Skeleton';
 import { formatTime12h } from '@/utils/time';
 import { getStoredTenantCompanyId, getStoredTenantCompanyName, getStoredUser } from '@/lib/auth-session';
 import { getMeetingRoomBookings, createMeetingRoomBooking } from '@/services/meeting-room-bookings';
-import { getTenantCompanies } from '@/services/tenant-companies';
+import { getMyTenantCompany } from '@/services/tenant-companies';
 import { getResources } from '@/services/resources';
 
 const ROOM_TYPE_OPTIONS = ['All', 'Meeting Room', 'Conference Room'];
@@ -207,6 +206,20 @@ function formatTimeOptionLabel(value: string): string {
   return formatTime12h(value) || value;
 }
 
+function formatDateLabel(value: string): string {
+  if (!value) return 'N/A';
+  const d = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(d);
+}
+
+function formatBookingWindow(booking: Record<string, any>): string {
+  const dl = formatDateLabel(booking?.date);
+  const st = booking?.checkIn || booking?.startTime || '';
+  const et = booking?.checkOut || booking?.endTime || '';
+  return `${dl} ${st}${et ? ` - ${et}` : ''}`;
+}
+
 interface RoomGroup {
   floor: string;
   wing: string;
@@ -237,8 +250,8 @@ interface InviteeOption {
 export default function TenantMeetingRoomBookingPage() {
   const currentUser = getStoredUser() || {};
   const tenantCompanyName = currentUser?.tenantCompanyName || currentUser?.workspaceMembership?.tenantCompanyName || getStoredTenantCompanyName() || 'Tenant Workspace';
+  const workspaceId = currentUser?.primaryWorkspace || '';
   const tenantCompanyId = String(currentUser?.tenantCompanyId || currentUser?.workspaceMembership?.tenantCompanyId || getStoredTenantCompanyId() || '').trim();
-  const currentUserId = String(currentUser?.id || currentUser?._id || currentUser?.userId || '').trim();
   const currentUserName = currentUser?.fullName || currentUser?.name || 'Tenant User';
 
   const [isLoading, setIsLoading] = useState(true);
@@ -271,11 +284,10 @@ export default function TenantMeetingRoomBookingPage() {
       try {
         const [resourcesResponse, bookingsResponse] = await Promise.all([
           getResources(),
-          // getMeetingRoomBookings expects a query string parameter
-          getMeetingRoomBookings('page=1&limit=100'),
+          workspaceId ? getMeetingRoomBookings(workspaceId) : Promise.resolve({ bookings: [] }),
         ]);
         if (!isMounted) return;
-        const resourceRooms = Array.isArray(resourcesResponse?.data?.resources) ? resourcesResponse.data.resources : [];
+        const resourceRooms = Array.isArray(resourcesResponse?.data?.data?.resources) ? resourcesResponse.data.data.resources : [];
         const normalized = resourceRooms
           .map(normalizeResourceRoom)
           .filter(Boolean)
@@ -286,7 +298,7 @@ export default function TenantMeetingRoomBookingPage() {
             return true;
           }) as NormalizedRoom[];
         setRooms(normalized);
-        setBookings(Array.isArray(bookingsResponse?.data?.bookings) ? bookingsResponse.data.bookings : []);
+        setBookings(Array.isArray(bookingsResponse?.bookings) ? bookingsResponse.bookings : []);
         setErrorMessage('');
       } catch (error: any) {
         if (isMounted) setErrorMessage(error.message || 'Unable to load meeting rooms right now.');
@@ -297,8 +309,7 @@ export default function TenantMeetingRoomBookingPage() {
 
     loadRooms();
 
-    const refreshTimer = window.setInterval(() => { /* refresh stub */ }, 30000);
-    return () => { isMounted = false; window.clearInterval(refreshTimer); };
+    return () => { isMounted = false; };
   }, [tenantCompanyId]);
 
   const currentCompany = useMemo(() => {
@@ -327,11 +338,22 @@ export default function TenantMeetingRoomBookingPage() {
       }
 
       try {
-        const response = await getTenantCompanies();
+        const response = await getMyTenantCompany();
         if (!isMounted) return;
-        const tenants = Array.isArray(response?.data?.tenants) ? response.data.tenants : [];
-        setTenantCompanies(tenants);
-        // Employee extraction from tenant data not yet implemented
+        const company = response?.data?.tenant || null;
+        setTenantCompanies(company ? [company] : []);
+        const employees = Array.isArray(company?.employees) ? company.employees : [];
+        const currentUserEmail = (currentUser?.email || '').toLowerCase().trim();
+        const mapped: InviteeOption[] = employees
+          .filter((emp: Record<string, any>) => emp.status === 'Active' && emp.userId && (emp.email || '').toLowerCase().trim() !== currentUserEmail)
+          .map((emp: Record<string, any>) => ({
+            userId: String(emp.userId),
+            fullName: emp.name || 'Unknown',
+            role: emp.tenantRole || emp.role || 'Employee',
+            designation: emp.designation || '',
+            status: emp.status || 'Active',
+          }));
+        if (isMounted) setInviteeOptions(mapped);
       } catch {
         if (isMounted) setInviteeOptions([]);
       } finally {
@@ -341,7 +363,7 @@ export default function TenantMeetingRoomBookingPage() {
 
     loadInviteeOptions();
     return () => { isMounted = false; };
-  }, [currentUserId, tenantCompanyId]);
+  }, [currentUser?.email, tenantCompanyId]);
 
   const availableFloors = useMemo(
     () => Array.from(new Set(rooms.map((room) => room.floor))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
@@ -538,33 +560,27 @@ export default function TenantMeetingRoomBookingPage() {
     setErrorMessage('');
 
     try {
-      // ─── Backend call (uncomment when backend ready) ───
-      // await createMeetingRoomBooking({
-      //   roomName: selectedRoom.name,
-      //   date: bookingForm.date,
-      //   startTime: bookingForm.startTime,
-      //   endTime: bookingForm.endTime,
-      //   purpose: bookingForm.purpose.trim(),
-      //   attendees: Number(bookingForm.attendees || 1),
-      //   inviteeUserIds: selectedInviteeIds,
-      //   bookingType: 'Tenant',
-      //   bookingSource: 'Tenant Portal',
-      //   bookedByName: currentUserName,
-      //   bookedByEmail: currentUser?.email || '',
-      //   bookedByPhone: currentUser?.phone || currentUser?.mobile || '',
-      //   clientCompany: tenantCompanyName,
-      //   sourceReference: `tenant-room-booking:${tenantCompanyId || tenantCompanyName}`,
-      //   bookingNotes: `Floor ${selectedRoom.floor} Wing ${selectedRoom.wing}`,
-      // });
-      // toast.success(`${selectedRoom.name} booked successfully.`);
-
-      // ⚠️ Placeholder
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await createMeetingRoomBooking({
+        roomId: selectedRoom.recordId,
+        start: `${bookingForm.date}T${bookingForm.startTime}:00`,
+        end: `${bookingForm.date}T${bookingForm.endTime}:00`,
+        purpose: bookingForm.purpose.trim(),
+        attendees: Number(bookingForm.attendees || 1),
+        inviteeUserIds: selectedInviteeIds,
+        bookingType: 'Tenant',
+        bookedByName: currentUserName,
+        bookedByEmail: currentUser?.email || '',
+        bookingNotes: `Floor ${selectedRoom.floor} Wing ${selectedRoom.wing}`,
+      });
 
       handleCloseBooking();
+      if (workspaceId) {
+        getMeetingRoomBookings(workspaceId).then((res) => {
+          setBookings(Array.isArray(res?.bookings) ? res.bookings : []);
+        }).catch(() => {});
+      }
     } catch (error: any) {
       setErrorMessage(error.message || 'Unable to create booking.');
-      // toast.error(error.message || 'Unable to create booking.');
     } finally {
       setIsSubmitting(false);
     }
@@ -587,16 +603,6 @@ export default function TenantMeetingRoomBookingPage() {
           </p>
         </div>
 
-        {/* <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <Building2 size={22} />
-          </div>
-          <div>
-            <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400">Company</p>
-            <p className="text-sm font-pbold text-slate-900">{tenantCompanyName}</p>
-            <p className="text-xs font-pmedium text-slate-500">{summary.total} available rooms</p>
-          </div>
-        </div> */}
       </div>
 
       {errorMessage && (
@@ -740,7 +746,7 @@ export default function TenantMeetingRoomBookingPage() {
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Invite Slots</p>
-                  <p className="text-base font-pbold text-emerald-600 flex items-center gap-1.5"><CheckCircle2 size={14} /> {inviteeLimit} {inviteeLimit === 1 ? '' : 'Slots'}</p>
+                  <p className="text-base font-pbold text-emerald-600 flex items-center gap-1.5"><CheckCircle2 size={14} /> {Math.max(0, inviteeLimit - selectedInviteeCount)} / {inviteeLimit} left</p>
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                   <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Remaining Credits</p>
@@ -751,19 +757,6 @@ export default function TenantMeetingRoomBookingPage() {
                   <p className="text-base font-pbold text-slate-900 flex items-center gap-1.5"><Clock size={14} className="text-indigo-600" />{selectedRoomCreditEstimate.toFixed(2)} CR</p>
                 </div>
               </div>
-
-              {/* <div className="rounded-2xl border border-indigo-100 bg-indigo-50/80 p-3.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-indigo-500">Company Credit Balance</p>
-                    <p className="mt-0.5 text-xs font-pmedium text-indigo-950">Bookings deduct from allocated company credits. Cancellations refund the same amount.</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-indigo-400">Remaining</p>
-                    <p className="text-base font-pbold text-indigo-700">{companyCreditsRemaining.toFixed(2)} CR</p>
-                  </div>
-                </div>
-              </div> */}
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
@@ -827,7 +820,6 @@ export default function TenantMeetingRoomBookingPage() {
                       onChange={(e) => setBookingForm((prev) => ({ ...prev, attendees: e.target.value === '' ? ('' as any) : Number(e.target.value) }))}
                       className="w-full pl-11 pr-4 py-3 bg-slate-50 border-2 border-transparent rounded-xl font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] outline-none transition-all" />
                   </div>
-                  {/* <p className="px-1 text-[11px] font-semibold text-slate-500">Host counts as one seat. Invitees must fit within room capacity.</p> */}
                 </div>
               </div>
 

@@ -1,9 +1,11 @@
 // @ts-nocheck
 import { Request, Response, NextFunction } from "express";
+import HostUser from "../models/HostUser.js";
 import {
   listTenantCompaniesForCurrentUser,
   getTenantCompanySectorsForCurrentUser,
   getTenantCompanyForCurrentUser,
+  getMyTenantCompanyForCurrentUser,
   createTenantCompanyForCurrentUser,
   updateTenantCompanyForCurrentUser,
   renewTenantCompanyForCurrentUser,
@@ -46,6 +48,18 @@ export const getTenantCompany = async (req: Request, res: Response, next: NextFu
   try {
     const userId = req.user?.id || req.user?._id || req.user;
     const result = await getTenantCompanyForCurrentUser(userId, req.params.id);
+    return res.status(200).json(result);
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+export const getMyTenantCompany = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.id || req.user?._id || req.user;
+    const user = await HostUser.findById(userId).lean().exec();
+    const email = String(user?.email || "").trim().toLowerCase();
+    const result = await getMyTenantCompanyForCurrentUser(userId, email);
     return res.status(200).json(result);
   } catch (error: any) {
     next(error);
@@ -194,7 +208,6 @@ export const updateTenantCompanyCreditRequest = async (req: Request, res: Respon
   }
 };
 
-
 export const confirmTenantCreditRequestPayment = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id || req.user?._id || req.user;
@@ -218,4 +231,4 @@ export const getPendingPaymentVerifications = async (req: Request, res: Response
   } catch (error: any) {
     next(error);
   }
-};
+};

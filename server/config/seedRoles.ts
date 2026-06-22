@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { Role } from "../models/Role.js";
+import Department from "../models/Department.js";
 
 const dropLegacyIndexes = async () => {
   try {
@@ -68,10 +69,76 @@ export const migrateLegacyStringRoles = async () => {
   }
 };
 
+/**
+ * Finds WorkspaceMember documents where the `departments` array still contains
+ * legacy plain-string values (e.g. "HR") instead of Department ObjectIds. Such
+ * values cause `.populate("departments")` to throw a CastError:
+ *   Cast to ObjectId failed for value "HR" at path "_id" for model "Department".
+ *
+ * For each string value it tries to resolve a matching Department by name within
+ * the member's workspace and replaces it with the ObjectId. Unresolvable strings
+ * are dropped so the array only ever holds valid ObjectIds. Safe to run repeatedly.
+ */
+export const migrateLegacyStringDepartments = async () => {
+  try {
+    const col = mongoose.connection.collection("workspacemembers");
+    // Matches documents whose departments array contains at least one string element.
+    const legacyDocs = await col.find({ departments: { $type: "string" } }).toArray();
+
+    if (legacyDocs.length === 0) return;
+
+    console.log(
+      `Migrating ${legacyDocs.length} WorkspaceMember(s) with legacy string departments…`,
+    );
+
+    for (const doc of legacyDocs) {
+      const rawDepartments = Array.isArray(doc.departments) ? doc.departments : [];
+      const cleaned = [];
+
+      for (const value of rawDepartments) {
+        if (value instanceof mongoose.Types.ObjectId) {
+          cleaned.push(value);
+          continue;
+        }
+        if (mongoose.isValidObjectId(value)) {
+          cleaned.push(new mongoose.Types.ObjectId(String(value)));
+          continue;
+        }
+
+        // Legacy string like "HR" — resolve to a Department by name in this workspace.
+        const name = String(value || "").trim();
+        if (!name) continue;
+        const dept = await Department.findOne({
+          name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+          ...(doc.workspace ? { workspaceId: doc.workspace } : {}),
+        })
+          .lean()
+          .exec();
+        if (dept?._id) {
+          cleaned.push(dept._id);
+        }
+        // Unresolvable strings are intentionally dropped.
+      }
+
+      // De-duplicate by string id.
+      const uniqueIds = Array.from(new Set(cleaned.map((id) => String(id)))).map(
+        (id) => new mongoose.Types.ObjectId(id),
+      );
+
+      await col.updateOne({ _id: doc._id }, { $set: { departments: uniqueIds } });
+    }
+
+    console.log(
+      `Legacy string department migration complete. Fixed ${legacyDocs.length} member(s).`,
+    );
+  } catch (error) {
+    console.error("Error migrating legacy string departments:", error);
+  }
+};
+
 export const seedSystemRoles = async () => {
   try {
     await dropLegacyIndexes();
-
     const defaultRoles = [
       { name: "founder", isSystemRole: true, workspaceId: null, permissions: ["*"] },
       { name: "super_admin", isSystemRole: true, workspaceId: null, permissions: ["*"] },
@@ -90,6 +157,9 @@ export const seedSystemRoles = async () => {
 
     // Must run after roles are seeded so the ObjectIds are available
     await migrateLegacyStringRoles();
+    // Clean legacy string values out of WorkspaceMember.departments so that
+    // .populate("departments") no longer throws CastError on values like "HR".
+    await migrateLegacyStringDepartments();
   } catch (error) {
     console.error("Error seeding system roles:", error);
   }

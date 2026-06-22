@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createBrowserRouter, Navigate, Outlet, useLocation } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import AuthLayout from "../layouts/AuthLayout";
@@ -145,6 +144,7 @@ import UnitSettingsPage from "../pages/UnitSettings/UnitSettingsPage";
 import UnitManagementPage from "../pages/UnitSettings/UnitManagementPage";
 import CustomerSupportPage from "../pages/CustomerSupport/CustomerSupportPage";
 import TenantCompaniesPage from "../pages/Sales/TenantCompanies/TenantCompaniesPage";
+import TenantCompanyDetailPage from "../pages/Sales/TenantCompanies/TenantCompanyDetailPage";
 import ResourcePricingPage from "../pages/Sales/ResourcePricing/Resource&Pricing";
 import LeadsManagementPage from "../pages/Sales/LeadsManagement/LeadsManagementPage";
 import SalesArchitecturePage from "../pages/Sales/SalesArchitecture/SalesArchitecturePage";
@@ -584,7 +584,7 @@ export const routes = createBrowserRouter([
                   },
                   {
                     path: "change-password",
-                    element: <ChangePassword />,
+                    element: <ChangePassword pageTitle="Change Password" />,
                   },
                   // {
                   //   path: "permissions",
@@ -947,6 +947,10 @@ export const routes = createBrowserRouter([
                   {
                     path: "tenant-companies",
                     element: <TenantCompaniesPage />,
+                  },
+                  {
+                    path: "tenant-companies/:id",
+                    element: <TenantCompanyDetailPage />,
                   },
                   {
                     path: "resource-pricing",

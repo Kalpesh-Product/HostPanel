@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useMemo, useState } from 'react';
 import { City, Country, State } from 'country-state-city';
 import useAuth from '../../hooks/useAuth';

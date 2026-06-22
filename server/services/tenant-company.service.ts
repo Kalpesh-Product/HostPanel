@@ -155,7 +155,10 @@ async function resolveWorkspaceAccess(userId) {
   let departmentNames = [];
   let departmentModuleIds = [];
   if (departmentIds.length > 0) {
-    const depts = await Department.find({ _id: { $in: departmentIds } }).select("name moduleIds").lean();
+    const validDeptIds = departmentIds.filter((id) => mongoose.isValidObjectId(id));
+    const depts = validDeptIds.length > 0
+      ? await Department.find({ _id: { $in: validDeptIds } }).select("name moduleIds").lean()
+      : [];
     departmentNames = depts.map((d) => normalizeText(d.name).toLowerCase());
     departmentModuleIds = depts.flatMap((d) => (d.moduleIds || []).map((m) => normalizeText(m).toLowerCase()));
   }
@@ -490,6 +493,27 @@ export async function getTenantCompanyForCurrentUser(userId, tenantCompanyId) {
   const access = await resolveWorkspaceAccess(userId);
   const company = await TenantCompany.findById(tenantCompanyId).lean();
   ensureTenantCompanyExists(company, access.workspaceId);
+  return { tenant: await formatTenantCompany(company) };
+}
+
+export async function getMyTenantCompanyForCurrentUser(userId, userEmail) {
+  if (!userEmail) {
+    const err = new Error("User email is required.");
+    err.statusCode = 400;
+    throw err;
+  }
+  const emp = await TenantEmployee.findOne({ email: userEmail, status: "Active" }).lean().exec();
+  if (!emp) {
+    const err = new Error("Tenant employee record not found.");
+    err.statusCode = 404;
+    throw err;
+  }
+  const company = await TenantCompany.findById(emp.tenantCompanyId).lean().exec();
+  if (!company) {
+    const err = new Error("Tenant company not found.");
+    err.statusCode = 404;
+    throw err;
+  }
   return { tenant: await formatTenantCompany(company) };
 }
 

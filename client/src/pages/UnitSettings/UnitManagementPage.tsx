@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -30,6 +29,38 @@ import {
   updateManagedWorkspace,
 } from "../../services/unit-management";
 import PageFrame from "../../components/Pages/PageFrame";
+
+// Type definitions
+interface Workspace {
+  id: string;
+  workspaceName: string;
+  [key: string]: any;
+}
+
+interface Department {
+  name: string;
+  [key: string]: any;
+}
+
+interface Summary {
+  totalEmployees: number;
+  totalDepartments: number;
+  totalTickets: number;
+  totalTasks: number;
+  totalAssets: number;
+  totalInventory: number;
+  totalMeetingBookings: number;
+  performance: {
+    overallScore: number;
+  };
+}
+
+interface Overview {
+  workspaces?: Workspace[];
+  departments?: string[] | Department[];
+  summary?: Summary;
+  [key: string]: any;
+}
 
 const getStoredUser = () => {
   try {
@@ -422,11 +453,11 @@ export default function WorkspaceManagementPage() {
   const isWorkspaceManagementLocked = !(workspaceCount > 1);
   const [departmentFilter, setDepartmentFilter] = useState("All departments");
   const [workspaceFilter, setWorkspaceFilter] = useState("all");
-  const [overview, setOverview] = useState(null);
+  const [overview, setOverview] = useState<Overview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTabs, setActiveTabs] = useState({});
   const [expandedWorkspaceId, setExpandedWorkspaceId] = useState("");
-  const [editingWorkspace, setEditingWorkspace] = useState(null);
+  const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
   const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isCombinedModalOpen, setIsCombinedModalOpen] = useState(false);
@@ -454,9 +485,10 @@ export default function WorkspaceManagementPage() {
         if (isMounted) {
           setOverview(response?.data?.data || null);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         if (isMounted) {
-          toast.error(error.message || "Unable to load unit management.");
+          const errorMessage = error instanceof Error ? error.message : "Unable to load unit management.";
+          toast.error(errorMessage);
         }
       } finally {
         if (isMounted) {
@@ -498,27 +530,32 @@ export default function WorkspaceManagementPage() {
   };
 
   const combinedData = useMemo(() => {
-    const byStatus = (entries = []) => {
-      const counts = new Map();
-      entries.forEach((entry) => {
+    interface StatusEntry {
+      status?: string;
+      count?: number;
+    }
+    
+    const byStatus = (entries: any[] = []): Array<{ status: string; count: number }> => {
+      const counts = new Map<string, number>();
+      entries.forEach((entry: StatusEntry) => {
         const key = String(entry?.status || "").trim() || "Unknown";
         counts.set(key, (counts.get(key) || 0) + Number(entry?.count || 0));
       });
       return Array.from(counts.entries()).map(([status, count]) => ({ status, count })).sort((a, b) => b.count - a.count);
     };
 
-    const normalizeRecentWithWorkspace = (detailsKey, mapper) => (
+    const normalizeRecentWithWorkspace = (detailsKey: string, mapper: (item: any, workspace: Workspace) => any) => (
       workspaceList.flatMap((workspace) =>
-        (workspace?.details?.[detailsKey]?.recent || []).map((item) => mapper(item, workspace)),
+        (workspace?.details?.[detailsKey]?.recent || []).map((item: any) => mapper(item, workspace)),
       ).slice(0, COMBINED_RECENT_LIMIT)
     );
 
-    const taskByStatusEntries = workspaceList.flatMap((workspace) => workspace?.details?.tasks?.byStatus || []);
-    const ticketByStatusEntries = workspaceList.flatMap((workspace) => workspace?.details?.tickets?.byStatus || []);
-    const assetByStatusEntries = workspaceList.flatMap((workspace) => workspace?.details?.assets?.byStatus || []);
-    const bookingByStatusEntries = workspaceList.flatMap((workspace) => workspace?.details?.bookings?.byStatus || []);
-    const inventoryByCategoryEntries = workspaceList.flatMap((workspace) => workspace?.details?.inventory?.byCategory || []);
-    const inventoryByTrackingEntries = workspaceList.flatMap((workspace) => workspace?.details?.inventory?.byTrackingType || []);
+    const taskByStatusEntries: any[] = workspaceList.flatMap((workspace) => workspace?.details?.tasks?.byStatus || []);
+    const ticketByStatusEntries: any[] = workspaceList.flatMap((workspace) => workspace?.details?.tickets?.byStatus || []);
+    const assetByStatusEntries: any[] = workspaceList.flatMap((workspace) => workspace?.details?.assets?.byStatus || []);
+    const bookingByStatusEntries: any[] = workspaceList.flatMap((workspace) => workspace?.details?.bookings?.byStatus || []);
+    const inventoryByCategoryEntries: any[] = workspaceList.flatMap((workspace) => workspace?.details?.inventory?.byCategory || []);
+    const inventoryByTrackingEntries: any[] = workspaceList.flatMap((workspace) => workspace?.details?.inventory?.byTrackingType || []);
 
     return {
       tasks: {
@@ -618,8 +655,9 @@ export default function WorkspaceManagementPage() {
       setEditingWorkspace(null);
       setEditForm(EMPTY_EDIT_FORM);
       toast.success("Unit updated successfully.");
-    } catch (error) {
-      toast.error(error.message || "Unable to update unit.");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Unable to update unit.";
+      toast.error(errorMessage);
     } finally {
       setIsSavingEdit(false);
     }

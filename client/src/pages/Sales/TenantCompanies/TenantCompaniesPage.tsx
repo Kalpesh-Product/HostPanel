@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
@@ -1611,6 +1610,13 @@ export default function TenantCompaniesPage() {
         || Math.round((monthlyRent * durationMonths) * 0.1),
     );
 
+    const creditsAllocated = toNumber(
+      tenantForDisplay.packageDetails?.monthlyTotalCredits || tenantForDisplay.creditsAllocated || tenantForDisplay.creditsTotal || 0,
+    );
+    const purchasedCredits = toNumber(tenantForDisplay.addOnCredits?.purchasedCredits || 0);
+    const creditsUsed = toNumber(tenantForDisplay.creditsUsed || 0);
+    const creditsRemaining = Math.max(0, creditsAllocated + purchasedCredits - creditsUsed);
+
     return {
       openDeskCount,
       cabinDeskCount,
@@ -1622,6 +1628,10 @@ export default function TenantCompaniesPage() {
       securityDepositAmount,
       annualIncrement,
       durationMonths,
+      credits: creditsAllocated,
+      purchasedCredits,
+      creditsUsed,
+      creditsRemaining,
     };
   }, [selectedTenantView, selectedTenant, selectedTenantSeatLabels]);
   const billingSummary = useMemo(
@@ -2903,7 +2913,7 @@ export default function TenantCompaniesPage() {
                         {tenant.packageName || tenant.package}
                       </span>
                       <div className="flex items-center gap-1 text-[10px] font-bold text-slate-600">
-                        <CreditCard size={12} className="text-slate-400"/> {tenant.creditsRemaining} / {tenant.creditsTotal} Cr
+                        <CreditCard size={12} className="text-slate-400"/> {tenant.creditsRemaining ?? 0} / {tenant.creditsAllocated ?? 0} Cr
                       </div>
                     </td>
                     <td className="px-3.5 py-2 text-center">
@@ -2911,7 +2921,7 @@ export default function TenantCompaniesPage() {
                     </td>
                     <td className="px-3.5 py-2">
                       <div className="flex flex-wrap items-center justify-center gap-2 transition-opacity">
-                        <button onClick={() => { const hydratedTenant = buildHydratedTenantSnapshot(tenant); setCompanyForm(prepareCompanyFormForTenant(hydratedTenant)); setSelectedTenant(hydratedTenant); setActiveModal('view'); setAgreementFiles([]); }} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm" title="View Profile">
+                        <button onClick={() => navigate(`/sales-crm/tenant-companies/${tenant.recordId || tenant.id}`)} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm" title="View Profile">
                             <Eye size={14}/>
                           </button>
                           <button onClick={() => { 
@@ -4154,7 +4164,7 @@ export default function TenantCompaniesPage() {
           </div>
         )}
 
-        {activeModal === 'view' && selectedTenant && (
+        {/* VIEW MODAL — disabled; detail page used instead
           <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#0F172A]/40 backdrop-blur-sm">
             <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-white/70">
               
@@ -4242,7 +4252,7 @@ export default function TenantCompaniesPage() {
                       </div>
                       <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
                         <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-slate-500">Credits Remaining</p>
-                        <p className="text-base font-black text-slate-900">{Math.max(0, Number((selectedTenant.packageDetails?.monthlyTotalCredits ?? selectedTenant.creditsTotal ?? 0) || 0) - Number(selectedTenantBillingDisplay.creditsUsed ?? 0))}</p>
+                        <p className="text-base font-black text-slate-900">{formatInteger(selectedTenantBillingDisplay.creditsRemaining ?? 0)}</p>
                       </div>
                       <div className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
                         <p className="mb-0.5 text-[9px] font-black uppercase tracking-widest text-slate-400">Assigned Area</p>
@@ -4469,7 +4479,7 @@ export default function TenantCompaniesPage() {
                       <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-[9px] font-black uppercase text-slate-500">Base Allocated</p><p className="text-base font-black text-slate-900">{selectedTenant.packageDetails?.monthlyTotalCredits ?? selectedTenant.creditsTotal ?? selectedTenantBillingDisplay.credits ?? 0}</p></div>
                       <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-[9px] font-black uppercase text-violet-500">Purchased Add-ons</p><p className="text-base font-black text-violet-600">+{selectedTenantBillingDisplay.purchasedCredits ?? 0}</p></div>
                       <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-[9px] font-black uppercase text-blue-500">Credits Used</p><p className="text-base font-black text-blue-600">{selectedTenantBillingDisplay.creditsUsed ?? 0}</p></div>
-                      <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-[9px] font-black uppercase text-green-500">Remaining Balance</p><p className="text-base font-black text-green-600">{Math.max(0, Number((selectedTenant.packageDetails?.monthlyTotalCredits ?? selectedTenant.creditsTotal ?? 0) || 0) - Number(selectedTenantBillingDisplay.creditsUsed ?? 0))}</p></div>
+                      <div className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-[9px] font-black uppercase text-green-500">Remaining Balance</p><p className="text-base font-black text-green-600">{formatInteger(Math.max(0, (selectedTenantBillingDisplay.credits ?? 0) + (selectedTenantBillingDisplay.purchasedCredits ?? 0) - (selectedTenantBillingDisplay.creditsUsed ?? 0)))}</p></div>
                     </div>
 
                     {Array.isArray(selectedTenant.creditHistory) && selectedTenant.creditHistory.length > 0 && (
@@ -4524,7 +4534,7 @@ export default function TenantCompaniesPage() {
                                   <span className={`inline-flex rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-widest ${history.status === 'Active' || history.status === 'Completed' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : history.status === 'Cancelled' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>{history.status || 'Booked'}</span>
                                 </td>
                                 <td className={`px-3 py-2 text-right text-xs font-black ${Number(history.credited || 0) > 0 ? 'text-emerald-600' : 'text-red-500'}`}>{Number(history.credited || 0) > 0 ? `+${history.credited}` : history.credited || history.debited || 0}</td>
-                                <td className="px-3 py-2 text-right text-xs font-black text-emerald-600">{history.remainingCredits ?? Math.max(0, Number(selectedTenant.packageDetails?.monthlyTotalCredits || selectedTenant.creditsTotal || 0) - Number(selectedTenantBillingDisplay.creditsUsed || 0))}</td>
+                                <td className="px-3 py-2 text-right text-xs font-black text-emerald-600">{formatInteger(history.remainingCredits ?? selectedTenantBillingDisplay.creditsRemaining ?? 0)}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -4737,7 +4747,7 @@ export default function TenantCompaniesPage() {
               )}
             </div>
           </div>
-        )}
+        */}
         </PageFrame>
       </div>
     </>

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   AlertTriangle, ArrowRight, Building2, CheckCircle2,
@@ -257,6 +256,8 @@ export default function SalesArchitecturePage() {
   const [assignMode, setAssignMode] = useState("tenant");
   const [viewTenantId, setViewTenantId] = useState("");
   const [spaceFilter, setSpaceFilter] = useState("all"); // all | available | tenant | department | maintenance
+  const [isDeptAssignModalOpen, setIsDeptAssignModalOpen] = useState(false);
+  const [deptAssignSelectedId, setDeptAssignSelectedId] = useState("");
 
   const scopedCompanyId = searchParams.get("tenantCompanyId") || searchParams.get("companyId") || "";
   const scopedFloor = searchParams.get("floor") || "";
@@ -303,9 +304,18 @@ export default function SalesArchitecturePage() {
           ...(Array.isArray(storedUser?.workspace?.departments) ? storedUser.workspace.departments : []),
         ]);
         
-        // Fallback if absolutely empty so the user can still assign spaces
+        // Fallback: surface default departments so the user can always assign spaces
+        // (these mirror the server's DEFAULT_DEPARTMENTS in organizationControllers)
         if (nextDepartments.length === 0) {
-          nextDepartments.push({ id: "General", name: "General", isActive: true });
+          nextDepartments.push(
+            { id: "HR", name: "HR", description: "People operations and hiring", isActive: true },
+            { id: "Administration", name: "Administration", description: "Admin and facility operations", isActive: true },
+            { id: "Sales", name: "Sales", description: "Revenue and customer growth", isActive: true },
+            { id: "Finance", name: "Finance", description: "Finance and compliance", isActive: true },
+            { id: "Maintenance", name: "Maintenance", description: "Maintenance and operations", isActive: true },
+            { id: "Technology", name: "Technology", description: "Technology and product", isActive: true },
+            { id: "IT", name: "IT", description: "Information technology and support", isActive: true },
+          );
         }
         
         setResources(nextResources);
@@ -542,6 +552,8 @@ export default function SalesArchitecturePage() {
   const toggleResource = (r) => {
     if (r.status !== "Active") return;
     if (packageLockedIds.has(String(r.recordId || r.id))) return;
+    // Prevent selecting already-assigned spaces (tenant or department)
+    if (r.assignmentLabel) return;
     const id = String(r.recordId || r.id);
     setSelectedIds((cur) => {
       const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
@@ -600,6 +612,58 @@ export default function SalesArchitecturePage() {
     </div>
   );
 
+  // Shared filter bar — consistent across all tabs
+  const renderFilterBar = (showStatusPills = false) => (
+    <div className="px-3 sm:px-4 lg:px-5 py-2 border-b border-slate-100/40 bg-white flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+        <Building2 size={13} className="text-blue-600" />
+        <select value={selectedBuilding} onChange={(e) => { setSelectedBuilding(e.target.value); setSelectedWing("All"); clearSelection(); }}
+          className="bg-transparent text-[12px] font-bold text-slate-900 outline-none cursor-pointer"
+        >{availableBuildings.map((b) => <option key={b} value={b}>{b}</option>)}</select>
+      </div>
+      <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+        <LayoutGrid size={13} className="text-blue-600" />
+        <select value={selectedFloor} onChange={(e) => selectFloor(e.target.value)}
+          className="bg-transparent text-[12px] font-bold text-slate-900 outline-none cursor-pointer"
+        >
+          <option value="All">All Floors</option>
+          {floorCards.map((f) => <option key={f.floor} value={f.floor}>Floor {f.floor} ({f.open} open)</option>)}
+        </select>
+      </div>
+      <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+        <Filter size={13} className="text-blue-600" />
+        <select value={selectedWing} onChange={(e) => setSelectedWing(e.target.value)}
+          className="bg-transparent text-[12px] font-bold text-slate-900 outline-none cursor-pointer"
+        >
+          <option value="All">All Wings</option>
+          {wings.map((w) => <option key={w} value={w}>Wing {w}</option>)}
+        </select>
+      </div>
+
+      {showStatusPills && (
+        <div className="flex items-center gap-1.5 ml-auto flex-wrap">
+          {[
+            { key: "all",         label: "All",         dot: "bg-slate-400",   active: "bg-slate-800 text-white border-slate-800",   idle: "bg-white text-slate-600 border-slate-200 hover:border-slate-400" },
+            { key: "available",   label: "Available",   dot: "bg-emerald-400", active: "bg-emerald-500 text-white border-emerald-500", idle: "bg-white text-emerald-700 border-emerald-200 hover:border-emerald-400" },
+            { key: "tenant",      label: "Tenant",      dot: "bg-indigo-400",  active: "bg-indigo-600 text-white border-indigo-600",  idle: "bg-white text-indigo-700 border-indigo-200 hover:border-indigo-400" },
+            { key: "department",  label: "Department",  dot: "bg-amber-400",   active: "bg-amber-500 text-white border-amber-500",    idle: "bg-white text-amber-700 border-amber-200 hover:border-amber-400" },
+            { key: "booking",     label: "Booking",     dot: "bg-fuchsia-400", active: "bg-fuchsia-600 text-white border-fuchsia-600", idle: "bg-white text-fuchsia-700 border-fuchsia-200 hover:border-fuchsia-400" },
+            { key: "maintenance", label: "Maintenance", dot: "bg-slate-300",   active: "bg-slate-500 text-white border-slate-500",    idle: "bg-white text-slate-500 border-slate-200 hover:border-slate-400" },
+          ].map(({ key, label, dot, active, idle }) => (
+            <button key={key} type="button" onClick={() => setSpaceFilter(key)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-bold uppercase tracking-wider transition-all ${
+                spaceFilter === key ? active : idle
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full shrink-0 ${spaceFilter === key ? "bg-white/70" : dot}`} />
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   const renderArchitecture = () => (
     <>
       {error && (
@@ -614,53 +678,7 @@ export default function SalesArchitecturePage() {
         </div>
       )}
 
-      <div className="px-3 sm:px-4 lg:px-5 py-2 border-b border-slate-100/40 bg-white flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
-          <Building2 size={13} className="text-blue-600" />
-          <select value={selectedBuilding} onChange={(e) => { setSelectedBuilding(e.target.value); setSelectedWing("All"); clearSelection(); }}
-            className="bg-transparent text-[12px] font-bold text-slate-900 outline-none cursor-pointer"
-          >{availableBuildings.map((b) => <option key={b} value={b}>{b}</option>)}</select>
-        </div>
-        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
-          <LayoutGrid size={13} className="text-blue-600" />
-          <select value={selectedFloor} onChange={(e) => selectFloor(e.target.value)}
-            className="bg-transparent text-[12px] font-bold text-slate-900 outline-none cursor-pointer"
-          >
-            <option value="All">All Floors</option>
-            {floorCards.map((f) => <option key={f.floor} value={f.floor}>Floor {f.floor} ({f.open} open)</option>)}
-          </select>
-        </div>
-        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
-          <Filter size={13} className="text-blue-600" />
-          <select value={selectedWing} onChange={(e) => setSelectedWing(e.target.value)}
-            className="bg-transparent text-[12px] font-bold text-slate-900 outline-none cursor-pointer"
-          >
-            <option value="All">All Wings</option>
-            {wings.map((w) => <option key={w} value={w}>Wing {w}</option>)}
-          </select>
-        </div>
-
-        {/* Status filter pills */}
-        <div className="flex items-center gap-1.5 ml-auto flex-wrap">
-            {[
-              { key: "all",         label: "All",         dot: "bg-slate-400",   active: "bg-slate-800 text-white border-slate-800",   idle: "bg-white text-slate-600 border-slate-200 hover:border-slate-400" },
-              { key: "available",   label: "Available",   dot: "bg-emerald-400", active: "bg-emerald-500 text-white border-emerald-500", idle: "bg-white text-emerald-700 border-emerald-200 hover:border-emerald-400" },
-              { key: "tenant",      label: "Tenant",      dot: "bg-indigo-400",  active: "bg-indigo-600 text-white border-indigo-600",  idle: "bg-white text-indigo-700 border-indigo-200 hover:border-indigo-400" },
-              { key: "department",  label: "Department",  dot: "bg-amber-400",   active: "bg-amber-500 text-white border-amber-500",    idle: "bg-white text-amber-700 border-amber-200 hover:border-amber-400" },
-              { key: "booking",     label: "Booking",     dot: "bg-fuchsia-400", active: "bg-fuchsia-600 text-white border-fuchsia-600", idle: "bg-white text-fuchsia-700 border-fuchsia-200 hover:border-fuchsia-400" },
-              { key: "maintenance", label: "Maintenance", dot: "bg-slate-300",   active: "bg-slate-500 text-white border-slate-500",    idle: "bg-white text-slate-500 border-slate-200 hover:border-slate-400" },
-            ].map(({ key, label, dot, active, idle }) => (
-              <button key={key} type="button" onClick={() => setSpaceFilter(key)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[9px] font-bold uppercase tracking-wider transition-all ${
-                  spaceFilter === key ? active : idle
-                }`}
-              >
-                <span className={`w-2 h-2 rounded-full shrink-0 ${spaceFilter === key ? "bg-white/70" : dot}`} />
-                {label}
-              </button>
-            ))}
-          </div>
-      </div>
+      {renderFilterBar(true)}
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 shrink-0">
         {[
@@ -695,13 +713,23 @@ export default function SalesArchitecturePage() {
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-2 w-full xl:w-auto flex-wrap sm:flex-nowrap">
             <div className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
               <input type="text" placeholder="Search space, tenant..."
                 className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                 value={query} onChange={(e) => setQuery(e.target.value)} />
             </div>
+            {assignableIds.length > 0 && (
+              <button onClick={() => { setAssignMode("tenant"); setSelectedCompanyId(""); setIsAssignModalOpen(true); }}
+                className="px-3 py-2.5 bg-[#2563EB] text-white rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-all whitespace-nowrap"
+              ><ArrowRight size={14} /> Assign</button>
+            )}
+            {selectedResources.some((r) => r.assignmentLabel && !packageLockedIds.has(String(r.recordId || r.id))) && (
+              <button onClick={releaseAssignment} disabled={saving}
+                className="px-3 py-2.5 bg-rose-600 text-white rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 shadow-sm hover:bg-rose-700 transition-all whitespace-nowrap disabled:opacity-60"
+              ><RotateCcw size={14} /> Release</button>
+            )}
           </div>
         </div>
 
@@ -805,155 +833,6 @@ export default function SalesArchitecturePage() {
         )}
       </div>
 
-      {isAssignModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-sm">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="p-5 bg-blue-600 text-white flex justify-between items-center shrink-0">
-              <div>
-                <h2 className="text-[15px] font-pmedium flex items-center gap-1.5"><Building2 size={18} /> Assign Space
-                </h2>
-                <p className="text-[10px] font-bold text-blue-200 uppercase tracking-widest mt-0.5">
-                  {assignMode === "tenant" ? "Select available spaces for this tenant" : "Select available spaces for this department"}
-                </p>
-              </div>
-              <button onClick={() => setIsAssignModalOpen(false)} className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center hover:bg-red-500 transition-all"><X size={14} /></button>
-            </div>
-            <div className="p-5 space-y-4 overflow-y-auto flex-1">
-              {/* Target Selector */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  {assignMode === "tenant" ? "Assign to Tenant Company *" : "Assign to Department *"}
-                </label>
-                {assignMode === "tenant" ? (
-                  <select value={selectedCompanyId} onChange={(e) => setSelectedCompanyId(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-bold text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none cursor-pointer"
-                  >
-                    <option value="">-- Select Tenant Company --</option>
-                    {tenants.map((t) => <option key={t.recordId || t.id} value={t.recordId || t.id}>{t.companyName || t.name}</option>)}
-                  </select>
-                ) : (
-                  <select value={selectedDepartmentId} onChange={(e) => setSelectedDepartmentId(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-bold text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none cursor-pointer"
-                  >
-                    <option value="">-- Select Department --</option>
-                    {availableDepartments.map((d) => <option key={d.id || d.name} value={d.id || d.name}>{d.name}</option>)}
-                  </select>
-                )}
-              </div>
-
-              {/* Available space picker — Building/Floor/Wing dropdowns */}
-              <div className="flex flex-wrap gap-2">
-                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
-                  <Building2 size={12} className="text-blue-500" />
-                  <select value={selectedBuilding} onChange={(e) => { setSelectedBuilding(e.target.value); setSelectedWing("All"); clearSelection(); }}
-                    className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
-                  >{availableBuildings.map((b) => <option key={b} value={b}>{b}</option>)}</select>
-                </div>
-                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
-                  <LayoutGrid size={12} className="text-blue-500" />
-                  <select value={selectedFloor} onChange={(e) => selectFloor(e.target.value)}
-                    className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
-                  >
-                    <option value="All">All Floors</option>
-                    {floorCards.map((f) => <option key={f.floor} value={f.floor}>Floor {f.floor} ({f.open} open)</option>)}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
-                  <Filter size={12} className="text-blue-500" />
-                  <select value={selectedWing} onChange={(e) => setSelectedWing(e.target.value)}
-                    className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
-                  >
-                    <option value="All">All Wings</option>
-                    {wings.map((w) => <option key={w} value={w}>Wing {w}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              {/* Available spaces list to pick from */}
-              <div className="space-y-1">
-                {(() => {
-                  const availableDesks = desks.filter((r) => !r.assignmentLabel && r.status === "Active" &&
-                    (selectedBuilding === "All" || r.building === selectedBuilding) &&
-                    (selectedFloor === "All" || r.floor === selectedFloor) &&
-                    (selectedWing === "All" || r.wing === selectedWing)
-                  );
-                  const openDesks = availableDesks.filter(r => r.resourceCategory === "open_desk");
-                  const cabinDesks = availableDesks.filter(r => r.resourceCategory === "cabin_desk");
-                  const otherDesks = availableDesks.filter(r => r.resourceCategory !== "open_desk" && r.resourceCategory !== "cabin_desk");
-
-                  const renderGroupCards = (title, items) => {
-                    if (!items.length) return null;
-                    const groups = buildResourceAreaGroups(items);
-                    return (
-                      <div className="space-y-1.5 mt-3">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{title} <span className="text-emerald-600">({groups.reduce((s,g)=>s+g.seatCount,0)} seats)</span></p>
-                        <div className="grid grid-cols-2 gap-2">
-                          {groups.map((g) => {
-                            const groupResIds = items.filter((r) => r.locationLabel === g.label || (r.floor === g.floor && r.wing === g.wing)).map((r) => String(r.recordId || r.id));
-                            const allSelected = groupResIds.length > 0 && groupResIds.every((id) => selectedIds.includes(id));
-                            return (
-                              <button key={g.label} type="button"
-                                onClick={() => {
-                                  setSelectedIds((cur) => {
-                                    const next = allSelected ? cur.filter((id) => !groupResIds.includes(id)) : [...new Set([...cur, ...groupResIds])];
-                                    setPrimaryId(next[next.length - 1] || "");
-                                    return next;
-                                  });
-                                }}
-                                className={`flex flex-col items-start rounded-xl border p-3 transition-all text-left ${
-                                  allSelected ? "border-blue-400 bg-blue-50 shadow-sm" : "border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300"
-                                }`}
-                              >
-                                <span className="text-[11px] font-bold text-slate-800 mb-1 line-clamp-1">{g.label}</span>
-                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-md ${
-                                  allSelected ? "bg-blue-500 text-white" : "bg-emerald-50 text-emerald-700"
-                                }`}>{g.seatCount} seats</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  };
-
-                  if (availableDesks.length === 0) {
-                    return <p className="text-center text-[11px] text-slate-400 py-6 border border-dashed border-slate-200 rounded-xl">No available desks matching filters.</p>;
-                  }
-
-                  return (
-                    <div className="max-h-[30vh] overflow-y-auto pr-2 pb-2">
-                      {renderGroupCards("Open Desks", openDesks)}
-                      {renderGroupCards("Cabin Desks", cabinDesks)}
-                      {renderGroupCards("Other Spaces", otherDesks)}
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Selected summary */}
-              {assignableIds.length > 0 && (
-                <div className="rounded-xl bg-indigo-50 border border-indigo-100 p-3">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1.5">Selected ({selectedSeatCount} seats)</p>
-                  <div className="flex flex-wrap gap-1">
-                    {assignableResources.map((r) => (
-                      <span key={r.recordId} className="bg-white border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-bold">{r.name || r.resourceCode}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-2 border-t border-slate-100">
-                <button onClick={() => { setIsAssignModalOpen(false); clearSelection(); }}
-                  className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all text-[10px]"
-                >Cancel</button>
-                <button onClick={saveAssignment} disabled={!canSave}
-                  className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-bold shadow-sm hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:cursor-not-allowed"
-                >{saving ? "Saving..." : <><CheckCircle2 size={14} /> Confirm Allocation</>}</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 
@@ -967,37 +846,7 @@ export default function SalesArchitecturePage() {
 
     return (
       <>
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
-            <Building2 size={12} className="text-blue-500" />
-            <select value={selectedBuilding} onChange={(e) => { setSelectedBuilding(e.target.value); setSelectedWing("All"); clearSelection(); }}
-              className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
-            >{availableBuildings.map((b) => <option key={b} value={b}>{b}</option>)}</select>
-          </div>
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
-            <LayoutGrid size={12} className="text-blue-500" />
-            <select value={selectedFloor} onChange={(e) => selectFloor(e.target.value)}
-              className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
-            >
-              <option value="All">All Floors</option>
-              {floorCards.map((f) => <option key={f.floor} value={f.floor}>Floor {f.floor} ({f.open} open)</option>)}
-            </select>
-          </div>
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
-            <Filter size={12} className="text-blue-500" />
-            <select value={selectedWing} onChange={(e) => setSelectedWing(e.target.value)}
-              className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
-            >
-              <option value="All">All Wings</option>
-              {wings.map((w) => <option key={w} value={w}>Wing {w}</option>)}
-            </select>
-          </div>
-          {/* <span className="ml-auto text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100 shadow-sm">{unassignedDesks.length} desks available to assign</span> */}
-        </div>
-
-       
-
-        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+        {renderFilterBar(false)}
         {/* Summary stat cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
           {[
@@ -1102,7 +951,6 @@ export default function SalesArchitecturePage() {
               </tbody>
             </table>
           </div>
-        </div>
 
         {/* Tenant detail modal */}
         {viewTenant && (() => {
@@ -1227,33 +1075,7 @@ export default function SalesArchitecturePage() {
   const renderDepartmentsTab = () => {
     return (
       <>
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
-            <Building2 size={12} className="text-blue-500" />
-            <select value={selectedBuilding} onChange={(e) => { setSelectedBuilding(e.target.value); setSelectedWing("All"); clearSelection(); }}
-              className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
-            >{availableBuildings.map((b) => <option key={b} value={b}>{b}</option>)}</select>
-          </div>
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
-            <LayoutGrid size={12} className="text-blue-500" />
-            <select value={selectedFloor} onChange={(e) => selectFloor(e.target.value)}
-              className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
-            >
-              <option value="All">All Floors</option>
-              {floorCards.map((f) => <option key={f.floor} value={f.floor}>Floor {f.floor} ({f.open} open)</option>)}
-            </select>
-          </div>
-          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
-            <Filter size={12} className="text-blue-500" />
-            <select value={selectedWing} onChange={(e) => setSelectedWing(e.target.value)}
-              className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
-            >
-              <option value="All">All Wings</option>
-              {wings.map((w) => <option key={w} value={w}>Wing {w}</option>)}
-            </select>
-          </div>
-          {/* <span className="ml-auto text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100 shadow-sm">{unassignedDesks.length} desks available to assign</span> */}
-        </div>
+        {renderFilterBar(false)}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
           {[
@@ -1274,7 +1096,7 @@ export default function SalesArchitecturePage() {
 
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-slate-800">Department Space Allocation</h3>
-          <button onClick={() => { setAssignMode("tenant"); setSelectedCompanyId(""); clearSelection(); setIsAssignModalOpen(true); }}
+          <button onClick={() => { setDeptAssignSelectedId(""); clearSelection(); setIsDeptAssignModalOpen(true); }}
             className="bg-[#2563EB] text-white px-4 py-2 rounded-xl font-bold text-[11px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-all"
           ><ArrowRight size={14} /> Assign Space</button>
         </div>
@@ -1318,10 +1140,9 @@ export default function SalesArchitecturePage() {
                       </td>
                       <td className="px-5 py-4 text-center">
                         <button onClick={() => {
-                          setAssignMode("department");
-                          setSelectedDepartmentId(d.id || d.name);
+                          setDeptAssignSelectedId(d.id || d.name);
                           clearSelection();
-                          setIsAssignModalOpen(true);
+                          setIsDeptAssignModalOpen(true);
                         }}
                           className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition-all"
                           title="Assign available spaces to this department"
@@ -1381,6 +1202,296 @@ export default function SalesArchitecturePage() {
             {activeTab === "departments" && renderDepartmentsTab()}
           </div>
         </div>
+
+        {/* Tenant Assign Space Modal — rendered at page level so it's visible on any tab */}
+        {isAssignModalOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-sm">
+            <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+              <div className="p-5 bg-blue-600 text-white flex justify-between items-center shrink-0">
+                <div>
+                  <h2 className="text-[15px] font-pmedium flex items-center gap-1.5"><Building2 size={18} /> Assign Space</h2>
+                  <p className="text-[10px] font-bold text-blue-200 uppercase tracking-widest mt-0.5">Select available spaces for this tenant</p>
+                </div>
+                <button onClick={() => setIsAssignModalOpen(false)} className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center hover:bg-red-500 transition-all"><X size={14} /></button>
+              </div>
+              <div className="p-5 space-y-4 overflow-y-auto flex-1">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Assign to Tenant Company *</label>
+                  <select value={selectedCompanyId} onChange={(e) => setSelectedCompanyId(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-bold text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none cursor-pointer"
+                  >
+                    <option value="">-- Select Tenant Company --</option>
+                    {tenants.map((t) => <option key={t.recordId || t.id} value={t.recordId || t.id}>{t.companyName || t.name}</option>)}
+                  </select>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+                    <Building2 size={12} className="text-blue-500" />
+                    <select value={selectedBuilding} onChange={(e) => { setSelectedBuilding(e.target.value); setSelectedWing("All"); clearSelection(); }}
+                      className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
+                    >{availableBuildings.map((b) => <option key={b} value={b}>{b}</option>)}</select>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+                    <LayoutGrid size={12} className="text-blue-500" />
+                    <select value={selectedFloor} onChange={(e) => selectFloor(e.target.value)}
+                      className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
+                    >
+                      <option value="All">All Floors</option>
+                      {floorCards.map((f) => <option key={f.floor} value={f.floor}>Floor {f.floor} ({f.open} open)</option>)}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+                    <Filter size={12} className="text-blue-500" />
+                    <select value={selectedWing} onChange={(e) => setSelectedWing(e.target.value)}
+                      className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
+                    >
+                      <option value="All">All Wings</option>
+                      {wings.map((w) => <option key={w} value={w}>Wing {w}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {(() => {
+                    const availableDesks = desks.filter((r) => !r.assignmentLabel && r.status === "Active" &&
+                      (selectedFloor === "All" || r.floor === selectedFloor) &&
+                      (selectedWing === "All" || r.wing === selectedWing)
+                    );
+                    const openDesks = availableDesks.filter(r => r.resourceCategory === "open_desk");
+                    const cabinDesks = availableDesks.filter(r => r.resourceCategory === "cabin_desk");
+
+                    const renderResourceCards = (title, items) => {
+                      if (!items.length) return null;
+                      return (
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{title} <span className="text-emerald-600">({items.reduce((s,r)=>s+Math.max(1,Number(r.capacity||1)),0)} seats)</span></p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {items.map((r) => {
+                              const id = String(r.recordId || r.id);
+                              const isSelected = selectedIds.includes(id);
+                              return (
+                                <button key={id} type="button" onClick={() => toggleResource(r)}
+                                  className={`group flex min-h-[72px] flex-col justify-between rounded-xl border-2 p-2.5 text-left transition-all ${
+                                    isSelected
+                                      ? "border-blue-400 bg-blue-50 ring-2 ring-blue-300 shadow-md scale-[1.01]"
+                                      : "border-slate-200 bg-white hover:border-slate-300 hover:-translate-y-0.5 hover:shadow-sm"
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between gap-1">
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/70 bg-white/80 text-[#0F172A] shadow-sm">{iconFor(r)}</div>
+                                      <div className="min-w-0">
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 truncate">{r.name || r.resourceCode || "Space"}</p>
+                                        <p className="text-[10px] font-bold leading-tight text-slate-800">{kindLabel(r)}{r.capacity ? ` · ${r.capacity}` : ""}</p>
+                                      </div>
+                                    </div>
+                                    {isSelected && <CheckCircle2 size={14} className="text-blue-500 shrink-0" />}
+                                  </div>
+                                  <p className="mt-1 text-[8px] font-bold text-slate-400">{r.locationLabel || "--"}</p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    };
+
+                    if (availableDesks.length === 0) {
+                      return <p className="text-center text-[11px] text-slate-400 py-6 border border-dashed border-slate-200 rounded-xl">No available desks matching filters.</p>;
+                    }
+
+                    return (
+                      <div className="max-h-[30vh] overflow-y-auto pr-2 pb-2 space-y-3">
+                        {renderResourceCards("Open Desks", openDesks)}
+                        {renderResourceCards("Cabin Desks", cabinDesks)}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {assignableIds.length > 0 && (
+                  <div className="rounded-xl bg-indigo-50 border border-indigo-100 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1.5">Selected ({selectedSeatCount} seats)</p>
+                    <div className="flex flex-wrap gap-1">
+                      {assignableResources.map((r) => (
+                        <span key={r.recordId} className="bg-white border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded text-[10px] font-bold">{r.name || r.resourceCode}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-2 border-t border-slate-100">
+                  <button onClick={() => { setIsAssignModalOpen(false); clearSelection(); }}
+                    className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all text-[10px]"
+                  >Cancel</button>
+                  <button onClick={saveAssignment} disabled={!canSave}
+                    className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-bold shadow-sm hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                  >{saving ? "Saving..." : <><CheckCircle2 size={14} /> Confirm Allocation</>}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Department Assign Space Modal — card-based UI */}
+        {isDeptAssignModalOpen && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-sm">
+            <div className="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+              <div className="p-5 bg-amber-600 text-white flex justify-between items-center shrink-0">
+                <div>
+                  <h2 className="text-[15px] font-pmedium flex items-center gap-1.5"><Briefcase size={18} /> Assign Space to Department</h2>
+                  <p className="text-[10px] font-bold text-amber-200 uppercase tracking-widest mt-0.5">Select a department and pick available spaces</p>
+                </div>
+                <button onClick={() => { setIsDeptAssignModalOpen(false); clearSelection(); }} className="w-7 h-7 bg-white/20 rounded-full flex items-center justify-center hover:bg-red-500 transition-all"><X size={14} /></button>
+              </div>
+              <div className="p-5 space-y-4 overflow-y-auto flex-1">
+                {/* Department selector */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Select Department *</label>
+                  <select value={deptAssignSelectedId} onChange={(e) => setDeptAssignSelectedId(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-bold text-slate-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none cursor-pointer"
+                  >
+                    <option value="">-- Select Department --</option>
+                    {availableDepartments.map((d) => {
+                      const assignment = deptAssignmentMap.find((a) => a.name === d.name);
+                      const hasSpaces = (assignment?.resources?.length || 0) > 0;
+                      return (
+                        <option key={d.id || d.name} value={d.id || d.name} disabled={false}>
+                          {d.name}{d.managerName ? ` — ${d.managerName}` : ""}{hasSpaces ? ` (${assignment.seatCount} seats assigned)` : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                {/* Building/Floor/Wing filter */}
+                <div className="flex flex-wrap gap-2">
+                  <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+                    <Building2 size={12} className="text-amber-500" />
+                    <select value={selectedBuilding} onChange={(e) => { setSelectedBuilding(e.target.value); setSelectedWing("All"); clearSelection(); }}
+                      className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
+                    >{availableBuildings.map((b) => <option key={b} value={b}>{b}</option>)}</select>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+                    <LayoutGrid size={12} className="text-amber-500" />
+                    <select value={selectedFloor} onChange={(e) => selectFloor(e.target.value)}
+                      className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
+                    >
+                      <option value="All">All Floors</option>
+                      {floorCards.map((f) => <option key={f.floor} value={f.floor}>Floor {f.floor} ({f.open} open)</option>)}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+                    <Filter size={12} className="text-amber-500" />
+                    <select value={selectedWing} onChange={(e) => setSelectedWing(e.target.value)}
+                      className="bg-transparent text-[11px] font-bold text-slate-900 outline-none cursor-pointer"
+                    >
+                      <option value="All">All Wings</option>
+                      {wings.map((w) => <option key={w} value={w}>Wing {w}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Available spaces as small cards (like architecture page) */}
+                <div className="space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Available Spaces
+                    <span className="text-emerald-600 ml-1">({desks.filter((r) => !r.assignmentLabel && r.status === "Active" &&
+                      (selectedFloor === "All" || r.floor === selectedFloor) &&
+                      (selectedWing === "All" || r.wing === selectedWing)
+                    ).reduce((s, r) => s + Math.max(1, Number(r.capacity || 1)), 0)} seats)</span>
+                  </p>
+                  <div className="max-h-[35vh] overflow-y-auto pr-1 pb-1">
+                    {(() => {
+                      const availDesks = desks.filter((r) => !r.assignmentLabel && r.status === "Active" &&
+                        (selectedFloor === "All" || r.floor === selectedFloor) &&
+                        (selectedWing === "All" || r.wing === selectedWing)
+                      );
+                      const wingGroups = { A: [], B: [] };
+                      availDesks.forEach((r) => { (r.wing === "B" ? wingGroups.B : wingGroups.A).push(r); });
+
+                      if (availDesks.length === 0) {
+                        return <p className="text-center text-[11px] text-slate-400 py-6 border border-dashed border-slate-200 rounded-xl">No available desks matching filters.</p>;
+                      }
+
+                      return (
+                        <div className="space-y-4">
+                          {(["A", "B"].filter((w) => selectedWing === "All" || selectedWing === w)).map((wing) => {
+                            const items = wingGroups[wing] || [];
+                            if (items.length === 0) return null;
+                            return (
+                              <div key={wing}>
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Wing {wing}</p>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                  {items.map((r) => {
+                                    const id = String(r.recordId || r.id);
+                                    const isSelected = selectedIds.includes(id);
+                                    return (
+                                      <button key={id} type="button" onClick={() => toggleResource(r)}
+                                        className={`group flex min-h-[72px] flex-col justify-between rounded-xl border-2 p-2.5 text-left transition-all ${
+                                          isSelected
+                                            ? "border-amber-400 bg-amber-50 ring-2 ring-amber-300 shadow-md scale-[1.01]"
+                                            : "border-slate-200 bg-white hover:border-slate-300 hover:-translate-y-0.5 hover:shadow-sm"
+                                        }`}
+                                      >
+                                        <div className="flex items-start justify-between gap-1">
+                                          <div className="flex items-center gap-1.5">
+                                            <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-white/70 bg-white/80 text-[#0F172A] shadow-sm">{iconFor(r)}</div>
+                                            <div className="min-w-0">
+                                              <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 truncate">{r.name || r.resourceCode || "Space"}</p>
+                                              <p className="text-[10px] font-bold leading-tight text-slate-800">{kindLabel(r)}{r.capacity ? ` · ${r.capacity}` : ""}</p>
+                                            </div>
+                                          </div>
+                                          {isSelected && <CheckCircle2 size={14} className="text-amber-500 shrink-0" />}
+                                        </div>
+                                        <p className="mt-1 text-[8px] font-bold text-slate-400">{r.locationLabel || "--"}</p>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Selected summary */}
+                {assignableIds.length > 0 && (
+                  <div className="rounded-xl bg-amber-50 border border-amber-100 p-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-1.5">Selected ({selectedSeatCount} seats)</p>
+                    <div className="flex flex-wrap gap-1">
+                      {assignableResources.map((r) => (
+                        <span key={r.recordId} className="bg-white border border-amber-200 text-amber-700 px-2 py-0.5 rounded text-[10px] font-bold">{r.name || r.resourceCode}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-2 border-t border-slate-100">
+                  <button onClick={() => { setIsDeptAssignModalOpen(false); clearSelection(); }}
+                    className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all text-[10px]"
+                  >Cancel</button>
+                  <button onClick={() => {
+                    if (!deptAssignSelectedId || assignableIds.length === 0) return;
+                    const dept = availableDepartments.find((d) => (d.id || d.name) === deptAssignSelectedId);
+                    if (!dept) return;
+                    setAssignMode("department");
+                    setSelectedDepartmentId(deptAssignSelectedId);
+                    setSelectedCompanyId("");
+                    saveAssignment();
+                    setIsDeptAssignModalOpen(false);
+                  }} disabled={!deptAssignSelectedId || assignableIds.length === 0 || saving}
+                    className="flex-1 py-2.5 bg-amber-600 text-white rounded-xl font-bold shadow-sm hover:bg-amber-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                  >{saving ? "Saving..." : <><CheckCircle2 size={14} /> Assign to Department</>}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </PageFrame>
     </div>
   );

@@ -185,18 +185,55 @@ const sanitizeMenuItemsForPersistence = (items = []) =>
     return menuItem;
   });
 
-const serializeProductDropdownPagesForClient = (items = []) =>
-  normalizeProductDropdownPages(items).map((page) => ({
-    ...page,
-    heading:
-      String(page?.homeCardHeading || page?.name || "").trim(),
-    subText: String(page?.homeCardSubText || "").trim(),
-    cardImage: page?.homeCardImage?.url || "",
-    heroImage: page?.heroImage?.url || "",
-    heroImages: Array.isArray(page?.heroImages)
-      ? page.heroImages.map((img) => img?.url || "").filter(Boolean)
-      : [],
-  }));
+const productImageUrlAt = (products = [], index) => {
+  const product = Array.isArray(products) ? products[index] : null;
+  const images = Array.isArray(product?.images) ? product.images : [];
+  return String(images[0]?.url || "").trim();
+};
+
+const slugifyForMatch = (value = "") =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+
+const buildProductImageBySlug = (products = []) => {
+  const map = {};
+  (Array.isArray(products) ? products : []).forEach((p) => {
+    const url = String(p?.images?.[0]?.url || "").trim();
+    if (!url) return;
+    [slugifyForMatch(p?.type), slugifyForMatch(p?.name)]
+      .filter(Boolean)
+      .forEach((s) => {
+        if (!map[s]) map[s] = url;
+      });
+  });
+  return map;
+};
+
+const serializeProductDropdownPagesForClient = (items = [], products = []) => {
+  const productImageBySlug = buildProductImageBySlug(products);
+  return normalizeProductDropdownPages(items).map((page, index) => {
+    // Match the product page to its product by slug/name first, then fall back to
+    // the product at the same index — so the product photo shows as the page's
+    // cover on the home cards and on the products page.
+    const fallbackProductImage =
+      productImageBySlug[slugifyForMatch(page?.slug || page?.name || "")] ||
+      productImageUrlAt(products, index);
+    return {
+      ...page,
+      heading: String(page?.homeCardHeading || page?.name || "").trim(),
+      subText: String(page?.homeCardSubText || "").trim(),
+      cardImage: page?.homeCardImage?.url || fallbackProductImage || "",
+      heroImage: page?.heroImage?.url || fallbackProductImage || "",
+      heroImages: Array.isArray(page?.heroImages)
+        ? page.heroImages.map((img) => img?.url || "").filter(Boolean)
+        : [],
+    };
+  });
+};
 
 const serializeWebsiteTemplateForClient = (template) => {
   const payload = template?.toObject ? template.toObject() : { ...template };
@@ -212,9 +249,33 @@ const serializeWebsiteTemplateForClient = (template) => {
   payload.productDropdownPages = Array.isArray(payload.productDropdownPages)
     ? normalizeProductDropdownPages(payload.productDropdownPages)
     : [];
-  payload.productPages = serializeProductDropdownPagesForClient(
+  const serializedProductPages = serializeProductDropdownPagesForClient(
     payload.productDropdownPages,
+    payload.products,
   );
+  // Older websites have no productDropdownPages but do have a products list with
+  // images — derive product cards from products so their images still show on the
+  // home "Our Products" section and each product opens as a product page.
+  payload.productPages =
+    serializedProductPages.length > 0
+      ? serializedProductPages
+      : (Array.isArray(payload.products) ? payload.products : [])
+          .map((product, index) => {
+            const name = String(product?.name || product?.type || "").trim();
+            if (!name) return null;
+            const image = String(product?.images?.[0]?.url || "").trim();
+            return {
+              name,
+              slug: slugifyForMatch(name || `product-${index + 1}`),
+              enabled: true,
+              heading: name,
+              subText: String(product?.description || "").trim(),
+              cardImage: image,
+              heroImage: image,
+              heroImages: image ? [image] : [],
+            };
+          })
+          .filter(Boolean);
   return payload;
 };
 
@@ -580,9 +641,12 @@ export const saveTemplateDraft = async (req, res) => {
     template.aboutPageImageCards =
       draftData?.aboutPageImageCards !== undefined &&
       Array.isArray(draftData.aboutPageImageCards)
-        ? draftData.aboutPageImageCards.map((card) => ({
+        ? draftData.aboutPageImageCards.map((card, index) => ({
             title: String(card?.title || "").trim(),
             description: String(card?.description || "").trim(),
+            // Preserve the previously-uploaded team-member image. draftData only
+            // carries text, so without this every autosave wiped the card image.
+            image: template.aboutPageImageCards?.[index]?.image,
           }))
         : template.aboutPageImageCards;
     template.galleryPageHeading =
@@ -784,6 +848,30 @@ export const saveTemplateDraft = async (req, res) => {
         20,
       );
       template.aboutPageImages = [...(template.aboutPageImages || []), ...uploaded];
+    }
+
+    // Upload team-member (about page) card images sent as aboutPageImageCardImage_<index>.
+    // Without this the draft autosave never persisted these images to S3.
+    if (Array.isArray(template.aboutPageImageCards)) {
+      let cardImageChanged = false;
+      for (let i = 0; i < template.aboutPageImageCards.length; i++) {
+        const cardFile = (filesByField[`aboutPageImageCardImage_${i}`] || [])[0];
+        if (cardFile) {
+          const uploaded = await uploadImagesForDraft(
+            [cardFile],
+            `${baseFolder}/aboutPageImageCards/${i}`,
+            1,
+          );
+          if (uploaded[0]) {
+            template.aboutPageImageCards[i] = {
+              ...(template.aboutPageImageCards[i] || {}),
+              image: uploaded[0],
+            };
+            cardImageChanged = true;
+          }
+        }
+      }
+      if (cardImageChanged) template.markModified("aboutPageImageCards");
     }
 
     if (Array.isArray(template.productDropdownPages)) {
@@ -1836,44 +1924,28 @@ export const createTemplate = async (req, res, next) => {
         return res.status(400).json({ message: "Company not found" });
       }
 
-      await ensureNomadsCompanyRecord({
+      // Fire-and-forget: these external Nomads API calls must NOT block the response.
+      // Previously awaited, causing 10-25s hangs when the Nomads API was slow or down.
+      void ensureNomadsCompanyRecord({
         template: savedTemplate,
         hostCompany: updateHostCompany,
         companyId: req.body.companyId,
         companyName: req.body.companyName,
         vertical,
-      });
+      }).catch(() => {});
 
-      try {
-        const updatedCompany = await axios.patch(
-          "https://wononomadsbe.vercel.app/api/company/add-template-link",
-          {
-            companyName: req.body.companyName,
-            link: `https://${savedTemplate.searchKey}.wono.co/`,
-          },
-        );
-
-        if (!updatedCompany) {
-          return res
-            .status(400)
-            .json({ message: "Failed to add website template link" });
-        }
-      } catch (error) {
-        if (error.response?.status !== 200) {
-          return res.status(201).json({
-            message:
-              "Failed to add link.Check if the company is listed in Nomads.",
-            error: error.message,
-            template: savedTemplate,
-          });
-        }
-      }
+      void axios.patch(
+        "https://wononomadsbe.vercel.app/api/company/add-template-link",
+        {
+          companyName: req.body.companyName,
+          link: `https://${savedTemplate.searchKey}.wono.co/`,
+        },
+      ).catch(() => {});
     }
 
-    await deductWorkspaceCreditOnSuccess({
-      workspaceId: req.body?.workspaceId || savedTemplate?.workspaceId,
-      companyId: req.body?.companyId || savedTemplate?.companyId,
-    });
+    // First-time website creation is FREE — no credit deduction.
+    // Credits are only deducted on edit (PATCH /edit-website), which goes through
+    // the checkAndDeductCredit middleware and deductWorkspaceCreditOnSuccess in editTemplate.
 
     return res
       .status(201)

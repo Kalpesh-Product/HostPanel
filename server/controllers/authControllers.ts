@@ -441,17 +441,28 @@ export const login = async (req, res, next) => {
       hasCompletedWorkspaceSetupForSession = false;
     }
 
-    const company = await resolveCompanyForActiveWorkspace(user, activeMembership);
-    const workspaceCount = await WorkspaceMember.countDocuments({
-      user: user._id,
-      isActive: true,
-    });
-    const workspaceMembership = activeMembership;
-    const accessibleWorkspaces = await getAccessibleWorkspaces(user._id);
+    // Run company lookup, workspace count, accessible workspaces, tenant check,
+    // and password verification all in parallel — previously 5+ sequential round-trips.
+    const [
+      company,
+      workspaceCount,
+      accessibleWorkspaces,
+      tenantEmp,
+      isPasswordValid,
+    ] = await Promise.all([
+      resolveCompanyForActiveWorkspace(user, activeMembership),
+      WorkspaceMember.countDocuments({ user: user._id, isActive: true }),
+      getAccessibleWorkspaces(user._id),
+      user?.email
+        ? TenantEmployee.findOne({ email: normalizeInviteEmail(user.email), status: "Active" }).exec()
+        : Promise.resolve(null),
+      bcrypt.compare(password, user.password),
+    ]);
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid)
       return res.status(400).json({ message: "Invalid password" });
+
+    const workspaceMembership = activeMembership;
 
     delete user.password;
     delete user.refreshToken;
@@ -492,24 +503,21 @@ export const login = async (req, res, next) => {
     let tenantCompanyId = null;
     let tenantCompanyName = null;
     let tenantLastLoginAt = null;
-    if (user?.email) {
-      const emp = await TenantEmployee.findOne({
-        email: normalizeInviteEmail(user.email),
-        status: "Active",
-      }).exec();
-      if (emp) {
-        const tenantCompany = await TenantCompany.findById(emp.tenantCompanyId).lean().exec();
-        if (tenantCompany) {
-          tenantRole = emp.tenantRole || (emp.role === "Manager" ? "tenant-manager" : "tenant-employee");
-          tenantCompanyId = String(tenantCompany._id);
-          tenantCompanyName = tenantCompany.companyName || "";
-          tenantLastLoginAt = emp.lastLoginAt || null;
-          // Update lastLoginAt
-          await TenantEmployee.updateOne(
-            { _id: emp._id },
-            { $set: { lastLoginAt: new Date() } }
-          ).exec();
-        }
+    let tenantWorkspaceId = null;
+    // tenantEmp was already fetched in the parallel Promise.all above
+    if (tenantEmp) {
+      const tenantCompany = await TenantCompany.findById(tenantEmp.tenantCompanyId).lean().exec();
+      if (tenantCompany) {
+        tenantRole = tenantEmp.tenantRole || (tenantEmp.role === "Manager" ? "tenant-manager" : "tenant-employee");
+        tenantCompanyId = String(tenantCompany._id);
+        tenantCompanyName = tenantCompany.companyName || "";
+        tenantWorkspaceId = String(tenantCompany.workspaceId || "");
+        tenantLastLoginAt = tenantEmp.lastLoginAt || null;
+        // Fire-and-forget: don't block login response for a lastLoginAt update
+        void TenantEmployee.updateOne(
+          { _id: tenantEmp._id },
+          { $set: { lastLoginAt: new Date() } }
+        ).exec().catch(() => {});
       }
     }
 
@@ -523,6 +531,7 @@ export const login = async (req, res, next) => {
           accessibleWorkspaces,
           hasCompletedWorkspaceSetupForSession,
         ),
+        primaryWorkspace: tenantWorkspaceId || user?.primaryWorkspace || null,
         tenantRole,
         tenantCompanyId,
         tenantCompanyName,

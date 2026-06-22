@@ -5,6 +5,7 @@ import {
   listTenantCompanies,
   getTenantCompanySectors,
   getTenantCompany,
+  getMyTenantCompany,
   createTenantCompany,
   updateTenantCompany,
   renewTenantCompany,
@@ -26,7 +27,8 @@ import {
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-// Self-service credit request routes (must precede /:id routes)
+// Self-service routes for tenant users (must precede /:id routes)
+router.get("/my", getMyTenantCompany);
 router.get("/my/credit-requests", getMyTenantCompanyCreditRequests);
 router.post("/my/credit-requests", createMyTenantCompanyCreditRequest);
 router.post("/my/credit-requests/:requestId/payment", upload.single("paymentProof"), submitMyTenantCompanyCreditRequestPayment);

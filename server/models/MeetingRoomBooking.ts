@@ -34,6 +34,10 @@ export interface IMeetingRoomBooking extends Document {
         responseReason?: string;
     }>;
 
+    bookedByTenantCompanyId?: string;
+    bookedByTenantCompanyName?: string;
+
+    bookingCredits: number;
     baseAmount: number;
     gstAmount: number;
     totalAmount: number;
@@ -150,6 +154,10 @@ const meetingRoomBookingSchema = new Schema<IMeetingRoomBooking>(
             },
         ],
 
+        bookedByTenantCompanyId: { type: String, trim: true, index: true },
+        bookedByTenantCompanyName: { type: String, trim: true },
+
+        bookingCredits: { type: Number, default: 0, min: 0 },
         baseAmount: { type: Number, default: 0, min: 0 },
         gstAmount: { type: Number, default: 0, min: 0 },
         totalAmount: { type: Number, default: 0, min: 0 },

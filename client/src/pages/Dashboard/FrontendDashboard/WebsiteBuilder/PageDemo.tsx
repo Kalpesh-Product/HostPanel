@@ -354,27 +354,72 @@ const PageDemo = () => {
   }, [draft]);
 
   const productPages = useMemo(
-    () =>
-      Array.isArray(draft?.productDropdownPages)
-        ? draft.productDropdownPages.map((item: any, index: number) => ({
-            ...item,
-            cardImage:
-              getMediaSrc(item?.cardImage) ||
-              getMediaSrc(item?.homeCardImage) ||
-              getMediaSrc(draft?.products?.[index]?.images?.[0]) ||
-              getMediaSrc(draft?.products?.[index]?.files?.[0]) ||
-              "",
-          }))
-        : Array.isArray(draft?.productPages)
-          ? draft.productPages.map((item: any, index: number) => ({
-              ...item,
-              cardImage:
-                getMediaSrc(item?.cardImage) ||
-                getMediaSrc(draft?.products?.[index]?.images?.[0]) ||
-                getMediaSrc(draft?.products?.[index]?.files?.[0]) ||
-                "",
-            }))
-          : [],
+    () => {
+      const products = Array.isArray(draft?.products) ? draft.products : [];
+      // Build a slug -> first product image lookup so a product page can be matched
+      // to its product by name/type (not just array position, which can misalign).
+      const productImageBySlug: Record<string, string> = {};
+      products.forEach((p: any) => {
+        const url =
+          getMediaSrc(p?.images?.[0]) || getMediaSrc(p?.files?.[0]) || "";
+        if (!url) return;
+        [normalizeSlug(p?.type), normalizeSlug(p?.name)]
+          .filter(Boolean)
+          .forEach((s) => {
+            if (!productImageBySlug[s]) productImageBySlug[s] = url;
+          });
+      });
+      const resolveCardImage = (item: any, index: number) =>
+        getMediaSrc(item?.cardImage) ||
+        getMediaSrc(item?.homeCardImage) ||
+        productImageBySlug[normalizeSlug(item?.slug || item?.name || "")] ||
+        getMediaSrc(products?.[index]?.images?.[0]) ||
+        getMediaSrc(products?.[index]?.files?.[0]) ||
+        "";
+
+      const dropdownPages = Array.isArray(draft?.productDropdownPages)
+        ? draft.productDropdownPages
+        : [];
+      if (dropdownPages.length > 0) {
+        return dropdownPages.map((item: any, index: number) => ({
+          ...item,
+          cardImage: resolveCardImage(item, index),
+        }));
+      }
+
+      const serializedPages = Array.isArray(draft?.productPages)
+        ? draft.productPages
+        : [];
+      if (serializedPages.length > 0) {
+        return serializedPages.map((item: any, index: number) => ({
+          ...item,
+          cardImage: resolveCardImage(item, index),
+        }));
+      }
+
+      // No product pages configured (older websites): build cards directly from the
+      // products list so their images still show on the home "Our Products" section
+      // and each product opens as a product page.
+      return products
+        .map((product: any, index: number) => {
+          const name = String(product?.name || product?.type || "").trim();
+          if (!name) return null;
+          const image =
+            getMediaSrc(product?.images?.[0]) ||
+            getMediaSrc(product?.files?.[0]) ||
+            "";
+          return {
+            name,
+            slug: normalizeSlug(product?.slug || name || `product-${index + 1}`),
+            heading: name,
+            subText: String(product?.description || "").trim(),
+            cardImage: image,
+            heroImage: image,
+            heroImages: image ? [image] : [],
+          };
+        })
+        .filter(Boolean);
+    },
     [draft?.productDropdownPages, draft?.productPages, draft?.products],
   );
   const menuItems = useMemo(
@@ -824,6 +869,9 @@ const PageDemo = () => {
     getMediaSrc(selectedProductHeroImages[productHeroIndex]) ||
     getMediaSrc(selectedProductHeroImages[0]) ||
     getMediaSrc(selectedProductPage?.heroImage) ||
+    // Fall back to the product's own image (the same one used for the home card)
+    // so the product page always shows the product photo even without a dedicated hero.
+    getMediaSrc(selectedProductPage?.cardImage) ||
     "";
   const selectedProductContentItems = selectedProductPage
     ? getProductContentItems(draft, selectedProductPage?.slug || selectedProductPage?.name || "")

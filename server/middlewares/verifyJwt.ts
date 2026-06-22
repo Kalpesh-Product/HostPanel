@@ -3,6 +3,8 @@ import jwt from "jsonwebtoken";
 import HostUser from "../models/HostUser.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
+import TenantEmployee from "../models/TenantEmployee.js";
+import { TenantCompany } from "../models/TenantCompany.js";
 import { resolveActiveWorkspaceMembership } from "../utils/resolveMembership.js";
 
 const getFounderEmailForWorkspace = async (workspaceId: any) => {
@@ -27,7 +29,13 @@ const verifyJwt = (req, res, next) => {
     }
     try {
       const userId = decoded?.userInfo?._id;
-      const user = await HostUser.findById(userId).lean().exec();
+
+      // Only fetch the fields we need to check — isActive and hasCompletedWorkspaceSetup.
+      // Previously this fetched the full user document on every request.
+      const user = await HostUser.findById(userId)
+        .select("_id email isActive hasCompletedWorkspaceSetup primaryWorkspace company companyId")
+        .lean()
+        .exec();
       if (!user) {
         return res.sendStatus(401);
       }
@@ -37,6 +45,29 @@ const verifyJwt = (req, res, next) => {
           code: "ACCOUNT_DISABLED",
           message: "Account access disabled by founder.",
         });
+      }
+
+      // For tenant users, resolve workspace from TenantEmployee → TenantCompany regardless of hasCompletedWorkspaceSetup
+      if (user?.email) {
+        const tenantEmp = await TenantEmployee.findOne({ email: user.email, status: "Active" })
+          .select("tenantCompanyId")
+          .lean()
+          .exec();
+        if (tenantEmp) {
+          const company = await TenantCompany.findById(tenantEmp.tenantCompanyId)
+            .select("workspaceId")
+            .lean()
+            .exec();
+          if (company?.workspaceId) {
+            req.workspaceMembership = {
+              workspace: String(company.workspaceId),
+              role: "member",
+              isPrimary: false,
+            };
+            req.user = userId;
+            return next();
+          }
+        }
       }
 
       if (!user.hasCompletedWorkspaceSetup) {

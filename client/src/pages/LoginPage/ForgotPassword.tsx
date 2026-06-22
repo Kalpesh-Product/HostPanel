@@ -1,39 +1,31 @@
-// @ts-nocheck
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Container, Box, Grid, TextField } from "@mui/material";
+import { Container, Box, TextField } from "@mui/material";
 import { toast } from "sonner";
-import useRefresh from "../../hooks/useRefresh";
 import { api } from "../../utils/axios";
 import useAuth from "../../hooks/useAuth";
 import "./ClientLogin.css";
 import "./ClientSpecialClasses.css";
 import Footer from "../../components/Footer";
-import { CircularProgress, InputAdornment, IconButton } from "@mui/material";
-import { Visibility, VisibilityOff } from "@mui/icons-material";
-import { Drawer, List, ListItem, ListItemText } from "@mui/material";
-import MenuIcon from "@mui/icons-material/Menu";
+import { CircularProgress } from "@mui/material";
+import { Drawer } from "@mui/material";
 import { IoCloseSharp } from "react-icons/io5";
 import logo from "../../assets/WONO_LOGO_Black_TP.png";
 import { useMutation } from "@tanstack/react-query";
 
+interface ForgotPasswordData {
+  email: string;
+}
+
 const ForgotPassword = () => {
-  const { auth, setAuth } = useAuth();
-  const user = auth.user;
+  const { auth } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
   const axios = api;
 
-  useEffect(() => {
-    console.log("authorized user", auth);
-  }, [auth]);
-
   const { mutate: sendEmail, isPending } = useMutation({
-    mutationFn: async (data) => {
+    mutationFn: async (data: ForgotPasswordData) => {
       console.log("forgot password", data);
       const response = await axios.post("/api/auth/forgot-password/start", data);
       return response.data;
@@ -47,15 +39,15 @@ const ForgotPassword = () => {
         },
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(
-        error.response?.data?.message ||
+        error?.response?.data?.message ||
           "Failed to send email. Please try again."
       );
     },
   });
 
-  const onSubmit = (e) => {
+  const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     sendEmail({ email });
   };
@@ -177,7 +169,6 @@ const ForgotPassword = () => {
             <Container
               maxWidth="lg"
               style={{ padding: "3rem 0 0" }}
-              direction={{ xs: "column", md: "row" }}
             >
               <Box
                 component="form"
@@ -187,7 +178,7 @@ const ForgotPassword = () => {
                 autoComplete="off"
               >
                 <div className="grid grid-cols-1 lg:grid-cols-1 gap-4 w-4/5 md:w-1/2 mx-auto">
-                  <Grid item xs={12}>
+                  <div>
                     <TextField
                       label="Email"
                       variant="standard"
@@ -196,7 +187,7 @@ const ForgotPassword = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       fullWidth
                     />
-                  </Grid>
+                  </div>
 
                   {/* <Grid item xs={12}>
                     <TextField
@@ -239,7 +230,7 @@ const ForgotPassword = () => {
                 </div> */}
                 <div className="flex">
                   <div className="flex flex-col justify-center w-full items-center gap-4 mt-4">
-                    <Grid item xs={12}>
+                    <div>
                       <div className="centerInPhone">
                         <button
                           disabled={isPending}
@@ -247,20 +238,13 @@ const ForgotPassword = () => {
                           className="loginButtonStyling text-decoration-none text-subtitle w-40"
                         >
                           {isPending ? (
-                            <CircularProgress size={20} color="white" />
+                            <CircularProgress size={20} sx={{ color: 'white' }} />
                           ) : (
                             "SEND"
                           )}
                         </button>
-                        {/* <button
-                          disabled={loading}
-                          type="button"
-                          className="loginButtonStyling text-decoration-none text-subtitle w-40"
-                          onClick={() => navigate("/dashboard")}>
-                          SIGN IN
-                        </button> */}
                       </div>
-                    </Grid>
+                    </div>
                     <p className="text-[0.9rem]">
                       Already have an account?{" "}
                       <Link to="/" className="underline hover:text-primary">

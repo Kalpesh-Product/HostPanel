@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import AgTable from "../../../components/AgTable"; // ✅ Import AgTable

@@ -29,7 +29,7 @@ interface AuthContextProviderProps {
 export default function AuthContextProvider({ children }: AuthContextProviderProps) {
   const getStoredUser = (): AuthUser => {
     try {
-      const raw = localStorage.getItem("hostpanel_auth_user");
+      const raw = sessionStorage.getItem("hostpanel_auth_user") || localStorage.getItem("hostpanel_auth_user");
       return raw ? (JSON.parse(raw) as AuthUser) : null;
     } catch {
       return null;
@@ -43,8 +43,10 @@ export default function AuthContextProvider({ children }: AuthContextProviderPro
 
   useEffect(() => {
     if (auth?.user) {
+      sessionStorage.setItem("hostpanel_auth_user", JSON.stringify(auth.user));
       localStorage.setItem("hostpanel_auth_user", JSON.stringify(auth.user));
     } else {
+      sessionStorage.removeItem("hostpanel_auth_user");
       localStorage.removeItem("hostpanel_auth_user");
     }
   }, [auth?.user]);

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSidebar } from "../context/SideBarContext";
+import useAuth from "../hooks/useAuth";
 import { getStoredTenantRole, isTenantManagerRole } from "../lib/tenant-session";
 import useLogout from "../hooks/useLogout";
 
@@ -151,7 +152,8 @@ const TenantSidebar = ({ drawerOpen, onCloseDrawer }: TenantSidebarProps) => {
   const logout = useLogout();
   const collapsed = !isSidebarOpen;
 
-  const tenantRole = getStoredTenantRole();
+  const { auth } = useAuth();
+  const tenantRole = auth?.user?.tenantRole || getStoredTenantRole();
   const isManager = isTenantManagerRole(tenantRole);
 
   const visibleNavNodes = tenantNavNodes.filter((node) => {

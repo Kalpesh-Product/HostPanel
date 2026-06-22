@@ -1,6 +1,6 @@
 export const getStoredUser = (): any => {
   try {
-    const raw = localStorage.getItem("hostpanel_auth_user") || localStorage.getItem("user");
+    const raw = sessionStorage.getItem("hostpanel_auth_user") || localStorage.getItem("hostpanel_auth_user") || localStorage.getItem("user");
     if (raw) {
       // Handle potential wrapped structures from AuthState vs plain User object
       const parsed = JSON.parse(raw);

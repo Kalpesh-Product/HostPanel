@@ -263,8 +263,11 @@ export const getOrganizationOverview = async (req, res, next) => {
 
     if (!hasFullAccess) {
       // Non-admin members still need their own profile (sidebar uses it for role/departments).
-      const [selfMember, restrictedDepts] = await Promise.all([
-        WorkspaceMember.findOne({
+      // Ensure default departments exist for this workspace before reading them.
+      const restrictedDepts = await ensureWorkspaceDepartments(workspace).then(() =>
+        Department.find({ workspaceId: workspace._id, isActive: true }).lean().exec(),
+      );
+      const selfMember = await WorkspaceMember.findOne({
           workspace: workspace._id,
           user: req.user,
           isActive: true,
@@ -273,9 +276,7 @@ export const getOrganizationOverview = async (req, res, next) => {
           .populate("role")
           .populate("departments")
           .lean()
-          .exec(),
-        Department.find({ workspaceId: workspace._id, isActive: true }).lean().exec(),
-      ]);
+          .exec();
 
       const selfEntry = selfMember
         ? {
@@ -969,6 +970,7 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
     const requestedDepartmentIds = Array.isArray(req.body?.departments) ? req.body.departments : [];
     const resolvedDepartmentIds = [];
     for (const deptId of requestedDepartmentIds) {
+      if (!deptId || !mongoose.isValidObjectId(deptId)) continue;
       const dept = await Department.findOne({ _id: deptId, workspaceId: workspace._id });
       if (dept) {
         resolvedDepartmentIds.push(dept._id);
@@ -1127,6 +1129,7 @@ export const transferOrganizationMember = async (req, res, next) => {
     const requestedDepartmentIds = Array.isArray(req.body?.departments) ? req.body.departments : [];
     const resolvedDepartmentIds = [];
     for (const deptId of requestedDepartmentIds) {
+      if (!deptId || !mongoose.isValidObjectId(deptId)) continue;
       const dept = await Department.findOne({ _id: deptId, workspaceId: targetWorkspace._id });
       if (dept) {
         resolvedDepartmentIds.push(dept._id);

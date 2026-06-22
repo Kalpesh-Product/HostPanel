@@ -24,7 +24,7 @@ import UploadFileInput from "../../../../components/UploadFileInput";
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
 import useAuth from "../../../../hooks/useAuth";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   VERTICAL_CONFIG,
   VERTICAL_KEYS,
@@ -499,6 +499,18 @@ const CreateWebsite = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isEditMode = location.pathname.includes("/edit-website");
+  // The :website route param (e.g. "biznest") is the deterministic searchKey for the
+  // website being edited. We use it to load the correct website on the edit route
+  // WITHOUT depending on async company identity resolution — this is what stops the
+  // create-website <-> edit-website redirect ping-pong (the component remounts on each
+  // route change, resetting all the useRef guards, so we cannot rely on those alone).
+  const { website: websiteRouteParam } = useParams();
+  const editWebsiteSearchKey = String(websiteRouteParam || "").trim().toLowerCase();
+  // Keep a ref that always reflects the latest isEditMode so the checkExistingWebsite
+  // effect can read it without needing it in the dependency array (which was causing
+  // the effect to re-fire every time the route changed after redirect, causing flicker).
+  const isEditModeRef = useRef(isEditMode);
+  isEditModeRef.current = isEditMode;
   const formRef = useRef(null);
   const { auth } = useAuth();
   const [hostCompanyIdentity, setHostCompanyIdentity] = useState(null);
@@ -521,6 +533,17 @@ const CreateWebsite = () => {
   const pendingDraftSnapshotRef = useRef("");
   const uploadedDraftFileKeysRef = useRef<Set<string>>(new Set());
   const pendingDraftFileKeysRef = useRef<string[]>([]);
+  // Prevents the checkExistingWebsite effect from re-triggering a navigate after it has
+  // already redirected to /edit-website. Without this guard the effect fires again when
+  // workspaceBusinessName resolves asynchronously, causing a flicker loop.
+  const hasRedirectedToEditRef = useRef(false);
+  // Prevents repeated form hydration when async deps (workspaceBusinessName, hostCompanyIdentity)
+  // resolve after the first run and re-trigger the effect. Once we've loaded the DB data and
+  // called reset(), we do NOT want to do it again.
+  const hasHydratedFromDbRef = useRef(false);
+  // Tracks whether a checkExistingWebsite call is already in-flight so concurrent
+  // async runs (triggered by rapid dep changes) don't race each other.
+  const isCheckingWebsiteInFlightRef = useRef(false);
 
   const {
     control,
@@ -790,6 +813,16 @@ const CreateWebsite = () => {
 
   useEffect(() => {
     const checkExistingWebsite = async () => {
+      // If we've already loaded and hydrated the form from DB, skip re-running.
+      // This prevents the effect from re-firing when workspaceBusinessName or
+      // hostCompanyIdentity resolves asynchronously and triggers a second (or third)
+      // reset() call, which is what causes the visible flicker.
+      if (hasHydratedFromDbRef.current) return;
+      // Block concurrent in-flight calls — dep changes can fire this effect again
+      // before the first async run has finished and set hasHydratedFromDbRef.
+      if (isCheckingWebsiteInFlightRef.current) return;
+      isCheckingWebsiteInFlightRef.current = true;
+
       try {
         const resolvedCompanyName = String(
           prefillCompanyName ||
@@ -814,7 +847,18 @@ const CreateWebsite = () => {
               workspaceId: String(workspaceId || "").trim(),
               companyName: resolvedCompanyName,
             }),
-          ) || null;
+          ) ||
+          // Deterministic fallback for the edit route: match by the :website searchKey
+          // from the URL. This prevents the bounce-back-to-create flicker when company
+          // identity hasn't resolved yet but we already know exactly which site to load.
+          (editWebsiteSearchKey
+            ? templates.find(
+                (item) =>
+                  String(item?.searchKey || "").trim().toLowerCase() ===
+                  editWebsiteSearchKey,
+              )
+            : null) ||
+          null;
 
         if (found) {
           setHasExistingWebsite(true);
@@ -836,6 +880,10 @@ const CreateWebsite = () => {
             ? `${builderBasePath}/edit-website/${encodeURIComponent(resolvedSearchKey)}`
             : createOrEditRoute;
 
+          // Mark as hydrated BEFORE reset() so any re-render triggered by reset()
+          // does not cause this effect to run and call reset() a second time.
+          hasHydratedFromDbRef.current = true;
+
           reset({
             ...getValues(),
             companyId: String(draftData?.companyId || prefillCompanyId || found?.companyId || "").trim(),
@@ -848,10 +896,15 @@ const CreateWebsite = () => {
             about:
               Array.isArray(draftData?.about) && draftData.about.length
                 ? draftData.about.map((item: any) => ({
-                    text: String(item?.text || "").trim(),
+                    text: String(item?.text || item || "").trim(),
                   }))
                 : Array.isArray(found?.about) && found.about.length
-                  ? found.about.map((item: any) => ({ text: String(item || "").trim() }))
+                  // Handles both old flat-string format ["text"] and new object format [{text:"..."}]
+                  ? found.about.map((item: any) => ({
+                      text: typeof item === "string"
+                        ? item.trim()
+                        : String(item?.text || "").trim(),
+                    }))
                   : [{ text: "" }],
             productTitle: String(draftData?.productTitle || found?.productTitle || "").trim(),
             products:
@@ -956,30 +1009,73 @@ const CreateWebsite = () => {
                       slug: String(name).toLowerCase().replace(/\s+/g, "-"),
                       enabled: true,
                     })),
-            productDropdownPages: Array.isArray(draftData?.productDropdownPages)
-              ? draftData.productDropdownPages.map((item: any, index: number) => {
-                  const persistedPage =
-                    Array.isArray(found?.productDropdownPages) &&
-                    found.productDropdownPages[index]
-                      ? found.productDropdownPages[index]
+            productDropdownPages: (() => {
+              const fromDraft =
+                Array.isArray(draftData?.productDropdownPages) &&
+                draftData.productDropdownPages.length
+                  ? draftData.productDropdownPages.map((item: any, index: number) => {
+                      const persistedPage =
+                        Array.isArray(found?.productDropdownPages) &&
+                        found.productDropdownPages[index]
+                          ? found.productDropdownPages[index]
+                          : null;
+                      return {
+                        ...item,
+                        heroImage: persistedPage?.heroImage || null,
+                        heroImages: Array.isArray(persistedPage?.heroImages)
+                          ? persistedPage.heroImages
+                          : [],
+                        homeCardImage: persistedPage?.homeCardImage || null,
+                      };
+                    })
+                  : Array.isArray(found?.productDropdownPages) &&
+                      found.productDropdownPages.length
+                    ? found.productDropdownPages.map((item: any) => ({
+                        ...item,
+                        heroImage: item?.heroImage || null,
+                        heroImages: Array.isArray(item?.heroImages) ? item.heroImages : [],
+                        homeCardImage: item?.homeCardImage || null,
+                      }))
+                    : null;
+
+              if (fromDraft && fromDraft.length) return fromDraft;
+
+              // No product pages configured (existing/older templates): derive one
+              // product page per existing product so they show in the home "Our Products"
+              // section and as product pages — using each product's own image as the cover.
+              const sourceProducts =
+                Array.isArray(found?.products) && found.products.length
+                  ? found.products
+                  : Array.isArray(draftData?.products)
+                    ? draftData.products
+                    : [];
+              return sourceProducts
+                .map((product: any, index: number) => {
+                  const name =
+                    String(product?.name || product?.type || "").trim() ||
+                    `Product ${index + 1}`;
+                  const image =
+                    Array.isArray(product?.images) && product.images[0]
+                      ? product.images[0]
                       : null;
                   return {
-                    ...item,
-                    heroImage: persistedPage?.heroImage || null,
-                    heroImages: Array.isArray(persistedPage?.heroImages)
-                      ? persistedPage.heroImages
-                      : [],
-                    homeCardImage: persistedPage?.homeCardImage || null,
+                    name,
+                    slug: toSlug(product?.slug || name || `product-${index + 1}`),
+                    enabled: true,
+                    heroHeading: name,
+                    heroSubHeading: "",
+                    heroMode: "single",
+                    heroImage: image,
+                    heroImages: image ? [image] : [],
+                    heroButtonText: "View More",
+                    homeCardHeading: name,
+                    homeCardSubText: String(product?.description || "").trim(),
+                    homeCardImage: image,
+                    leadEnabled: true,
+                    leadFormLabel: "View More / Get Details",
                   };
-                })
-              : Array.isArray(found?.productDropdownPages)
-                ? found.productDropdownPages.map((item: any) => ({
-                    ...item,
-                    heroImage: item?.heroImage || null,
-                    heroImages: Array.isArray(item?.heroImages) ? item.heroImages : [],
-                    homeCardImage: item?.homeCardImage || null,
-                  }))
-                : [],
+                });
+            })(),
             aboutPageIntro: String(draftData?.aboutPageIntro || found?.aboutPageIntro || "").trim(),
             aboutPageOverview: String(draftData?.aboutPageOverview || found?.aboutPageOverview || "").trim(),
             aboutPageStory: String(draftData?.aboutPageStory || found?.aboutPageStory || "").trim(),
@@ -994,9 +1090,10 @@ const CreateWebsite = () => {
                 ? draftData.aboutPageImageCards.map((item: any, index: number) => ({
                     title: String(item?.title || "").trim(),
                     description: String(item?.description || "").trim(),
+                    // Always pull the persisted image from found — draftData only stores text,
+                    // never the uploaded image binary/URL, so images are lost on revisit without this.
                     image:
-                      Array.isArray(found?.aboutPageImageCards) &&
-                      found.aboutPageImageCards[index]
+                      Array.isArray(found?.aboutPageImageCards) && found.aboutPageImageCards[index]
                         ? found.aboutPageImageCards[index]?.image || null
                         : null,
                   }))
@@ -1064,20 +1161,27 @@ const CreateWebsite = () => {
           setDraftUpdatedAt(found?.draftUpdatedAt || null);
           setDraftStatus(found?.isPublished ? "saved" : "saved");
           setHasRestoredDraft(Boolean(found?.draftData));
+          // Baseline the autosave snapshot from the ACTUAL form state (getValues) using the
+          // same builder the autosave uses. Previously this was built from the raw draftData
+          // object, which has a different shape than the form values — so the snapshots never
+          // matched and the autosave fired immediately on load, overwriting good text fields
+          // with whatever was in the form mid-hydration. Building from getValues() makes the
+          // first autosave comparison match, so it won't fire until the user actually edits.
           lastDraftSnapshotRef.current = JSON.stringify(
-            buildDraftFormDataFromValues(draftData, {
-              companyId: draftData?.companyId || prefillCompanyId,
-              companyName: draftData?.companyName || prefillCompanyName,
+            buildDraftFormDataFromValues(getValues(), {
+              companyId: prefillCompanyId,
+              companyName: prefillCompanyName,
             }),
           );
           draftHydrationReadyRef.current = true;
-          if (!isEditMode && resolvedSearchKey) {
-            navigate(editRoute, {
-              replace: true,
-              state: { searchKey: resolvedSearchKey },
-            });
-            return;
-          }
+          setIsCheckingExistingWebsite(false);
+          // No auto-navigation here. The form renders correctly in both create and
+          // edit mode via effectiveEditMode (isEditMode || hasExistingWebsite), so we
+          // simply load the data in place. Auto-redirecting between create-website and
+          // edit-website is what caused the URL ping-pong / flicker, so it's removed.
+          // (New-website creation still routes to the edit URL via the create mutation's
+          //  onSuccess handler.)
+          return;
         }
 
         const subscriptionId = String(prefillCompanyId || workspaceId || "").trim();
@@ -1113,15 +1217,21 @@ const CreateWebsite = () => {
           }
         }
 
-        if (isEditMode) {
+        if (isEditModeRef.current) {
           setHasExistingWebsite(false);
-          navigate(createOrEditRoute, { replace: true });
+          // Do NOT redirect back to create-website here. This component is mounted under
+          // two different routes (create-website and edit-website/:website), so navigating
+          // between them remounts it and resets every useRef guard — which made this
+          // redirect fire again and again, ping-ponging with the create->edit redirect.
+          // If we're on the edit route, stay put; the form simply shows empty fields when
+          // no matching website was found.
           return;
         }
       } catch (error) {
         // no-op: show create flow when lookup fails
       } finally {
         draftHydrationReadyRef.current = true;
+        isCheckingWebsiteInFlightRef.current = false;
         setIsCheckingExistingWebsite(false);
       }
     };
@@ -1137,7 +1247,6 @@ const CreateWebsite = () => {
     builderBasePath,
     createOrEditRoute,
     getValues,
-    isEditMode,
     reset,
     prefillCompanyId,
     prefillCompanyName,
@@ -2033,10 +2142,10 @@ const CreateWebsite = () => {
   }
 
   return (
-    <div className="pb-2">
-      <div className="p-4 flex flex-col gap-4">
+    <div className="pb-2 min-w-0 overflow-x-hidden">
+      <div className="p-4 flex flex-col gap-4 min-w-0">
         <PageFrame>
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-5 min-w-0">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-title font-pmedium text-primary uppercase">
                 {effectiveEditMode ? "Edit Website" : "Create Website"}
@@ -2063,8 +2172,9 @@ const CreateWebsite = () => {
               ref={formRef}
               encType="multipart/form-data"
               onSubmit={(e) => e.preventDefault()}
+              className="min-w-0 w-full"
             >
-          <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 min-w-0 overflow-hidden">
             <p className="text-sm font-semibold text-slate-800">Website Pages</p>
             <Tabs
               className="mt-2"
@@ -2072,6 +2182,7 @@ const CreateWebsite = () => {
               onChange={(_, next) => setActiveMainPageTab(next)}
               variant="scrollable"
               scrollButtons="auto"
+              sx={{ maxWidth: "100%" }}
             >
               {pageNavFields.map((item, index) => (
                 <Tab
@@ -2084,10 +2195,10 @@ const CreateWebsite = () => {
             {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
               .trim()
               .toLowerCase() === "products" ? (
-              <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
-                <div className="mb-2 flex items-center justify-between">
+              <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3 min-w-0 overflow-hidden">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-slate-800">Products Page Tabs</p>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-shrink-0 items-center gap-2 flex-wrap">
                     <TextField
                       select
                       size="small"
@@ -2167,6 +2278,7 @@ const CreateWebsite = () => {
                       onChange={(_, next) => setActiveProductPageTab(next)}
                       variant="scrollable"
                       scrollButtons="auto"
+                      sx={{ maxWidth: "100%" }}
                     >
                       {productPageFields.map((item, index) => (
                         <Tab
