@@ -115,6 +115,7 @@ interface Booking {
   baseAmount?: number;
   gstAmount?: number;
   totalAmount?: number;
+  bookingCredits?: number;
   isMe?: boolean;
   isInvitedMeeting?: boolean;
   currentInviteStatus?: string | null;
@@ -1506,6 +1507,41 @@ export function MeetingRoomsPage() {
     const extensionTotal = extensionAmount + gst;
     const nextTotalAmount = (extendBooking.totalAmount || 0) + extensionTotal;
 
+    // Tenant bookings are billed in credits, not currency.
+    const isTenant = normalize(extendBooking.bookingType) === 'tenant';
+    let creditsToDeduct = 0;
+    let remainingCredits: number | null = null;
+    if (isTenant) {
+      const room = roomCatalog.find(r => r.name === extendBooking.roomName);
+      const creditRatePerHour = Number(room?.credits || 0);
+      creditsToDeduct = Number(((extraMinutes / 60) * creditRatePerHour).toFixed(2));
+
+      // Resolve the booking's tenant company to check remaining credits (server stays source of truth).
+      const companyId = (extendBooking as any).bookedByTenantCompanyId;
+      const companyName = (extendBooking as any).bookedByTenantCompanyName;
+      const companyList = Array.isArray(tenantCompanies) ? tenantCompanies : [];
+      const company = companyList.find(t =>
+        (companyId && String((t as any).recordId || (t as any)._id) === String(companyId)) ||
+        (companyName && ((t as any).companyName === companyName || (t as any).name === companyName))
+      );
+      if (company) {
+        remainingCredits = Number(
+          ((company as any)?.creditsRemaining
+            ?? (company as any)?.addOnCredits?.remainingCredits
+            ?? Math.max(0, Number((company as any)?.creditsAllocated || 0) - Number((company as any)?.creditsUsed || 0))) || 0
+        );
+        if (creditsToDeduct > remainingCredits) {
+          return {
+            available: false,
+            reason: 'Not enough credits for this extension.',
+            isTenant,
+            creditsToDeduct,
+            remainingCredits,
+          };
+        }
+      }
+    }
+
     return {
       available: true,
       reason: `Room is free for an additional ${extraMinutes} minutes.`,
@@ -1513,8 +1549,11 @@ export function MeetingRoomsPage() {
       extensionAmount,
       extensionTotal,
       nextTotalAmount,
+      isTenant,
+      creditsToDeduct,
+      remainingCredits,
     };
-  }, [extendBooking, extendForm.extraMinutes, allBookings]);
+  }, [extendBooking, extendForm.extraMinutes, allBookings, roomCatalog, tenantCompanies]);
 
   // --------- SCOPED BOOKINGS (for summary cards) ---------
   const scopedBookings = useMemo(() => {
@@ -1610,6 +1649,25 @@ export function MeetingRoomsPage() {
     const minEnd = minutesToTimeString((timeToMinutes(newBooking.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
     return buildTimeOptions(minEnd, '23:55');
   }, [newBooking.startTime]);
+
+  const tenantStartTimeOptions = useMemo(() => {
+    const now = getMeetingClockParts();
+    if (!now || !tenantBookingForm.date) return buildTimeOptions('09:00', '22:00');
+    const parts = getMeetingTimeZoneDateParts(tenantBookingForm.date);
+    const todayKey = now.dateKey;
+    const bookingDateKey = parts ? `${parts.year}-${parts.month}-${parts.day}` : '';
+    if (bookingDateKey === todayKey) {
+      const minTime = minutesToTimeString(Math.ceil((now.minutes + 5) / BOOKING_SLOT_STEP_MINUTES) * BOOKING_SLOT_STEP_MINUTES);
+      return buildTimeOptions(minTime, '22:00');
+    }
+    return buildTimeOptions('09:00', '22:00');
+  }, [tenantBookingForm.date]);
+
+  const tenantEndTimeOptions = useMemo(() => {
+    if (!tenantBookingForm.startTime) return buildTimeOptions('09:30', '23:55');
+    const minEnd = minutesToTimeString((timeToMinutes(tenantBookingForm.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
+    return buildTimeOptions(minEnd, '23:55');
+  }, [tenantBookingForm.startTime]);
 
   // --------- INVITE MEMBER HELPERS ---------
   const resolveMemberName = (member: any) => {
@@ -1769,12 +1827,16 @@ export function MeetingRoomsPage() {
     setErrorMessage('');
 
     try {
-      await updateMeetingRoomBooking(extendBooking.recordId, {
-        end: buildBookingDateTime(extendBooking.date, extendBookingPreview.nextEndTime),
-        extensionAmount: extendBookingPreview.extensionAmount,
-        totalAmount: extendBookingPreview.nextTotalAmount,
-        scheduleChangeType: 'extended',
-      });
+      const end = buildBookingDateTime(extendBooking.date, extendBookingPreview.nextEndTime);
+      const updatePayload = extendBookingPreview.isTenant
+        ? { end, scheduleChangeType: 'extended' as const }
+        : {
+            end,
+            extensionAmount: extendBookingPreview.extensionAmount,
+            totalAmount: extendBookingPreview.nextTotalAmount,
+            scheduleChangeType: 'extended' as const,
+          };
+      await updateMeetingRoomBooking(extendBooking.recordId, updatePayload);
       await reloadBookings();
     } catch (error: any) {
       setErrorMessage(error?.response?.data?.message || error?.message || 'Failed to extend booking.');
@@ -2011,7 +2073,7 @@ export function MeetingRoomsPage() {
       } as any);
       await reloadBookings();
       setShowInternalBookingDialog(false);
-      setInternalBookingForm({ bookedForName: '', bookedForUserId: '', department: '', roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', inviteParticipantIds: [], notes: '' });
+      setInternalBookingForm({ departmentRoleFilter: '', bookedForName: '', bookedForUserId: '', department: '', roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', inviteParticipantIds: [], notes: '' });
     } catch (error: any) {
       setErrorMessage(error?.response?.data?.message || error?.message || 'Failed to create internal booking.');
     } finally {
@@ -2026,6 +2088,8 @@ export function MeetingRoomsPage() {
     if (!tenantBookingForm.date) { setTenantBookingError('Date is required.'); return; }
     if (!tenantBookingForm.startTime) { setTenantBookingError('Start time is required.'); return; }
     if (!tenantBookingForm.endTime) { setTenantBookingError('End time is required.'); return; }
+    const tenantTimeValidation = getBookingTimeValidation(tenantBookingForm.date, tenantBookingForm.startTime, tenantBookingForm.endTime);
+    if (!tenantTimeValidation.valid) { setTenantBookingError(tenantTimeValidation.reason); return; }
     setIsSavingTenantBooking(true);
     setTenantBookingError('');
     try {
@@ -2036,12 +2100,14 @@ export function MeetingRoomsPage() {
         bookedByEmail: tenantBookingForm.bookedByEmail,
         bookedByPhone: tenantBookingForm.bookedByPhone,
         clientCompany: tenantBookingForm.tenantCompanyName,
+        tenantCompanyId: tenantBookingForm.tenantCompanyId,
         sourceReference: `tenant-room-booking:${tenantBookingForm.tenantCompanyId}`,
         roomName: tenantBookingForm.roomName,
         date: tenantBookingForm.date,
         startTime: tenantBookingForm.startTime,
         endTime: tenantBookingForm.endTime,
-        attendees: tenantBookingForm.attendees,
+        // On-behalf booking: attendees = invited tenant employees only (host/founder is not an attendee)
+        attendees: Math.max(1, tenantBookingForm.inviteParticipantIds.length),
         purpose: tenantBookingForm.purpose || 'Tenant Meeting',
         inviteeUserIds: tenantBookingForm.inviteParticipantIds,
         bookingNotes: tenantBookingForm.notes,
@@ -3120,7 +3186,7 @@ export function MeetingRoomsPage() {
                 <button
                   disabled={bookingStatus !== 'available' || isSavingBooking || !newBooking.purpose.trim() || !newBooking.roomType || !newBooking.roomName || !newBooking.date || !newBooking.startTime || !newBooking.endTime}
                   onClick={handleCreateBooking}
-                  className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#0F172A] rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
+                  className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
                 >
                   {isSavingBooking ? 'Saving...' : 'Confirm Booking'}
                 </button>
@@ -3147,7 +3213,7 @@ export function MeetingRoomsPage() {
               </div>
 
               <div className="px-6 py-4 md:p-8 flex justify-between items-center border-b border-slate-100/60 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
-                <h2 className="text-xl md:text-2xl font-black text-[#0F172A] tracking-tight">Meeting Details</h2>
+                <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">Meeting Details</h2>
                 <button onClick={() => setViewingBooking(null)} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
                   <X size={20} strokeWidth={2.5} />
                 </button>
@@ -3314,7 +3380,7 @@ export function MeetingRoomsPage() {
 
               <div className="px-6 py-4 md:p-8 border-b border-slate-100/60 flex justify-between items-center bg-white/95 backdrop-blur-sm sticky top-0 z-20">
                 <div>
-                  <h2 className="text-xl md:text-2xl font-black text-[#0F172A] tracking-tight flex items-center gap-2">Extend Booking</h2>
+                  <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight flex items-center gap-2">Extend Booking</h2>
                   <p className="text-[11px] font-bold text-amber-600 uppercase tracking-widest mt-1">Meeting is in progress</p>
                 </div>
                 <button onClick={closeExtendDialog} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
@@ -3329,25 +3395,45 @@ export function MeetingRoomsPage() {
                 </div>
 
                 {extendBookingPreview?.available && (
-                  <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl space-y-2">
-                    <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Extension Charge</p>
-                    <div className="flex items-center justify-between text-sm font-bold text-amber-900">
-                      <span>Extra time</span>
-                      <span>{extendForm.extraMinutes} minutes</span>
+                  extendBookingPreview.isTenant ? (
+                    <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl space-y-2">
+                      <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">Extension Credits</p>
+                      <div className="flex items-center justify-between text-sm font-bold text-indigo-900">
+                        <span>Extra time</span>
+                        <span>{extendForm.extraMinutes} minutes</span>
+                      </div>
+                      <div className="flex items-center justify-between text-base font-black text-indigo-950 pt-2 border-t border-indigo-200">
+                        <span>Credits to deduct</span>
+                        <span>{(extendBookingPreview.creditsToDeduct || 0).toFixed(2)} CR</span>
+                      </div>
+                      {typeof extendBookingPreview.remainingCredits === 'number' && (
+                        <div className="flex items-center justify-between text-sm font-bold text-indigo-700">
+                          <span>Remaining after extension</span>
+                          <span>{Math.max(0, extendBookingPreview.remainingCredits - (extendBookingPreview.creditsToDeduct || 0)).toFixed(2)} CR</span>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center justify-between text-sm font-bold text-amber-900">
-                      <span>Extension amount</span>
-                      <span>{formatCurrency(extendBookingPreview.extensionAmount || 0)}</span>
+                  ) : (
+                    <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl space-y-2">
+                      <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Extension Charge</p>
+                      <div className="flex items-center justify-between text-sm font-bold text-amber-900">
+                        <span>Extra time</span>
+                        <span>{extendForm.extraMinutes} minutes</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm font-bold text-amber-900">
+                        <span>Extension amount</span>
+                        <span>{formatCurrency(extendBookingPreview.extensionAmount || 0)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm font-bold text-amber-900">
+                        <span>GST</span>
+                        <span>{formatCurrency((extendBookingPreview.extensionTotal || 0) - (extendBookingPreview.extensionAmount || 0))}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-base font-black text-amber-950 pt-2 border-t border-amber-200">
+                        <span>Total booking value</span>
+                        <span>{formatCurrency(extendBookingPreview.nextTotalAmount || extendBooking.totalAmount || 0)}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between text-sm font-bold text-amber-900">
-                      <span>GST</span>
-                      <span>{formatCurrency((extendBookingPreview.extensionTotal || 0) - (extendBookingPreview.extensionAmount || 0))}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-base font-black text-amber-950 pt-2 border-t border-amber-200">
-                      <span>Total booking value</span>
-                      <span>{formatCurrency(extendBookingPreview.nextTotalAmount || extendBooking.totalAmount || 0)}</span>
-                    </div>
-                  </div>
+                  )
                 )}
 
                 <div className="space-y-2">
@@ -3515,7 +3601,7 @@ export function MeetingRoomsPage() {
 
               <div className="px-6 py-4 md:p-8 border-b border-slate-100/60 flex justify-between items-center bg-white/95 backdrop-blur-sm sticky top-0 z-20">
                 <div>
-                  <h2 className="text-xl md:text-2xl font-black text-[#0F172A] tracking-tight flex items-center gap-2">Reschedule</h2>
+                  <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight flex items-center gap-2">Reschedule</h2>
                   <p className="text-[11px] font-bold text-[#2563EB] uppercase tracking-widest mt-1">Refining Schedule</p>
                 </div>
                 <button onClick={() => setShowRescheduleDialog(false)} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
@@ -3988,7 +4074,7 @@ export function MeetingRoomsPage() {
               </div>
 
               <div className="p-4 sm:p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 shrink-0">
-                <button type="button" disabled={isSavingExternalBooking || !externalBookingForm.name || !externalBookingForm.phone || !externalBookingForm.roomName || !externalBookingForm.date || !externalBookingForm.startTime || !externalBookingForm.endTime} onClick={(e: any) => handleSubmitExternalBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#0F172A] rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
+                <button type="button" disabled={isSavingExternalBooking || !externalBookingForm.name || !externalBookingForm.phone || !externalBookingForm.roomName || !externalBookingForm.date || !externalBookingForm.startTime || !externalBookingForm.endTime} onClick={(e: any) => handleSubmitExternalBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
                   {isSavingExternalBooking ? 'Confirming...' : 'Collect Payment & Confirm'}
                 </button>
               </div>
@@ -4231,7 +4317,7 @@ export function MeetingRoomsPage() {
               </div>
 
               <div className="p-4 sm:p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 shrink-0">
-                <button type="button" disabled={isSavingInternalBooking || (!internalBookingForm.bookedForName && !internalBookingForm.department) || !internalBookingForm.roomName || !internalBookingForm.date || !internalBookingForm.startTime || !internalBookingForm.endTime} onClick={(e: any) => handleSubmitInternalBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#0F172A] rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
+                <button type="button" disabled={isSavingInternalBooking || (!internalBookingForm.bookedForName && !internalBookingForm.department) || !internalBookingForm.roomName || !internalBookingForm.date || !internalBookingForm.startTime || !internalBookingForm.endTime} onClick={(e: any) => handleSubmitInternalBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
                   {isSavingInternalBooking ? 'Booking...' : 'Confirm Internal Booking'}
                 </button>
               </div>
@@ -4284,12 +4370,12 @@ export function MeetingRoomsPage() {
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Company *</label>
                       <div className="relative">
                         <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.tenantCompanyId} onChange={e => {
-                          const selected = tenantCompanies.find(t => String(t.id || t._id) === e.target.value);
+                          const selected = tenantCompanies.find(t => String(t.recordId || t._id) === e.target.value);
                           setTenantBookingForm(f => ({ ...f, tenantCompanyId: e.target.value, tenantCompanyName: selected?.companyName || selected?.name || '', inviteParticipantIds: [], attendees: 1 }));
                         }}>
                           <option value="">-- Choose a Company --</option>
                           {tenantCompanies.filter(t => (t as any).status === 'Active' || !Object.prototype.hasOwnProperty.call(t, 'status')).map(t => (
-                            <option key={t.id || t._id} value={t.id || t._id}>{t.companyName || t.name}</option>
+                            <option key={String(t.recordId || t._id)} value={String(t.recordId || t._id)}>{t.companyName || t.name}</option>
                           ))}
                         </select>
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
@@ -4308,7 +4394,7 @@ export function MeetingRoomsPage() {
                       <div className="h-px flex-1 bg-slate-100" />
                     </div>
                     {(() => {
-                      const activeRooms = roomCatalog.filter(isActiveRoom);
+                      const activeRooms = roomCatalog.filter(r => isActiveRoom(r) && isMeetingCalendarRoom(r));
                       const roomTypes = [...new Set(activeRooms.map(r => r.type).filter(Boolean))];
                       const floors = [...new Set(activeRooms.filter(r => !tenantBookingForm.roomType || r.type === tenantBookingForm.roomType).map(r => r.floor).filter(Boolean))];
                       const hasWings = activeRooms.some(r => (!tenantBookingForm.floor || r.floor === tenantBookingForm.floor) && Boolean(r.wing));
@@ -4337,28 +4423,28 @@ export function MeetingRoomsPage() {
                                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
                               </div>
                             </div>
-                          </div>
-                          {hasWings && (
-                            <div className="space-y-2">
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Wing (Optional)</label>
+                            {hasWings && (
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Wing (Optional)</label>
+                                <div className="relative">
+                                  <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.wing} onChange={e => setTenantBookingForm(f => ({ ...f, wing: e.target.value, roomName: '' }))}>
+                                    <option value="">Any wing</option>
+                                    {wings.map(wing => <option key={wing} value={wing}>{wing}</option>)}
+                                  </select>
+                                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                                </div>
+                              </div>
+                            )}
+                            <div className={`space-y-2${hasWings ? '' : ' md:col-span-2'}`}>
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meeting Room *</label>
                               <div className="relative">
-                                <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.wing} onChange={e => setTenantBookingForm(f => ({ ...f, wing: e.target.value, roomName: '' }))}>
-                                  <option value="">Any wing</option>
-                                  {wings.map(wing => <option key={wing} value={wing}>{wing}</option>)}
+                                <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.roomName} onChange={e => setTenantBookingForm(f => ({ ...f, roomName: e.target.value }))}>
+                                  <option value="">-- Choose a Room --</option>
+                                  {filteredRooms.map(room => <option key={room.name} value={room.name}>{room.name}{room.floor ? ` --- Floor ${room.floor}` : ''}{room.wing ? ` --- Wing ${room.wing}` : ''}{room.capacity ? ` --- ${room.capacity} seats` : ''}</option>)}
+                                  {filteredRooms.length === 0 && <option value="" disabled>No rooms match your filters</option>}
                                 </select>
                                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
                               </div>
-                            </div>
-                          )}
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meeting Room *</label>
-                            <div className="relative">
-                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.roomName} onChange={e => setTenantBookingForm(f => ({ ...f, roomName: e.target.value }))}>
-                                <option value="">-- Choose a Room --</option>
-                                {filteredRooms.map(room => <option key={room.name} value={room.name}>{room.name}{room.floor ? ` --- Floor ${room.floor}` : ''}{room.wing ? ` --- Wing ${room.wing}` : ''}{room.capacity ? ` --- ${room.capacity} seats` : ''}</option>)}
-                                {filteredRooms.length === 0 && <option value="" disabled>No rooms match your filters</option>}
-                              </select>
-                              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
                             </div>
                           </div>
                         </>
@@ -4371,7 +4457,7 @@ export function MeetingRoomsPage() {
                       if (!room) return null;
                       const inviteeLimit = Math.max(0, Number(room.capacity || 0));
                       const remainingSlots = Math.max(0, inviteeLimit - tenantBookingForm.inviteParticipantIds.length);
-                      const selectedCompany = tenantCompanies.find(t => String(t.id || t._id) === tenantBookingForm.tenantCompanyId);
+                      const selectedCompany = tenantCompanies.find(t => String(t.recordId || t._id) === tenantBookingForm.tenantCompanyId);
                       
                       const startMinutes = timeToMinutes(tenantBookingForm.startTime);
                       const endMinutes = timeToMinutes(tenantBookingForm.endTime);
@@ -4428,7 +4514,7 @@ export function MeetingRoomsPage() {
                         <div className="relative">
                           <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.startTime} onChange={e => { const nextStart = e.target.value; const minEnd = minutesToTimeString((timeToMinutes(nextStart) || 0) + BOOKING_MIN_DURATION_MINUTES); setTenantBookingForm(f => ({ ...f, startTime: nextStart, endTime: !f.endTime || (timeToMinutes(f.endTime) || 0) < (timeToMinutes(minEnd) || 0) ? minEnd : f.endTime })); }}>
                             <option value="">Select time</option>
-                            {buildTimeOptions('08:00', '22:00').map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
+                            {tenantStartTimeOptions.map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
                           </select>
                           <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
                         </div>
@@ -4438,7 +4524,7 @@ export function MeetingRoomsPage() {
                         <div className="relative">
                           <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.endTime} onChange={e => setTenantBookingForm(f => ({ ...f, endTime: e.target.value }))}>
                             <option value="">Select time</option>
-                            {buildTimeOptions(tenantBookingForm.startTime ? minutesToTimeString((timeToMinutes(tenantBookingForm.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES) : '08:30', '23:55').map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
+                            {tenantEndTimeOptions.map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
                           </select>
                           <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
                         </div>
@@ -4461,7 +4547,7 @@ export function MeetingRoomsPage() {
 
                     {/* Invite Employees */}
                     {(() => {
-                      const selectedCompany = tenantCompanies.find(t => String(t.id || t._id) === tenantBookingForm.tenantCompanyId);
+                      const selectedCompany = tenantCompanies.find(t => String(t.recordId || t._id) === tenantBookingForm.tenantCompanyId);
                       const employees = (selectedCompany as any)?.employees || [];
                       const room = roomCatalog.find(r => r.name === tenantBookingForm.roomName);
                       const maxCapacity = room ? Number(room.capacity || 0) : 0;
@@ -4487,7 +4573,11 @@ export function MeetingRoomsPage() {
                           <div className="max-h-64 overflow-y-auto space-y-4 pr-1">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                               {employees.map((emp: any) => {
-                                const empId = String(emp.id || emp.userId || emp._id);
+                                // Prefer the ObjectId the backend can resolve (HostUser ref `userId`
+                                // or the TenantEmployee `_id`). `emp.id` is a non-ObjectId business id
+                                // (e.g. "TE-..."), which resolveInvites filters out, silently dropping
+                                // the invite.
+                                const empId = String(emp.userId || emp._id || emp.id);
                                 const checked = tenantBookingForm.inviteParticipantIds.includes(empId);
                                 const empName = emp.name || emp.fullName || emp.email || 'Employee';
                                 const isDisabled = !checked && maxCapacity > 0 && remainingSlots <= 0;
@@ -4533,7 +4623,7 @@ export function MeetingRoomsPage() {
               </div>
 
               <div className="p-4 sm:p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 shrink-0">
-                <button type="button" disabled={isSavingTenantBooking || !tenantBookingForm.tenantCompanyId || !tenantBookingForm.roomName || !tenantBookingForm.date || !tenantBookingForm.startTime || !tenantBookingForm.endTime} onClick={(e: any) => handleSubmitTenantBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#0F172A] rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
+                <button type="button" disabled={isSavingTenantBooking || !tenantBookingForm.tenantCompanyId || !tenantBookingForm.roomName || !tenantBookingForm.date || !tenantBookingForm.startTime || !tenantBookingForm.endTime} onClick={(e: any) => handleSubmitTenantBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
                   {isSavingTenantBooking ? 'Booking...' : 'Confirm Tenant Booking'}
                 </button>
               </div>

@@ -1,0 +1,6 @@
+# Kiro AI dev environment (specs, steering, local config)
+.kiro/
+
+# OS
+.DS_Store
+Thumbs.db
