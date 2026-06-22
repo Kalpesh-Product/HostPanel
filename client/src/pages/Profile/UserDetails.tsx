@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { TextField, CircularProgress } from "@mui/material";
@@ -10,22 +10,49 @@ import PrimaryButton from "../../components/PrimaryButton";
 import SecondaryButton from "../../components/SecondaryButton";
 import { getStoredTenantRole } from "../../lib/tenant-session";
 
+interface UserRecord {
+  name?: string;
+  email?: string;
+  address?: string;
+  phone?: string;
+  designation?: string;
+  _id?: string;
+  role?: unknown;
+  permissions?: { permissions?: unknown[] };
+  isOwner?: boolean;
+  isFounder?: boolean;
+  tenantRole?: string;
+  workspaceMembership?: {
+    role?: string;
+    isOwner?: boolean;
+    isFounder?: boolean;
+  };
+}
+
+type ProfileFormValues = {
+  name: string;
+  email: string;
+  address: string;
+  workspaceName: string;
+  businessName: string;
+  brandName: string;
+  country: string;
+  state: string;
+  city: string;
+  businessTypes: string;
+  selectedPlan: string;
+  designation?: string;
+  phone?: string;
+};
+
 const UserDetails = () => {
   const axios = useAxiosPrivate();
   const { auth, setAuth } = useAuth();
   const [editMode, setEditMode] = useState(false);
   const [workspaceProfile, setWorkspaceProfile] = useState<any>(null);
-  const normalizeRole = (value: unknown): string => {
-    const raw = resolveRoleValue(value).trim().replace(/-/g, " ");
-    if (!raw) return "";
 
-    // Convert to Title Case (First letter capital, rest small)
-    return raw
-      .toLowerCase()
-      .split(" ")
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
-  };
+  // Cast auth.user to a known shape for safe property access
+  const authUser = useMemo(() => (auth?.user ?? {}) as UserRecord, [auth?.user]);
 
   const { data: userDetails } = useQuery({
     queryKey: ["profileMe"],
@@ -54,10 +81,10 @@ const UserDetails = () => {
     }));
   }, [setAuth, userDetails]);
 
-  const buildProfileDefaults = useCallback(() => ({
-    name: auth?.user?.name || "",
-    email: auth?.user?.email || "",
-    address: auth?.user?.address || workspaceProfile?.workspace?.address || "",
+  const buildProfileDefaults = useCallback((): ProfileFormValues => ({
+    name: authUser?.name || "",
+    email: authUser?.email || "",
+    address: authUser?.address || workspaceProfile?.workspace?.address || "",
     workspaceName: workspaceProfile?.workspace?.workspaceName || "",
     businessName: workspaceProfile?.workspace?.businessName || "",
     brandName: workspaceProfile?.workspace?.brandName || "",
@@ -70,18 +97,18 @@ const UserDetails = () => {
         ? workspaceProfile.workspace.businessTypes.join(", ")
         : "",
     selectedPlan: workspaceProfile?.workspace?.selectedPlan || "",
-  }), [auth?.user, workspaceProfile?.workspace]);
+  }), [authUser, workspaceProfile?.workspace]);
 
-  const { control, handleSubmit, reset } = useForm({
+  const { control, handleSubmit, reset } = useForm<ProfileFormValues>({
     mode: "onChange",
-    defaultValues: {},
+    defaultValues: {} as ProfileFormValues,
   });
 
   useEffect(() => {
-    if (auth?.user || workspaceProfile?.workspace) {
+    if (authUser?.name || workspaceProfile?.workspace) {
       reset(buildProfileDefaults());
     }
-  }, [buildProfileDefaults, reset]);
+  }, [authUser?.name, workspaceProfile?.workspace, buildProfileDefaults, reset]);
 
   const formatName = (name: string) =>
     name
@@ -90,12 +117,12 @@ const UserDetails = () => {
       .join(" ");
 
   const user = {
-    name: formatName(auth?.user?.name || ""),
-    email: auth?.user?.email || "",
-    designation: auth?.user?.designation || "",
+    name: `${authUser?.name || ""}`,
+    email: authUser?.email || "",
+    designation: authUser?.designation || "",
     avatarColor: "#1976d2",
-    workLocation: auth?.user?.address || workspaceProfile?.workspace?.address || "",
-    phone: auth?.user?.phone || "",
+    workLocation: authUser?.address || workspaceProfile?.workspace?.address || "",
+    phone: authUser?.phone || "",
   };
   const resolveRoleValue = (value: unknown): string => {
     if (!value) return "";
@@ -105,35 +132,40 @@ const UserDetails = () => {
     }
     return String(value);
   };
-  const roleArrayTitles = Array.isArray(auth?.user?.role)
-    ? auth.user.role
+  const normalizeRole = (value: unknown) =>
+    resolveRoleValue(value)
+      .trim()
+      .toUpperCase()
+      .replace(/-/g, " ");
+  const roleArrayTitles = Array.isArray(authUser?.role)
+    ? (authUser.role as any[])
       .map((entry: any) => entry?.roleTitle || entry?.title || entry?.name)
       .filter(Boolean)
     : [];
   const roleCandidates = [
-    auth?.user?.workspaceMembership?.role,
-    auth?.user?.role,
-    auth?.user?.designation,
+    authUser?.workspaceMembership?.role,
+    authUser?.role,
+    authUser?.designation,
     ...roleArrayTitles,
   ]
     .filter(Boolean)
     .map((value) => normalizeRole(value));
-  const rawPermissions = Array.isArray(auth?.user?.permissions?.permissions)
-    ? auth.user.permissions.permissions
+  const rawPermissions = Array.isArray(authUser?.permissions?.permissions)
+    ? authUser.permissions!.permissions!
     : [];
-  const isFounder =
+  const _isFounder =
     roleCandidates.some((role) => role === "owner" || role === "founder" || role.includes("founder")) ||
     Boolean(
-      auth?.user?.isOwner ||
-      auth?.user?.isFounder ||
-      auth?.user?.workspaceMembership?.isOwner ||
-      auth?.user?.workspaceMembership?.isFounder,
+      authUser?.isOwner ||
+      authUser?.isFounder ||
+      authUser?.workspaceMembership?.isOwner ||
+      authUser?.workspaceMembership?.isFounder,
     ) ||
     rawPermissions.some((permission: any) =>
       String(permission || "").toLowerCase().includes("owner") ||
       String(permission || "").toLowerCase().includes("founder"),
     );
-  const roleLabelMap: Record<string, string> = {
+  const _roleLabelMap: Record<string, string> = {
     owner: "Founder",
     founder: "Founder",
     "super-admin": "Super Admin",
@@ -142,19 +174,10 @@ const UserDetails = () => {
     manager: "Department Manager",
     employee: "Employee",
   };
+  void _isFounder;
+  void _roleLabelMap;
   const storedTenantRole = getStoredTenantRole();
-  const hasTenantRole = Boolean(storedTenantRole || auth?.user?.tenantRole);
-  const normalizeRoles = (value: unknown): string => {
-    const raw = resolveRoleValue(value).trim().replace(/-/g, " ");
-    if (!raw) return "";
-
-    // Convert to Title Case (First letter capital, rest small)
-    return raw
-      .toLowerCase()
-      .split(" ")
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
-  };
+  const hasTenantRole = Boolean(storedTenantRole || authUser?.tenantRole);
   // console.log(auth.user.tenantRole)
   // const resolvedRoleLabel = hasTenantRole
   //   ? (storedTenantRole === "tenant-manager" || auth?.user?.tenantRole === "tenant-manager"
@@ -163,12 +186,12 @@ const UserDetails = () => {
   //   : isFounder
   //     ? "Founder"
   //     : roleLabelMap[roleCandidates[0] || ""] || "Team Member";
-  const resolvedRoleLabel = normalizeRoles(auth?.user?.workspaceMembership?.role) || normalizeRoles(auth.user.tenantRole);
+  const resolvedRoleLabel = normalizeRole(authUser?.workspaceMembership?.role) || normalizeRole(authUser?.tenantRole);
   // console.log('resolvedRoleLabel', auth?.user?.workspaceMembership?.role);
 
   const mutation = useMutation({
-    mutationFn: async (updatedData) =>
-      axios.patch(`/api/profile/update-profile/${auth?.user?._id}`, updatedData),
+    mutationFn: async (updatedData: { name?: string; address?: string; phone?: string }) =>
+      axios.patch(`/api/profile/update-profile/${authUser?._id}`, updatedData),
     onSuccess: (res) => {
       toast.success(res.data.message || "Profile updated successfully.");
       setAuth((prev) => ({
@@ -177,25 +200,26 @@ const UserDetails = () => {
       }));
       setEditMode(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(error.message || "Failed to update user details");
     },
   });
 
-  const onSubmit = (data, event) => {
+  const onSubmit = (data: ProfileFormValues, event?: React.BaseSyntheticEvent) => {
     if (!editMode) {
       event?.preventDefault();
       return;
     }
-    mutation.mutate({ name: data.name, address: data.address, ...(hasTenantRole ? { phone: data.phone } : {}) });
+    mutation.mutate({ name: data.name, address: data.address, ...(hasTenantRole ? { phone: (data as any).phone } : {}) });
   };
 
   const tenantPhone = hasTenantRole ? user.phone : "";
-  const fields = [
+  void tenantPhone;
+  const fields: Array<{ name: keyof ProfileFormValues; label: string; disabled: boolean }> = [
     { name: "name", label: "Full Name", disabled: false },
     { name: "email", label: "Email", disabled: true },
-    ...(hasTenantRole ? [{ name: "designation", label: "Designation", disabled: true }] : []),
-    ...(hasTenantRole ? [{ name: "phone", label: "Phone", disabled: true }] : []),
+    ...(hasTenantRole ? [{ name: "designation" as keyof ProfileFormValues, label: "Designation", disabled: true }] : []),
+    ...(hasTenantRole ? [{ name: "phone" as keyof ProfileFormValues, label: "Phone", disabled: true }] : []),
     { name: "address", label: "Address", disabled: false },
   ];
 

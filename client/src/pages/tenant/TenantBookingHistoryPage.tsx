@@ -105,8 +105,8 @@ function formatDateLabel(value: string): string {
 
 function formatBookingWindow(booking: Record<string, any>): string {
   const dl = formatDateLabel(booking?.date);
-  const st = booking?.checkIn || booking?.startTime || '';
-  const et = booking?.checkOut || booking?.endTime || '';
+  const st = formatTime12h(booking?.checkIn || booking?.startTime || '');
+  const et = formatTime12h(booking?.checkOut || booking?.endTime || '');
   return `${dl} ${st}${et ? ` - ${et}` : ''}`;
 }
 
@@ -387,6 +387,25 @@ export default function TenantBookingHistoryPage() {
     return getBookingScheduleAvailability(tenantBookings, { ...extendModal, endTime: minutesToTimeString(nextEndMinutes) }, extendModal.recordId);
   }, [extendModal, extendMinutes, tenantBookings]);
 
+  const extendPreview = useMemo(() => {
+    if (!extendModal) return null;
+    const extra = Number(extendMinutes || 0);
+    const currentEndMinutes = timeToMinutes(extendModal?.endTime || extendModal?.checkOut || '');
+    if (currentEndMinutes === null || extra <= 0) return null;
+    const nextEndMinutes = currentEndMinutes + extra;
+    const nextEndTime = minutesToTimeString(nextEndMinutes);
+    const currentCredits = Number(extendModal?.bookingCredits || 0);
+    const origStartMinutes = timeToMinutes(extendModal?.startTime || extendModal?.checkIn || '');
+    const origEndMinutes = currentEndMinutes;
+    const origDurationHours = (origStartMinutes !== null && origEndMinutes > origStartMinutes)
+      ? (origEndMinutes - origStartMinutes) / 60
+      : 0;
+    const ratePerHour = origDurationHours > 0 ? currentCredits / origDurationHours : 0;
+    const extraCredits = Number(((extra / 60) * ratePerHour).toFixed(2));
+    const newTotalCredits = Number((currentCredits + extraCredits).toFixed(2));
+    return { nextEndTime, extraCredits, newTotalCredits, currentCredits };
+  }, [extendModal, extendMinutes]);
+
   const rescheduleBookingRate = useMemo(() => {
     if (!rescheduleModal) return 0;
     const originalCredits = Number(rescheduleModal.bookingCredits || 0);
@@ -566,7 +585,6 @@ export default function TenantBookingHistoryPage() {
       await updateMeetingRoomBooking(extendModal.recordId, {
         end: nextEndISO,
         scheduleChangeType: 'extended',
-        extensionAmount: extra,
       });
       setNoticeMessage('Booking extended.');
       closeExtendModal();
@@ -672,7 +690,7 @@ export default function TenantBookingHistoryPage() {
                     <td className="px-6 py-5 align-top">
                       <p className="text-sm font-pmedium text-slate-700">{formatDateLabel(booking.date)}</p>
                       <p className="mt-1 flex items-center gap-1.5 text-xs font-pmedium text-slate-500">
-                        <Clock size={12} /> {booking.checkIn || booking.startTime} - {booking.checkOut || booking.endTime}
+                        <Clock size={12} /> {formatTime12h(booking.checkIn || booking.startTime || '')} - {formatTime12h(booking.checkOut || booking.endTime || '')}
                       </p>
                     </td>
                     <td className="px-6 py-5 align-top">
@@ -963,11 +981,23 @@ export default function TenantBookingHistoryPage() {
                   <option value="90">1 hour 30 minutes</option>
                 </select>
               </label>
-              <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 md:col-span-2">
-                <p className="text-[10px] font-pbold uppercase tracking-widest text-slate-400">Current Credits</p>
-                <p className="mt-1 text-xs font-pmedium text-slate-900">{Number(extendModal?.bookingCredits || 0).toFixed(2)} CR</p>
-                <p className="mt-1.5 text-[11px] font-pregular text-slate-500">The backend recalculates the extra charge from the new end time and adjusts the tenant balance automatically.</p>
-              </div>
+              {extendPreview && (
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3 md:col-span-2 space-y-1.5">
+                  <p className="text-[10px] font-pbold uppercase tracking-widest text-indigo-700">Extension Summary</p>
+                  <div className="flex items-center justify-between text-xs font-pmedium text-indigo-900">
+                    <span>New end time</span>
+                    <span className="font-pbold">{formatTime12h(extendPreview.nextEndTime)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs font-pmedium text-indigo-900">
+                    <span>Credits to deduct</span>
+                    <span className="font-pbold">{extendPreview.extraCredits.toFixed(2)} CR</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs font-pbold text-indigo-950 border-t border-indigo-200 pt-1.5">
+                    <span>New total credits</span>
+                    <span>{extendPreview.newTotalCredits.toFixed(2)} CR</span>
+                  </div>
+                </div>
+              )}
               <div className={`rounded-xl border p-3 text-xs font-pmedium md:col-span-2 ${extendAvailability.available ? 'border-emerald-100 bg-emerald-50 text-emerald-800' : 'border-rose-100 bg-rose-50 text-rose-800'}`}>{extendAvailability.reason}</div>
             </div>
             <div className="flex gap-3 border-t border-slate-100 bg-slate-50 px-4 py-3">

@@ -2,3 +2,6 @@ node_modules
 .env
 dist
 tsconfig.json
+
+# Kiro spec test files (bugfix exploration tests, not part of production build)
+controllers/__tests__/

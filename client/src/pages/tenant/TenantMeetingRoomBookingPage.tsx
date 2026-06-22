@@ -568,6 +568,8 @@ export default function TenantMeetingRoomBookingPage() {
         attendees: Number(bookingForm.attendees || 1),
         inviteeUserIds: selectedInviteeIds,
         bookingType: 'Tenant',
+        tenantCompanyId,
+        sourceReference: `tenant-room-booking:${tenantCompanyId}`,
         bookedByName: currentUserName,
         bookedByEmail: currentUser?.email || '',
         bookingNotes: `Floor ${selectedRoom.floor} Wing ${selectedRoom.wing}`,
