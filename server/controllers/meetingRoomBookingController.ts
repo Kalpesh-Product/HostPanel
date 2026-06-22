@@ -45,6 +45,12 @@ const transformBooking = (booking: any, currentUserId?: string) => {
     const start = booking.start ? dateTimeParts(booking.start) : { date: "", time: "" };
     const end = booking.end ? dateTimeParts(booking.end) : { date: "", time: "" };
     const ownerId = String(owner?._id || booking.ownerId || "");
+    const bookedByUserId = String(booking.bookedByUserId || "");
+    // bookedForName: stored at creation time for on-behalf bookings (owner != booker).
+    // Falls back to deriving from populated owner when not stored (legacy bookings).
+    const ownerName = owner?.name || "";
+    const isOnBehalf = ownerId && bookedByUserId && ownerId !== bookedByUserId;
+    const bookedForName = booking.bookedForName || (isOnBehalf ? ownerName : "");
     return {
         ...booking,
         recordId: String(booking._id || booking.id || ""),
@@ -57,7 +63,9 @@ const transformBooking = (booking: any, currentUserId?: string) => {
         wing: room?.wing || "",
         roomType: room?.type || "Meeting Room",
         roomCapacity: room?.capacity || 0,
-        bookedByName: booking.bookedByName || owner?.name || "",
+        bookedByName: booking.bookedByName || ownerName || "",
+        bookedForName,
+        bookedByUserId,
         isMe: Boolean(currentUserId && ownerId === String(currentUserId)),
         storedStatus: booking.status,
     };
@@ -337,7 +345,31 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
             MeetingRoomBooking.findOne({ workspaceId }).sort({ bookingNumber: -1 }).lean().exec(),
             HostUser.findById(req.user).lean().exec(),
         ]);
-        const invites = await resolveInvites(inviteeUserIds);
+
+        // Resolve ownerId for Internal on-behalf bookings
+        let resolvedOwnerId: any = req.user;
+        let resolvedBookedByUserId: any = req.user;
+        let resolvedBookedForName: string = "";
+        if (
+            String(req.body.bookingType || '').toLowerCase() === 'internal' &&
+            typeof req.body.bookedForUserId === 'string' &&
+            req.body.bookedForUserId.trim()
+        ) {
+            const candidateId = getValidObjectId(req.body.bookedForUserId.trim());
+            if (candidateId) {
+                const hostForMember = await HostUser.findById(candidateId).lean().exec();
+                if (hostForMember) {
+                    resolvedOwnerId = candidateId;
+                    resolvedBookedForName = (hostForMember as any).name || (hostForMember as any).fullName || "";
+                    // resolvedBookedByUserId stays as req.user (the admin)
+                }
+            }
+        }
+
+        const rawInvites = await resolveInvites(inviteeUserIds);
+        const invites = rawInvites.filter(
+            (inv: any) => String(inv.invitedUserId || '') !== String(resolvedOwnerId)
+        );
         const bookingNumber = lastBooking ? Number(lastBooking.bookingNumber) + 1 : 1001;
 
         // Calculate credits for the booking
@@ -367,9 +399,10 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
             end: range.end,
             originalStart: range.start,
             originalEnd: range.end,
-            ownerId: req.user,
-            bookedByUserId: req.user,
+            ownerId: resolvedOwnerId,
+            bookedByUserId: resolvedBookedByUserId,
             bookedByName: resolveBookedByName(req.body, hostUser),
+            bookedForName: resolvedBookedForName,
             bookedByEmail: hostUser?.email || req.body.bookedByEmail || "",
             bookedByTenantCompanyId: tenantBookingCompanyId,
             bookedByTenantCompanyName: tenantBookingCompanyName,
@@ -453,7 +486,7 @@ export const getBookings = async (req: AuthenticatedRequest, res: Response, next
 export const getMyBookings = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
         if (!req.user) return res.status(401).json({ message: "User not authenticated" });
-        const bookings = await MeetingRoomBooking.find({ ownerId: req.user, workspaceId: workspaceIdFor(req) }).populate("roomId", "name type capacity floor wing").sort({ start: -1 }).lean().exec();
+        const bookings = await MeetingRoomBooking.find({ ownerId: req.user, workspaceId: workspaceIdFor(req) }).populate("roomId", "name type capacity floor wing").populate("ownerId", "name email").sort({ start: -1 }).lean().exec();
         return res.status(200).json({ message: "My bookings fetched successfully", data: { bookings: bookings.map((booking: any) => transformBooking(booking, req.user)) } });
     } catch (error: any) { next(error); }
 };

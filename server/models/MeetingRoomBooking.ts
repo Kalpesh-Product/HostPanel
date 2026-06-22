@@ -12,6 +12,7 @@ export interface IMeetingRoomBooking extends Document {
     roomName: string;
     bookedByName: string;
     bookedByEmail: string;
+    bookedForName?: string;
 
     bookingType: "Internal" | "External" | "Tenant";
 
@@ -156,6 +157,7 @@ const meetingRoomBookingSchema = new Schema<IMeetingRoomBooking>(
 
         bookedByTenantCompanyId: { type: String, trim: true, index: true },
         bookedByTenantCompanyName: { type: String, trim: true },
+        bookedForName: { type: String, trim: true, default: "" },
 
         bookingCredits: { type: Number, default: 0, min: 0 },
         baseAmount: { type: Number, default: 0, min: 0 },

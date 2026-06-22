@@ -2120,7 +2120,12 @@ const CreateWebsite = () => {
     new Set([
       ...DEFAULT_PRODUCT_DROPDOWN_PAGES,
       ...(values?.products || [])
-        .map((item) => String(item?.type || item?.name || "").trim())
+        .map((item) => String(item?.type || "").trim())  // use type as heading, not name
+        .filter(Boolean),
+      // ✅ also include pages that are already saved in productDropdownPages
+      // so they always appear in the dropdown (e.g. when loading an existing site)
+      ...(values?.productDropdownPages || [])
+        .map((item) => String(item?.name || "").trim())
         .filter(Boolean),
     ]),
   );
