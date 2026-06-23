@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect, useCallback } from 'react';
+﻿import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Search, ChevronDown, Clock, Users, Building,
@@ -32,7 +32,11 @@ import {
   respondToMeetingRoomInvite,
   updateMeetingRoomBooking,
   cancelBooking,
+  getExternalClients,
+  createExternalClient,
+  sendExternalBookingConfirmationEmail,
 } from '../../services/meeting-room-bookings';
+import { validateEmail, validatePhone, computeExternalPricing, hasSlotConflict, computeAvailableSlots, timeToMinutes as helpersTimeToMinutes } from './externalBookingHelpers';
 
 
 interface StoredUser {
@@ -142,6 +146,16 @@ interface WorkspaceMember {
   fullName?: string;
   role?: string;
   departments?: string[];
+}
+
+interface ExternalClient {
+  _id: string;
+  name: string;
+  email: string;
+  phone: string;
+  company?: string;
+  source: string;
+  bookingCount: number;
 }
 
 function CardsGridSkeleton({ count = 6, cardHeight = "h-32" }: { count?: number; cardHeight?: string }) {
@@ -625,6 +639,1302 @@ function isRejectedCurrentUserInvite(booking: any) {
   return booking?.currentInviteStatus === 'rejected';
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ClientDetailsTab — Task 9: Search, select, and "Add New Client" flow
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface ClientDetailsTabProps {
+  workspaceId: string;
+  clientMode: 'search' | 'new';
+  setClientMode: (mode: 'search' | 'new') => void;
+  clientSearch: string;
+  setClientSearch: (v: string) => void;
+  clientSearchResults: ExternalClient[];
+  setClientSearchResults: (r: ExternalClient[]) => void;
+  selectedClient: ExternalClient | null;
+  setSelectedClient: (c: ExternalClient | null) => void;
+  newClientForm: { name: string; email: string; phone: string; company: string };
+  setNewClientForm: (f: { name: string; email: string; phone: string; company: string }) => void;
+  clientErrors: Record<string, string>;
+  setClientErrors: (e: Record<string, string>) => void;
+  setErrorMessage: (m: string) => void;
+  setActiveDialogTab: (tab: 'client' | 'booking') => void;
+}
+
+function ClientDetailsTab({
+  workspaceId,
+  clientMode,
+  setClientMode,
+  clientSearch,
+  setClientSearch,
+  clientSearchResults,
+  setClientSearchResults,
+  selectedClient,
+  setSelectedClient,
+  newClientForm,
+  setNewClientForm,
+  clientErrors,
+  setClientErrors,
+  setErrorMessage,
+  setActiveDialogTab,
+}: ClientDetailsTabProps) {
+  const [isConfirming, setIsConfirming] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounced search — fires 300ms after the user stops typing if ≥ 2 chars
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setClientSearch(value);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+
+      if (value.length < 2) {
+        setClientSearchResults([]);
+        return;
+      }
+
+      debounceRef.current = setTimeout(async () => {
+        try {
+          const results = await getExternalClients(workspaceId, value);
+          setClientSearchResults(Array.isArray(results) ? results : []);
+        } catch {
+          setClientSearchResults([]);
+        }
+      }, 300);
+    },
+    [workspaceId, setClientSearch, setClientSearchResults],
+  );
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
+  const handleSelectClient = (client: ExternalClient) => {
+    setSelectedClient(client);
+    setClientSearch('');
+    setClientSearchResults([]);
+    setClientMode('search');
+    setClientErrors({});
+  };
+
+  const handleClearSelection = () => {
+    setSelectedClient(null);
+    setClientSearch('');
+    setClientSearchResults([]);
+    setClientErrors({});
+  };
+
+  const handleAddNew = () => {
+    setClientMode('new');
+    setSelectedClient(null);
+    setClientErrors({});
+  };
+
+  const handleNewFormChange = (field: keyof typeof newClientForm, value: string) => {
+    setNewClientForm({ ...newClientForm, [field]: value });
+    // Clear the field error when user starts typing
+    if (clientErrors[field]) {
+      setClientErrors({ ...clientErrors, [field]: '' });
+    }
+  };
+
+  const handleEmailBlur = () => {
+    if (newClientForm.email && !validateEmail(newClientForm.email)) {
+      setClientErrors({ ...clientErrors, email: 'Please enter a valid email address.' });
+    } else {
+      const { email: _e, ...rest } = clientErrors;
+      void _e;
+      setClientErrors(rest);
+    }
+  };
+
+  const handlePhoneBlur = () => {
+    if (newClientForm.phone && !validatePhone(newClientForm.phone)) {
+      setClientErrors({ ...clientErrors, phone: 'Please enter a valid phone number (10 digits).' });
+    } else {
+      const { phone: _p, ...rest } = clientErrors;
+      void _p;
+      setClientErrors(rest);
+    }
+  };
+
+  const handleConfirmClient = async () => {
+    if (clientMode === 'search') {
+      if (!selectedClient) {
+        setClientErrors({ ...clientErrors, general: 'Please select or create a client.' });
+        return;
+      }
+      setActiveDialogTab('booking');
+      return;
+    }
+
+    // clientMode === 'new' — validate all required fields
+    const errors: Record<string, string> = {};
+    if (!newClientForm.name.trim()) errors.name = 'Name is required.';
+    if (!newClientForm.email.trim()) {
+      errors.email = 'Email is required.';
+    } else if (!validateEmail(newClientForm.email)) {
+      errors.email = 'Please enter a valid email address.';
+    }
+    if (!newClientForm.phone.trim()) {
+      errors.phone = 'Phone number is required.';
+    } else if (!validatePhone(newClientForm.phone)) {
+      errors.phone = 'Please enter a valid phone number (10 digits).';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setClientErrors(errors);
+      return;
+    }
+
+    setIsConfirming(true);
+    setErrorMessage('');
+    try {
+      const created = await createExternalClient({
+        workspaceId,
+        name: newClientForm.name.trim(),
+        email: newClientForm.email.trim(),
+        phone: newClientForm.phone.trim(),
+        company: newClientForm.company.trim() || undefined,
+      });
+      setSelectedClient(created);
+      setClientErrors({});
+      setActiveDialogTab('booking');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Failed to create client. Please try again.';
+      setErrorMessage(msg);
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  const inputClass = 'w-full text-sm px-3 py-2 rounded-xl border border-slate-200 bg-white text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-colors';
+
+  return (
+    <div className="flex flex-col gap-4">
+
+      {/* ── Selected client display ── */}
+      {selectedClient && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-0.5">
+            <p className="text-[13px] font-bold text-emerald-800">{selectedClient.name}</p>
+            <p className="text-[11px] text-emerald-600">{selectedClient.email}</p>
+            {selectedClient.phone && (
+              <p className="text-[11px] text-emerald-600">{selectedClient.phone}</p>
+            )}
+            {selectedClient.company && (
+              <p className="text-[11px] text-emerald-500">{selectedClient.company}</p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handleClearSelection}
+            title="Clear selection"
+            className="w-6 h-6 flex items-center justify-center rounded-full bg-emerald-100 hover:bg-red-100 text-emerald-600 hover:text-red-500 transition-colors shrink-0 mt-0.5"
+          >
+            <X size={14} strokeWidth={2.5} />
+          </button>
+        </div>
+      )}
+
+      {/* ── Search input (shown when no client selected) ── */}
+      {!selectedClient && clientMode === 'search' && (
+        <div className="relative">
+          <div className="relative">
+            <Search
+              size={15}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+            />
+            <input
+              type="text"
+              value={clientSearch}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Search client by name, email, or phone…"
+              className={`${inputClass} pl-9`}
+            />
+          </div>
+
+          {/* Dropdown results */}
+          {clientSearchResults.length > 0 && (
+            <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+              {clientSearchResults.map((client) => (
+                <button
+                  key={client._id}
+                  type="button"
+                  onClick={() => handleSelectClient(client)}
+                  className="w-full px-4 py-2.5 text-left hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0"
+                >
+                  <p className="text-[13px] font-semibold text-[#0F172A]">{client.name}</p>
+                  <p className="text-[11px] text-slate-500">
+                    {client.email}
+                    {client.phone ? ` · ${client.phone}` : ''}
+                    {client.company ? ` · ${client.company}` : ''}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* No results hint */}
+          {clientSearch.length >= 2 && clientSearchResults.length === 0 && (
+            <p className="mt-2 text-[11px] text-slate-400 px-1">
+              No clients found. Use "Add New Client" to create one.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* ── "Add New Client" button ── */}
+      {!selectedClient && clientMode === 'search' && (
+        <button
+          type="button"
+          onClick={handleAddNew}
+          className="flex items-center gap-2 text-[13px] font-bold text-[#2563EB] hover:text-blue-700 transition-colors self-start"
+        >
+          <UserPlus size={15} strokeWidth={2.5} />
+          Add New Client
+        </button>
+      )}
+
+      {/* ── Inline new client form ── */}
+      {clientMode === 'new' && !selectedClient && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+              New Client Details
+            </p>
+            <button
+              type="button"
+              onClick={() => { setClientMode('search'); setClientErrors({}); }}
+              className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              ← Back to search
+            </button>
+          </div>
+
+          {/* Name */}
+          <div className="flex flex-col gap-1">
+            <input
+              type="text"
+              value={newClientForm.name}
+              onChange={(e) => handleNewFormChange('name', e.target.value)}
+              placeholder="Full name *"
+              className={inputClass}
+            />
+            {clientErrors.name && (
+              <p className="text-[11px] text-red-500 px-1">{clientErrors.name}</p>
+            )}
+          </div>
+
+          {/* Email */}
+          <div className="flex flex-col gap-1">
+            <input
+              type="email"
+              value={newClientForm.email}
+              onChange={(e) => handleNewFormChange('email', e.target.value)}
+              onBlur={handleEmailBlur}
+              placeholder="Email address *"
+              className={inputClass}
+            />
+            {clientErrors.email && (
+              <p className="text-[11px] text-red-500 px-1">{clientErrors.email}</p>
+            )}
+          </div>
+
+          {/* Phone */}
+          <div className="flex flex-col gap-1">
+            <input
+              type="tel"
+              value={newClientForm.phone}
+              onChange={(e) => handleNewFormChange('phone', e.target.value)}
+              onBlur={handlePhoneBlur}
+              placeholder="Phone number * (10 digits)"
+              className={inputClass}
+            />
+            {clientErrors.phone && (
+              <p className="text-[11px] text-red-500 px-1">{clientErrors.phone}</p>
+            )}
+          </div>
+
+          {/* Company (optional) */}
+          <div className="flex flex-col gap-1">
+            <input
+              type="text"
+              value={newClientForm.company}
+              onChange={(e) => handleNewFormChange('company', e.target.value)}
+              placeholder="Company (optional)"
+              className={inputClass}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── General error (no client selected on confirm attempt) ── */}
+      {clientErrors.general && (
+        <p className="text-[11px] text-red-500 px-1">{clientErrors.general}</p>
+      )}
+
+      {/* ── Confirm Client button ── */}
+      {!selectedClient && (
+        <button
+          type="button"
+          disabled={isConfirming}
+          onClick={handleConfirmClient}
+          className="w-full py-3 bg-[#2563EB] text-white rounded-xl font-black text-[12px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/25 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
+        >
+          {isConfirming
+            ? 'Saving…'
+            : clientMode === 'new'
+              ? 'Confirm Client'
+              : 'Continue with Selected Client'}
+        </button>
+      )}
+
+      {/* ── Already confirmed — advance to booking ── */}
+      {selectedClient && (
+        <button
+          type="button"
+          onClick={() => setActiveDialogTab('booking')}
+          className="w-full py-3 bg-[#2563EB] text-white rounded-xl font-black text-[12px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/25 hover:bg-blue-600 transition-all active:scale-[0.98]"
+        >
+          Continue to Booking Details →
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExternalBookingDialog — Task 8: Skeleton, state, and tab bar
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface ExternalBookingDialogProps {
+  open: boolean;
+  onClose: () => void;
+  roomCatalog: RoomDetails[];
+  allBookings: Booking[];
+  workspaceId: string;
+  managerName: string;
+  onSuccess: () => Promise<void>;
+}
+
+function ExternalBookingDialog({
+  open,
+  onClose,
+  roomCatalog,
+  allBookings,
+  workspaceId,
+  managerName,
+  onSuccess,
+}: ExternalBookingDialogProps) {
+  // ── Tab navigation ──────────────────────────────────────────────────────────
+  const [activeDialogTab, setActiveDialogTab] = useState<'client' | 'booking'>('client');
+
+  // ── Client state ────────────────────────────────────────────────────────────
+  const [clientMode, setClientMode] = useState<'search' | 'new'>('search');
+  const [clientSearch, setClientSearch] = useState('');
+  const [clientSearchResults, setClientSearchResults] = useState<ExternalClient[]>([]);
+  const [selectedClient, setSelectedClient] = useState<ExternalClient | null>(null);
+  const [newClientForm, setNewClientForm] = useState({ name: '', email: '', phone: '', company: '' });
+  const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
+
+  // ── Booking state ───────────────────────────────────────────────────────────
+  const [bookingForm, setBookingForm] = useState({
+    resourceId: '',
+    resourceName: '',
+    resourceType: '',
+    floor: '',
+    wing: '',
+    date: '',
+    startTime: '',
+    endTime: '',
+    purpose: '',
+    notes: '',
+    paymentMode: '',
+    paymentStatus: 'Pending',
+    transactionId: '',
+    discountType: 'flat' as 'flat' | 'percent',
+    discountValue: '',
+  });
+  const [bookingErrors, setBookingErrors] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // ── Resource filter state (Task 10) ────────────────────────────────────────
+  const [typeFilter, setTypeFilter] = useState('');
+  const [wingFilter, setWingFilter] = useState('');
+  const [floorFilter, setFloorFilter] = useState('');
+
+  // Filtered resource list for the resource selector
+  const filteredResources = useMemo(() => {
+    return roomCatalog.filter((r) => {
+      if (typeFilter && r.type !== typeFilter) return false;
+      if (floorFilter && r.floor !== floorFilter) return false;
+      if (wingFilter && r.wing !== wingFilter) return false;
+      return true;
+    });
+  }, [roomCatalog, typeFilter, floorFilter, wingFilter]);
+
+  // Distinct filter option lists derived from full catalog
+  const distinctTypes = useMemo(() => Array.from(new Set(roomCatalog.map((r) => r.type).filter(Boolean))).sort(), [roomCatalog]);
+  const distinctFloors = useMemo(() => Array.from(new Set(roomCatalog.map((r) => r.floor).filter(Boolean))).sort(), [roomCatalog]);
+  const distinctWings = useMemo(() => Array.from(new Set(roomCatalog.map((r) => r.wing).filter(Boolean))).sort(), [roomCatalog]);
+
+  // Selected resource for pricing helper text
+  const selectedResource = useMemo(
+    () => roomCatalog.find((r) => r.name === bookingForm.resourceName) ?? null,
+    [roomCatalog, bookingForm.resourceName],
+  );
+
+  // Reactive pricing computation
+  const externalPricing = useMemo(() => {
+    const pricePerHour = selectedResource?.pricePerHour ?? 0;
+    return computeExternalPricing(
+      pricePerHour,
+      bookingForm.startTime,
+      bookingForm.endTime,
+      bookingForm.discountType,
+      bookingForm.discountValue,
+    );
+  }, [
+    selectedResource,
+    bookingForm.startTime,
+    bookingForm.endTime,
+    bookingForm.discountType,
+    bookingForm.discountValue,
+  ]);
+
+  // Discount validation — runs whenever discount inputs or base price change
+  useEffect(() => {
+    if (!bookingForm.discountValue || Number(bookingForm.discountValue) === 0) {
+      if (bookingErrors.discount) setBookingErrors((prev) => { const n = { ...prev }; delete n.discount; return n; });
+      return;
+    }
+    const rawVal = Number(bookingForm.discountValue);
+    if (bookingForm.discountType === 'percent') {
+      if (rawVal < 0 || rawVal > 100) {
+        setBookingErrors((prev) => ({ ...prev, discount: 'Discount percentage must be between 0 and 100.' }));
+      } else {
+        setBookingErrors((prev) => { const n = { ...prev }; delete n.discount; return n; });
+      }
+    } else {
+      if (rawVal > externalPricing.basePriceRaw && externalPricing.basePriceRaw > 0) {
+        setBookingErrors((prev) => ({ ...prev, discount: 'Discount cannot exceed the base price.' }));
+      } else {
+        setBookingErrors((prev) => { const n = { ...prev }; delete n.discount; return n; });
+      }
+    }
+  }, [bookingForm.discountValue, bookingForm.discountType, externalPricing.basePriceRaw]);
+
+  // ── Slot conflict detection (Task 15) ───────────────────────────────────────
+  const externalSlotConflict = useMemo(() => {
+    if (!bookingForm.resourceName || !bookingForm.date || !bookingForm.startTime || !bookingForm.endTime) return false;
+    return hasSlotConflict(allBookings, bookingForm.resourceName, bookingForm.date, bookingForm.startTime, bookingForm.endTime);
+  }, [allBookings, bookingForm.resourceName, bookingForm.date, bookingForm.startTime, bookingForm.endTime]);
+
+  // Available slot suggestions (only computed when conflict is active)
+  const externalSlotSuggestions = useMemo(() => {
+    if (!externalSlotConflict || !bookingForm.resourceName || !bookingForm.date || !bookingForm.startTime || !bookingForm.endTime) return [];
+    const startMin = helpersTimeToMinutes(bookingForm.startTime);
+    const endMin = helpersTimeToMinutes(bookingForm.endTime);
+    if (startMin === null || endMin === null || endMin <= startMin) return [];
+    const desiredDuration = endMin - startMin;
+    const suggestions = computeAvailableSlots(allBookings, bookingForm.resourceName, bookingForm.date, desiredDuration);
+    return suggestions.slice(0, 6); // show max 6 chips
+  }, [externalSlotConflict, allBookings, bookingForm.resourceName, bookingForm.date, bookingForm.startTime, bookingForm.endTime]);
+
+  // Reset all state when dialog closes
+  const handleClose = () => {
+    setActiveDialogTab('client');
+    setClientMode('search');
+    setClientSearch('');
+    setClientSearchResults([]);
+    setSelectedClient(null);
+    setNewClientForm({ name: '', email: '', phone: '', company: '' });
+    setClientErrors({});
+    setBookingForm({
+      resourceId: '',
+      resourceName: '',
+      resourceType: '',
+      floor: '',
+      wing: '',
+      date: '',
+      startTime: '',
+      endTime: '',
+      purpose: '',
+      notes: '',
+      paymentMode: '',
+      paymentStatus: 'Pending',
+      transactionId: '',
+      discountType: 'flat',
+      discountValue: '',
+    });
+    setBookingErrors({});
+    setIsSaving(false);
+    setErrorMessage('');
+    onClose();
+  };
+
+  // ── Submit handler ─────────────────────────────────────────────────────────
+  const handleDialogSubmit = async () => {
+    // Validate all required fields
+    const errors: Record<string, string> = {};
+
+    if (!bookingForm.resourceName) errors.resource = 'Please select a resource.';
+    if (!bookingForm.date) errors.date = 'Date is required.';
+    if (!bookingForm.startTime) errors.startTime = 'Start time is required.';
+    if (!bookingForm.endTime) errors.endTime = 'End time is required.';
+    if (!bookingForm.purpose.trim()) errors.purpose = 'Purpose is required.';
+    if (!bookingForm.paymentMode) errors.paymentMode = 'Please select a payment mode.';
+
+    // Time validation
+    const timeValidation = getBookingTimeValidation(bookingForm.date, bookingForm.startTime, bookingForm.endTime);
+    if (!timeValidation.valid) {
+      if (timeValidation.reason.includes('date')) errors.date = timeValidation.reason;
+      else if (timeValidation.reason.includes('time') || timeValidation.reason.includes('passed')) errors.startTime = timeValidation.reason;
+      else errors.endTime = timeValidation.reason;
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setBookingErrors((prev) => ({ ...prev, ...errors }));
+      return;
+    }
+
+    if (!selectedClient) {
+      setErrorMessage('Please select or create a client first.');
+      return;
+    }
+
+    setIsSaving(true);
+    setErrorMessage('');
+
+    try {
+      // Find the room to get its ID
+      const room = roomCatalog.find((r) => r.name === bookingForm.resourceName);
+      if (!room) throw new Error('Selected resource not found. Please reselect.');
+
+      const roomId = String(room._id ?? room.id ?? '');
+      const start = `${bookingForm.date}T${bookingForm.startTime}:00`;
+      const end = `${bookingForm.date}T${bookingForm.endTime}:00`;
+
+      await createMeetingRoomBooking({
+        bookingType: 'External',
+        roomId,
+        roomName: room.name,
+        bookedByName: managerName,
+        bookedForName: selectedClient.name,
+        externalClientId: selectedClient._id,
+        start,
+        end,
+        attendees: 1,
+        purpose: bookingForm.purpose.trim(),
+        bookingNotes: bookingForm.notes.trim() || '',
+        baseAmount: externalPricing.basePriceRaw,
+        gstAmount: externalPricing.gstAmount,
+        totalAmount: externalPricing.totalAmount,
+        discountType: bookingForm.discountType,
+        discountValue: Number(bookingForm.discountValue) || 0,
+        paymentMode: bookingForm.paymentMode,
+        paymentStatus: bookingForm.paymentStatus,
+        transactionId: bookingForm.transactionId || '',
+      } as any);
+
+      await onSuccess();
+      handleClose();
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const msg = err?.response?.data?.message || err?.message || 'Failed to create booking.';
+      if (status === 409) {
+        setBookingErrors((prev) => ({ ...prev, endTime: 'This resource is already booked for the selected time slot.' }));
+      } else if (status === 422) {
+        setErrorMessage('Client not found in this workspace.');
+      } else {
+        setErrorMessage(msg);
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <div className="fixed inset-0 z-[80] flex items-end md:items-center justify-center">
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={handleClose}
+            className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm"
+          />
+
+          {/* Dialog panel */}
+          <motion.div
+            initial={{ y: '100%', opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: '100%', opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="bg-white rounded-t-[32px] md:rounded-[32px] w-full md:max-w-2xl max-h-[92vh] md:max-h-[88vh] shadow-2xl relative z-[90] flex flex-col overflow-hidden"
+          >
+            {/* Mobile drag indicator */}
+            <div className="w-full flex justify-center py-3 md:hidden">
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full" />
+            </div>
+
+            {/* Header */}
+            <div className="px-6 py-4 md:p-8 flex justify-between items-center border-b border-slate-100/60 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
+              <div>
+                <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">
+                  External Booking
+                </h2>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                  Walk-in / External visitor
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleClose}
+                className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors"
+              >
+                <X size={20} strokeWidth={2.5} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-6 md:px-8 py-5 flex flex-col gap-4">
+              {/* Error banner */}
+              {errorMessage && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-600">
+                  {errorMessage}
+                </div>
+              )}
+
+              {/* Two-tab bar */}
+              <div className="flex bg-slate-100/60 p-1 rounded-xl border border-slate-200/50 mb-4">
+                {(['client', 'booking'] as const).map((tab) => {
+                  const label = tab === 'client' ? 'Client Details' : 'Booking Details';
+                  const isActive = activeDialogTab === tab;
+                  const isDisabled = tab === 'booking' && !selectedClient;
+                  return (
+                    <button
+                      key={tab}
+                      type="button"
+                      disabled={isDisabled}
+                      onClick={() => !isDisabled && setActiveDialogTab(tab)}
+                      className={`flex-1 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all
+                        ${isActive ? 'bg-[#2563EB] text-white shadow-sm' : ''}
+                        ${!isActive && !isDisabled ? 'text-[#0F172A] hover:bg-slate-200/70 hover:text-slate-900' : ''}
+                        ${isDisabled ? 'text-slate-300 cursor-not-allowed' : ''}
+                      `}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Tab content placeholders */}
+              {activeDialogTab === 'client' && (
+                <ClientDetailsTab
+                  workspaceId={workspaceId}
+                  clientMode={clientMode}
+                  setClientMode={setClientMode}
+                  clientSearch={clientSearch}
+                  setClientSearch={setClientSearch}
+                  clientSearchResults={clientSearchResults}
+                  setClientSearchResults={setClientSearchResults}
+                  selectedClient={selectedClient}
+                  setSelectedClient={setSelectedClient}
+                  newClientForm={newClientForm}
+                  setNewClientForm={setNewClientForm}
+                  clientErrors={clientErrors}
+                  setClientErrors={setClientErrors}
+                  setErrorMessage={setErrorMessage}
+                  setActiveDialogTab={setActiveDialogTab}
+                />
+              )}
+              {activeDialogTab === 'booking' && (
+                <div className="booking-tab-content">
+                  {/* Booking Details — two-column grid */}
+                  <div className="grid grid-cols-2 gap-4">
+
+                    {/* Row 1 — Type filter (left) + Floor filter (right) */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                        Type
+                      </label>
+                      <select
+                        value={typeFilter}
+                        onChange={(e) => {
+                          setTypeFilter(e.target.value);
+                          // Reset resource selection when filter changes
+                          setBookingForm((f) => ({ ...f, resourceId: '', resourceName: '', resourceType: '', floor: '', wing: '' }));
+                        }}
+                        className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      >
+                        <option value="">All Types</option>
+                        {distinctTypes.map((t) => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                        Floor
+                      </label>
+                      <select
+                        value={floorFilter}
+                        onChange={(e) => {
+                          setFloorFilter(e.target.value);
+                          setBookingForm((f) => ({ ...f, resourceId: '', resourceName: '', resourceType: '', floor: '', wing: '' }));
+                        }}
+                        className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      >
+                        <option value="">All Floors</option>
+                        {distinctFloors.map((fl) => (
+                          <option key={fl} value={fl}>{fl}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Row 2 — Wing filter (left, optional) + Resource selector (right) */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                        Wing <span className="text-slate-300 font-medium normal-case tracking-normal">(optional)</span>
+                      </label>
+                      <select
+                        value={wingFilter}
+                        onChange={(e) => {
+                          setWingFilter(e.target.value);
+                          setBookingForm((f) => ({ ...f, resourceId: '', resourceName: '', resourceType: '', floor: '', wing: '' }));
+                        }}
+                        className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      >
+                        <option value="">All Wings</option>
+                        {distinctWings.map((w) => (
+                          <option key={w} value={w}>{w}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                        Resource <span className="text-red-400">*</span>
+                      </label>
+                      <select
+                        value={bookingForm.resourceId}
+                        onChange={(e) => {
+                          const room = filteredResources.find(
+                            (r) => String(r._id ?? r.id) === e.target.value,
+                          );
+                          if (room) {
+                            setBookingForm((f) => ({
+                              ...f,
+                              resourceId: String(room._id ?? room.id ?? ''),
+                              resourceName: room.name,
+                              resourceType: room.type,
+                              floor: room.floor,
+                              wing: room.wing,
+                            }));
+                            if (bookingErrors.resource) setBookingErrors((prev) => { const n = { ...prev }; delete n.resource; return n; });
+                          } else {
+                            setBookingForm((f) => ({
+                              ...f,
+                              resourceId: '',
+                              resourceName: '',
+                              resourceType: '',
+                              floor: '',
+                              wing: '',
+                            }));
+                          }
+                        }}
+                        className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      >
+                        <option value="">Select resource…</option>
+                        {filteredResources.map((r) => (
+                          <option key={String(r._id ?? r.id)} value={String(r._id ?? r.id)}>
+                            {r.name}
+                          </option>
+                        ))}
+                      </select>
+                      {selectedResource && (
+                        <p className="text-xs text-slate-500">
+                          {selectedResource.pricePerHour > 0
+                            ? `₹${selectedResource.pricePerHour}/hr`
+                            : 'No hourly rate set'}
+                        </p>
+                      )}
+                      {bookingErrors.resource && (
+                        <p className="text-[11px] text-red-500 font-semibold mt-0.5">{bookingErrors.resource}</p>
+                      )}
+                    </div>
+
+                    {/* ── Row 3: Date (left) + Start time (right) ─────────────────── */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Date</label>
+                      <input
+                        type="date"
+                        value={bookingForm.date}
+                        min={(() => {
+                          const parts = new Intl.DateTimeFormat('en-GB', {
+                            timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+                          }).formatToParts(new Date());
+                          const p = Object.fromEntries(parts.map((x) => [x.type, x.value]));
+                          return `${p.year}-${p.month}-${p.day}`;
+                        })()}
+                        onChange={(e) => {
+                          setBookingForm((f) => ({ ...f, date: e.target.value, startTime: '', endTime: '' }));
+                          if (bookingErrors.date) setBookingErrors((prev) => { const n = { ...prev }; delete n.date; return n; });
+                        }}
+                        className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      />
+                      {bookingErrors.date && (
+                        <p className="text-[11px] text-red-500 font-semibold mt-0.5">{bookingErrors.date}</p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Start Time</label>
+                      <select
+                        value={bookingForm.startTime}
+                        onChange={(e) => {
+                          const nextStart = e.target.value;
+                          const minEnd = minutesToTimeString((timeToMinutes(nextStart) || 0) + BOOKING_MIN_DURATION_MINUTES);
+                          setBookingForm((f) => ({
+                            ...f,
+                            startTime: nextStart,
+                            // auto-set end to start+30min if unset or too early
+                            endTime: !f.endTime || (timeToMinutes(f.endTime) || 0) < (timeToMinutes(minEnd) || 0) ? minEnd : f.endTime,
+                          }));
+                          if (bookingErrors.startTime) setBookingErrors((prev) => { const n = { ...prev }; delete n.startTime; return n; });
+                          if (bookingErrors.endTime) setBookingErrors((prev) => { const n = { ...prev }; delete n.endTime; return n; });
+                        }}
+                        className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      >
+                        <option value="">Select…</option>
+                        {(() => {
+                          const todayIST = (() => {
+                            const parts = new Intl.DateTimeFormat('en-GB', {
+                              timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+                            }).formatToParts(new Date());
+                            const p = Object.fromEntries(parts.map((x) => [x.type, x.value]));
+                            return `${p.year}-${p.month}-${p.day}`;
+                          })();
+                          const isToday = bookingForm.date === todayIST;
+                          if (isToday) {
+                            const nowParts = new Intl.DateTimeFormat('en-GB', {
+                              timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false,
+                            }).formatToParts(new Date());
+                            const np = Object.fromEntries(nowParts.map((x) => [x.type, x.value]));
+                            const nowMinutes = Number(np.hour) * 60 + Number(np.minute);
+                            const minStart = Math.ceil((nowMinutes + 1) / 5) * 5;
+                            return buildTimeOptions('00:00', '23:55', 5).filter((t) => {
+                              const tm = timeToMinutes(t);
+                              return tm !== null && tm >= minStart;
+                            });
+                          }
+                          return buildTimeOptions('00:00', '23:55', 5);
+                        })().map((t) => (
+                          <option key={t} value={t}>{formatTime12h(t)}</option>
+                        ))}
+                      </select>
+                      {bookingErrors.startTime && (
+                        <p className="text-[11px] text-red-500 font-semibold mt-0.5">{bookingErrors.startTime}</p>
+                      )}
+                    </div>
+
+                    {/* ── Row 4: End time (left) + Duration display (right) ────────── */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">End Time</label>
+                      <select
+                        value={bookingForm.endTime}
+                        onChange={(e) => {
+                          setBookingForm((f) => ({ ...f, endTime: e.target.value }));
+                          if (bookingErrors.endTime) setBookingErrors((prev) => { const n = { ...prev }; delete n.endTime; return n; });
+                        }}
+                        className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      >
+                        <option value="">Select…</option>
+                        {buildTimeOptions(
+                          bookingForm.startTime
+                            ? minutesToTimeString((timeToMinutes(bookingForm.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES)
+                            : '00:30',
+                          '23:55',
+                          5
+                        ).map((t) => (
+                          <option key={t} value={t}>{formatTime12h(t)}</option>
+                        ))}
+                      </select>
+                      {bookingErrors.endTime && (
+                        <p className="text-[11px] text-red-500 font-semibold mt-0.5">{bookingErrors.endTime}</p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Duration</label>
+                      <p className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 min-h-[42px] flex items-center">
+                        {(() => {
+                          const startMin = timeToMinutes(bookingForm.startTime);
+                          const endMin = timeToMinutes(bookingForm.endTime);
+                          if (startMin === null || endMin === null || endMin <= startMin) return '—';
+                          const diff = endMin - startMin;
+                          const h = Math.floor(diff / 60);
+                          const m = diff % 60;
+                          if (h === 0) return `${m} min`;
+                          if (m === 0) return `${h} h`;
+                          return `${h} h ${m} min`;
+                        })()}
+                      </p>
+                    </div>
+
+                    {/* ── Availability status block (col-span-2) ─────────────────── */}
+                    {bookingForm.resourceName && bookingForm.date && (
+                      <div className="col-span-2">
+                        {(() => {
+                          const dayBookings = allBookings.filter(
+                            (b) => b.roomName === bookingForm.resourceName && b.date === bookingForm.date && b.status !== 'cancelled'
+                          );
+                          const timeWindows = (() => {
+                            const toMin = (t: string) => { const [h, m] = (t || '00:00').split(':').map(Number); return h * 60 + m; };
+                            const toTime = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+                            const sorted = [...dayBookings].sort((a, b) => toMin(a.startTime) - toMin(b.startTime));
+                            const windows: { start: string; end: string }[] = [];
+                            let cursor = 0;
+                            sorted.forEach((b) => {
+                              const bs = toMin(b.startTime);
+                              const be = toMin(b.endTime);
+                              if (bs > cursor) windows.push({ start: toTime(cursor), end: toTime(bs) });
+                              cursor = Math.max(cursor, be);
+                            });
+                            if (cursor < 23 * 60 + 55) windows.push({ start: toTime(cursor), end: '23:55' });
+                            return windows.filter((w) => toMin(w.end) - toMin(w.start) >= BOOKING_MIN_DURATION_MINUTES);
+                          })();
+
+                          const hasConflict = bookingForm.startTime && bookingForm.endTime
+                            ? hasSlotConflict(allBookings, bookingForm.resourceName, bookingForm.date, bookingForm.startTime, bookingForm.endTime)
+                            : false;
+
+                          const suggestions = (hasConflict && bookingForm.startTime && bookingForm.endTime)
+                            ? (() => {
+                                const startMin = timeToMinutes(bookingForm.startTime);
+                                const endMin = timeToMinutes(bookingForm.endTime);
+                                if (startMin === null || endMin === null || endMin <= startMin) return [];
+                                return computeAvailableSlots(allBookings, bookingForm.resourceName, bookingForm.date, endMin - startMin).slice(0, 6);
+                              })()
+                            : [];
+
+                          // Time conflict
+                          if (hasConflict) {
+                            return (
+                              <div className="p-3 bg-red-50 rounded-xl border border-red-100">
+                                <div className="flex items-start gap-2 mb-2">
+                                  <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={15} />
+                                  <p className="text-[12px] text-red-800 font-bold">Time conflict — this slot is already booked.</p>
+                                </div>
+                                {suggestions.length > 0 && (
+                                  <div>
+                                    <p className="text-[10px] font-black text-red-700 uppercase tracking-widest mb-1.5">Available slots for this duration:</p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {suggestions.map((slot) => (
+                                        <button
+                                          key={`${slot.startTime}-${slot.endTime}`}
+                                          type="button"
+                                          onClick={() => {
+                                            setBookingForm((f) => ({ ...f, startTime: slot.startTime, endTime: slot.endTime }));
+                                            setBookingErrors((prev) => { const n = { ...prev }; delete n.startTime; delete n.endTime; return n; });
+                                          }}
+                                          className="px-2.5 py-1 rounded-full bg-white border border-red-200 text-[11px] font-bold text-red-700 hover:bg-red-100 transition-colors"
+                                        >
+                                          {formatTime12h(slot.startTime)} — {formatTime12h(slot.endTime)}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                {suggestions.length === 0 && (
+                                  <p className="text-[11px] font-semibold text-red-700 mt-1">No available slots for this duration. Choose another date.</p>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          // Available for selected slot
+                          if (bookingForm.startTime && bookingForm.endTime && !hasConflict) {
+                            return (
+                              <div className="p-3 bg-emerald-50 rounded-xl flex items-start gap-2 border border-emerald-100">
+                                <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={15} />
+                                <p className="text-[12px] text-emerald-800 font-bold">Resource is available for the selected slot.</p>
+                              </div>
+                            );
+                          }
+
+                          // Day-level status (before time is selected)
+                          if (!bookingForm.startTime) {
+                            if (dayBookings.length === 0) {
+                              return (
+                                <div className="p-3 bg-emerald-50 rounded-xl flex items-start gap-2 border border-emerald-100">
+                                  <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={15} />
+                                  <p className="text-[12px] text-emerald-800 font-bold">Fully available on this date. Choose a time slot.</p>
+                                </div>
+                              );
+                            }
+                            if (timeWindows.length === 0) {
+                              return (
+                                <div className="p-3 bg-red-50 rounded-xl flex items-start gap-2 border border-red-100">
+                                  <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={15} />
+                                  <p className="text-[12px] text-red-800 font-bold">No slots available on this date. Choose another date.</p>
+                                </div>
+                              );
+                            }
+                            return (
+                              <div className="p-3 bg-amber-50 rounded-xl flex items-start gap-2 border border-amber-100">
+                                <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={15} />
+                                <p className="text-[12px] text-amber-800 font-bold">Some slots are taken on this date. Choose an open time slot.</p>
+                              </div>
+                            );
+                          }
+
+                          return null;
+                        })()}
+                      </div>
+                    )}
+
+                    {/* ── Row 5: Purpose (full-width, col-span-2) ──────────────────── */}
+                    <div className="col-span-2 flex flex-col gap-1">
+                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                        Purpose <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={bookingForm.purpose}
+                        placeholder="e.g. Client meeting, Workshop…"
+                        onChange={(e) => {
+                          setBookingForm((f) => ({ ...f, purpose: e.target.value }));
+                          if (bookingErrors.purpose) setBookingErrors((prev) => { const n = { ...prev }; delete n.purpose; return n; });
+                        }}
+                        className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      />
+                      {bookingErrors.purpose && (
+                        <p className="text-[11px] text-red-500 font-semibold mt-0.5">{bookingErrors.purpose}</p>
+                      )}
+                    </div>
+
+                    {/* ── Row 6: Payment Mode pills (full-width, col-span-2) ─────────── */}
+                    <div className="col-span-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
+                        Payment Mode <span className="text-red-500">*</span>
+                      </label>
+                      <div className="flex flex-wrap gap-1.5 bg-slate-100/60 p-1 rounded-xl border border-slate-200/50">
+                        {(['Cash', 'UPI'] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() => setBookingForm((f) => ({ ...f, paymentMode: mode }))}
+                            className={`flex-1 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all
+                              ${bookingForm.paymentMode === mode
+                                ? 'bg-[#2563EB] text-white shadow-sm'
+                                : 'text-[#0F172A] hover:bg-slate-200/70 hover:text-slate-900'}
+                            `}
+                          >
+                            {mode}
+                          </button>
+                        ))}
+                      </div>
+                      {bookingErrors.paymentMode && (
+                        <p className="text-xs text-red-500 mt-1">{bookingErrors.paymentMode}</p>
+                      )}
+                    </div>
+
+                    {/* ── Row 7: Payment Status toggle (left) + Transaction ID (right) ── */}
+                    {/* Left col: Pending / Paid toggle */}
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
+                        Payment Status
+                      </label>
+                      <div className="flex bg-slate-100/60 p-1 rounded-xl border border-slate-200/50">
+                        {(['Pending', 'Paid'] as const).map((status) => (
+                          <button
+                            key={status}
+                            type="button"
+                            onClick={() => setBookingForm((f) => ({ ...f, paymentStatus: status }))}
+                            className={`flex-1 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all
+                              ${bookingForm.paymentStatus === status
+                                ? 'bg-[#2563EB] text-white shadow-sm'
+                                : 'text-[#0F172A] hover:bg-slate-200/70 hover:text-slate-900'}
+                            `}
+                          >
+                            {status}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Right col: Transaction ID — only shown when status is Paid */}
+                    <div>
+                      {bookingForm.paymentStatus === 'Paid' ? (
+                        <>
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
+                            Transaction ID{' '}
+                            <span className="font-normal normal-case tracking-normal text-slate-400">(optional)</span>
+                          </label>
+                          <input
+                            type="text"
+                            maxLength={100}
+                            value={bookingForm.transactionId}
+                            onChange={(e) =>
+                              setBookingForm((f) => ({ ...f, transactionId: e.target.value }))
+                            }
+                            placeholder="e.g. UPI ref / cheque no."
+                            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-[13px] text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all"
+                          />
+                        </>
+                      ) : (
+                        /* Empty placeholder to preserve grid layout */
+                        <div />
+                      )}
+                    </div>
+
+                    {/* ── Row 7.5: Discount (full-width, col-span-2, optional) ─────── */}
+                    <div className="col-span-2 flex flex-col gap-1">
+                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                        Discount <span className="text-slate-300 font-medium normal-case tracking-normal">(optional)</span>
+                      </label>
+                      <div className="flex gap-2">
+                        {/* ₹ / % type toggle — same pill style as payment mode */}
+                        <div className="flex bg-slate-100/60 p-0.5 rounded-lg border border-slate-200/50 shrink-0">
+                          {(['flat', 'percent'] as const).map((t) => (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() => setBookingForm((f) => ({ ...f, discountType: t }))}
+                              className={`px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all
+                                ${bookingForm.discountType === t
+                                  ? 'bg-[#2563EB] text-white shadow-sm'
+                                  : 'text-[#0F172A] hover:bg-slate-200/70'}
+                              `}
+                            >
+                              {t === 'flat' ? '₹' : '%'}
+                            </button>
+                          ))}
+                        </div>
+                        {/* Discount value input */}
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={bookingForm.discountValue}
+                          placeholder={bookingForm.discountType === 'percent' ? 'e.g. 10' : 'e.g. 500'}
+                          onChange={(e) => {
+                            setBookingForm((f) => ({ ...f, discountValue: e.target.value }));
+                            if (bookingErrors.discount) setBookingErrors((prev) => { const n = { ...prev }; delete n.discount; return n; });
+                          }}
+                          className="flex-1 text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        />
+                      </div>
+                      {bookingErrors.discount && (
+                        <p className="text-[11px] text-red-500 font-semibold mt-0.5">{bookingErrors.discount}</p>
+                      )}
+                    </div>
+
+                    {/* ── Row 8: Notes (full-width, col-span-2, optional) ──────────── */}
+                    <div className="col-span-2 flex flex-col gap-1">
+                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                        Notes{' '}
+                        <span className="text-slate-300 font-medium normal-case tracking-normal">(optional)</span>
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={bookingForm.notes}
+                        placeholder="Any additional notes…"
+                        onChange={(e) => setBookingForm((f) => ({ ...f, notes: e.target.value }))}
+                        className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+                      />
+                    </div>
+
+                    {/* ── Row 9: Pricing Summary Box (full-width, col-span-2) ──────── */}
+                    <div className="col-span-2">
+                      <div className="rounded-2xl border border-blue-200/60 bg-blue-50/40 p-4 flex flex-col gap-2">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1">Pricing Summary</p>
+                        {/* Base Price */}
+                        <div className="flex justify-between items-center text-[13px]">
+                          <span className="text-slate-600 font-semibold">Base Price</span>
+                          <span className="font-bold text-slate-900">₹{externalPricing.basePriceRaw.toFixed(2)}</span>
+                        </div>
+                        {/* Discount line — only shown when non-zero */}
+                        {externalPricing.discountAmount > 0 && (
+                          <div className="flex justify-between items-center text-[13px]">
+                            <span className="text-slate-600 font-semibold">Discount</span>
+                            <span className="font-bold text-emerald-600">−₹{externalPricing.discountAmount.toFixed(2)}</span>
+                          </div>
+                        )}
+                        {/* GST */}
+                        <div className="flex justify-between items-center text-[13px]">
+                          <span className="text-slate-600 font-semibold">GST (18%)</span>
+                          <span className="font-bold text-slate-900">₹{externalPricing.gstAmount.toFixed(2)}</span>
+                        </div>
+                        {/* Divider */}
+                        <div className="h-px bg-blue-200/60 my-0.5" />
+                        {/* Total */}
+                        <div className="flex justify-between items-center">
+                          <span className="text-[14px] font-black text-[#0F172A] uppercase tracking-wider">Total</span>
+                          <span className="text-[16px] font-black text-[#2563EB]">₹{externalPricing.totalAmount.toFixed(2)}</span>
+                        </div>
+                        {/* No rate note */}
+                        {externalPricing.noRateSet && selectedResource && (
+                          <p className="text-[11px] font-semibold text-amber-600 mt-1">
+                            This resource has no hourly rate set.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 md:px-8 py-4 bg-slate-50/50 border-t border-slate-100/60 flex gap-3 sticky bottom-0 shrink-0">
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={handleClose}
+                className="flex-1 py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-600 hover:text-[#0F172A] transition-all shadow-sm disabled:opacity-50"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                disabled={
+                  isSaving ||
+                  !selectedClient ||
+                  !bookingForm.resourceName ||
+                  !bookingForm.date ||
+                  !bookingForm.startTime ||
+                  !bookingForm.endTime ||
+                  !bookingForm.purpose.trim() ||
+                  !bookingForm.paymentMode ||
+                  (bookingForm.resourceName && bookingForm.date && bookingForm.startTime && bookingForm.endTime
+                    ? hasSlotConflict(allBookings, bookingForm.resourceName, bookingForm.date, bookingForm.startTime, bookingForm.endTime)
+                    : false) ||
+                  Object.values(bookingErrors).some(Boolean)
+                }
+                onClick={handleDialogSubmit}
+                className="flex-1 py-3.5 bg-[#2563EB] text-white rounded-xl font-black text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
+              >
+                {isSaving ? 'Saving...' : 'Confirm Booking'}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 export function MeetingRoomsPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -872,12 +2182,18 @@ export function MeetingRoomsPage() {
   // --------- MAIN BOOKING TABS ---------
   const [mainBookingTab, setMainBookingTab] = useState<'my_bookings' | 'internal_booking' | 'external_booking' | 'tenant_bookings'>('my_bookings');
 
+  // --------- EXTERNAL BOOKINGS LIST FILTERS (Tasks 18/19) ---------
+  const [externalSearchQuery, setExternalSearchQuery] = useState('');
+  const [externalPaymentFilter, setExternalPaymentFilter] = useState<'all' | 'Paid' | 'Pending'>('all');
+  const [externalStatusFilter, setExternalStatusFilter] = useState<string>('all');
+
   // --------- TENANT COMPANIES ---------
   const [tenantCompanies, setTenantCompanies] = useState<Record<string, any>[]>([]);
   const [isLoadingTenants, setIsLoadingTenants] = useState(false);
 
   // --------- FORMS ---------
   const [showExternalBookingDialog, setShowExternalBookingDialog] = useState(false);
+  const [showNewExternalBookingDialog, setShowNewExternalBookingDialog] = useState(false);
   const [showInternalBookingDialog, setShowInternalBookingDialog] = useState(false);
   const [showTenantBookingDialog, setShowTenantBookingDialog] = useState(false);
   const [tenantBookingError, setTenantBookingError] = useState('');
@@ -886,11 +2202,13 @@ export function MeetingRoomsPage() {
     const bookedByUserId = booking?.bookedByUserId ? String(booking.bookedByUserId) : '';
     const currentInviteStatus = booking?.currentInviteStatus || '';
     const isAcceptedInvite = currentInviteStatus === 'accepted';
-    // booking.isMe is set by the backend: ownerId === currentUserId (covers on-behalf bookings
-    // where ownerId = host member, bookedByUserId = admin who made the booking)
+    // For on-behalf internal bookings: bookedForName is set, meaning ownerId = selected member,
+    // bookedByUserId = admin/founder. The admin should NOT see these in their My Bookings —
+    // only the host member (isMe) and accepted invitees do.
+    const isOnBehalfBooking = Boolean((booking as any).bookedForName);
     return Boolean(
       booking?.isMe ||
-      (bookedByUserId && currentUserId && bookedByUserId === String(currentUserId)) ||
+      (!isOnBehalfBooking && bookedByUserId && currentUserId && bookedByUserId === String(currentUserId)) ||
       isAcceptedInvite
     );
   }, [currentUserId]);
@@ -1039,6 +2357,13 @@ export function MeetingRoomsPage() {
     };
     const toTime = (minutes: any) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 
+    // For today: clamp the start cursor to current time so past slots are never suggested
+    const nowClock = getMeetingClockParts();
+    const isToday = date === todayStr;
+    const nowMinutes = isToday && nowClock
+      ? Math.ceil((nowClock.minutes + 1) / BOOKING_SLOT_STEP_MINUTES) * BOOKING_SLOT_STEP_MINUTES
+      : 0;
+
     const bookings = allBookings
       .filter((booking) => (
         booking.roomName === roomName &&
@@ -1049,7 +2374,8 @@ export function MeetingRoomsPage() {
       .sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime));
 
     const windows: { start: string; end: string }[] = [];
-    let cursor = startOfDay;
+    // Start cursor at the later of startOfDay or current time (for today)
+    let cursor = Math.max(startOfDay, nowMinutes);
 
     bookings.forEach((booking) => {
       const bookingStart = toMinutes(booking.startTime);
@@ -1065,7 +2391,7 @@ export function MeetingRoomsPage() {
     }
 
     return windows.filter((window) => toMinutes(window.end) - toMinutes(window.start) >= BOOKING_MIN_DURATION_MINUTES);
-  }, [allBookings]);
+  }, [allBookings, todayStr]);
 
   const getSuggestedSlots = useCallback((roomName: string, date: string, desiredStartTime: string, desiredEndTime: string, excludeRecordId: string | null = null) => {
     const duration = (() => {
@@ -1205,9 +2531,10 @@ export function MeetingRoomsPage() {
     if (mainBookingTab === 'tenant_bookings') return allBookings.filter((b) => normalize(b.bookingType) === 'tenant');
     if (mainBookingTab === 'internal_booking') return allBookings.filter((b) => normalize(b.bookingType) !== 'external' && normalize(b.bookingType) !== 'tenant');
     
-    if (isEmployeeProfile) return allBookings.filter((booking) => isMyBooking(booking) && normalize(booking.bookingType) !== 'tenant');
-    if (!isAdminProfile) return allBookings.filter((b) => normalize(b.bookingType) !== 'tenant');
-    return allBookings.filter((booking) => (isAssignedDeptBooking(booking) || isMyBooking(booking)) && normalize(booking.bookingType) !== 'tenant');
+    // Default tabs (my_bookings, company_bookings, dept_bookings) — never show external or tenant
+    if (isEmployeeProfile) return allBookings.filter((booking) => isMyBooking(booking) && normalize(booking.bookingType) !== 'tenant' && normalize(booking.bookingType) !== 'external');
+    if (!isAdminProfile) return allBookings.filter((b) => normalize(b.bookingType) !== 'tenant' && normalize(b.bookingType) !== 'external');
+    return allBookings.filter((booking) => (isAssignedDeptBooking(booking) || isMyBooking(booking)) && normalize(booking.bookingType) !== 'tenant' && normalize(booking.bookingType) !== 'external');
   }, [allBookings, isAdminProfile, isAssignedDeptBooking, isMyBooking, isEmployeeProfile, mainBookingTab]);
 
   const displayedBookings = useMemo(() => {
@@ -1220,6 +2547,33 @@ export function MeetingRoomsPage() {
       return matchesTab && matchesSearch && matchesStatus;
     });
   }, [visibleBookings, activeTab, searchQuery, statusFilter, isBookingInActiveTab]);
+
+  const externalDisplayedBookings = useMemo(() => {
+    if (mainBookingTab !== 'external_booking') return [];
+    return allBookings
+      .filter((b) => normalize(b.bookingType) === 'external')
+      .filter((b) => {
+        const q = externalSearchQuery.toLowerCase();
+        if (q.length >= 2) {
+          const matchesClient = ((b as any).bookedForName || '').toLowerCase().includes(q);
+          const matchesRoom = (b.roomName || '').toLowerCase().includes(q);
+          const matchesCode = ((b as any).bookingCode || '').toLowerCase().includes(q);
+          if (!matchesClient && !matchesRoom && !matchesCode) return false;
+        }
+        if (externalPaymentFilter !== 'all') {
+          if ((b as any).paymentStatus !== externalPaymentFilter) return false;
+        }
+        if (externalStatusFilter !== 'all') {
+          if (getBookingDisplayStatus(b) !== externalStatusFilter) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const dateCompare = (b.date || '').localeCompare(a.date || '');
+        if (dateCompare !== 0) return dateCompare;
+        return (b.startTime || '').localeCompare(a.startTime || '');
+      });
+  }, [allBookings, mainBookingTab, externalSearchQuery, externalPaymentFilter, externalStatusFilter]);
 
   const memberDirectoryById = useMemo(() => {
     const directory = new Map();
@@ -1278,6 +2632,12 @@ export function MeetingRoomsPage() {
     transactionId: '', discountType: 'amount', discountValue: '', notes: '',
   });
   const [isSavingExternalBooking, setIsSavingExternalBooking] = useState(false);
+  // Live client search state
+  const [extClientSearch, setExtClientSearch] = useState('');
+  const [extClientSearchResults, setExtClientSearchResults] = useState<any[]>([]);
+  const [extClientSearchLoading, setExtClientSearchLoading] = useState(false);
+  const [extClientSelected, setExtClientSelected] = useState<any | null>(null);
+  const extClientSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [internalBookingForm, setInternalBookingForm] = useState({
     bookedForName: '', bookedForUserId: '', department: '', roomType: '', floor: '', wing: '', roomName: '', date: '',
@@ -1290,7 +2650,7 @@ export function MeetingRoomsPage() {
     roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', notes: '', creditsToDeduct: 0, inviteParticipantIds: [] as string[],
   });
   const [isSavingTenantBooking, setIsSavingTenantBooking] = useState(false);
-  const [externalBookingClientTab, setExternalBookingClientTab] = useState<'new' | 'existing'>('new');
+  const [externalBookingClientTab, setExternalBookingClientTab] = useState<'new' | 'search'>('search');
   const [tenantSearchQuery, setTenantSearchQuery] = useState('');
 
   // --------- ROOM CATALOG (normalized list) ---------
@@ -1369,7 +2729,7 @@ export function MeetingRoomsPage() {
   // --------- FORMATTING HELPERS ---------
   const formatCurrency = (amount?: number | null) => {
     const value = Number(amount || 0);
-    return `---${value.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    return `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
   };
 
   const formatTimeSlot = (startTime?: string, endTime?: string) => {
@@ -1479,6 +2839,32 @@ export function MeetingRoomsPage() {
     if (!newBooking.roomName || !newBooking.date) return [];
     return getSuggestedSlots(newBooking.roomName, newBooking.date, newBooking.startTime, newBooking.endTime);
   }, [newBooking.roomName, newBooking.date, newBooking.startTime, newBooking.endTime, getSuggestedSlots]);
+
+  // --------- INTERNAL BOOKING AVAILABILITY ---------
+  const internalBookingTimeValidation = useMemo(() => {
+    return getBookingTimeValidation(internalBookingForm.date, internalBookingForm.startTime, internalBookingForm.endTime);
+  }, [internalBookingForm.date, internalBookingForm.startTime, internalBookingForm.endTime]);
+
+  const internalBookingAvailability = useMemo(() => {
+    if (!internalBookingForm.roomName || !internalBookingForm.date || !internalBookingForm.startTime || !internalBookingForm.endTime) return 'pending';
+    return checkAvailability({ roomName: internalBookingForm.roomName, date: internalBookingForm.date, startTime: internalBookingForm.startTime, endTime: internalBookingForm.endTime });
+  }, [internalBookingForm.roomName, internalBookingForm.date, internalBookingForm.startTime, internalBookingForm.endTime, checkAvailability]);
+
+  const internalRoomDayStatus = useMemo(() => {
+    if (!internalBookingForm.roomName || !internalBookingForm.date) return 'pending';
+    const dayBookings = allBookings.filter(b =>
+      b.roomName === internalBookingForm.roomName && b.date === internalBookingForm.date && b.status !== 'cancelled'
+    );
+    if (dayBookings.length === 0) return 'available';
+    const windows = getRoomTimeWindows(internalBookingForm.roomName, internalBookingForm.date);
+    if (windows.length === 0) return 'full';
+    return 'partial';
+  }, [internalBookingForm.roomName, internalBookingForm.date, allBookings, getRoomTimeWindows]);
+
+  const internalBookingSuggestions = useMemo(() => {
+    if (!internalBookingForm.roomName || !internalBookingForm.date) return [];
+    return getSuggestedSlots(internalBookingForm.roomName, internalBookingForm.date, internalBookingForm.startTime, internalBookingForm.endTime);
+  }, [internalBookingForm.roomName, internalBookingForm.date, internalBookingForm.startTime, internalBookingForm.endTime, getSuggestedSlots]);
 
   // --------- RESCHEDULE TIME VALIDATION ---------
   const rescheduleTimeValidation = useMemo(() => {
@@ -1731,7 +3117,24 @@ export function MeetingRoomsPage() {
   const resolveInviteDisplayRole = (invite: any) => {
     const userId = String(invite?.invitedUserId || '').trim();
     const member = userId ? memberDirectoryById.get(userId) : null;
-    return invite?.invitedRole || member?.role || member?.departments?.[0] || '';
+    const role = normalize(invite?.invitedRole || member?.role || '');
+    // Founder, Super Admin, and Admin show their role label
+    const isManagement =
+      role === 'owner' ||
+      role === 'founder' ||
+      role === 'super_admin' ||
+      role === 'super-admin' ||
+      role === 'admin';
+    if (isManagement) return invite?.invitedRole || member?.role || '';
+    // Everyone else (Manager, Employee, etc.) shows their department
+    return (
+      (member as any)?.departments?.[0] ||
+      (member as any)?.department ||
+      invite?.department ||
+      invite?.invitedRole ||
+      member?.role ||
+      ''
+    );
   };
 
   const inviteDepartments = useMemo(() => {
@@ -1740,15 +3143,54 @@ export function MeetingRoomsPage() {
       const isExternalOrTenant = normalize(member.role) === 'external' || normalize(member.role) === 'tenant';
       return memberId && memberId !== currentUserId && !isExternalOrTenant;
     });
+
+    // Management roles get their own dedicated groups (in display order)
+    const managementGroupOrder = [
+      { key: '__founder__',     roles: ['owner', 'founder'],               label: 'Founder' },
+      { key: '__super_admin__', roles: ['super_admin', 'super-admin'],      label: 'Super Admin' },
+      { key: '__admin__',       roles: ['admin'],                           label: 'Admin' },
+    ];
+    const managementRoleSet = new Set(managementGroupOrder.flatMap(g => g.roles));
+
+    // Bucket each member
+    const managementBuckets: Record<string, any[]> = {};
     const departmentMap = new Map<string, any[]>();
+
     filteredMembers.forEach(member => {
-      const depts = (member as any).departments || [(member as any).department] || ['General'];
+      const role = normalize((member as any).role || '');
+      if (managementRoleSet.has(role)) {
+        const group = managementGroupOrder.find(g => g.roles.includes(role));
+        if (group) {
+          if (!managementBuckets[group.key]) managementBuckets[group.key] = [];
+          managementBuckets[group.key].push(member);
+        }
+        return;
+      }
+      // Managers, Employees and other non-management → group by department
+      const depts = (member as any).departments?.length
+        ? (member as any).departments
+        : [(member as any).department || 'General'];
       (depts as string[]).filter(Boolean).forEach((dept: string) => {
         if (!departmentMap.has(dept)) departmentMap.set(dept, []);
         departmentMap.get(dept)!.push(member);
       });
     });
-    return Array.from(departmentMap.entries()).map(([department, members]) => ({ department, members }));
+
+    const result: { department: string; label: string; members: any[] }[] = [];
+
+    // Management groups first (Founder → Super Admin → Admin)
+    managementGroupOrder.forEach(({ key, label }) => {
+      if (managementBuckets[key]?.length) {
+        result.push({ department: key, label, members: managementBuckets[key] });
+      }
+    });
+
+    // Then alphabetical department groups
+    Array.from(departmentMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([dept, members]) => result.push({ department: dept, label: dept, members }));
+
+    return result;
   }, [workspaceMembers, currentUserId]);
 
   const internalBookingEligibleParticipants = useMemo(() => {
@@ -1872,11 +3314,28 @@ export function MeetingRoomsPage() {
     setErrorMessage('');
 
     try {
+      // For external bookings, recalculate total based on new duration
+      const isExternal = normalize(rescheduleData.bookingType) === 'external';
+      let externalPricingUpdate: Record<string, any> = {};
+      if (isExternal && rescheduleData.startTime && rescheduleData.endTime) {
+        const room = roomCatalog.find(r => r.name === rescheduleData.roomName);
+        const pricePerHour = Number(room?.pricePerHour || 0);
+        if (pricePerHour > 0) {
+          const newPricing = computeExternalPricing(pricePerHour, rescheduleData.startTime, rescheduleData.endTime, 'flat', 0);
+          externalPricingUpdate = {
+            baseAmount: newPricing.basePriceRaw,
+            gstAmount: newPricing.gstAmount,
+            totalAmount: newPricing.totalAmount,
+          };
+        }
+      }
+
       await updateMeetingRoomBooking(rescheduleData.recordId, {
         start: buildBookingDateTime(rescheduleData.date, rescheduleData.startTime),
         end: buildBookingDateTime(rescheduleData.date, rescheduleData.endTime),
         scheduleChangeType: 'rescheduled',
         ...(normalize(rescheduleData.bookingType) === 'tenant' && rescheduleInviteeIds.length > 0 ? { inviteeUserIds: rescheduleInviteeIds } : {}),
+        ...externalPricingUpdate,
       });
       await reloadBookings();
     } catch (error: any) {
@@ -2090,7 +3549,7 @@ export function MeetingRoomsPage() {
     setIsSavingExternalBooking(true);
     setErrorMessage('');
     try {
-      await createMeetingRoomBooking({
+      const result = await createMeetingRoomBooking({
         bookingType: 'External',
         bookingSource: 'Admin Panel',
         bookedByName: externalBookingForm.name,
@@ -2117,8 +3576,18 @@ export function MeetingRoomsPage() {
         gstAmount: externalWalkInPricing?.gst || 0,
       } as any);
       await reloadBookings();
+
+      // Send email confirmation if client has an email address (silent — don't fail booking on email error)
+      if (externalBookingForm.email) {
+        const bookingId = result?.booking?._id || result?.booking?.id || result?._id || result?.id;
+        if (bookingId) {
+          try { await sendExternalBookingConfirmationEmail(String(bookingId)); } catch { /* silent */ }
+        }
+      }
+
       setShowExternalBookingDialog(false);
       setExternalBookingForm({ name: '', phone: '', email: '', company: '', roomType: '', floor: '', wing: '', roomName: '', date: '', startTime: '', endTime: '', attendees: 1, purpose: '', paymentMode: 'Cash', transactionId: '', discountType: 'amount', discountValue: '', notes: '' });
+      setExtClientSearch(''); setExtClientSearchResults([]); setExtClientSelected(null);
     } catch (error: any) {
       setErrorMessage(error?.response?.data?.message || error?.message || 'Failed to create external booking.');
     } finally {
@@ -2267,7 +3736,7 @@ export function MeetingRoomsPage() {
                 )}
                 {mainBookingTab === 'external_booking' && (
                   <button
-                    onClick={() => setShowExternalBookingDialog(true)}
+                    onClick={() => setShowNewExternalBookingDialog(true)}
                     className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
                   >
                     <Globe size={14} strokeWidth={3} /> WALK-IN BOOKING
@@ -2459,7 +3928,7 @@ export function MeetingRoomsPage() {
                 )}
                 {mainBookingTab === 'external_booking' && (
                   <button
-                    onClick={() => setShowExternalBookingDialog(true)}
+                    onClick={() => setShowNewExternalBookingDialog(true)}
                     className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
                   >
                     <Globe size={14} strokeWidth={3} /> WALK-IN BOOKING
@@ -2526,12 +3995,167 @@ export function MeetingRoomsPage() {
                 {/* Desktop Table */}
                 {activeTab !== 'invites' ? (
                   <>
+                    {/* ── External Bookings Table (Tasks 18/19/21) ── */}
+                    {mainBookingTab === 'external_booking' ? (
+                      <>
+                        {/* Search + Filters */}
+                        <div className="px-3 sm:px-4 lg:px-5 py-3 border-b border-slate-100/40 bg-white flex flex-col gap-3">
+                          {/* Search input */}
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                            <input
+                              type="text"
+                              value={externalSearchQuery}
+                              onChange={(e) => setExternalSearchQuery(e.target.value)}
+                              placeholder="Search by client name, room, or booking code…"
+                              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200/60 rounded-xl text-[13px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                            />
+                          </div>
+                          
+                        </div>
+
+                        {/* Desktop external table */}
+                        <div className="hidden md:block overflow-x-auto">
+                          <table className="w-full text-left border-collapse">
+                            <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                              <tr>
+                                <th className="px-5 py-4">Client Name</th>
+                                <th className="px-5 py-4">Resource</th>
+                                <th className="px-5 py-4">Date &amp; Slot</th>
+                                <th className="px-5 py-4 text-center">Payment</th>
+                                <th className="px-5 py-4 text-center">Status</th>
+                                <th className="px-5 py-4 text-center">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100/60">
+                              {externalDisplayedBookings.map((b) => {
+                                const displayStatus = getBookingDisplayStatus(b);
+                                const paymentStatus = (b as any).paymentStatus as string | undefined;
+                                const canCancel = displayStatus !== 'cancelled' && displayStatus !== 'completed';
+                                return (
+                                  <tr key={b.recordId || b.id} className="hover:bg-slate-50/50 transition-colors group">
+                                    <td className="px-5 py-4">
+                                      <p className="font-bold text-[#0F172A] text-[13px]">{(b as any).bookedForName || '—'}</p>
+                                    </td>
+                                    <td className="px-5 py-4">
+                                      <div className="flex items-center gap-2">
+                                        <Building size={14} className="text-primary shrink-0" />
+                                        <p className="font-semibold text-[#0F172A] text-[13px] whitespace-nowrap">{b.roomName}</p>
+                                      </div>
+                                    </td>
+                                    <td className="px-5 py-4">
+                                      {renderScheduleSummary(b)}
+                                    </td>
+                                    <td className="px-5 py-4 text-center">
+                                      <span className={`px-2.5 py-1 inline-flex items-center justify-center rounded-md text-[10px] font-black uppercase tracking-wider border ${
+                                        paymentStatus === 'Paid'
+                                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                                      }`}>
+                                        {paymentStatus || 'Pending'}
+                                      </span>
+                                    </td>
+                                    <td className="px-5 py-4 text-center">
+                                      <span className={`px-2.5 py-1 flex items-center justify-center gap-1.5 rounded-md text-[10px] font-black uppercase tracking-wider ${getStatusStyle(displayStatus)} border`}>
+                                        {displayStatus}
+                                      </span>
+                                    </td>
+                                    <td className="px-5 py-4 text-center">
+                                      <div className="flex items-center justify-center gap-1.5">
+                                        <button onClick={() => setViewingBooking(b)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-primary/10 hover:text-primary rounded-lg transition-all" title="View Details"><Eye size={15} strokeWidth={2.5} /></button>
+                                        {displayStatus === 'booked' && (
+                                          <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setRescheduleInviteeIds([]); setShowRescheduleDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-purple-100 hover:text-purple-700 rounded-lg transition-all" title="Reschedule"><CalendarClock size={15} strokeWidth={2.5} /></button>
+                                        )}
+                                        {displayStatus === 'in progress' && (
+                                          <button onClick={() => { setExtendBooking(b); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all" title="Extend Booking"><Clock size={15} strokeWidth={2.5} /></button>
+                                        )}
+                                        {canCancel && (
+                                          <button onClick={() => { setBookingToCancel(b); setShowCancelDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600 rounded-lg transition-all" title="Cancel Booking"><XCircle size={15} strokeWidth={2.5} /></button>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                              {externalDisplayedBookings.length === 0 && (
+                                <tr>
+                                  <td colSpan={6} className="px-6 py-16 text-center">
+                                    <div className="flex flex-col items-center gap-3">
+                                      <Globe size={32} className="text-slate-300" />
+                                      <p className="text-sm font-semibold text-slate-400">No external bookings yet. Click &quot;Walk-in Booking&quot; to get started.</p>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Mobile cards for external bookings */}
+                        <div className="md:hidden flex flex-col p-4 gap-4 bg-slate-50/30">
+                          {externalDisplayedBookings.map((b) => {
+                            const displayStatus = getBookingDisplayStatus(b);
+                            const paymentStatus = (b as any).paymentStatus as string | undefined;
+                            const canCancel = displayStatus !== 'cancelled' && displayStatus !== 'completed';
+                            return (
+                              <div key={b.recordId || b.id} className="bg-white border border-slate-200/60 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <p className="font-bold text-[#0F172A] text-sm">{(b as any).bookedForName || '—'}</p>
+                                    <p className="text-[11px] font-semibold text-slate-500">{b.roomName}</p>
+                                  </div>
+                                  <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${getStatusStyle(displayStatus)}`}>
+                                    {displayStatus}
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs font-semibold text-slate-600">
+                                  <div>
+                                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Date</span>
+                                    {b.date}
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Time</span>
+                                    {formatTime12h(b.startTime)} – {formatTime12h(b.endTime)}
+                                  </div>
+                                  <div>
+                                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Payment</span>
+                                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                                      {paymentStatus || 'Pending'}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex justify-end gap-2 pt-1 border-t border-slate-100">
+                                  <button onClick={() => setViewingBooking(b)} className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl shadow-sm">Details</button>
+                                  {displayStatus === 'booked' && (
+                                    <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setRescheduleInviteeIds([]); setShowRescheduleDialog(true); }} className="flex-1 py-2 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs rounded-xl shadow-sm">Reschedule</button>
+                                  )}
+                                  {displayStatus === 'in progress' && (
+                                    <button onClick={() => { setExtendBooking(b); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="flex-1 py-2 bg-amber-50 border border-amber-200 text-amber-700 font-bold text-xs rounded-xl shadow-sm">Extend</button>
+                                  )}
+                                  {canCancel && (
+                                    <button onClick={() => { setBookingToCancel(b); setShowCancelDialog(true); }} className="flex-1 py-2 bg-red-50 border border-red-200 text-red-600 font-bold text-xs rounded-xl shadow-sm">Cancel</button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {externalDisplayedBookings.length === 0 && (
+                            <div className="py-12 text-center">
+                              <Globe size={32} className="text-slate-300 mx-auto mb-3" />
+                              <p className="text-sm font-semibold text-slate-400">No external bookings yet. Click &quot;Walk-in Booking&quot; to get started.</p>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                    <>
                     <div className="hidden md:block overflow-x-auto">
                       <table className="w-full text-left border-collapse">
                         <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                           <tr>
                             <th className="px-5 py-4">Meeting Room</th>
                             <th className="px-5 py-4">Host</th>
+                            {mainBookingTab === 'internal_booking' && <th className="px-5 py-4">Booked By</th>}
                             <th className="px-5 py-4">Schedule</th>
                             <th className="px-5 py-4 text-center">Status</th>
                             <th className="px-5 py-4 text-center">Action</th>
@@ -2569,6 +4193,14 @@ export function MeetingRoomsPage() {
                                   </p>
                                   <p className="text-[11px] font-semibold text-slate-400">{b.department}</p>
                                 </td>
+                                {mainBookingTab === 'internal_booking' && (
+                                  <td className="px-5 py-4">
+                                    {(b as any).bookedForName
+                                      ? <p className="text-[13px] font-semibold text-slate-600">{b.bookedByName}</p>
+                                      : <p className="text-[11px] text-slate-300">—</p>
+                                    }
+                                  </td>
+                                )}
                                 <td className="px-5 py-4">
                                   {renderScheduleSummary(b)}
                                   {(Number(b.totalAmount || 0) > 0 || Number(b.extensionAmount || 0) > 0) && (
@@ -2598,7 +4230,7 @@ export function MeetingRoomsPage() {
                             );
                           })}
                           {displayedBookings.length === 0 && (
-                            <tr><td colSpan={5} className="px-6 py-16 text-center text-sm font-semibold text-slate-400 bg-slate-50/30">No bookings found matching your criteria.</td></tr>
+                            <tr><td colSpan={mainBookingTab === 'internal_booking' ? 6 : 5} className="px-6 py-16 text-center text-sm font-semibold text-slate-400 bg-slate-50/30">No bookings found matching your criteria.</td></tr>
                           )}
                         </tbody>
                       </table>
@@ -2673,6 +4305,8 @@ export function MeetingRoomsPage() {
                         <div className="py-12 text-center text-sm font-semibold text-slate-400">No bookings found.</div>
                       )}
                     </div>
+                    </>
+                    )}
                   </>
                 ) : (
                   <>
@@ -3016,105 +4650,98 @@ export function MeetingRoomsPage() {
                 </button>
               </div>
 
-              <div className="p-5 sm:p-6 md:p-8 space-y-5 sm:space-y-6 md:space-y-8 overflow-y-auto flex-1">
-                <div className="space-y-4">
+              <div className="p-5 sm:p-6 md:p-8 space-y-5 overflow-y-auto flex-1">
+                {/* ── Row 1: Meeting Type + Floor ── */}
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Room Type</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meeting Type</label>
                     <div className="relative">
                       <select
-                        className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
+                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
                         value={newBooking.roomType}
-                        onChange={(e) => setNewBooking((prev) => ({ ...prev, roomType: e.target.value, floor: '', wing: '', location: '', roomName: '' }))}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setSelectedBookingRoomType(v);
+                          setNewBooking((prev) => ({ ...prev, roomType: v, floor: '', wing: '', location: '', roomName: '' }));
+                          setSelectedBookingFloor(''); setSelectedBookingWing('');
+                        }}
                       >
-                        <option value="" disabled>Select room type</option>
-                        {availableRoomTypes.map((type) => (
+                        <option value="" disabled>Select type</option>
+                        {availableRoomTypes.filter(type => {
+                          const t = normalize(type);
+                          return t.includes('meeting') || t.includes('conference');
+                        }).map((type) => (
                           <option key={type} value={type}>{type}</option>
                         ))}
                       </select>
-                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
                   </div>
-
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Floor</label>
                     <div className="relative">
                       <select
-                        className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
+                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
                         value={newBooking.floor}
-                        onChange={(e) => setNewBooking((prev) => ({ ...prev, floor: e.target.value, wing: '', location: '', roomName: '' }))}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setSelectedBookingFloor(v);
+                          setNewBooking((prev) => ({ ...prev, floor: v, wing: '', location: '', roomName: '' }));
+                          setSelectedBookingWing('');
+                        }}
                       >
                         <option value="" disabled>Select floor</option>
                         {availableFloors.map((floor) => (
                           <option key={floor} value={floor}>{floor}</option>
                         ))}
                       </select>
-                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
                   </div>
+                </div>
 
+                {/* ── Row 2: Wing + Room ── */}
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Wing (Optional)</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Wing <span className="text-slate-300 normal-case font-semibold">(optional)</span></label>
                     <div className="relative">
                       <select
-                        className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
+                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
                         value={newBooking.wing}
-                        onChange={(e) => setNewBooking((prev) => ({ ...prev, wing: e.target.value, location: '', roomName: '' }))}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setSelectedBookingWing(v);
+                          setNewBooking((prev) => ({ ...prev, wing: v, location: '', roomName: '' }));
+                        }}
                       >
-                        <option value="">{floorHasWingValues ? 'Any wing' : 'No wing configured'}</option>
+                        <option value="">{floorHasWingValues ? 'Any wing' : 'No wing'}</option>
                         {availableWings.map((wing) => (
                           <option key={wing} value={wing}>{wing}</option>
                         ))}
                       </select>
-                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
-                    </div>
-                    {canShowRoomTypeCount ? (
-                      <p className={`text-[12px] font-bold ${selectedFloorRoomTypeCount > 0 ? 'text-blue-700' : 'text-rose-600'}`}>
-                        {selectedFloorRoomTypeCount > 0
-                          ? `${selectedFloorRoomTypeCount} ${selectedBookingRoomType.toLowerCase()}${selectedFloorRoomTypeCount === 1 ? '' : 's'} available on this floor${selectedBookingWing ? ` in wing ${selectedBookingWing}` : ''}.`
-                          : `No ${selectedBookingRoomType.toLowerCase()} available for this floor${selectedBookingWing ? ` in wing ${selectedBookingWing}` : ''}.`}
-                      </p>
-                    ) : (
-                      <p className="text-[12px] font-bold text-slate-500">Select room type and floor to see availability. Add wing if needed.</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Location</label>
-                    <div className="relative">
-                      <select
-                        className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
-                        value={newBooking.location}
-                        onChange={(e) => setNewBooking((prev) => ({ ...prev, location: e.target.value, roomName: '' }))}
-                      >
-                        <option value="">Any location</option>
-                        {availableLocations.map((location) => (
-                          <option key={location} value={location}>{location}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
                   </div>
-
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meeting Room</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Room</label>
                     <div className="relative">
                       <select
-                        className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
+                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
                         value={newBooking.roomName}
                         onChange={(e) => {
                           const roomName = e.target.value;
-                          const selectedRoom = roomCatalog.find((room) => room.name === roomName);
+                          const sel = roomCatalog.find((room) => room.name === roomName);
                           setNewBooking((prev) => ({
                             ...prev,
                             roomName,
-                            floor: selectedRoom?.floor || prev.floor,
-                            wing: selectedRoom?.wing || prev.wing,
-                            location: selectedRoom?.location || prev.location,
-                            roomType: selectedRoom?.type || prev.roomType,
+                            floor: sel?.floor || prev.floor,
+                            wing: sel?.wing || prev.wing,
+                            location: sel?.location || prev.location,
+                            roomType: sel?.type || prev.roomType,
                           }));
                         }}
                       >
-                        <option value="">-- Choose a Room --</option>
+                        <option value="">Choose room</option>
                         {bookingRoomsAtSelectedLocation.length > 0 ? (
                           bookingRoomsAtSelectedLocation.map((room) => (
                             <option key={room.name} value={room.name} disabled={!isActiveRoom(room)}>
@@ -3124,106 +4751,137 @@ export function MeetingRoomsPage() {
                         ) : (
                           <option value="" disabled>
                             {canShowRoomTypeCount
-                              ? `No ${selectedBookingRoomType.toLowerCase()} available for ${selectedBookingFloor || 'this floor'}${selectedBookingWing ? ` wing ${selectedBookingWing}` : ''}`
-                              : 'Select room type and floor first'}
+                              ? `No ${selectedBookingRoomType.toLowerCase()} on this floor`
+                              : 'Select type and floor first'}
                           </option>
                         )}
                       </select>
-                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
-                    {selectedRoomCapacity ? (
-                      <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4 text-[12px] font-semibold text-blue-800">
-                        Selected room capacity: {selectedRoomCapacity} seats. Invite slots left: {Math.max(Number(selectedRoomCapacity) - 1 - Number(newBooking.inviteeUserIds.length || 0), 0)}.
-                      </div>
-                    ) : null}
                   </div>
                 </div>
+                {/* Capacity hint */}
+                {selectedRoomCapacity ? (
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-2.5 text-[12px] font-semibold text-blue-800 flex items-center justify-between">
+                    <span>Capacity: <strong>{selectedRoomCapacity}</strong> seats</span>
+                    <span>Invite slots left: <strong>{Math.max(Number(selectedRoomCapacity) - 1 - Number(newBooking.inviteeUserIds.length || 0), 0)}</strong></span>
+                  </div>
+                ) : canShowRoomTypeCount ? (
+                  <p className={`text-[12px] font-bold ${selectedFloorRoomTypeCount > 0 ? 'text-blue-700' : 'text-rose-600'}`}>
+                    {selectedFloorRoomTypeCount > 0
+                      ? `${selectedFloorRoomTypeCount} room${selectedFloorRoomTypeCount === 1 ? '' : 's'} available${selectedBookingWing ? ` in wing ${selectedBookingWing}` : ''}`
+                      : `No rooms available for this floor${selectedBookingWing ? ` in wing ${selectedBookingWing}` : ''}`}
+                  </p>
+                ) : null}
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                {/* ── Row 3: Date + Start Time + End Time ── */}
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</label>
-                    <input type="date" min={todayStr} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => setNewBooking({ ...newBooking, date: e.target.value })} />
+                    <input
+                      type="date"
+                      min={todayStr}
+                      value={newBooking.date}
+                      className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all"
+                      onChange={(e) => setNewBooking({ ...newBooking, date: e.target.value })}
+                    />
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-2 gap-4 col-span-1 md:col-span-2">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Start Time</label>
-                      <select value={newBooking.startTime || ''} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => {
-                        const nextStartTime = e.target.value;
-                        const minimumEndTime = minutesToTimeString((timeToMinutes(nextStartTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
-                        const currentEndMinutes = timeToMinutes(newBooking.endTime);
-                        const minimumEndMinutes = timeToMinutes(minimumEndTime);
-                        setNewBooking({
-                          ...newBooking,
-                          startTime: nextStartTime,
-                          endTime: !newBooking.endTime || currentEndMinutes === null || (minimumEndMinutes !== null && currentEndMinutes < minimumEndMinutes) ? minimumEndTime : newBooking.endTime,
-                        });
-                      }}>
-                        <option value="">Select start time</option>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Start Time</label>
+                    <div className="relative">
+                      <select
+                        value={newBooking.startTime || ''}
+                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all appearance-none cursor-pointer"
+                        onChange={(e) => {
+                          const nextStartTime = e.target.value;
+                          const minimumEndTime = minutesToTimeString((timeToMinutes(nextStartTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
+                          const currentEndMinutes = timeToMinutes(newBooking.endTime);
+                          const minimumEndMinutes = timeToMinutes(minimumEndTime);
+                          setNewBooking({
+                            ...newBooking,
+                            startTime: nextStartTime,
+                            endTime: !newBooking.endTime || currentEndMinutes === null || (minimumEndMinutes !== null && currentEndMinutes < minimumEndMinutes) ? minimumEndTime : newBooking.endTime,
+                          });
+                        }}
+                      >
+                        <option value="">Start</option>
                         {createStartTimeOptions.map((timeValue) => (
                           <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
                         ))}
                       </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">End Time</label>
-                      <select value={newBooking.endTime || ''} className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => setNewBooking({ ...newBooking, endTime: e.target.value })}>
-                        <option value="">Select end time</option>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">End Time</label>
+                    <div className="relative">
+                      <select
+                        value={newBooking.endTime || ''}
+                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all appearance-none cursor-pointer"
+                        onChange={(e) => setNewBooking({ ...newBooking, endTime: e.target.value })}
+                      >
+                        <option value="">End</option>
                         {createEndTimeOptions.map((timeValue) => (
                           <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
                         ))}
                       </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
                   </div>
                 </div>
 
+                {/* ── Availability banners ── */}
                 {!bookingTimeValidation.valid && (
-                  <div className="p-4 bg-red-50 rounded-2xl flex items-start sm:items-center gap-3 border border-red-100">
-                    <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
+                  <div className="p-4 bg-red-50 rounded-2xl flex items-start gap-3 border border-red-100">
+                    <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
                     <p className="text-[13px] text-red-800 font-bold">{bookingTimeValidation.reason}</p>
                   </div>
                 )}
-                {bookingTimeValidation.valid && roomDayStatus === 'available' && !newBooking.startTime && !newBooking.endTime && (
-                  <div className="p-4 bg-emerald-50 rounded-2xl flex items-start sm:items-center gap-3 border border-emerald-100">
-                    <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
-                    <p className="text-[13px] text-emerald-800 font-bold">Meeting room is available for this date. Choose a slot.</p>
+                {bookingTimeValidation.valid && roomDayStatus === 'available' && !newBooking.startTime && (
+                  <div className="p-3.5 bg-emerald-50 rounded-2xl flex items-center gap-3 border border-emerald-100">
+                    <CheckCircle2 className="text-emerald-500 shrink-0" size={16} />
+                    <p className="text-[12px] text-emerald-800 font-bold">Room is fully free on this date. Pick a slot.</p>
                   </div>
                 )}
-                {bookingTimeValidation.valid && roomDayStatus === 'partial' && !newBooking.startTime && !newBooking.endTime && (
-                  <div className="p-4 bg-amber-50 rounded-2xl flex items-start sm:items-center gap-3 border border-amber-100">
-                    <AlertCircle className="text-amber-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
-                    <p className="text-[13px] text-amber-800 font-bold">This room already has some bookings on that date. Choose an open time slot.</p>
+                {bookingTimeValidation.valid && roomDayStatus === 'partial' && !newBooking.startTime && (
+                  <div className="p-3.5 bg-amber-50 rounded-2xl flex items-center gap-3 border border-amber-100">
+                    <AlertCircle className="text-amber-500 shrink-0" size={16} />
+                    <p className="text-[12px] text-amber-800 font-bold">Some slots taken on this date. Choose an open time.</p>
                   </div>
                 )}
-                {bookingTimeValidation.valid && roomDayStatus === 'full' && !newBooking.startTime && !newBooking.endTime && (
-                  <div className="p-4 bg-red-50 rounded-2xl flex items-start sm:items-center gap-3 border border-red-100">
-                    <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
-                    <p className="text-[13px] text-red-800 font-bold">Bookings are full for this room on the selected date. Choose another date.</p>
+                {bookingTimeValidation.valid && roomDayStatus === 'full' && !newBooking.startTime && (
+                  <div className="p-3.5 bg-red-50 rounded-2xl flex items-center gap-3 border border-red-100">
+                    <AlertCircle className="text-red-500 shrink-0" size={16} />
+                    <p className="text-[12px] text-red-800 font-bold">Room fully booked on this date. Choose another date.</p>
                   </div>
                 )}
-                {bookingTimeValidation.valid && bookingStatus === 'available' && (
-                  <div className="p-4 bg-emerald-50 rounded-2xl flex items-start sm:items-center gap-3 border border-emerald-100">
-                    <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
-                    <p className="text-[13px] text-emerald-800 font-bold">Meeting room available for the selected slot.</p>
+                {bookingTimeValidation.valid && bookingStatus === 'available' && newBooking.startTime && newBooking.endTime && (
+                  <div className="p-3.5 bg-emerald-50 rounded-2xl flex items-center gap-3 border border-emerald-100">
+                    <CheckCircle2 className="text-emerald-500 shrink-0" size={16} />
+                    <p className="text-[12px] text-emerald-800 font-bold">Slot is available.</p>
                   </div>
                 )}
                 {bookingTimeValidation.valid && bookingStatus === 'capacity' && (
-                  <div className="p-4 bg-amber-50 rounded-2xl flex items-start sm:items-center gap-3 border border-amber-100">
-                    <AlertCircle className="text-amber-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
-                    <p className="text-[13px] text-amber-800 font-bold">Room capacity is not enough for this booking. Pick a bigger room.</p>
+                  <div className="p-3.5 bg-amber-50 rounded-2xl flex items-center gap-3 border border-amber-100">
+                    <AlertCircle className="text-amber-500 shrink-0" size={16} />
+                    <p className="text-[12px] text-amber-800 font-bold">Room capacity too small for this booking. Pick a bigger room.</p>
                   </div>
                 )}
                 {bookingTimeValidation.valid && bookingStatus === 'full' && (
-                  <div className="p-4 bg-red-50 rounded-2xl flex items-start sm:items-center gap-3 border border-red-100">
-                    <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
-                    <p className="text-[13px] text-red-800 font-bold">Bookings are full for this room on the selected date. Choose another date.</p>
+                  <div className="p-3.5 bg-red-50 rounded-2xl flex items-center gap-3 border border-red-100">
+                    <AlertCircle className="text-red-500 shrink-0" size={16} />
+                    <p className="text-[12px] text-red-800 font-bold">Room fully booked on this date. Choose another date.</p>
                   </div>
                 )}
                 {bookingTimeValidation.valid && bookingStatus === 'conflict' && (
-                  <div className="p-4 bg-red-50 rounded-2xl flex items-start sm:items-center gap-3 border border-red-100">
-                    <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
-                    <div className="space-y-2">
-                      <p className="text-[13px] text-red-800 font-bold">Time conflict detected. Try another slot or room.</p>
-                      {bookingSuggestions.length > 0 && (
+                  <div className="p-3.5 bg-red-50 rounded-2xl border border-red-100 space-y-2.5">
+                    <div className="flex items-center gap-3">
+                      <AlertCircle className="text-red-500 shrink-0" size={16} />
+                      <p className="text-[12px] text-red-800 font-bold">Time conflict — slot already booked.</p>
+                    </div>
+                    {bookingSuggestions.length > 0 && (
+                      <div className="space-y-1.5">
+                        <p className="text-[10px] font-black text-red-600 uppercase tracking-widest">Try these open slots:</p>
                         <div className="flex flex-wrap gap-2">
                           {bookingSuggestions.map((slot: any) => (
                             <button
@@ -3232,41 +4890,97 @@ export function MeetingRoomsPage() {
                               onClick={() => setNewBooking((prev) => ({ ...prev, startTime: slot.start, endTime: slot.end }))}
                               className="px-3 py-1.5 rounded-full bg-white border border-red-200 text-[11px] font-bold text-red-700 hover:bg-red-100 transition-colors"
                             >
-                              {slot.start} - {slot.end}
+                              {formatTimeOptionLabel(slot.start)} – {formatTimeOptionLabel(slot.end)}
                             </button>
                           ))}
                         </div>
-                      )}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Recommended slots for the day (shown when room + date selected, no conflict) */}
+                {bookingTimeValidation.valid && newBooking.roomName && newBooking.date && newBooking.startTime && newBooking.endTime && bookingStatus === 'available' && bookingSuggestions.length > 0 && (
+                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Other available slots today:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {bookingSuggestions.map((slot: any) => (
+                        <button
+                          key={`rec-${slot.start}-${slot.end}`}
+                          type="button"
+                          onClick={() => setNewBooking((prev) => ({ ...prev, startTime: slot.start, endTime: slot.end }))}
+                          className="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-[11px] font-bold text-slate-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors"
+                        >
+                          {formatTimeOptionLabel(slot.start)} – {formatTimeOptionLabel(slot.end)}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 gap-5">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Purpose / Agenda</label>
-                    <input type="text" required placeholder="e.g. Q3 Roadmap Review..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" onChange={(e) => setNewBooking({ ...newBooking, purpose: e.target.value })} />
-                  </div>
+                {/* ── Purpose ── */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Purpose / Agenda</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Q3 Roadmap Review…"
+                    className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all"
+                    onChange={(e) => setNewBooking({ ...newBooking, purpose: e.target.value })}
+                  />
                 </div>
 
-                <div className="space-y-4">
+                {/* ── Invite Members (capacity-gated) ── */}
+                <div className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Invite Members</label>
-                    <span className="text-[11px] font-bold text-slate-500">{newBooking.inviteeUserIds.length} selected</span>
+                    <div className="flex items-center gap-2">
+                      {selectedRoomCapacity ? (
+                        <span className={`text-[11px] font-bold ${newBooking.inviteeUserIds.length >= Number(selectedRoomCapacity) - 1 ? 'text-rose-500' : 'text-slate-500'}`}>
+                          {newBooking.inviteeUserIds.length} / {Math.max(Number(selectedRoomCapacity) - 1, 0)} seats
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-bold text-slate-500">{newBooking.inviteeUserIds.length} selected</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="max-h-64 overflow-y-auto space-y-4 pr-1">
+                  {selectedRoomCapacity && Number(selectedRoomCapacity) <= 1 && (
+                    <p className="text-[11px] font-semibold text-amber-600">This room seats 1 — no additional members can be invited.</p>
+                  )}
+                  <div className="max-h-60 overflow-y-auto space-y-3 pr-1">
                     {inviteDepartments.map((group: any) => (
                       <div key={group.department} className="rounded-2xl border border-slate-200/60 bg-slate-50/70 p-4">
-                        <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-3">{group.department}</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-3">
+                          {group.label}
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                           {group.members.map((member: any) => {
                             const memberId = resolveMemberUserId(member);
                             const checked = newBooking.inviteeUserIds.includes(memberId);
+                            const atCapacity = selectedRoomCapacity
+                              ? newBooking.inviteeUserIds.length >= Number(selectedRoomCapacity) - 1
+                              : false;
+                            const disabled = !checked && atCapacity;
+                            const memberRole = normalize(member.role || '');
+                            const isManagement = memberRole === 'owner' || memberRole === 'founder' || memberRole === 'super_admin' || memberRole === 'super-admin' || memberRole === 'admin';
+                            const sublabel = isManagement
+                              ? formatInviteGroupLabel(member.role)
+                              : ((member as any).departments?.[0] || (member as any).department || formatInviteGroupLabel(member.role || 'Member'));
                             return (
-                              <label key={memberId} className={`flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition-colors ${checked ? 'border-[#2563EB] bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                              <label
+                                key={memberId}
+                                className={`flex items-start gap-3 rounded-xl border p-3 transition-colors ${
+                                  disabled
+                                    ? 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed'
+                                    : checked
+                                    ? 'border-[#2563EB] bg-blue-50 cursor-pointer'
+                                    : 'border-slate-200 bg-white hover:bg-slate-50 cursor-pointer'
+                                }`}
+                              >
                                 <input
                                   type="checkbox"
                                   checked={checked}
-                                  onChange={() => setNewBooking((prev) => ({
+                                  disabled={disabled}
+                                  onChange={() => !disabled && setNewBooking((prev) => ({
                                     ...prev,
                                     inviteeUserIds: checked
                                       ? prev.inviteeUserIds.filter((id) => id !== memberId)
@@ -3276,7 +4990,7 @@ export function MeetingRoomsPage() {
                                 />
                                 <div className="min-w-0">
                                   <p className="text-[13px] font-bold text-[#0F172A] truncate">{resolveMemberName(member) || member.email || 'Member'}</p>
-                                  <p className="text-[11px] font-semibold text-slate-500">{formatInviteGroupLabel(member.role || 'General')}</p>
+                                  <p className="text-[11px] font-semibold text-slate-500">{sublabel}</p>
                                 </div>
                               </label>
                             );
@@ -3346,13 +5060,21 @@ export function MeetingRoomsPage() {
                     <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Host / Dept</span>
                       <div className="text-right">
-                        <p className="font-bold text-[#0F172A] text-[13px]">{viewingBooking.bookedByName}</p>
-                        <p className="font-semibold text-slate-400 text-[11px]">{viewingBooking.department}</p>
+                        <p className="font-bold text-[#0F172A] text-[13px]">
+                          {(viewingBooking as any).bookedForName || viewingBooking.bookedByName}
+                        </p>
+                        {/* {viewingBooking.department && <p className="font-semibold text-slate-400 text-[11px]">{viewingBooking.department}</p>} */}
                         <span className={`mt-2 inline-flex px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${getBookingTagBadge(viewingBooking)}`}>
                           {getBookingTagLabel(viewingBooking)}
                         </span>
                       </div>
                     </div>
+                    {(viewingBooking as any).bookedForName && normalize(viewingBooking.bookingType) === 'internal' && (
+                      <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Booked By</span>
+                        <p className="font-semibold text-[#0F172A] text-[13px]">{viewingBooking.bookedByName}</p>
+                      </div>
+                    )}
                     {viewingBooking.isInvitedMeeting && (
                       <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meeting Type</span>
@@ -3367,14 +5089,24 @@ export function MeetingRoomsPage() {
                       </div>
                     )}
                     <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Timing</span>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Schedule</span>
                       <div className="text-right">
                         {renderScheduleSummary(viewingBooking)}
                       </div>
                     </div>
                     <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Attendees</span>
-                      <span className="font-bold text-[#0F172A] text-[13px] flex items-center gap-1.5"><Users size={14} className="text-slate-400" /> {getBookingDisplayCount()} Booking</span>
+                      <span className="font-bold text-[#0F172A] text-[13px] flex items-center gap-1.5">
+                        <Users size={14} className="text-slate-400" />
+                        {(() => {
+                          // Host (1) + accepted invitees
+                          const acceptedCount = Array.isArray(viewingBooking.invites)
+                            ? viewingBooking.invites.filter((inv: any) => inv.status === 'accepted').length
+                            : 0;
+                          const total = 1 + acceptedCount;
+                          return `${total} ${total === 1 ? 'Person' : 'People'}`;
+                        })()}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</span>
@@ -3400,6 +5132,67 @@ export function MeetingRoomsPage() {
                           )}
                         </div>
                       </div>
+                    )}
+
+                    {/* ── External-specific fields (Task 20) ── */}
+                    {!isAdministrationManagerProfile && normalize(viewingBooking.bookingType) === 'external' && (
+                      <>
+                        <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Client Name</span>
+                          <p className="font-semibold text-[#0F172A] text-[13px]">{(viewingBooking as any).bookedForName || '—'}</p>
+                        </div>
+                        {(viewingBooking as any).paymentMode && (
+                          <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Payment Mode</span>
+                            <p className="font-semibold text-[#0F172A] text-[13px]">{(viewingBooking as any).paymentMode}</p>
+                          </div>
+                        )}
+                        {(viewingBooking as any).paymentStatus && (
+                          <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Payment Status</span>
+                            <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${
+                              (viewingBooking as any).paymentStatus === 'Paid'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}>
+                              {(viewingBooking as any).paymentStatus}
+                            </span>
+                          </div>
+                        )}
+                        {(viewingBooking as any).transactionId && (
+                          <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Transaction ID</span>
+                            <p className="font-semibold text-[#0F172A] text-[13px] font-mono">{(viewingBooking as any).transactionId}</p>
+                          </div>
+                        )}
+                        {(Number(viewingBooking.baseAmount || 0) > 0 || Number(viewingBooking.totalAmount || 0) > 0) && (
+                          <div className="pb-4 border-b border-slate-100/60">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Pricing Breakdown</span>
+                            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 space-y-1.5 text-[12px]">
+                              <div className="flex justify-between">
+                                <span className="text-slate-500 font-semibold">Base Amount</span>
+                                <span className="font-bold text-[#0F172A]">{formatCurrency(viewingBooking.baseAmount || 0)}</span>
+                              </div>
+                              {Number((viewingBooking as any).discountValue || 0) > 0 && (
+                                <div className="flex justify-between text-emerald-700">
+                                  <span className="font-semibold">Discount</span>
+                                  <span className="font-bold">−{formatCurrency(Math.abs((viewingBooking as any).discountAmount || 0))}</span>
+                                </div>
+                              )}
+                              {Number(viewingBooking.gstAmount || 0) > 0 && (
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-semibold">GST (18%)</span>
+                                  <span className="font-bold text-[#0F172A]">{formatCurrency(viewingBooking.gstAmount || 0)}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between pt-1.5 border-t border-slate-200">
+                                <span className="font-black text-[#0F172A]">Total</span>
+                                <span className="font-black text-[#2563EB]">{formatCurrency(viewingBooking.totalAmount || 0)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
 
                     {viewingBooking.currentInviteStatus && (
@@ -3823,13 +5616,20 @@ export function MeetingRoomsPage() {
                     <div className="max-h-48 overflow-y-auto space-y-3 pr-1">
                       {inviteDepartments.map((group: any) => (
                         <div key={group.department} className="rounded-xl border border-slate-200/60 bg-slate-50/70 p-3">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">{group.department}</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                            {group.label}
+                          </p>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {group.members.map((member: any) => {
                               const memberId = resolveMemberUserId(member);
                               const checked = rescheduleInviteeIds.includes(memberId);
                               const existingInvite = Array.isArray(rescheduleData.invites) ? rescheduleData.invites.find((inv: Invite) => normalize(inv.invitedUserId) === normalize(memberId)) : null;
                               const existingStatus = existingInvite ? normalize(existingInvite.status) : '';
+                              const memberRole = normalize(member.role || '');
+                              const isManagement = memberRole === 'owner' || memberRole === 'founder' || memberRole === 'super_admin' || memberRole === 'super-admin' || memberRole === 'admin';
+                              const sublabel = isManagement
+                                ? formatInviteGroupLabel(member.role)
+                                : ((member as any).departments?.[0] || (member as any).department || formatInviteGroupLabel(member.role || 'Member'));
                               return (
                                 <label key={memberId} className={`flex items-start gap-2 rounded-lg border p-2.5 cursor-pointer transition-colors ${checked ? 'border-[#2563EB] bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
                                   <input
@@ -3843,7 +5643,7 @@ export function MeetingRoomsPage() {
                                   <div className="min-w-0 flex-1">
                                     <p className="text-[12px] font-bold text-[#0F172A] truncate">{resolveMemberName(member) || member.email || 'Member'}</p>
                                     <div className="flex items-center gap-2 mt-0.5">
-                                      <span className="text-[10px] font-semibold text-slate-500">{formatInviteGroupLabel(member.role || 'General')}</span>
+                                      <span className="text-[10px] font-semibold text-slate-500">{sublabel}</span>
                                       {existingStatus === 'accepted' && (
                                         <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200">
                                           <CheckCircle2 size={10} /> Accepted
@@ -3875,6 +5675,50 @@ export function MeetingRoomsPage() {
                     <p className="text-[13px] text-red-800 font-bold">{rescheduleTimeValidation.reason}</p>
                   </div>
                 )}
+
+                {/* External booking — reschedule pricing delta */}
+                {normalize(rescheduleData.bookingType) === 'external' && rescheduleData.startTime && rescheduleData.endTime && rescheduleTimeValidation.valid && (() => {
+                  const room = roomCatalog.find(r => r.name === rescheduleData.roomName);
+                  const pricePerHour = Number(room?.pricePerHour || 0);
+                  const origPricing = computeExternalPricing(pricePerHour, rescheduleData.previousStartTime || rescheduleData.startTime, rescheduleData.previousEndTime || rescheduleData.endTime, 'flat', 0);
+                  const newPricing = computeExternalPricing(pricePerHour, rescheduleData.startTime, rescheduleData.endTime, 'flat', 0);
+                  const origTotal = Number(rescheduleData.totalAmount || origPricing.totalAmount || 0);
+                  const newTotal = newPricing.totalAmount;
+                  const diff = newTotal - origTotal;
+                  const hasDiff = Math.abs(diff) > 0.5;
+                  return (
+                    <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl space-y-2">
+                      <div className="flex items-center gap-2 font-bold text-amber-800 text-[13px]">
+                        <DollarSign size={15} />
+                        Pricing Adjustment
+                      </div>
+                      <div className="grid grid-cols-3 gap-3 text-center">
+                        <div className="rounded-xl bg-white/70 px-2 py-2 border border-amber-100">
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Original</p>
+                          <p className="text-sm font-black text-amber-800 mt-0.5">{formatCurrency(origTotal)}</p>
+                        </div>
+                        <div className="rounded-xl bg-white/70 px-2 py-2 border border-amber-100">
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">New Estimate</p>
+                          <p className="text-sm font-black text-amber-800 mt-0.5">{formatCurrency(newTotal)}</p>
+                        </div>
+                        <div className={`rounded-xl px-2 py-2 border ${hasDiff && diff > 0 ? 'bg-red-50 border-red-200' : hasDiff && diff < 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-white/70 border-amber-100'}`}>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{hasDiff && diff > 0 ? 'Extra Charge' : hasDiff && diff < 0 ? 'Saving' : 'Change'}</p>
+                          {hasDiff && diff > 0 ? (
+                            <p className="text-sm font-black text-red-700 mt-0.5">+{formatCurrency(diff)}</p>
+                          ) : hasDiff && diff < 0 ? (
+                            <p className="text-sm font-black text-emerald-700 mt-0.5">{formatCurrency(diff)}</p>
+                          ) : (
+                            <p className="text-sm font-black text-slate-500 mt-0.5">—</p>
+                          )}
+                        </div>
+                      </div>
+                      {pricePerHour > 0 && (
+                        <p className="text-[11px] font-semibold text-amber-700">Rate: {formatCurrency(pricePerHour)}/hr · GST included</p>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {rescheduleTimeValidation.valid && rescheduleStatus === 'available' && (
                   <div className="p-4 bg-emerald-50 rounded-2xl flex items-start sm:items-center gap-3 border border-emerald-100 mt-2">
                     <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
@@ -3901,7 +5745,7 @@ export function MeetingRoomsPage() {
       <AnimatePresence>
         {showExternalBookingDialog && (
           <div className="fixed inset-0 z-[80] flex items-end md:items-center justify-center">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowExternalBookingDialog(false)} className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setShowExternalBookingDialog(false); setExtClientSearch(''); setExtClientSearchResults([]); setExtClientSelected(null); }} className="absolute inset-0 bg-[#0F172A]/40 backdrop-blur-sm" />
             <motion.div
               initial={{ y: "100%", opacity: 0, scale: 0.95 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
@@ -3917,7 +5761,7 @@ export function MeetingRoomsPage() {
                   <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">External Booking</h2>
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Walk-in / External visitor</p>
                 </div>
-                <button onClick={() => setShowExternalBookingDialog(false)} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
+              <button onClick={() => { setShowExternalBookingDialog(false); setExtClientSearch(''); setExtClientSearchResults([]); setExtClientSelected(null); }} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
                   <X size={20} strokeWidth={2.5} />
                 </button>
               </div>
@@ -3925,16 +5769,19 @@ export function MeetingRoomsPage() {
               {/* Client Type Tabs */}
               <div className="px-6 md:px-8 pt-4 pb-0 shrink-0">
                 <div className="flex bg-slate-100/60 p-1 rounded-xl border border-slate-200/50 mb-1">
-                  {([{ key: 'new' as const, label: 'New Client' }, { key: 'existing' as const, label: 'Existing Client' }]).map(tab => (
-                    <button key={tab.key} type="button" onClick={() => setExternalBookingClientTab(tab.key)}
-                      className={`flex-1 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${externalBookingClientTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#0F172A] hover:bg-slate-200/70 hover:text-slate-900'}`}>
+                  {([{ key: 'search' as const, label: 'Search / Recent' }, { key: 'new' as const, label: 'New Client' }]).map(tab => (
+                    <button key={tab.key} type="button" onClick={() => {
+                      setExternalBookingClientTab(tab.key as any);
+                      setExtClientSearch(''); setExtClientSearchResults([]); setExtClientSelected(null);
+                    }}
+                      className={`flex-1 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${(externalBookingClientTab as string) === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#0F172A] hover:bg-slate-200/70 hover:text-slate-900'}`}>
                       {tab.label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="p-5 sm:p-6 md:p-8 space-y-6 overflow-y-auto flex-1">
+              <div className="p-5 sm:p-6 md:p-8 space-y-5 overflow-y-auto flex-1">
                 {/* Client Info */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
@@ -3942,52 +5789,117 @@ export function MeetingRoomsPage() {
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Client Information</span>
                     <div className="h-px flex-1 bg-slate-100" />
                   </div>
-                  {externalBookingClientTab === 'existing' ? (
+
+                  {(externalBookingClientTab as string) !== 'new' ? (
+                    /* ── Search / Recent tab ── */
                     <div className="space-y-3">
-                      {existingExternalClients.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[12px] font-semibold text-slate-400">
-                          No previous external bookings found. Switch to <span className="font-black text-[#2563EB]">New Client</span> to proceed.
-                        </div>
-                      ) : (
-                        <div className="max-h-52 overflow-y-auto space-y-2 pr-1">
-                          {existingExternalClients.map((client, idx) => {
-                            const isSelected = externalBookingForm.name === client.name && externalBookingForm.phone === client.phone;
-                            return (
-                              <button key={idx} type="button" onClick={() => setExternalBookingForm(f => ({ ...f, name: client.name, phone: client.phone, email: client.email, company: client.company }))}
-                                className={`w-full flex items-center justify-between gap-3 rounded-2xl border p-4 text-left transition-all ${isSelected ? 'border-[#2563EB] bg-blue-50 ring-2 ring-[#2563EB]/50 ring-offset-1' : 'border-slate-200 bg-white hover:bg-slate-50 hover:border-[#2563EB]/50'}`}>
-                                <div className="min-w-0">
-                                  <p className="text-[13px] font-bold text-[#0F172A] truncate">{client.name}</p>
-                                  <p className="text-[11px] font-semibold text-slate-500">{client.phone}{client.company ? ` - ${client.company}` : ''}</p>
-                                </div>
-                                {isSelected && <CheckCircle2 size={16} className="text-[#2563EB] shrink-0" />}
-                              </button>
-                            );
-                          })}
+                      {/* Selected client chip */}
+                      {extClientSelected && (
+                        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[13px] font-bold text-emerald-800">{extClientSelected.name}</p>
+                            <p className="text-[11px] font-semibold text-emerald-600">{extClientSelected.phone}{extClientSelected.email ? ` · ${extClientSelected.email}` : ''}{extClientSelected.company ? ` · ${extClientSelected.company}` : ''}</p>
+                          </div>
+                          <button type="button" onClick={() => { setExtClientSelected(null); setExternalBookingForm(f => ({ ...f, name: '', phone: '', email: '', company: '' })); }} className="w-7 h-7 flex items-center justify-center rounded-full bg-emerald-100 hover:bg-red-100 text-emerald-600 hover:text-red-500 transition-colors shrink-0">
+                            <X size={13} strokeWidth={2.5} />
+                          </button>
                         </div>
                       )}
-                      {externalBookingForm.name && (
-                        <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4 text-[12px] font-semibold text-amber-800">
-                          <span className="font-black">Selected: </span>{externalBookingForm.name} --- {externalBookingForm.phone}
+
+                      {/* Live search input */}
+                      {!extClientSelected && (
+                        <div className="relative">
+                          <div className="relative">
+                            <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            <input
+                              type="text"
+                              value={extClientSearch}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setExtClientSearch(val);
+                                if (extClientSearchDebounceRef.current) clearTimeout(extClientSearchDebounceRef.current);
+                                if (val.length < 2) { setExtClientSearchResults([]); return; }
+                                setExtClientSearchLoading(true);
+                                extClientSearchDebounceRef.current = setTimeout(async () => {
+                                  try {
+                                    const res = await getExternalClients(workspaceId, val);
+                                    setExtClientSearchResults(Array.isArray(res) ? res : []);
+                                  } catch { setExtClientSearchResults([]); }
+                                  finally { setExtClientSearchLoading(false); }
+                                }, 350);
+                              }}
+                              placeholder="Search by name, phone, or email…"
+                              className="w-full pl-10 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all"
+                            />
+                            {extClientSearchLoading && <div className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin" />}
+                          </div>
+
+                          {/* Search results dropdown */}
+                          {extClientSearchResults.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 z-10 mt-1 bg-white border border-slate-200 rounded-2xl shadow-lg overflow-hidden">
+                              {extClientSearchResults.map((client: any) => (
+                                <button key={client._id || client.email} type="button" onClick={() => {
+                                  setExtClientSelected(client);
+                                  setExternalBookingForm(f => ({ ...f, name: client.name, phone: client.phone, email: client.email || '', company: client.company || '' }));
+                                  setExtClientSearch(''); setExtClientSearchResults([]);
+                                }} className="w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0">
+                                  <p className="text-[13px] font-bold text-[#0F172A]">{client.name}</p>
+                                  <p className="text-[11px] text-slate-500">{client.phone}{client.email ? ` · ${client.email}` : ''}{client.company ? ` · ${client.company}` : ''}</p>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {extClientSearch.length >= 2 && !extClientSearchLoading && extClientSearchResults.length === 0 && (
+                            <p className="mt-2 text-[11px] text-slate-400 px-1">No clients found. Use "New Client" to add one.</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Recent 2 clients */}
+                      {!extClientSelected && extClientSearch.length < 2 && existingExternalClients.slice(0, 2).length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recent clients</p>
+                          {existingExternalClients.slice(0, 2).map((client, idx) => (
+                            <button key={idx} type="button" onClick={() => {
+                              setExtClientSelected(client);
+                              setExternalBookingForm(f => ({ ...f, name: client.name, phone: client.phone, email: client.email, company: client.company }));
+                            }}
+                              className="w-full flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white hover:bg-blue-50 hover:border-[#2563EB]/50 p-4 text-left transition-all">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-[#2563EB] font-black text-sm shrink-0">
+                                  {client.name[0]?.toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-[13px] font-bold text-[#0F172A] truncate">{client.name}</p>
+                                  <p className="text-[11px] font-semibold text-slate-500 truncate">{client.phone}{client.company ? ` · ${client.company}` : ''}</p>
+                                </div>
+                              </div>
+                              <span className="text-[10px] font-black text-[#2563EB] uppercase tracking-widest shrink-0">Select</span>
+                            </button>
+                          ))}
                         </div>
                       )}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div className="space-y-2">
+                    /* ── New Client tab ── */
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2 col-span-2 sm:col-span-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Full Name *</label>
-                        <input type="text" value={externalBookingForm.name} onChange={e => setExternalBookingForm(f => ({ ...f, name: e.target.value }))} placeholder="Client name" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
+                        <input type="text" value={externalBookingForm.name} onChange={e => setExternalBookingForm(f => ({ ...f, name: e.target.value }))} placeholder="Client name" className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-2 col-span-2 sm:col-span-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phone *</label>
-                        <input type="tel" value={externalBookingForm.phone} onChange={e => setExternalBookingForm(f => ({ ...f, phone: e.target.value }))} placeholder="+91..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
+                        <input type="tel" value={externalBookingForm.phone} onChange={e => setExternalBookingForm(f => ({ ...f, phone: e.target.value }))} placeholder="+91 XXXXX XXXXX" className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email</label>
-                        <input type="email" value={externalBookingForm.email} onChange={e => setExternalBookingForm(f => ({ ...f, email: e.target.value }))} placeholder="client@email.com" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
+                      <div className="space-y-2 col-span-2 sm:col-span-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                          Email <span className="text-slate-300 normal-case font-semibold">(for confirmation)</span>
+                        </label>
+                        <input type="email" value={externalBookingForm.email} onChange={e => setExternalBookingForm(f => ({ ...f, email: e.target.value }))} placeholder="client@email.com" className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Company / Agency</label>
-                        <input type="text" value={externalBookingForm.company} onChange={e => setExternalBookingForm(f => ({ ...f, company: e.target.value }))} placeholder="Optional" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
+                      <div className="space-y-2 col-span-2 sm:col-span-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Company <span className="text-slate-300 normal-case font-semibold">(optional)</span></label>
+                        <input type="text" value={externalBookingForm.company} onChange={e => setExternalBookingForm(f => ({ ...f, company: e.target.value }))} placeholder="Company / Agency" className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
                       </div>
                     </div>
                   )}
@@ -4389,6 +6301,76 @@ export function MeetingRoomsPage() {
                   </div>
                 </div>
 
+                {/* Availability feedback */}
+                {internalBookingForm.roomName && internalBookingForm.date && (
+                  <>
+                    {!internalBookingTimeValidation.valid && (
+                      <div className="p-4 bg-red-50 rounded-2xl flex items-start gap-3 border border-red-100">
+                        <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
+                        <p className="text-[13px] text-red-800 font-bold">{internalBookingTimeValidation.reason}</p>
+                      </div>
+                    )}
+                    {internalBookingTimeValidation.valid && internalRoomDayStatus === 'available' && !internalBookingForm.startTime && (
+                      <div className="p-4 bg-emerald-50 rounded-2xl flex items-start gap-3 border border-emerald-100">
+                        <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={18} />
+                        <p className="text-[13px] text-emerald-800 font-bold">Room is fully available on this date. Choose a time slot.</p>
+                      </div>
+                    )}
+                    {internalBookingTimeValidation.valid && internalRoomDayStatus === 'partial' && !internalBookingForm.startTime && (
+                      <div className="p-4 bg-amber-50 rounded-2xl flex items-start gap-3 border border-amber-100">
+                        <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
+                        <p className="text-[13px] text-amber-800 font-bold">This room has some bookings on that date. Choose an open time slot.</p>
+                      </div>
+                    )}
+                    {internalBookingTimeValidation.valid && internalRoomDayStatus === 'full' && !internalBookingForm.startTime && (
+                      <div className="p-4 bg-red-50 rounded-2xl flex items-start gap-3 border border-red-100">
+                        <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
+                        <p className="text-[13px] text-red-800 font-bold">No slots available for this room on the selected date.</p>
+                      </div>
+                    )}
+                    {internalBookingTimeValidation.valid && internalBookingAvailability === 'available' && (
+                      <div className="p-4 bg-emerald-50 rounded-2xl flex items-start gap-3 border border-emerald-100">
+                        <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={18} />
+                        <p className="text-[13px] text-emerald-800 font-bold">Room is available for the selected slot.</p>
+                      </div>
+                    )}
+                    {internalBookingTimeValidation.valid && internalBookingAvailability === 'conflict' && (
+                      <div className="p-4 bg-red-50 rounded-2xl border border-red-100">
+                        <div className="flex items-start gap-3 mb-2">
+                          <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
+                          <p className="text-[13px] text-red-800 font-bold">Time conflict — this slot is already booked.</p>
+                        </div>
+                        {internalBookingSuggestions.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-[11px] font-black text-red-700 uppercase tracking-widest mb-2">Available slots for selected duration:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {internalBookingSuggestions.map((slot: any) => (
+                                <button
+                                  key={`${slot.start}-${slot.end}`}
+                                  type="button"
+                                  onClick={() => setInternalBookingForm(f => ({ ...f, startTime: slot.start, endTime: slot.end }))}
+                                  className="px-3 py-1.5 rounded-full bg-white border border-red-200 text-[11px] font-bold text-red-700 hover:bg-red-100 transition-colors"
+                                >
+                                  {formatTimeOptionLabel(slot.start)} — {formatTimeOptionLabel(slot.end)}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {internalBookingSuggestions.length === 0 && (
+                          <p className="text-[12px] font-semibold text-red-700 mt-1">No available slots found for this duration on this day.</p>
+                        )}
+                      </div>
+                    )}
+                    {internalBookingTimeValidation.valid && internalBookingAvailability === 'full' && (
+                      <div className="p-4 bg-red-50 rounded-2xl flex items-start gap-3 border border-red-100">
+                        <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
+                        <p className="text-[13px] text-red-800 font-bold">Room is fully booked for this date. Please choose another date.</p>
+                      </div>
+                    )}
+                  </>
+                )}
+
                 {/* Purpose */}
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Purpose / Agenda</label>
@@ -4402,42 +6384,89 @@ export function MeetingRoomsPage() {
                       <div className="h-px w-8 bg-slate-100" />
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Invite Participants</span>
                     </div>
-                    <span className="text-[11px] font-bold text-[#2563EB]">{internalBookingForm.inviteParticipantIds.length} selected</span>
+                    {(() => {
+                      const cap = getRoomCapacity(internalBookingForm.roomName);
+                      const maxInvites = cap ? Math.max(0, Number(cap) - 1) : null;
+                      return maxInvites !== null ? (
+                        <span className={`text-[11px] font-bold ${internalBookingForm.inviteParticipantIds.length >= maxInvites ? 'text-rose-500' : 'text-[#2563EB]'}`}>
+                          {internalBookingForm.inviteParticipantIds.length} / {maxInvites} seats
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-bold text-[#2563EB]">{internalBookingForm.inviteParticipantIds.length} selected</span>
+                      );
+                    })()}
                   </div>
-                  <div className="max-h-64 overflow-y-auto space-y-4 pr-1">
-                    {!internalBookingForm.bookedForUserId ? (
-                      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[12px] font-semibold text-slate-400">
-                        Select a member above to see eligible participants.
-                      </div>
-                    ) : internalBookingEligibleParticipants.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[12px] font-semibold text-slate-400">
-                        No inviteable participants found in this department.
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {internalBookingEligibleParticipants.map((member: any) => {
-                          const memberId = resolveMemberUserId(member);
-                          const checked = internalBookingForm.inviteParticipantIds.includes(memberId);
-                          return (
-                            <label key={memberId} className={`flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition-colors ${checked ? 'border-[#2563EB] bg-blue-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
-                              <input type="checkbox" checked={checked} onChange={() => setInternalBookingForm(f => ({ ...f, inviteParticipantIds: checked ? f.inviteParticipantIds.filter(id => id !== memberId) : [...f.inviteParticipantIds, memberId] }))} className="mt-1 h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]" />
-                              <div className="min-w-0">
-                                <p className="text-[13px] font-bold text-[#0F172A] truncate">{resolveMemberName(member) || (member as any).email || 'Member'}</p>
-                                <p className="text-[11px] font-semibold text-slate-500">
-                                  {(() => {
-                                    const role = normalize(member.role);
-                                    const isManagement = role === 'owner' || role === 'founder' || role === 'super_admin' || role === 'super-admin' || role === 'admin';
-                                    if (isManagement) return formatInviteGroupLabel(member.role || 'General');
-                                    return (member as any).departments?.[0] || formatInviteGroupLabel(member.role || 'General');
-                                  })()}
-                                </p>
-                              </div>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  {(() => {
+                    const cap = getRoomCapacity(internalBookingForm.roomName);
+                    const maxInvites = cap ? Math.max(0, Number(cap) - 1) : null;
+                    return (
+                      <>
+                        {internalBookingForm.roomName && cap && Number(cap) <= 1 && (
+                          <p className="text-[11px] font-semibold text-amber-600">This room seats 1 — no additional participants can be invited.</p>
+                        )}
+                        {internalBookingForm.roomName && cap && (
+                          <div className="rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-2.5 text-[12px] font-semibold text-blue-800 flex items-center justify-between">
+                            <span>Capacity: <strong>{cap}</strong> seats</span>
+                            <span>Invite slots left: <strong>{Math.max(0, Number(cap) - 1 - internalBookingForm.inviteParticipantIds.length)}</strong></span>
+                          </div>
+                        )}
+                        <div className="max-h-64 overflow-y-auto space-y-4 pr-1">
+                          {!internalBookingForm.bookedForUserId ? (
+                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[12px] font-semibold text-slate-400">
+                              Select a member above to see eligible participants.
+                            </div>
+                          ) : internalBookingEligibleParticipants.length === 0 ? (
+                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[12px] font-semibold text-slate-400">
+                              No inviteable participants found in this department.
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {internalBookingEligibleParticipants.map((member: any) => {
+                                const memberId = resolveMemberUserId(member);
+                                const checked = internalBookingForm.inviteParticipantIds.includes(memberId);
+                                const atCapacity = maxInvites !== null && internalBookingForm.inviteParticipantIds.length >= maxInvites;
+                                const disabled = !checked && atCapacity;
+                                const memberRole = normalize(member.role || '');
+                                const isManagement = memberRole === 'owner' || memberRole === 'founder' || memberRole === 'super_admin' || memberRole === 'super-admin' || memberRole === 'admin';
+                                const sublabel = isManagement
+                                  ? formatInviteGroupLabel(member.role)
+                                  : ((member as any).departments?.[0] || (member as any).department || formatInviteGroupLabel(member.role || 'Member'));
+                                return (
+                                  <label
+                                    key={memberId}
+                                    className={`flex items-start gap-3 rounded-xl border p-3 transition-colors ${
+                                      disabled
+                                        ? 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed'
+                                        : checked
+                                        ? 'border-[#2563EB] bg-blue-50 cursor-pointer'
+                                        : 'border-slate-200 bg-white hover:bg-slate-50 cursor-pointer'
+                                    }`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      disabled={disabled}
+                                      onChange={() => !disabled && setInternalBookingForm(f => ({
+                                        ...f,
+                                        inviteParticipantIds: checked
+                                          ? f.inviteParticipantIds.filter(id => id !== memberId)
+                                          : [...f.inviteParticipantIds, memberId],
+                                      }))}
+                                      className="mt-1 h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
+                                    />
+                                    <div className="min-w-0">
+                                      <p className="text-[13px] font-bold text-[#0F172A] truncate">{resolveMemberName(member) || (member as any).email || 'Member'}</p>
+                                      <p className="text-[11px] font-semibold text-slate-500">{sublabel}</p>
+                                    </div>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Notes */}
@@ -4448,7 +6477,7 @@ export function MeetingRoomsPage() {
               </div>
 
               <div className="p-4 sm:p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 shrink-0">
-                <button type="button" disabled={isSavingInternalBooking || !internalBookingForm.bookedForUserId || !internalBookingForm.roomName || !internalBookingForm.date || !internalBookingForm.startTime || !internalBookingForm.endTime} onClick={(e: any) => handleSubmitInternalBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
+                <button type="button" disabled={isSavingInternalBooking || !internalBookingForm.bookedForUserId || !internalBookingForm.roomName || !internalBookingForm.date || !internalBookingForm.startTime || !internalBookingForm.endTime || internalBookingAvailability === 'conflict' || internalBookingAvailability === 'full' || !internalBookingTimeValidation.valid} onClick={(e: any) => handleSubmitInternalBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
                   {isSavingInternalBooking ? 'Booking...' : 'Confirm Internal Booking'}
                 </button>
               </div>
@@ -4762,6 +6791,17 @@ export function MeetingRoomsPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* --------- NEW EXTERNAL BOOKING DIALOG (Task 17) --------- */}
+      <ExternalBookingDialog
+        open={showNewExternalBookingDialog}
+        onClose={() => setShowNewExternalBookingDialog(false)}
+        roomCatalog={roomCatalog}
+        allBookings={allBookings}
+        workspaceId={workspaceId}
+        managerName={managerProfile.name}
+        onSuccess={reloadBookings}
+      />
 
     </div>
   );

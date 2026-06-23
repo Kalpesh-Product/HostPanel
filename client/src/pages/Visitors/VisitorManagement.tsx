@@ -1027,6 +1027,10 @@ export default function VisitorsManagementPage() {
           ),
         );
         setVisitorHistory((Array.isArray(result.visitorHistory) ? result.visitorHistory : []).map(normalizeVisitorTrackingEntry));
+        // Populate clients from visitor overview (includes both external-booking + visitor-conversion sources)
+        if (Array.isArray(result.clients) && result.clients.length > 0) {
+          setBookingClients(result.clients);
+        }
         setVisitorOverviewError('');
       } catch (error) {
         if (!isCancelled) {
@@ -1065,12 +1069,13 @@ export default function VisitorsManagementPage() {
         const data = result?.data || result || {};
         const rooms = Array.isArray(data.roomDetails) ? data.roomDetails : [];
         const bookings = Array.isArray(data.bookings) ? data.bookings : [];
-        const clients = Array.isArray(data.clients) ? data.clients : [];
+        // Do NOT overwrite bookingClients here — that data comes from getVisitorManagementOverview
+        // which properly returns the Client collection. getMeetingRoomBookings doesn't return clients.
         const normalizedRooms = rooms.map(normalizeMeetingRoom);
 
         setMeetingRoomCatalog(normalizedRooms);
         setMeetingRoomBookings(bookings);
-        setBookingClients(clients);
+        // bookingClients is populated from getVisitorManagementOverview — don't overwrite here
         setUpcomingBookings(
           bookings
             .filter((booking) => isExternalMeetingBooking(booking))
@@ -3540,10 +3545,8 @@ export default function VisitorsManagementPage() {
                       <td className="px-5 py-4 align-top">
                         <div className="font-bold text-[#0F172A] text-[13px]">{client.name || client.company || 'Unnamed Client'}</div>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="rounded-lg border border-blue-100 bg-blue-50 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-blue-700">
-                            {client.clientCode || 'Client'}
-                          </span>
-                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{client.company || 'Individual'}</span>
+                          {client.company && <span className="text-[11px] font-semibold text-slate-500">{client.company}</span>}
+                          {!client.company && <span className="text-[11px] font-semibold text-slate-400">Individual</span>}
                         </div>
                       </td>
                       <td className="px-5 py-4 align-top">
@@ -3556,7 +3559,9 @@ export default function VisitorsManagementPage() {
                             Converted
                           </span>
                         ) : (
-                          <span className="text-[10px] font-semibold text-slate-400">Direct</span>
+                          <span className="inline-flex px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border border-slate-200 bg-slate-50 text-slate-600">
+                            Walk-in
+                          </span>
                         )}
                       </td>
                       <td className="px-5 py-4 align-top text-center">
@@ -5533,16 +5538,18 @@ export default function VisitorsManagementPage() {
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-2xl font-black leading-none text-slate-950">{viewingClient.name || viewingClient.company || 'Client'}</h2>
-                    <span className="rounded-lg border border-blue-200 bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-blue-700">
-                      {viewingClient.clientCode || 'Client'}
-                    </span>
+                    {viewingClient.company && (
+                      <span className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-600">
+                        {viewingClient.company}
+                      </span>
+                    )}
                     {normalizeText(viewingClient.source) === 'visitor-conversion' && (
                       <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">
                         Converted Visitor
                       </span>
                     )}
                   </div>
-                  <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500">{viewingClient.company || 'Individual'} • {viewingClient.bookingCount || 0} bookings</p>
+                  <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500">{viewingClient.phone || viewingClient.email || 'No contact'} • {viewingClient.bookingCount || 0} bookings</p>
                 </div>
                 <button onClick={() => setViewingClient(null)} className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-400 shadow-sm transition-all hover:text-red-500">
                   <X size={20} />
@@ -5569,7 +5576,9 @@ export default function VisitorsManagementPage() {
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
                     <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Source</p>
-                    <p className="mt-2 text-sm font-black text-slate-900">{viewingClient.source || 'booking'}</p>
+                    <p className="mt-2 text-sm font-black text-slate-900">
+                      {normalizeText(viewingClient.source) === 'visitor-conversion' ? 'Visitor Conversion' : 'Walk-in Booking'}
+                    </p>
                   </div>
                 </div>
 

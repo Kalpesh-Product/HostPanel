@@ -7,6 +7,7 @@ import HostUser from "../models/HostUser.js";
 import TenantEmployee from "../models/TenantEmployee.js";
 import { TenantCompany } from "../models/TenantCompany.js";
 import TenantCreditLedger from "../models/TenantCreditLedger.js";
+import { Client } from "../models/Client.js";
 
 interface AuthenticatedRequest extends Request {
     user?: string;
@@ -66,6 +67,8 @@ const transformBooking = (booking: any, currentUserId?: string) => {
         bookedByName: booking.bookedByName || ownerName || "",
         bookedForName,
         bookedByUserId,
+        // Expose externalClientId as clientId so client-tab booking matching works
+        clientId: String(booking.externalClientId || ""),
         isMe: Boolean(currentUserId && ownerId === String(currentUserId)),
         storedStatus: booking.status,
     };
@@ -337,6 +340,86 @@ export const createBooking = async (req: AuthenticatedRequest, res: Response, ne
         ).lean().exec();
         if (!room) return res.status(404).json({ message: "Meeting room not found or inactive" });
         const roomId = String(room._id);
+
+        // ── External booking branch ───────────────────────────────────────────
+        if (req.body.bookingType === "External") {
+            const {
+                bookedForName: extBookedForName = "",
+                externalClientId,
+                baseAmount,
+                gstAmount,
+                totalAmount,
+                discountType = "flat",
+                discountValue = 0,
+                paymentMode,
+                paymentStatus = "Pending",
+                transactionId = "",
+            } = req.body;
+
+            // 1. Validate externalClientId if provided
+            if (externalClientId) {
+                const validClientId = getValidObjectId(externalClientId);
+                if (!validClientId) return res.status(422).json({ message: "Client not found in this workspace." });
+                const clientDoc = await Client.findOne({ _id: validClientId, workspaceId }).lean().exec();
+                if (!clientDoc) return res.status(422).json({ message: "Client not found in this workspace." });
+            }
+
+            // 2. Overlap check
+            if (await findOverlap(roomId, range.start, range.end)) {
+                return res.status(409).json({ message: "This resource is already booked for the selected time slot." });
+            }
+
+            // 3. Resolve booking number and host user
+            const [lastExternalBooking, extHostUser] = await Promise.all([
+                MeetingRoomBooking.findOne({ workspaceId }).sort({ bookingNumber: -1 }).lean().exec(),
+                HostUser.findById(req.user).lean().exec(),
+            ]);
+            const extBookingNumber = lastExternalBooking ? Number(lastExternalBooking.bookingNumber) + 1 : 1001;
+
+            // 4. Create the booking document
+            const extBooking = await MeetingRoomBooking.create({
+                workspaceId,
+                roomId,
+                roomName: room.name,
+                bookingNumber: extBookingNumber,
+                bookingCode: `MRB-${Date.now()}-${extBookingNumber}`,
+                bookingType: "External",
+                ownerId: req.user,
+                bookedByUserId: req.user,
+                bookedByName: resolveBookedByName(req.body, extHostUser),
+                bookedByEmail: req.body.bookedByEmail || extHostUser?.email || "",
+                bookedForName: extBookedForName,
+                externalClientId: externalClientId ? getValidObjectId(externalClientId) : null,
+                start: range.start,
+                end: range.end,
+                originalStart: range.start,
+                originalEnd: range.end,
+                attendees: Math.max(1, Number(req.body.attendees || 1)),
+                purpose: purpose.trim(),
+                bookingNotes: req.body.bookingNotes || "",
+                baseAmount: Number(baseAmount) || 0,
+                gstAmount: Number(gstAmount) || 0,
+                totalAmount: Number(totalAmount) || 0,
+                discountType,
+                discountValue: Number(discountValue) || 0,
+                paymentMode: paymentMode || "",
+                paymentStatus,
+                transactionId,
+                status: "confirmed",
+            });
+
+            // 5. Update the Client record if externalClientId present
+            if (externalClientId && getValidObjectId(externalClientId)) {
+                await Client.findByIdAndUpdate(externalClientId, {
+                    $inc: { bookingCount: 1, totalBookedAmount: Number(totalAmount) || 0 },
+                    $set: { lastBookingId: extBooking._id, lastBookingAt: extBooking.start },
+                });
+            }
+
+            return res.status(201).json({ message: "External meeting room booking created successfully", data: { booking: extBooking } });
+        }
+        // ── End of External booking branch ───────────────────────────────────
+
         const attendeeCount = Math.max(1, Number(attendees || inviteeUserIds.length + 1));
         if (attendeeCount > Number(room.capacity || 0)) return res.status(400).json({ message: "Attendee count exceeds room capacity" });
         if (await findOverlap(roomId, range.start, range.end)) return res.status(409).json({ message: "Room is already booked for the selected time slot" });
@@ -692,4 +775,162 @@ export const getBookingById = async (req: AuthenticatedRequest, res: Response, n
         if (!booking) return res.status(404).json({ message: "Booking not found" });
         return res.status(200).json({ message: "Booking fetched successfully", data: { booking: transformBooking(booking, req.user) } });
     } catch (error: any) { next(error); }
+};
+
+export const getExternalClients = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const { workspaceId, search } = req.query;
+        if (!workspaceId) return res.status(400).json({ message: 'workspaceId is required' });
+
+        const filter: any = { workspaceId };
+        if (search && String(search).length >= 2) {
+            const re = new RegExp(String(search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+            filter.$or = [{ name: re }, { email: re }, { phone: re }];
+        }
+
+        const clients = await Client.find(filter).sort({ name: 1 }).limit(50).lean();
+        return res.status(200).json({ success: true, data: clients });
+    } catch (err: any) {
+        return res.status(500).json({ message: err.message || 'Server error' });
+    }
+};
+
+export const createExternalClient = async (req: Request, res: Response) => {
+    try {
+        const { workspaceId, name, email, phone, company } = req.body;
+        if (!workspaceId || !name || !email) {
+            return res.status(400).json({ message: 'workspaceId, name, and email are required' });
+        }
+
+        const normalizedEmail = email.toLowerCase().trim();
+        const existing = await Client.findOne({ workspaceId, email: normalizedEmail }).lean();
+        if (existing) {
+            return res.status(200).json({ success: true, data: existing, existed: true });
+        }
+
+        const client = await Client.create({
+            workspaceId,
+            ownerId: (req as any).user || null,
+            clientCode: `EC-${Date.now()}`,
+            name: name.trim(),
+            email: normalizedEmail,
+            phone: phone?.trim() || '',
+            company: company?.trim() || '',
+            source: 'external-booking',
+            bookingCount: 0,
+            totalBookedAmount: 0,
+        });
+        return res.status(201).json({ success: true, data: client });
+    } catch (err: any) {
+        if (err.code === 11000) {
+            // Race condition duplicate — try to find and return existing
+            try {
+                const existing = await Client.findOne({ workspaceId: req.body.workspaceId, email: req.body.email?.toLowerCase().trim() }).lean();
+                if (existing) return res.status(200).json({ success: true, data: existing, existed: true });
+            } catch {}
+        }
+        return res.status(500).json({ message: err.message || 'Server error' });
+    }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// sendExternalBookingConfirmation — POST /api/meeting-rooms/bookings/:id/send-confirmation
+// Sends an email to the external client with their booking details.
+// ─────────────────────────────────────────────────────────────────────────────
+export const sendExternalBookingConfirmation = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const validId = getValidObjectId(id);
+        if (!validId) return res.status(422).json({ message: "Invalid booking ID." });
+
+        const booking = await MeetingRoomBooking.findById(validId).populate("roomId").lean().exec();
+        if (!booking) return res.status(404).json({ message: "Booking not found." });
+        if (booking.bookingType !== "External") return res.status(400).json({ message: "Confirmation emails are only for external bookings." });
+
+        const recipientEmail = booking.bookedByEmail || (booking as any).externalClientEmail;
+        if (!recipientEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail)) {
+            return res.status(422).json({ message: "No valid email address on this booking." });
+        }
+
+        // Build date/time strings from stored start/end
+        const start = booking.start ? dateTimeParts(new Date(booking.start)) : { date: "", time: "" };
+        const end = booking.end ? dateTimeParts(new Date(booking.end)) : { date: "", time: "" };
+        const room = booking.roomId && typeof booking.roomId === "object" ? (booking.roomId as any) : null;
+        const roomName = booking.roomName || room?.name || "Meeting Room";
+        const clientName = booking.bookedForName || booking.bookedByName || "Guest";
+
+        // Format currency
+        const fmt = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const totalAmount = Number((booking as any).totalAmount || 0);
+        const paymentStatus = totalAmount > 0
+            ? ((booking as any).paymentStatus === "Paid" ? `Paid — ${fmt(totalAmount)}` : `Due — ${fmt(totalAmount)}`)
+            : "No charge";
+
+        const subject = `Meeting Room Booking Confirmation — ${roomName} on ${start.date}`;
+
+        const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(15,23,42,0.08);">
+        <!-- Header -->
+        <tr><td style="background:#2563EB;padding:32px 40px;">
+          <p style="margin:0;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.3px;">Booking Confirmed ✓</p>
+          <p style="margin:8px 0 0;font-size:13px;color:#bfdbfe;">Your meeting room has been reserved</p>
+        </td></tr>
+        <!-- Body -->
+        <tr><td style="padding:32px 40px;">
+          <p style="margin:0 0 24px;font-size:15px;color:#334155;">Hi <strong>${clientName}</strong>, your booking is confirmed. Here are the details:</p>
+
+          <!-- Details table -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;margin-bottom:24px;">
+            <tr style="background:#f1f5f9;">
+              <td style="padding:12px 16px;font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">Detail</td>
+              <td style="padding:12px 16px;font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">Info</td>
+            </tr>
+            <tr style="border-top:1px solid #f1f5f9;">
+              <td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Meeting Room</td>
+              <td style="padding:12px 16px;font-size:13px;font-weight:800;color:#0f172a;">${roomName}</td>
+            </tr>
+            <tr style="background:#f8fafc;border-top:1px solid #f1f5f9;">
+              <td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Date</td>
+              <td style="padding:12px 16px;font-size:13px;font-weight:800;color:#0f172a;">${start.date}</td>
+            </tr>
+            <tr style="border-top:1px solid #f1f5f9;">
+              <td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Time</td>
+              <td style="padding:12px 16px;font-size:13px;font-weight:800;color:#0f172a;">${start.time} – ${end.time}</td>
+            </tr>
+            <tr style="background:#f8fafc;border-top:1px solid #f1f5f9;">
+              <td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Purpose</td>
+              <td style="padding:12px 16px;font-size:13px;font-weight:800;color:#0f172a;">${(booking as any).purpose || "—"}</td>
+            </tr>
+            <tr style="border-top:1px solid #f1f5f9;">
+              <td style="padding:12px 16px;font-size:13px;font-weight:700;color:#64748b;">Payment</td>
+              <td style="padding:12px 16px;font-size:13px;font-weight:800;color:#2563eb;">${paymentStatus}</td>
+            </tr>
+          </table>
+
+          <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">If you have any questions please contact us directly. We look forward to seeing you!</p>
+        </td></tr>
+        <!-- Footer -->
+        <tr><td style="background:#f1f5f9;padding:20px 40px;border-top:1px solid #e2e8f0;">
+          <p style="margin:0;font-size:11px;color:#94a3b8;">This is an automated confirmation. Please do not reply to this email.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+        const { sendMail } = await import("../config/mailer.js");
+        await sendMail({ to: recipientEmail, subject, html, text: `Booking confirmed: ${roomName} on ${start.date} from ${start.time} to ${end.time}. Payment: ${paymentStatus}.` });
+
+        return res.status(200).json({ success: true, message: "Confirmation email sent." });
+    } catch (err: any) {
+        console.error("sendExternalBookingConfirmation error:", err);
+        return res.status(500).json({ message: err.message || "Failed to send confirmation email." });
+    }
 };

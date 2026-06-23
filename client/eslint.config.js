@@ -6,7 +6,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tsParser from '@typescript-eslint/parser'
 
 export default [
-  { ignores: ['dist'] },
+  { ignores: ['dist', 'vite.config.js', 'vite.config.ts', 'postcss.config.js'] },
   {
     files: ['**/*.{js,jsx}'],
     languageOptions: {

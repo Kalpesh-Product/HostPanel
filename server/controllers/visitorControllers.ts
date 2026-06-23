@@ -3,6 +3,7 @@ import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import HostUser from "../models/HostUser.js";
 import VisitorLog from "../models/VisitorLog.js";
+import { Client } from "../models/Client.js";
 import { Role } from "../models/Role.js";
 import Department from "../models/Department.js";
 import { VISITOR_MEMBER_GRANT_ALIASES, VISITOR_PERMISSION_KEYS } from "../config/visitorPermissionMap.js";
@@ -362,6 +363,30 @@ export const getVisitorsOverview = async (req, res, next) => {
       ["checked_out", "cancelled", "rejected"].includes(String(visitor.status || "").toLowerCase()),
     );
 
+    // Fetch all clients for this workspace (external booking clients + visitor-converted clients)
+    const allClients = await Client.find({ workspaceId: workspace._id })
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+    const clientsFormatted = allClients.map((c: any) => ({
+      id: String(c._id),
+      recordId: String(c._id),
+      clientCode: c.clientCode || "",
+      name: c.name || "",
+      email: c.email || "",
+      phone: c.phone || "",
+      company: c.company || "",
+      source: c.source || "external-booking",
+      sourceVisitorId: c.sourceVisitorId ? String(c.sourceVisitorId) : null,
+      lastBookingId: c.lastBookingId ? String(c.lastBookingId) : null,
+      lastBookingAt: c.lastBookingAt || null,
+      bookingCount: c.bookingCount || 0,
+      totalBookedAmount: c.totalBookedAmount || 0,
+      notes: c.notes || "",
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+    }));
+
     return res.status(200).json({
       message: "Visitor overview loaded successfully.",
       data: {
@@ -387,6 +412,7 @@ export const getVisitorsOverview = async (req, res, next) => {
         dailyVisitors,
         visitorHistory,
         summary: buildSummary(formatted),
+        clients: clientsFormatted,
       },
     });
   } catch (error) {
@@ -662,11 +688,50 @@ export const checkOutVisitor = async (req, res, next) => {
     if (req.body?.notes) {
       visitor.notes = [visitor.notes, String(req.body.notes).trim()].filter(Boolean).join("\n");
     }
+
+    // Auto-create/upsert a Client record when visitor is being converted
+    let createdClient = null;
+    if (req.body?.convertedToClient) {
+      const visitorEmail = (visitor.email || "").toLowerCase().trim();
+      const visitorName = (visitor.fullName || visitor.firstName || "").trim();
+      const clientCode = `EC-${Date.now()}`;
+      try {
+        // Upsert: if a client with same email already exists in this workspace, update it
+        const upsertFilter = visitorEmail
+          ? { workspaceId: workspace._id, email: visitorEmail }
+          : { workspaceId: workspace._id, phone: visitor.phone?.trim() };
+        createdClient = await Client.findOneAndUpdate(
+          upsertFilter,
+          {
+            $setOnInsert: {
+              workspaceId: workspace._id,
+              ownerId: req.user,
+              clientCode,
+              name: visitorName || "Visitor",
+              email: visitorEmail,
+              phone: visitor.phone?.trim() || "",
+              company: visitor.company?.trim() || "",
+              source: "visitor-conversion",
+              sourceVisitorId: visitor._id,
+              bookingCount: 0,
+              totalBookedAmount: 0,
+            },
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+        // Mark the visitor as converted
+        (visitor as any).convertedToClient = true;
+        (visitor as any).convertedClientId = String(createdClient._id);
+      } catch (clientErr) {
+        console.warn("Failed to create/upsert client on visitor checkout:", clientErr.message);
+      }
+    }
+
     await visitor.save();
 
     return res.status(200).json({
       message: "Visitor checked out successfully.",
-      data: { visitor: formatVisitor(visitor) },
+      data: { visitor: formatVisitor(visitor), client: createdClient ? { id: String(createdClient._id), name: createdClient.name } : null },
     });
   } catch (error) {
     next(error);
