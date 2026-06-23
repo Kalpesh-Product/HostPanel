@@ -412,8 +412,17 @@ async function formatTenantCompany(company) {
     customerDetails: company.customerDetails || {},
     companyDetails: { ...(company.companyDetails || {}), status },
     agreementDetails: company.agreementDetails
-      ? Object.fromEntries(Object.entries(company.agreementDetails.toObject ? company.agreementDetails.toObject() : company.agreementDetails).filter(([k]) => k !== 'rentDate' && k !== 'nextIncrement'))
+      ? Object.fromEntries(
+          Object.entries(
+            company.agreementDetails.toObject ? company.agreementDetails.toObject() : company.agreementDetails
+          ).filter(([k]) => k !== 'rentDate' && k !== 'nextIncrement')
+        )
       : {},
+    // Keep agreement totals in sync with the source of truth for current base credits.
+    // (Total Meeting Credits in UI must reflect creditsAllocated, not a potentially stale agreementDetails.totalMeetingCredits.)
+    ...(company.creditsAllocated !== undefined
+      ? { agreementDetails: { ...(company.agreementDetails ? Object.fromEntries(Object.entries(company.agreementDetails.toObject ? company.agreementDetails.toObject() : company.agreementDetails).filter(([k]) => k !== 'rentDate' && k !== 'nextIncrement')) : {}), totalMeetingCredits: Number(company.creditsAllocated || 0) } }
+      : {}),
     billingDetails: company.billingDetails || {},
     invoiceDetails: company.invoiceDetails || {},
     pocDetails: company.pocDetails || {},
