@@ -14,11 +14,11 @@ import {
   Filter,
   UserCheck,
   UserCog,
+  Crown,
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 import useAxiosPrivate from '../../hooks/useAxiosPrivate';
 import useAuth from '../../hooks/useAuth';
-
 
 import { updateEmployeeAccess as updateEmployeeAccessRequest } from '../../services/hr';
 import {
@@ -28,6 +28,91 @@ import {
   transferOrganizationOwnership,
   updateOrganizationMemberRole,
 } from '../../services/organization';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface WorkspaceAccess {
+  id: string;
+  workspaceName?: string;
+  location?: string;
+  [key: string]: unknown;
+}
+
+interface MappedMember {
+  id: string;
+  userId: string | null;
+  name: string;
+  email: string;
+  rawRole: string;
+  role: string;
+  roleGroup: string;
+  department: string;
+  status: string;
+  departments: string[];
+  grantedModules: string[];
+  enabledModules: string[];
+  workspaceAccesses: WorkspaceAccess[];
+}
+
+interface RoleActionWarning {
+  type: 'promote' | 'demote' | string;
+  title?: string;
+  message?: string;
+  note?: string;
+  nextRole?: string;
+  requiresDepartments?: boolean;
+  departmentMode?: 'single' | 'multi' | string;
+  departmentIds?: string[];
+  rawRole?: string;
+  departments?: string[];
+  [key: string]: unknown;
+}
+
+interface WorkspaceTransferForm {
+  targetWorkspaceId: string;
+  role: string;
+  departmentIds: string[];
+  note: string;
+}
+
+interface WorkspaceLinkForm {
+  targetWorkspaceId: string;
+  note: string;
+}
+
+interface LinkedWorkspace {
+  id: string;
+  workspaceName?: string;
+  location?: string;
+  isCurrentWorkspace?: boolean;
+  departments?: Array<{ id: string; name: string }>;
+  [key: string]: unknown;
+}
+
+interface OrganizationDepartment {
+  _id?: string;
+  name?: string;
+  isActive?: boolean;
+  [key: string]: unknown;
+}
+
+interface WorkspaceData {
+  enabledModuleIds?: string[];
+  workspaceName?: string;
+  moduleMap?: {
+    sections?: unknown[];
+    [key: string]: unknown;
+  };
+  organizationDepartments?: OrganizationDepartment[];
+  [key: string]: unknown;
+}
+
+interface MemberAccessDraft {
+  db?: Record<string, boolean>;
+  [key: string]: Record<string, boolean> | undefined;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const ROLE_FILTERS = ['All Roles', 'Founder', 'Super-Admin', 'Admin', 'Manager', 'Employee'];
 const TRANSFER_ROLE_OPTIONS = [
@@ -83,7 +168,7 @@ const ORGANIZATION_PARENT_ALIASES = new Set([
   'organization-management',
 ]);
 
-function Switch({ checked, disabled, onCheckedChange }) {
+function Switch({ checked, disabled, onCheckedChange }: { checked: boolean; disabled?: boolean; onCheckedChange: (val: boolean) => void }) {
   return (
     <button
       type="button"
@@ -104,7 +189,7 @@ function Switch({ checked, disabled, onCheckedChange }) {
   );
 }
 
-function isOwnerLikeMember(member = null) {
+function isOwnerLikeMember(member: { rawRole?: string } | null = null) {
   const normalized = normalizeRole(member?.rawRole || '');
   return normalized === 'owner';
 }
@@ -184,7 +269,7 @@ function normalizeModuleKey(value = '') {
   return String(value || '').trim().toLowerCase().replace(/[\s_]+/g, '-');
 }
 
-function expandModuleAliases(values = []) {
+function expandModuleAliases(values: string[] = []) {
   // Keep only exact normalized ids to allow independent control across sections.
   return new Set(values.map((value) => normalizeModuleKey(value)).filter(Boolean));
 }
@@ -275,7 +360,7 @@ function getInitials(name = '') {
     .toUpperCase();
 }
 
-function getDepartmentLabel(member = {}) {
+function getDepartmentLabel(member: { departmentNames?: string[]; departments?: string[] } = {}) {
   const departments = Array.isArray(member.departmentNames) && member.departmentNames.length > 0
     ? member.departmentNames
     : Array.isArray(member.departments)
@@ -289,25 +374,25 @@ function getDepartmentLabel(member = {}) {
   return departments.join(' / ');
 }
 
-function mapOverviewMember(member = {}) {
+function mapOverviewMember(member: Record<string, unknown> = {}): MappedMember {
   return {
-    id: member.id || member.userId || member.email || member.name,
-    userId: member.userId || null,
-    name: member.name || member.fullName || 'Unknown',
-    email: member.email || '',
-    rawRole: member.role || 'employee',
-    role: getRoleLabel(member.role),
-    roleGroup: getRoleGroup(member.role),
-    department: getDepartmentLabel(member),
-    status: member.status || 'joined',
+    id: String(member.id || member.userId || member.email || member.name || ''),
+    userId: (member.userId as string) || null,
+    name: String(member.name || member.fullName || 'Unknown'),
+    email: String(member.email || ''),
+    rawRole: String(member.role || 'employee'),
+    role: getRoleLabel(String(member.role || '')),
+    roleGroup: getRoleGroup(String(member.role || '')),
+    department: getDepartmentLabel(member as { departmentNames?: string[]; departments?: string[] }),
+    status: String(member.status || 'joined'),
     departments: Array.isArray(member.departmentNames)
-      ? member.departmentNames
+      ? (member.departmentNames as string[])
       : Array.isArray(member.departments)
-        ? member.departments
+        ? (member.departments as string[])
         : [],
-    grantedModules: Array.isArray(member.grantedModules) ? member.grantedModules : [],
-    enabledModules: Array.isArray(member.enabledModules) ? member.enabledModules : [],
-    workspaceAccesses: Array.isArray(member.workspaceAccesses) ? member.workspaceAccesses : [],
+    grantedModules: Array.isArray(member.grantedModules) ? (member.grantedModules as string[]) : [],
+    enabledModules: Array.isArray(member.enabledModules) ? (member.enabledModules as string[]) : [],
+    workspaceAccesses: Array.isArray(member.workspaceAccesses) ? (member.workspaceAccesses as WorkspaceAccess[]) : [],
   };
 }
 
@@ -315,8 +400,8 @@ export default function AccessGrantsPage() {
   const navigate = useNavigate();
   const axiosPrivate = useAxiosPrivate();
   const { auth, setAuth } = useAuth();
-  const currentUser = auth?.user || null;
-  const currentRole = normalizeRole(currentUser?.workspaceMembership?.role || currentUser?.role);
+  const currentUser = (auth?.user ?? null) as Record<string, any> | null;
+  const currentRole = normalizeRole(String(currentUser?.workspaceMembership?.role || currentUser?.role || ''));
   const canEditAccessGrants = currentRole === 'owner' || currentRole === 'founder';
   const canManageModuleAccess =
     currentRole === 'owner' || currentRole === 'founder' || currentRole === 'super_admin';
@@ -324,31 +409,31 @@ export default function AccessGrantsPage() {
   const [selectedRole, setSelectedRole] = useState('All Roles');
   const [searchQuery, setSearchQuery] = useState('');
   const [showDetailPanel, setShowDetailPanel] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
-  const [roleActionWarning, setRoleActionWarning] = useState(null);
+  const [selectedUser, setSelectedUser] = useState<MappedMember | null>(null);
+  const [roleActionWarning, setRoleActionWarning] = useState<RoleActionWarning | null>(null);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [showTransferWarning, setShowTransferWarning] = useState(false);
   const [transferTargetUserId, setTransferTargetUserId] = useState('');
-  const [linkedWorkspaces, setLinkedWorkspaces] = useState([]);
+  const [linkedWorkspaces, setLinkedWorkspaces] = useState<LinkedWorkspace[]>([]);
   const [showWorkspaceTransferDialog, setShowWorkspaceTransferDialog] = useState(false);
   const [showWorkspaceLinkDialog, setShowWorkspaceLinkDialog] = useState(false);
-  const [workspaceTransferForm, setWorkspaceTransferForm] = useState({
+  const [workspaceTransferForm, setWorkspaceTransferForm] = useState<WorkspaceTransferForm>({
     targetWorkspaceId: '',
     role: 'employee',
     departmentIds: [],
     note: '',
   });
-  const [workspaceLinkForm, setWorkspaceLinkForm] = useState({
+  const [workspaceLinkForm, setWorkspaceLinkForm] = useState<WorkspaceLinkForm>({
     targetWorkspaceId: '',
     note: '',
   });
   const [showMemberAccessDialog, setShowMemberAccessDialog] = useState(false);
-  const [memberAccessTarget, setMemberAccessTarget] = useState(null);
-  const [memberAccessDraft, setMemberAccessDraft] = useState({});
-  const [expandedAccessModules, setExpandedAccessModules] = useState({});
-  const [expandedDepartmentGroups, setExpandedDepartmentGroups] = useState({});
-  const [members, setMembers] = useState([]);
-  const [workspace, setWorkspace] = useState(null);
+  const [memberAccessTarget, setMemberAccessTarget] = useState<MappedMember | null>(null);
+  const [memberAccessDraft, setMemberAccessDraft] = useState<MemberAccessDraft>({});
+  const [expandedAccessModules, setExpandedAccessModules] = useState<Record<string, boolean>>({});
+  const [expandedDepartmentGroups, setExpandedDepartmentGroups] = useState<Record<string, boolean>>({});
+  const [members, setMembers] = useState<MappedMember[]>([]);
+  const [workspace, setWorkspace] = useState<WorkspaceData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const enabledWorkspaceModuleKeys = useMemo(() => {
@@ -420,7 +505,7 @@ export default function AccessGrantsPage() {
     return direct.flatMap((child) => [child.id, ...collectChildIds(child.id)]);
   };
 
-  const isModuleCheckedFromDraft = (moduleId = '', draft = {}, includeChildren = true) => {
+  const isModuleCheckedFromDraft = (moduleId = '', draft: Record<string, boolean> = {}, includeChildren = true) => {
     const directChecked = Boolean(draft?.[moduleId]);
     if (directChecked) return true;
     if (!includeChildren) return false;
@@ -446,7 +531,7 @@ export default function AccessGrantsPage() {
           .map(mapOverviewMember),
       );
     } catch (error) {
-      toast.error(error.message || 'Failed to load access grants.');
+      toast.error((error as Error).message || 'Failed to load access grants.');
     } finally { 
       if (showLoading) {
         setIsLoading(false);
@@ -563,7 +648,7 @@ export default function AccessGrantsPage() {
   };
 
   const workspaceAccessSections = useMemo(() => {
-    const sections = Array.isArray(workspace?.moduleMap?.sections) ? workspace.moduleMap.sections : [];
+    const sections = (Array.isArray(workspace?.moduleMap?.sections) ? workspace.moduleMap.sections : []) as any[];
     const aliasToCanonical = new Map();
     sections.forEach((section) => {
       (Array.isArray(section?.items) ? section.items : []).forEach((item) => {
@@ -681,7 +766,7 @@ export default function AccessGrantsPage() {
     return chainMap;
   }, [workspaceAccessSections, enabledWorkspaceModuleKeys, getModuleChildren]);
 
-  const openMemberAccessDialog = (member) => {
+  const openMemberAccessDialog = (member: MappedMember) => {
     if (!canManageModuleAccess) {
       toast.error('Only founder or super-admin can manage module access.');
       return;
@@ -720,58 +805,54 @@ export default function AccessGrantsPage() {
     setShowMemberAccessDialog(true);
   };
 
-  const toggleMemberModule = (sectionKey, moduleId) => {
-    if (!memberAccessTarget) {
-      return;
-    }
-
-    const childModuleIds = collectChildIds(moduleId);
-    setMemberAccessDraft((current) => ({
-      ...(current || {}),
-      [sectionKey]: (() => {
-        const nextValue = !current?.[sectionKey]?.[moduleId];
-        const nextSection = {
-          ...(current?.[sectionKey] || {}),
-          [moduleId]: nextValue,
-        };
-        if (nextValue && childModuleIds.length > 0) {
-          childModuleIds.forEach((childId) => {
-            if (nextSection[childId] == null) {
-              nextSection[childId] = true;
-            }
-          });
-        }
-        if (!nextValue && childModuleIds.length > 0) {
-          childModuleIds.forEach((childId) => {
-            nextSection[childId] = false;
-          });
-        }
-        return nextSection;
-      })(),
-    }));
-  };
-
-  const toggleMemberChildModule = (sectionKey, moduleId) => {
+  const toggleMemberModule = (moduleId: string) => {
     if (!memberAccessTarget) {
       return;
     }
 
     const childModuleIds = collectChildIds(moduleId);
     setMemberAccessDraft((current) => {
-      const nextValue = !isModuleCheckedFromDraft(moduleId, current?.[sectionKey] || {}, true);
-      const nextSection = {
-        ...(current?.[sectionKey] || {}),
+      const db = current?.db || {};
+      const nextValue = !db[moduleId];
+      const nextDb: Record<string, boolean> = {
+        ...db,
+        [moduleId]: nextValue,
+      };
+      if (nextValue && childModuleIds.length > 0) {
+        childModuleIds.forEach((childId) => {
+          if (nextDb[childId] == null) {
+            nextDb[childId] = true;
+          }
+        });
+      }
+      if (!nextValue && childModuleIds.length > 0) {
+        childModuleIds.forEach((childId) => {
+          nextDb[childId] = false;
+        });
+      }
+      return { ...current, db: nextDb };
+    });
+  };
+
+  const toggleMemberChildModule = (moduleId: string) => {
+    if (!memberAccessTarget) {
+      return;
+    }
+
+    const childModuleIds = collectChildIds(moduleId);
+    setMemberAccessDraft((current) => {
+      const db = current?.db || {};
+      const nextValue = !isModuleCheckedFromDraft(moduleId, db, true);
+      const nextDb: Record<string, boolean> = {
+        ...db,
         [moduleId]: nextValue,
       };
       if (!nextValue && childModuleIds.length > 0) {
         childModuleIds.forEach((childId) => {
-          nextSection[childId] = false;
+          nextDb[childId] = false;
         });
       }
-      return {
-        ...current,
-        [sectionKey]: nextSection,
-      };
+      return { ...current, db: nextDb };
     });
   };
 
@@ -826,13 +907,13 @@ export default function AccessGrantsPage() {
       setMemberAccessTarget(null);
       await loadAccessGrants();
     } catch (error) {
-      toast.error(error?.message || 'Unable to update sidebar access for this user.');
+      toast.error((error as Error)?.message || 'Unable to update sidebar access for this user.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const groupDepartmentModules = (modules = []) => {
+  const groupDepartmentModules = (modules: Array<{ id: string; label: string; description?: string }> = []) => {
     const grouped = new Map();
     modules.forEach((module) => {
       const description = String(module?.description || '');
@@ -849,19 +930,19 @@ export default function AccessGrantsPage() {
     }));
   };
 
-  const refreshCurrentUserSession = (nextUser) => {
+  const refreshCurrentUserSession = (nextUser: unknown) => {
     if (nextUser) {
-      setAuth((prev) => ({ ...prev, user: nextUser }));
+      setAuth((prev) => ({ ...prev, user: nextUser as Record<string, unknown> }));
     }
   };
 
-  const handleOpenDetails = (user) => {
+  const handleOpenDetails = (user: MappedMember) => {
     setSelectedUser(user);
     setRoleActionWarning(null);
     setShowDetailPanel(true);
   };
 
-  const handleOpenWorkspaceTransferDialog = (user) => {
+  const handleOpenWorkspaceTransferDialog = (user: MappedMember) => {
     const defaultTargetWorkspace = transferWorkspaceOptions[0] || null;
     const normalizedRole = getTransferRoleValue(user?.rawRole);
     const departmentOptions = Array.isArray(defaultTargetWorkspace?.departments)
@@ -903,7 +984,7 @@ export default function AccessGrantsPage() {
     setShowWorkspaceTransferDialog(true);
   };
 
-  const handleOpenWorkspaceLinkDialog = (user) => {
+  const handleOpenWorkspaceLinkDialog = (user: MappedMember) => {
     const defaultTargetWorkspace = (
       transferWorkspaceOptions.filter((item) =>
         !(Array.isArray(user?.workspaceAccesses) ? user.workspaceAccesses : []).some(
@@ -920,19 +1001,20 @@ export default function AccessGrantsPage() {
     setShowWorkspaceLinkDialog(true);
   };
 
-  const reloadFromResponse = async (response) => {
+  const reloadFromResponse = async (response: { data?: { data?: Record<string, unknown> } }) => {
     const payload = response?.data?.data || {};
 
     if (payload.overview) {
-      const overview = payload.overview;
-      setWorkspace(overview.workspace || null);
-      setLinkedWorkspaces(Array.isArray(overview.linkedWorkspaces) ? overview.linkedWorkspaces : []);
-      setMembers((Array.isArray(overview.teamMembers) ? overview.teamMembers : []).map(mapOverviewMember));
+      const overview = payload.overview as Record<string, any>;
+      setWorkspace((overview.workspace as WorkspaceData) || null);
+      setLinkedWorkspaces(Array.isArray(overview.linkedWorkspaces) ? (overview.linkedWorkspaces as LinkedWorkspace[]) : []);
+      setMembers((Array.isArray(overview.teamMembers) ? overview.teamMembers : []).map((m) => mapOverviewMember(m as Record<string, unknown>)));
     } else {
       await loadAccessGrants();
     }
 
-    refreshCurrentUserSession(payload.currentUser?.user || payload.currentUser || null);
+    const currentUserPayload = payload.currentUser as Record<string, unknown> | null | undefined;
+    refreshCurrentUserSession((currentUserPayload as any)?.user || currentUserPayload || null);
   };
 
   const handlePromote = async () => {
@@ -993,7 +1075,7 @@ export default function AccessGrantsPage() {
       setRoleActionWarning(null);
       toast.success(`${selectedUser.name} promoted to ${getRoleLabel(roleActionWarning.nextRole || nextRole)}.`);
     } catch (error) {
-      toast.error(error.message || 'Unable to promote user right now.');
+      toast.error((error as Error).message || 'Unable to promote user right now.');
     } finally {
       setIsSaving(false);
     }
@@ -1070,7 +1152,7 @@ export default function AccessGrantsPage() {
       setRoleActionWarning(null);
       toast.success(`${selectedUser.name} demoted to ${getRoleLabel(roleActionWarning.nextRole || nextRole)}.`);
     } catch (error) {
-      toast.error(error.message || 'Unable to demote user right now.');
+      toast.error((error as Error).message || 'Unable to demote user right now.');
     } finally {
       setIsSaving(false);
     }
@@ -1107,7 +1189,7 @@ export default function AccessGrantsPage() {
       toast.success(`Founder access transferred to ${targetMember?.name || 'the selected user'}.`);
       navigate('/dashboard', { replace: true });
     } catch (error) {
-      toast.error(error.message || 'Unable to transfer founder access right now.');
+      toast.error((error as Error).message || 'Unable to transfer founder access right now.');
     } finally {
       setIsSaving(false);
     }
@@ -1145,7 +1227,7 @@ export default function AccessGrantsPage() {
       setSelectedUser(null);
       toast.success(`${selectedUser.name} transferred successfully.`);
     } catch (error) {
-      toast.error(error.message || 'Unable to transfer this user right now.');
+      toast.error((error as Error).message || 'Unable to transfer this user right now.');
     } finally {
       setIsSaving(false);
     }
@@ -1173,7 +1255,7 @@ export default function AccessGrantsPage() {
       setSelectedUser(null);
       toast.success(`${selectedUser.name} can now access another workspace.`);
     } catch (error) {
-      toast.error(error.message || 'Unable to add unit access right now.');
+      toast.error((error as Error).message || 'Unable to add unit access right now.');
     } finally {
       setIsSaving(false);
     }
@@ -1425,7 +1507,10 @@ export default function AccessGrantsPage() {
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-end gap-2">
                               {user.roleGroup === 'Founder' ? (
-                                <span className="px-3 py-1.5 bg-[#111827] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest">Founder</span>
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 text-amber-900 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm border border-amber-300/60">
+                                  <Crown size={11} strokeWidth={2.5} />
+                                  Founder
+                                </span>
                               ) : (
                                 <>
                                   {!hideAccessButtonForSelfSuperAdmin ? (
@@ -1533,10 +1618,10 @@ export default function AccessGrantsPage() {
                                 <select
                                   value={(roleActionWarning.departmentIds?.[0] || '')}
                                   onChange={(event) =>
-                                    setRoleActionWarning((current) => ({
+                                    setRoleActionWarning((current) => current ? ({
                                       ...current,
                                       departmentIds: event.target.value ? [event.target.value] : [],
-                                    }))
+                                    }) : null)
                                   }
                                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
                                 >
@@ -1560,12 +1645,12 @@ export default function AccessGrantsPage() {
                                           className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                                           checked={isChecked}
                                           onChange={(event) =>
-                                            setRoleActionWarning((current) => ({
+                                            setRoleActionWarning((current) => current ? ({
                                               ...current,
                                               departmentIds: event.target.checked
                                                 ? [...(Array.isArray(current.departmentIds) ? current.departmentIds : []), department.id]
                                                 : (Array.isArray(current.departmentIds) ? current.departmentIds : []).filter((id) => id !== department.id),
-                                            }))
+                                            }) : null)
                                           }
                                         />
                                         <span>{department.name}</span>
@@ -1783,7 +1868,7 @@ export default function AccessGrantsPage() {
                                               <p className="text-[10px] text-slate-500">{module.description}</p>
                                             </div>
                                           </div>
-                                          <Switch checked={checked} disabled={!canManageModuleAccess} onCheckedChange={() => toggleMemberModule('db', module.id)} />
+                                          <Switch checked={checked} disabled={!canManageModuleAccess} onCheckedChange={() => toggleMemberModule(module.id)} />
                                         </div>
                                         {hasChildren && isExpanded ? (
                                           <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 pl-7">
@@ -1819,7 +1904,7 @@ export default function AccessGrantsPage() {
                                                     <Switch
                                                       checked={childChecked}
                                                       disabled={!canManageModuleAccess || !checked}
-                                                      onCheckedChange={() => toggleMemberChildModule('db', child.id)}
+                                                      onCheckedChange={() => toggleMemberChildModule(child.id)}
                                                     />
                                                   </div>
                                                   {hasGrandChildren && isChildExpanded ? (
@@ -1835,7 +1920,7 @@ export default function AccessGrantsPage() {
                                                             <Switch
                                                               checked={subtabChecked}
                                                               disabled={!canManageModuleAccess || !checked || !childChecked}
-                                                              onCheckedChange={() => toggleMemberChildModule('db', subtab.id)}
+                                                              onCheckedChange={() => toggleMemberChildModule(subtab.id)}
                                                             />
                                                           </div>
                                                         );
@@ -1885,7 +1970,7 @@ export default function AccessGrantsPage() {
                                   <p className="text-[10px] text-slate-500">{module.description}</p>
                                 </div>
                               </div>
-                              <Switch checked={checked} disabled={!canManageModuleAccess} onCheckedChange={() => toggleMemberModule('db', module.id)} />
+                              <Switch checked={checked} disabled={!canManageModuleAccess} onCheckedChange={() => toggleMemberModule(module.id)} />
                             </div>
                             {hasChildren && isExpanded ? (
                               <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 pl-7">
@@ -1921,7 +2006,7 @@ export default function AccessGrantsPage() {
                                         <Switch
                                           checked={childChecked}
                                           disabled={!canManageModuleAccess || !checked}
-                                          onCheckedChange={() => toggleMemberChildModule('db', child.id)}
+                                          onCheckedChange={() => toggleMemberChildModule(child.id)}
                                         />
                                       </div>
                                       {hasGrandChildren && isChildExpanded ? (
@@ -1937,7 +2022,7 @@ export default function AccessGrantsPage() {
                                                 <Switch
                                                   checked={subtabChecked}
                                                   disabled={!canManageModuleAccess || !checked || !childChecked}
-                                                  onCheckedChange={() => toggleMemberChildModule('db', subtab.id)}
+                                                  onCheckedChange={() => toggleMemberChildModule(subtab.id)}
                                                 />
                                               </div>
                                             );

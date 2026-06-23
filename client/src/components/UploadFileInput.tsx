@@ -140,27 +140,46 @@ const UploadFileInput = ({
         value={
           value instanceof File
             ? value.name
-            : String((value && typeof value === "object" && value.name) || "")
+            : value && typeof value === "object" && typeof (value as any).url === "string"
+              ? (value as any).url.split("/").pop() || "Image uploaded"
+              : String((value && typeof value === "object" && (value as any).name) || "")
         }
         placeholder="Choose a file..."
         InputProps={{
           readOnly: true,
           endAdornment: (
-            <IconButton component="label" htmlFor={id ?? "file-upload"} color="primary">
-              <LuImageUp />
-            </IconButton>
+            <div className="flex items-center">
+              {previewUrl && (
+                <IconButton size="small" color="error" onClick={handleClear} title="Remove image">
+                  <MdDelete />
+                </IconButton>
+              )}
+              <IconButton component="label" htmlFor={id ?? "file-upload"} color="primary">
+                <LuImageUp />
+              </IconButton>
+            </div>
           ),
         }}
       />
 
       {previewUrl && (
         <>
-          <span
-            className="w-fit cursor-pointer text-sm text-primary underline"
-            onClick={() => setOpenModal(true)}
-          >
-            Preview
-          </span>
+          {/* Inline thumbnail so user can see current image without opening modal */}
+          <div className="flex items-center gap-2">
+            <img
+              src={previewUrl}
+              alt="Preview"
+              className="h-16 w-24 rounded object-cover border border-gray-200 cursor-pointer"
+              onClick={() => setOpenModal(true)}
+              title="Click to preview full size"
+            />
+            <span
+              className="text-xs text-slate-500 cursor-pointer underline"
+              onClick={() => setOpenModal(true)}
+            >
+              Preview full size
+            </span>
+          </div>
 
           <MuiModal open={openModal} onClose={() => setOpenModal(false)} title="File Preview">
             <div className="flex flex-col gap-2">

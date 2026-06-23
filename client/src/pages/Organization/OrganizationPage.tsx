@@ -1207,9 +1207,7 @@ export function OrganizationPage() {
                       </div>
                     </td>
                     <td className="px-5 py-4">
-                      <div className="flex items-center justify-center">
-                        {getStatusBadge(member.status)}
-                      </div>
+                      {getStatusBadge(member.status)}
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex flex-col items-end justify-center gap-1.5">
