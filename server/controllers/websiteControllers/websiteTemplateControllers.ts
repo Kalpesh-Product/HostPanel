@@ -2120,7 +2120,7 @@ export const activateTemplate = async (req, res) => {
       return res.status(400).json({ message: "Failed to activate website" });
     }
 
-    return res.status(400).json({ message: "Website activated successfully" });
+    return res.status(200).json({ message: "Website activated successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

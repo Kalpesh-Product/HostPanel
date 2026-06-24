@@ -3682,7 +3682,7 @@ export default function VisitorsManagementPage() {
 
               <div className="p-3 md:p-3.5 bg-slate-900 border-b border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shrink-0">
                 <div>
-                  <h2 className="text-base font-black text-white leading-none flex items-center gap-1.5"><UserPlus size={15} /> Frontdesk Action Terminal</h2>
+                  <h2 className="text-primary font-pmedium text-white leading-none flex items-center gap-1.5"><UserPlus size={15} /> Frontdesk Action Terminal</h2>
                   <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mt-1.5">Select the correct workflow below</p>
                   <p className="mt-1 text-[10px] font-semibold text-slate-300">
                     Logged in as <span className="font-black text-white">{frontdeskProfile.name}</span> ({frontdeskProfile.role})
@@ -5649,7 +5649,7 @@ export default function VisitorsManagementPage() {
               <div className="w-full bg-gray-50 border-2 border-dashed border-gray-300 rounded-2xl p-4 relative">
                 <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-14 h-5 bg-white border-2 border-gray-200 rounded-full flex items-center justify-center"><div className="w-7 h-1.5 bg-gray-200 rounded-full"></div></div>
 
-                <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-3">VISITOR PASS</p>
+                <p className="text-[9px] font-pmedium text-blue-600 uppercase tracking-widest mb-3">VISITOR PASS</p>
                 <h3 className="text-xl font-black text-gray-900 mb-1 leading-tight">{showBadge.name || showBadge.fullName || '—'}</h3>
                 <p className="text-[11px] font-bold text-gray-500 mb-4">{showBadge.company || 'Individual'}</p>
 
