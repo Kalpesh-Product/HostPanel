@@ -417,30 +417,47 @@ const NavItem = ({
   forceBold,
   forceSmall,
   tooltip,
-}: NavItemProps) => (
-  <button
-    type="button"
-    title={tooltip || (disabled ? (disabledTitle || "Coming soon") : "")}
-    className={`w-full flex items-center justify-between py-2 px-3 select-none rounded-md transition-colors ${isActive ? "bg-gray-200 font-medium" : "hover:bg-gray-200"
-      } ${isRed ? "text-red-500 hover:text-red-600" : "text-gray-700 hover:text-gray-900"} ${locked ? "opacity-75 cursor-not-allowed" : unavailable ? "cursor-default" : "cursor-pointer"
+}: NavItemProps) => {
+  // Collapsed module buttons (top-level with no depth offset) use rounded-md;
+  // expanded submenu items use rounded-full pill shape.
+  const isTopLevel = depth === 0;
+  // Collapsed icon-only buttons get rounded-md; everything else (hover + active) gets rounded-full
+  const shapeClass = (collapsed && isTopLevel) ? "rounded-md" : "rounded-full";
+
+  return (
+    <button
+      type="button"
+      title={tooltip || (disabled ? (disabledTitle || "Coming soon") : "")}
+      className={`w-full flex items-center justify-between py-2.5 px-3 my-1.5 select-none ${shapeClass} transition-colors ${
+        isActive
+          ? "bg-gray-200 text-gray-900"
+          : "text-gray-700 hover:bg-gray-200"
+      } ${isRed ? "text-red-500 hover:text-red-600" : ""} ${
+        locked ? "opacity-75 cursor-not-allowed" : unavailable ? "cursor-default" : "cursor-pointer"
       }`}
-    style={{ paddingLeft: `${depth * 1.25 + 0.75}rem` }}
-    onClick={onClick}
-  >
-    <span className="flex items-center gap-3 min-w-0">
-      {Icon && <Icon size={16} className={isRed ? "text-red-500" : "text-gray-500"} />}
-      {!collapsed && (
-        <span
-          className={`${forceSmall ? "text-[10px]" : "text-[12px]"} truncate ${forceBold ? "font-pbold" : "font-pmedium"}`}
-        >
-          {label.toUpperCase()}
-        </span>
-      )}
-    </span>
-    {!collapsed && hasChildren && (isOpen ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />)}
-    {!collapsed && locked && !hasChildren && <Lock size={12} className="text-gray-400" />}
-  </button>
-);
+      style={{ paddingLeft: `${depth * 1.25 + 0.75}rem` }}
+      onClick={onClick}
+    >
+      <span className="flex items-center gap-3 min-w-0">
+        {Icon && (
+          <Icon
+            size={collapsed || isTopLevel ? 16 : 15}
+            className={isRed ? "text-red-500" : "text-gray-500"}
+          />
+        )}
+        {!collapsed && (
+          <span
+            className={`${forceSmall ? "text-[10px]" : "text-[12px]"} truncate ${forceBold ? "font-pbold" : "font-pmedium"} uppercase`}
+          >
+            {label}
+          </span>
+        )}
+      </span>
+      {!collapsed && hasChildren && (isOpen ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />)}
+      {!collapsed && locked && !hasChildren && <Lock size={12} className="text-gray-400" />}
+    </button>
+  );
+};
 
 interface NavGroupProps {
   item: NavNode;
@@ -1112,7 +1129,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   return (
     <div
       className={`${collapsed ? "w-16" : "w-64"
-        } h-[90vh] bg-[#f3f4f6] flex flex-col border-r border-gray-200 shadow-sm overflow-hidden transition-all duration-100`}
+        } h-[90vh] bg-[#f1f5f9] flex flex-col border-r border-gray-200 shadow-sm overflow-hidden transition-all duration-100`}
     >
       <div className="px-4 py-3 flex justify-center">
         <span className="text-[10px] font-bold tracking-wider text-gray-600 bg-gray-200 px-3 py-1 rounded-full uppercase">

@@ -54,6 +54,11 @@ export interface IMeetingRoomBooking extends Document {
     scheduleChangeType?: string;
     extensionAmount?: number;
 
+    // External booking fields
+    externalClientId?: mongoose.Types.ObjectId | null;
+    discountType: "flat" | "percent";
+    discountValue: number;
+
     // For recurring bookings (future extension)
     isRecurring?: boolean;
     recurrenceRule?: string; // e.g., "FREQ=WEEKLY;INTERVAL=1"
@@ -182,6 +187,25 @@ const meetingRoomBookingSchema = new Schema<IMeetingRoomBooking>(
 
         isRecurring: { type: Boolean, default: false },
         recurrenceRule: String,
+
+        // External booking fields
+        externalClientId: {
+            type: Schema.Types.ObjectId,
+            ref: "Client",
+            default: null,
+            sparse: true,
+            index: true,
+        },
+        discountType: {
+            type: String,
+            enum: ["flat", "percent"],
+            default: "flat",
+        },
+        discountValue: {
+            type: Number,
+            default: 0,
+            min: 0,
+        },
     },
     { timestamps: true }
 );

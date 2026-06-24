@@ -63,3 +63,29 @@ export const getMeetingRoomClients = async () => {
   const response = await axiosPrivate.get("/api/meeting-rooms/bookings/clients");
   return unwrap(response);
 };
+
+// ======================
+// EXTERNAL CLIENTS
+// ======================
+export const getExternalClients = async (workspaceId: string, search?: string) => {
+  const params: Record<string, string> = { workspaceId };
+  if (search && search.length >= 2) params.search = search;
+  const response = await axiosPrivate.get(`${BASE}/clients`, { params });
+  return response?.data?.data || response?.data || [];
+};
+
+export const createExternalClient = async (payload: {
+  workspaceId: string;
+  name: string;
+  email: string;
+  phone: string;
+  company?: string;
+}) => {
+  const response = await axiosPrivate.post(`${BASE}/clients`, payload);
+  return response?.data?.data || response?.data;
+};
+
+export const sendExternalBookingConfirmationEmail = async (bookingId: string) => {
+  const response = await axiosPrivate.post(`${BASE}/bookings/${bookingId}/send-confirmation`);
+  return response?.data;
+};

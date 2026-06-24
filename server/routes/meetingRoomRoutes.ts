@@ -16,6 +16,9 @@ import {
     cancelBooking,
     updateBooking,
     respondToInvite,
+    getExternalClients,
+    createExternalClient,
+    sendExternalBookingConfirmation,
 } from "../controllers/meetingRoomBookingController.js";
 
 const router = express.Router();
@@ -24,18 +27,19 @@ const router = express.Router();
 // MEETING ROOMS ROUTES
 // ======================
 
-// Room Management
+// Room Management — named/prefixed routes first
 router.post("/", createMeetingRoom);                    // Create new room
 router.get("/workspace/:workspaceId", getMeetingRooms); // Get all rooms in workspace
-router.get("/:id", getMeetingRoomById);                 // Get single room
-router.put("/:id", updateMeetingRoom);                  // Update room
-router.delete("/:id", deleteMeetingRoom);               // Soft delete room
 
 // ======================
 // MEETING ROOM BOOKINGS ROUTES
 // ======================
 
-// Booking Management
+// Client lookup for External Bookings — must come before /:id to avoid route conflict
+router.get("/clients", getExternalClients);             // Get external clients (with optional search)
+router.post("/clients", createExternalClient);          // Create external client (or return existing)
+
+// Booking Management — all /bookings/* routes before /:id wildcard
 router.post("/bookings", createBooking);                    // Create booking
 router.get("/bookings/workspace/:workspaceId", getBookings); // All bookings in workspace
 router.get("/bookings/my", getMyBookings);                  // Current user's bookings
@@ -44,5 +48,11 @@ router.get("/bookings/:id", getBookingById);                // Single booking de
 router.patch("/bookings/:id", updateBooking);                  // Reschedule or extend booking
 router.patch("/bookings/:id/cancel", cancelBooking);           // Cancel booking
 router.post("/bookings/:id/respond", respondToInvite);         // Accept or reject invite
+router.post("/bookings/:id/send-confirmation", sendExternalBookingConfirmation); // Email confirmation to external client
+
+// Room Management — wildcard /:id routes last to avoid shadowing named routes above
+router.get("/:id", getMeetingRoomById);                 // Get single room
+router.put("/:id", updateMeetingRoom);                  // Update room
+router.delete("/:id", deleteMeetingRoom);               // Soft delete room
 
 export default router;
