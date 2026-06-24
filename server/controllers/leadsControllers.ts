@@ -457,9 +457,7 @@ export const createWebsiteLead = async (req, res) => {
     });
 
     const upstreamEndpoints = [
-      "https://wononomadsbe.vercel.app/api/company/create-lead",
-      "https://wononomadsbe.vercel.app/api/company/createLead",
-      "https://wononomadsbe.vercel.app/api/company/leads",
+      "https://wononomadsbe.vercel.app/api/leads/create-lead",
     ];
 
     let lastError = null;

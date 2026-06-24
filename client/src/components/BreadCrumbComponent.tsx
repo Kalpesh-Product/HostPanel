@@ -94,6 +94,14 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/dashboard/website-builder/dynamic/reviews",
+    crumbs: [
+      { label: "Dashboard", path: "/dashboard" },
+      { label: "Website Builder", path: "/dashboard/website-builder" },
+      { label: "Website Reviews" },
+    ],
+  },
+  {
     pattern: "/dashboard",
     crumbs: [
       { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },

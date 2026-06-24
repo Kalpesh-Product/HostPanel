@@ -55,24 +55,35 @@ const NavItem = ({
   onClick,
   isRed,
   isActive,
-}: NavItemProps) => (
-  <button
-    type="button"
-    className={`w-full flex items-center justify-between py-2 px-3 select-none rounded-md transition-colors ${
-      isActive ? "bg-gray-200 font-medium" : "hover:bg-gray-200"
-    } ${isRed ? "text-red-500 hover:text-red-600" : "text-gray-700 hover:text-gray-900"} cursor-pointer`}
-    style={{ paddingLeft: `${depth * 1.25 + 0.75}rem` }}
-    onClick={onClick}
-  >
-    <span className="flex items-center gap-3 min-w-0">
-      {Icon && <Icon size={16} className={isRed ? "text-red-500" : "text-gray-500"} />}
-      {!collapsed && (
-        <span className="text-[12px] font-pmedium truncate">{label.toUpperCase()}</span>
-      )}
-    </span>
-    {!collapsed && hasChildren && (isOpen ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />)}
-  </button>
-);
+}: NavItemProps) => {
+  const isTopLevel = depth === 0;
+  // Collapsed icon-only buttons get rounded-md; everything else (hover + active) gets rounded-full
+  const shapeClass = (collapsed && isTopLevel) ? "rounded-md" : "rounded-full";
+
+  return (
+    <button
+      type="button"
+      className={`w-full flex items-center justify-between py-2.5 px-3 my-1.5 select-none ${shapeClass} transition-colors ${
+        isActive ? "bg-gray-200 text-gray-900" : "text-gray-700 hover:bg-gray-200"
+      } ${isRed ? "text-red-500 hover:text-red-600" : ""} cursor-pointer`}
+      style={{ paddingLeft: `${depth * 1.25 + 0.75}rem` }}
+      onClick={onClick}
+    >
+      <span className="flex items-center gap-3 min-w-0">
+        {Icon && (
+          <Icon
+            size={collapsed || isTopLevel ? 16 : 15}
+            className={isRed ? "text-red-500" : "text-gray-500"}
+          />
+        )}
+        {!collapsed && (
+          <span className="text-[12px] font-pmedium truncate uppercase">{label}</span>
+        )}
+      </span>
+      {!collapsed && hasChildren && (isOpen ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronRight size={14} className="text-gray-400" />)}
+    </button>
+  );
+};
 
 const NavGroup = ({ item, collapsed, depth = 0, pathname, onNavigate }: {
   item: NavNode;
@@ -179,7 +190,7 @@ const TenantSidebar = ({ drawerOpen, onCloseDrawer }: TenantSidebarProps) => {
     <div
       className={`${
         collapsed ? "w-16" : "w-64"
-      } h-[90vh] bg-[#f3f4f6] flex flex-col border-r border-gray-200 shadow-sm overflow-hidden transition-all duration-100`}
+      } h-[90vh] bg-[#f1f5f9] flex flex-col border-r border-gray-200 shadow-sm overflow-hidden transition-all duration-100`}
     >
       <div className="flex-1 overflow-y-auto px-2 py-2 space-y-5 hideScrollBar">
         {/* Tenant section */}
