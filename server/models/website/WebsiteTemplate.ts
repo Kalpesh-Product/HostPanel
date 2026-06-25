@@ -358,6 +358,26 @@ const templateSchema = new mongoose.Schema(
         },
       ],
     },
+    // Partner page
+    partnerPageHeading: { type: String, default: "" },
+    partnerPageContent: { type: String, default: "" },
+    partnerFormTitle: { type: String, default: "" },
+    // Founders section (about page)
+    founders: {
+      type: [
+        {
+          name: { type: String, default: "" },
+          role: { type: String, default: "" },
+          bio: { type: String, default: "" },
+          highlights: [{ type: String }],
+          image: {
+            id: { type: String },
+            url: { type: String },
+          },
+        },
+      ],
+      default: [],
+    },
     isDraft: { type: Boolean, default: false },
     faqs: {
       type: [

@@ -815,6 +815,28 @@ export const saveTemplateDraft = async (req, res) => {
       };
     }
 
+    // Partner page fields
+    if (draftData?.partnerPageHeading !== undefined) {
+      template.partnerPageHeading = String(draftData.partnerPageHeading || "").trim();
+    }
+    if (draftData?.partnerPageContent !== undefined) {
+      template.partnerPageContent = String(draftData.partnerPageContent || "").trim();
+    }
+    if (draftData?.partnerFormTitle !== undefined) {
+      template.partnerFormTitle = String(draftData.partnerFormTitle || "").trim();
+    }
+
+    // Founders (text only — images handled via filesByField below)
+    if (Array.isArray(draftData?.founders)) {
+      template.founders = draftData.founders.map((f, index) => ({
+        name: String(f?.name || "").trim(),
+        role: String(f?.role || "").trim(),
+        bio: String(f?.bio || "").trim(),
+        highlights: String(f?.highlights || "").trim(),
+        image: template.founders?.[index]?.image || undefined,
+      }));
+    }
+
     const filesByField = {};
     for (const file of req.files || []) {
       if (!filesByField[file.fieldname]) filesByField[file.fieldname] = [];
@@ -1068,6 +1090,22 @@ export const saveTemplateDraft = async (req, res) => {
           ? template.coLivingRooms[itemIdx].images
           : [];
         template.coLivingRooms[itemIdx].images = [...templateExisting, ...uploaded];
+      }
+    }
+
+    // Founder images (uploaded from builder)
+    for (const fieldName of Object.keys(filesByField)) {
+      const founderMatch = fieldName.match(/^founderImage_(\d+)$/);
+      if (founderMatch) {
+        const idx = Number(founderMatch[1]);
+        const uploaded = await uploadImagesForDraft(
+          [filesByField[fieldName][0]],
+          `${baseFolder}/founders/${idx}`,
+          1,
+        );
+        if (!Array.isArray(template.founders)) template.founders = [];
+        while (template.founders.length <= idx) template.founders.push({});
+        template.founders[idx] = { ...(template.founders[idx] || {}), image: uploaded[0] || template.founders[idx]?.image };
       }
     }
 
@@ -1426,6 +1464,15 @@ export const createTemplate = async (req, res, next) => {
         contactPersonRole: String(req.body?.contactPersonRole || "").trim(),
         contactPersonEmail: String(req.body?.contactPersonEmail || "").trim(),
         contactPersonPhone: String(req.body?.contactPersonPhone || "").trim(),
+        partnerPageHeading: String(req.body?.partnerPageHeading || "").trim(),
+        partnerPageContent: String(req.body?.partnerPageContent || "").trim(),
+        partnerFormTitle: String(req.body?.partnerFormTitle || "").trim(),
+        founders: (() => {
+          try {
+            const raw = typeof req.body?.founders === "string" ? JSON.parse(req.body.founders) : (Array.isArray(req.body?.founders) ? req.body.founders : []);
+            return raw.map((f) => ({ name: String(f?.name || "").trim(), role: String(f?.role || "").trim(), bio: String(f?.bio || "").trim(), highlights: String(f?.highlights || "").trim() }));
+          } catch { return []; }
+        })(),
         isWebsiteTemplate: true,
         isActive: true,
         products: [],
@@ -1497,6 +1544,15 @@ export const createTemplate = async (req, res, next) => {
         contactPersonRole: String(req.body?.contactPersonRole || "").trim(),
         contactPersonEmail: String(req.body?.contactPersonEmail || "").trim(),
         contactPersonPhone: String(req.body?.contactPersonPhone || "").trim(),
+        partnerPageHeading: String(req.body?.partnerPageHeading || "").trim(),
+        partnerPageContent: String(req.body?.partnerPageContent || "").trim(),
+        partnerFormTitle: String(req.body?.partnerFormTitle || "").trim(),
+        founders: (() => {
+          try {
+            const raw = typeof req.body?.founders === "string" ? JSON.parse(req.body.founders) : (Array.isArray(req.body?.founders) ? req.body.founders : []);
+            return raw.map((f) => ({ name: String(f?.name || "").trim(), role: String(f?.role || "").trim(), bio: String(f?.bio || "").trim(), highlights: String(f?.highlights || "").trim() }));
+          } catch { return []; }
+        })(),
         isWebsiteTemplate: true,
         isActive: true,
         products: [],
@@ -1912,6 +1968,17 @@ export const createTemplate = async (req, res, next) => {
           `${baseFolder}/testimonialImages/${i}`,
         );
         tUploads[i] = uploaded[0]; // one file per testimonial
+      }
+    }
+
+    // FOUNDER IMAGES
+    if (Array.isArray(template.founders)) {
+      for (let i = 0; i < template.founders.length; i++) {
+        const founderFile = (filesByField[`founderImage_${i}`] || [])[0];
+        if (founderFile) {
+          const uploaded = await uploadImages([founderFile], `${baseFolder}/founders/${i}`);
+          template.founders[i] = { ...(template.founders[i] || {}), image: uploaded[0] || template.founders[i]?.image };
+        }
       }
     }
 
@@ -2564,6 +2631,31 @@ export const editTemplate = async (req, res, next) => {
         req.body?.contactPersonPhone !== undefined
           ? String(req.body.contactPersonPhone || "").trim()
           : template.contactPersonPhone,
+      partnerPageHeading:
+        req.body?.partnerPageHeading !== undefined
+          ? String(req.body.partnerPageHeading || "").trim()
+          : template.partnerPageHeading,
+      partnerPageContent:
+        req.body?.partnerPageContent !== undefined
+          ? String(req.body.partnerPageContent || "").trim()
+          : template.partnerPageContent,
+      partnerFormTitle:
+        req.body?.partnerFormTitle !== undefined
+          ? String(req.body.partnerFormTitle || "").trim()
+          : template.partnerFormTitle,
+      founders: (() => {
+        if (req.body?.founders === undefined) return template.founders;
+        try {
+          const raw = typeof req.body.founders === "string" ? JSON.parse(req.body.founders) : (Array.isArray(req.body.founders) ? req.body.founders : []);
+          return raw.map((f, i) => ({
+            name: String(f?.name || "").trim(),
+            role: String(f?.role || "").trim(),
+            bio: String(f?.bio || "").trim(),
+            highlights: String(f?.highlights || "").trim(),
+            image: template.founders?.[i]?.image || undefined,
+          }));
+        } catch { return template.founders; }
+      })(),
       menuItems:
         String(normalizedVertical || template?.vertical || "").trim() === "cafe"
           ? template.menuItems
@@ -2940,6 +3032,20 @@ export const editTemplate = async (req, res, next) => {
     for (const r of removedT)
       if (r.image?.url) await deleteImagesFromS3([r.image]);
     template.testimonials = updatedTestimonials;
+
+    // FOUNDER IMAGES in editTemplate
+    if (Array.isArray(template.founders)) {
+      for (let i = 0; i < template.founders.length; i++) {
+        const founderFile = (filesByField[`founderImage_${i}`] || [])[0];
+        if (founderFile) {
+          if (template.founders[i]?.image?.url) {
+            await deleteImagesFromS3([template.founders[i].image]);
+          }
+          const uploaded = await uploadImages([founderFile], `${baseFolder}/founders/${i}`, 1);
+          template.founders[i] = { ...(template.founders[i] || {}), image: uploaded[0] || template.founders[i]?.image };
+        }
+      }
+    }
 
     // Validate before saving to catch schema validation errors
     await template.validate();

@@ -56,9 +56,20 @@ const DEFAULT_PAGE_NAV_ITEMS = [
   "About Us",
   "Products",
   "Gallery",
-  "Testimonials",
+  "Partner",
   "Contact Us",
 ];
+
+// Migrates legacy "Testimonials" nav items to "Partner" for existing websites
+const migrateNavItems = (items: any[]): any[] =>
+  items.map((item: any) => {
+    const slug = String(item?.slug || "").trim().toLowerCase();
+    const name = String(item?.name || "").trim().toLowerCase();
+    if (slug === "testimonials" || name === "testimonials") {
+      return { ...item, name: "Partner", slug: "partner" };
+    }
+    return item;
+  });
 
 const DEFAULT_PRODUCT_DROPDOWN_PAGES = [
   "Co-Working",
@@ -404,6 +415,17 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
   contactPersonRole: String(formValues?.contactPersonRole || "").trim(),
   contactPersonEmail: String(formValues?.contactPersonEmail || "").trim(),
   contactPersonPhone: String(formValues?.contactPersonPhone || "").trim(),
+  partnerPageHeading: String(formValues?.partnerPageHeading || "").trim(),
+  partnerPageContent: String(formValues?.partnerPageContent || "").trim(),
+  partnerFormTitle: String(formValues?.partnerFormTitle || "").trim(),
+  founders: Array.isArray(formValues?.founders)
+    ? formValues.founders.map((item: any) => ({
+        name: String(item?.name || "").trim(),
+        role: String(item?.role || "").trim(),
+        bio: String(item?.bio || "").trim(),
+        highlights: String(item?.highlights || "").trim(),
+      }))
+    : [],
   heroVariant: String(formValues?.heroVariant || "text-image").trim(),
   themeVariant: String(formValues?.themeVariant || "default").trim(),
   activeSections: Array.isArray(formValues?.activeSections)
@@ -477,6 +499,11 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
           images: Array.isArray(item?.images)
             ? item.images.map((img: any) => toMediaToken(img)).filter(Boolean)
             : [],
+        }))
+      : [],
+    founders: Array.isArray(formValues?.founders)
+      ? formValues.founders.map((item: any) => ({
+          image: toMediaToken(item?.image),
         }))
       : [],
   },
@@ -634,6 +661,12 @@ const CreateWebsite = () => {
       contactPersonRole: "",
       contactPersonEmail: "",
       contactPersonPhone: "",
+      // Partner page
+      partnerPageHeading: "",
+      partnerPageContent: "",
+      partnerFormTitle: "",
+      // Founders (about page)
+      founders: [{ name: "", role: "", bio: "", highlights: "", image: null }],
     },
   });
 
@@ -714,7 +747,7 @@ const CreateWebsite = () => {
     heroTitle: 100,
     heroSubTitle: 200,
     ctaButtonText: 50,
-    aboutText: 200,
+    aboutText: 500,
     productTitle: 100,
     productName: 100,
     productType: 100,
@@ -1012,9 +1045,9 @@ const CreateWebsite = () => {
             copyrightText: String(draftData?.copyrightText || found?.copyrightText || "").trim(),
             pageNavItems:
               Array.isArray(draftData?.pageNavItems) && draftData.pageNavItems.length
-                ? draftData.pageNavItems
+                ? migrateNavItems(draftData.pageNavItems)
                 : Array.isArray(found?.pageNavItems) && found.pageNavItems.length
-                  ? found.pageNavItems
+                  ? migrateNavItems(found.pageNavItems)
                   : DEFAULT_PAGE_NAV_ITEMS.map((name) => ({
                       name,
                       slug: String(name).toLowerCase().replace(/\s+/g, "-"),
@@ -1188,6 +1221,36 @@ const CreateWebsite = () => {
             contactPersonPhone: String(
               draftData?.contactPersonPhone || found?.contactPersonPhone || "",
             ).trim(),
+            partnerPageHeading: String(
+              draftData?.partnerPageHeading || found?.partnerPageHeading || "",
+            ).trim(),
+            partnerPageContent: String(
+              draftData?.partnerPageContent || found?.partnerPageContent || "",
+            ).trim(),
+            partnerFormTitle: String(
+              draftData?.partnerFormTitle || found?.partnerFormTitle || "",
+            ).trim(),
+            founders:
+              Array.isArray(draftData?.founders) && draftData.founders.length
+                ? draftData.founders.map((item: any, index: number) => ({
+                    name: String(item?.name || "").trim(),
+                    role: String(item?.role || "").trim(),
+                    bio: String(item?.bio || "").trim(),
+                    highlights: String(item?.highlights || "").trim(),
+                    image:
+                      Array.isArray(found?.founders) && found.founders[index]
+                        ? found.founders[index]?.image || null
+                        : null,
+                  }))
+                : Array.isArray(found?.founders) && found.founders.length
+                  ? found.founders.map((item: any) => ({
+                      name: String(item?.name || "").trim(),
+                      role: String(item?.role || "").trim(),
+                      bio: String(item?.bio || "").trim(),
+                      highlights: String(item?.highlights || "").trim(),
+                      image: item?.image || null,
+                    }))
+                  : [{ name: "", role: "", bio: "", highlights: "", image: null }],
           });
           setDraftTemplateId(String(found?._id || ""));
           setDraftUpdatedAt(found?.draftUpdatedAt || null);
@@ -1355,6 +1418,11 @@ const CreateWebsite = () => {
     append: appendAboutImageCard,
     remove: removeAboutImageCard,
   } = useFieldArray({ control, name: "aboutPageImageCards" });
+  const {
+    fields: founderFields,
+    append: appendFounder,
+    remove: removeFounder,
+  } = useFieldArray({ control, name: "founders" });
   const [activeMainPageTab, setActiveMainPageTab] = useState(0);
   const [activeProductPageTab, setActiveProductPageTab] = useState(0);
   const [selectedProductPageOption, setSelectedProductPageOption] = useState(
@@ -1535,6 +1603,20 @@ const CreateWebsite = () => {
     fd.set("contactPersonRole", values.contactPersonRole || "");
     fd.set("contactPersonEmail", values.contactPersonEmail || "");
     fd.set("contactPersonPhone", values.contactPersonPhone || "");
+    fd.set("partnerPageHeading", values.partnerPageHeading || "");
+    fd.set("partnerPageContent", values.partnerPageContent || "");
+    fd.set("partnerFormTitle", values.partnerFormTitle || "");
+    fd.set("founders", JSON.stringify(
+      (values.founders || []).map((f: any) => ({
+        name: f?.name || "",
+        role: f?.role || "",
+        bio: f?.bio || "",
+        highlights: f?.highlights || "",
+      }))
+    ));
+    (values.founders || []).forEach((founder: any, index: number) => {
+      appendFileIfPresent(`founderImage_${index}`, founder?.image);
+    });
     // fd.set(
     //   "aboutPageExtraParagraphs",
     //   JSON.stringify((values.aboutPageExtraParagraphs || []).map((item) => item?.text || "")),
@@ -1561,10 +1643,13 @@ const CreateWebsite = () => {
       fd.set("registeredCompanyName", finalCompanyName);
     }
 
-    // const srcFromIframe = raw.match(/src=["']([^"']+)["']/i)?.[1];
-    // const srcUrl = values.mapUrl.split(" ")[1].split(" ")[1];
-    // values.mapUrl = srcUrl;
-    // console.log("src", srcUrl);
+    // Logo Carousel
+    fd.set("logoCarouselEnabled", String(values?.logoCarousel?.enabled === true));
+    fd.set("logoCarouselTitle", String(values?.logoCarousel?.title || "").trim());
+    fd.delete("logoCarouselLogos");
+    (values?.logoCarousel?.logos || []).forEach((file: any) => {
+      if (file instanceof File) fd.append("logoCarouselLogos", file);
+    });
 
     if (effectiveEditMode) {
       updateWebsite(fd);
@@ -1758,6 +1843,16 @@ const CreateWebsite = () => {
         slug: String(item?.slug || "").trim().toLowerCase(),
         enabled: item?.enabled !== false,
       })),
+      partnerPageHeading: String(formValues?.partnerPageHeading || "").trim(),
+      partnerPageContent: String(formValues?.partnerPageContent || "").trim(),
+      partnerFormTitle: String(formValues?.partnerFormTitle || "").trim(),
+      founders: (formValues?.founders || []).map((item: any) => ({
+        name: String(item?.name || "").trim(),
+        role: String(item?.role || "").trim(),
+        bio: String(item?.bio || "").trim(),
+        highlights: String(item?.highlights || "").trim(),
+        image: getMediaUrlForPreview(item?.image),
+      })),
       generatedAt: Date.now(),
     };
   };
@@ -1803,6 +1898,35 @@ const CreateWebsite = () => {
       setDraftTemplateId(String(data?.template?._id || ""));
       setDraftUpdatedAt(data?.template?.draftUpdatedAt || null);
       setDraftStatus("saved");
+
+      // Sync back persisted images from the saved template so the form reflects S3 URLs
+      // (founder images, logo carousel logos) rather than keeping stale File blobs.
+      const savedTemplate = data?.template;
+      if (savedTemplate) {
+        // Founder images
+        if (Array.isArray(savedTemplate.founders) && savedTemplate.founders.length) {
+          const currentFounders = getValues("founders") || [];
+          const mergedFounders = currentFounders.map((founder: any, idx: number) => {
+            const savedFounder = savedTemplate.founders[idx];
+            if (savedFounder?.image?.url) {
+              return { ...founder, image: savedFounder.image };
+            }
+            return founder;
+          });
+          setValue("founders", mergedFounders, { shouldDirty: false });
+        }
+        // Logo carousel logos
+        if (Array.isArray(savedTemplate.logoCarousel?.logos) && savedTemplate.logoCarousel.logos.length) {
+          const currentLogos = getValues("logoCarousel.logos") || [];
+          const mergedLogos = savedTemplate.logoCarousel.logos.map((saved: any, idx: number) => {
+            const current = currentLogos[idx];
+            // Keep File objects if they're newer than saved; otherwise use saved S3 object
+            if (current instanceof File) return current;
+            return saved;
+          });
+          setValue("logoCarousel.logos", mergedLogos, { shouldDirty: false });
+        }
+      }
     },
     onError: () => {
       pendingDraftSnapshotRef.current = "";
@@ -1910,6 +2034,17 @@ const CreateWebsite = () => {
         (item?.files || []).forEach((file: File, j: number) =>
           appendDraftFileOnce(`draftProductImages_${i}_${j}`, file),
         );
+      });
+
+      // Founder images
+      (values?.founders || []).forEach((founder: any, index: number) => {
+        const img = founder?.image;
+        if (img instanceof File) appendDraftFileOnce(`founderImage_${index}`, img);
+      });
+
+      // Logo carousel logos
+      (values?.logoCarousel?.logos || []).forEach((file: any) => {
+        if (file instanceof File) appendDraftFileOnce(`logoCarouselLogos`, file);
       });
 
       pendingDraftFileKeysRef.current = pendingFileKeys;
@@ -2897,6 +3032,99 @@ const CreateWebsite = () => {
                   />
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                     <div className="py-2 border-b-default border-borderGray">
+                      <span className="text-subtitle font-pmedium">Founders Section</span>
+                    </div>
+                    <p className="mt-2 text-xs text-slate-500 mb-3">
+                      Each founder is shown with a large photo on one side and bio/highlights on the other — alternating left/right.
+                    </p>
+                    <div className="mt-2 grid grid-cols-1 gap-4">
+                      {founderFields.map((field, index) => (
+                        <div key={field.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                          <div className="mb-3 flex items-center justify-between">
+                            <span className="text-sm font-semibold text-slate-700">Founder {index + 1}</span>
+                            {founderFields.length > 1 ? (
+                              <button type="button" className="text-sm text-red-600" onClick={() => removeFounder(index)}>
+                                Remove
+                              </button>
+                            ) : null}
+                          </div>
+                          <div className="mb-4">
+                            <Controller
+                              name={`founders.${index}.image`}
+                              control={control}
+                              render={({ field }) => (
+                                <UploadFileInput
+                                  value={field.value}
+                                  label="Founder Photo"
+                                  onChange={field.onChange}
+                                  id={`founder-image-${index}`}
+                                />
+                              )}
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <Controller
+                              name={`founders.${index}.name`}
+                              control={control}
+                              render={({ field }) => (
+                                <TextField {...field} size="small" label="Name & Title (e.g. John Doe – Founder & CEO)" fullWidth />
+                              )}
+                            />
+                            <Controller
+                              name={`founders.${index}.role`}
+                              control={control}
+                              render={({ field }) => (
+                                <TextField {...field} size="small" label="Role / Designation" fullWidth />
+                              )}
+                            />
+                          </div>
+                          <div className="mt-3">
+                            <Controller
+                              name={`founders.${index}.bio`}
+                              control={control}
+                              render={({ field }) => (
+                                <TextField
+                                  {...field}
+                                  size="small"
+                                  label="Bio / Description"
+                                  fullWidth
+                                  multiline
+                                  minRows={4}
+                                />
+                              )}
+                            />
+                          </div>
+                          <div className="mt-3">
+                            <Controller
+                              name={`founders.${index}.highlights`}
+                              control={control}
+                              render={({ field }) => (
+                                <TextField
+                                  {...field}
+                                  size="small"
+                                  label="Highlights (one per line, e.g. – 20 Years Experience)"
+                                  fullWidth
+                                  multiline
+                                  minRows={4}
+                                  placeholder={"– 20 Years Experience\n– 15 Years in Startups\n– 4 Startups"}
+                                />
+                              )}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => appendFounder({ name: "", role: "", bio: "", highlights: "", image: null })}
+                        className="w-fit text-sm text-primary"
+                      >
+                        + Add Founder
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <div className="py-2 border-b-default border-borderGray">
                       <span className="text-subtitle font-pmedium">Our Team Section</span>
                     </div>
                     <div className="mt-4">
@@ -3027,283 +3255,54 @@ const CreateWebsite = () => {
 
             {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
               .trim()
-              .toLowerCase() === "testimonials" ? (
+              .toLowerCase() === "partner" ? (
               <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
-                <p className="text-sm font-semibold text-slate-800">Testimonials Page</p>
+                <p className="text-sm font-semibold text-slate-800">Partner Page</p>
                 <div className="mt-3 grid grid-cols-1 gap-3">
                   <Controller
-                    name="testimonialsPageHeading"
+                    name="partnerPageHeading"
                     control={control}
                     render={({ field }) => (
                       <TextField
                         {...field}
                         size="small"
-                        label="Section Heading"
-                        placeholder="What People Say"
+                        label="Page Heading"
+                        placeholder="Become A Partner"
                         fullWidth
                       />
                     )}
                   />
                   <Controller
-                    name="testimonialsPageIntro"
+                    name="partnerPageContent"
                     control={control}
                     render={({ field }) => (
                       <TextField
                         {...field}
                         size="small"
-                        label="Section Intro"
-                        placeholder="Real experiences shared by our community"
-                        fullWidth
-                      />
-                    )}
-                  />
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <Controller
-                      name="testimonialsHomePreviewCount"
-                      control={control}
-                      render={({ field }) => (
-                        <TextField
-                          {...field}
-                          type="number"
-                          size="small"
-                          label="Show On Home (Preview Count)"
-                          fullWidth
-                          inputProps={{ min: 1, max: 20 }}
-                        />
-                      )}
-                    />
-                  </div>
-                  <Controller
-                    name="testimonialsEnableWriteReview"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField {...field} select size="small" label="Write Review Form" fullWidth>
-                        <MenuItem value={true}>Enabled</MenuItem>
-                        <MenuItem value={false}>Disabled</MenuItem>
-                      </TextField>
-                    )}
-                  />
-                  <Controller
-                    name="testimonialsSuccessMessage"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        size="small"
-                        label="Submit Success Message"
+                        label="Body Content (left side)"
+                        placeholder="We are open to partnerships with..."
                         fullWidth
                         multiline
-                        minRows={2}
+                        minRows={6}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="partnerFormTitle"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        size="small"
+                        label="Form Title (right side)"
+                        placeholder={`Partner With ${values?.companyName || "Us"}`}
+                        fullWidth
                       />
                     )}
                   />
                   <p className="text-xs text-slate-500">
-                    Public form fields: Name, Star Rating, Review.
-                    Only approved reviews are shown on website.
+                    The form fields (Name, Email, Mobile, Message + Connect button) are shown automatically on the right side.
                   </p>
-                </div>
-
-                <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <div className="flex items-center justify-between gap-3 border-b-default border-borderGray py-2">
-                    <span className="text-subtitle font-pmedium">
-                      Approved Website Reviews
-                    </span>
-                    <span className="text-xs text-slate-500">
-                      These are the backend-approved reviews that should appear on the website template.
-                    </span>
-                  </div>
-                  {approvedWebsiteReviews.length > 0 ? (
-                    <div className="mt-3 grid grid-cols-1 gap-3">
-                      {approvedWebsiteReviews.map((review, index) => (
-                        <div
-                          key={review?._id || `approved-review-${index}`}
-                          className="rounded-xl border border-slate-200 bg-white p-3"
-                        >
-                          <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-                            <div>
-                              <p className="font-semibold text-slate-900">
-                                {review?.reviewerName ||
-                                  review?.reviewreName ||
-                                  review?.fullName ||
-                                  review?.name ||
-                                  `Reviewer ${index + 1}`}
-                              </p>
-                              <p className="text-sm text-slate-500">
-                                {review?.role || review?.designation || review?.jobPosition || "-"}
-                              </p>
-                            </div>
-                            <p className="text-sm font-semibold text-slate-700">
-                              {review?.starCount ?? review?.rating ?? review?.rate ?? 0}/5
-                            </p>
-                          </div>
-                          <p className="mt-2 text-sm leading-6 text-slate-600">
-                            {review?.review || review?.comment || review?.description || "-"}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="mt-3 text-sm text-slate-500">
-                      No approved website reviews found for this company yet.
-                    </p>
-                  )}
-                </div>
-
-                <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <div className="py-2 border-b-default border-borderGray">
-                    <span className="text-subtitle font-pmedium">
-                      Shared Testimonials (Synced with Home)
-                    </span>
-                  </div>
-                  <div className="mt-3 grid grid-cols-1 gap-4">
-                    <Controller
-                      name="testimonialTitle"
-                      control={control}
-                      render={({ field }) => (
-                        <TextField
-                          {...field}
-                          size="small"
-                          label="Testimonials Section Title"
-                          fullWidth
-                          inputProps={{ maxLength: CHAR_LIMITS.testimonialTitle }}
-                          helperText={getHelperText(
-                            errors?.testimonialTitle?.message,
-                            values?.testimonialTitle,
-                            CHAR_LIMITS.testimonialTitle,
-                          )}
-                        />
-                      )}
-                    />
-
-                    {testimonialFields.map((field, index) => (
-                      <div
-                        key={`shared-testimonial-${field.id}`}
-                        className="rounded-xl border border-borderGray bg-white p-4"
-                      >
-                        <div className="mb-3 flex items-center justify-between">
-                          <span className="font-pmedium">Testimonial #{index + 1}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeTestimonial(index)}
-                            className="text-sm text-red-600"
-                          >
-                            Remove
-                          </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <Controller
-                            name={`testimonials.${index}.name`}
-                            control={control}
-                            render={({ field }) => (
-                              <TextField
-                                {...field}
-                                size="small"
-                                label="Name"
-                                fullWidth
-                                inputProps={{
-                                  maxLength: CHAR_LIMITS.testimonialName,
-                                }}
-                                helperText={getHelperText(
-                                  errors?.testimonials?.[index]?.name?.message,
-                                  values?.testimonials?.[index]?.name,
-                                  CHAR_LIMITS.testimonialName,
-                                )}
-                                error={!!errors?.testimonials?.[index]?.name}
-                              />
-                            )}
-                          />
-                          <Controller
-                            name={`testimonials.${index}.jobPosition`}
-                            control={control}
-                            render={({ field }) => (
-                              <TextField
-                                {...field}
-                                size="small"
-                                label="Designation / Role"
-                                fullWidth
-                                inputProps={{
-                                  maxLength: CHAR_LIMITS.testimonialJobPosition,
-                                }}
-                                helperText={getHelperText(
-                                  errors?.testimonials?.[index]?.jobPosition?.message,
-                                  values?.testimonials?.[index]?.jobPosition,
-                                  CHAR_LIMITS.testimonialJobPosition,
-                                )}
-                                error={!!errors?.testimonials?.[index]?.jobPosition}
-                              />
-                            )}
-                          />
-                          <Controller
-                            name={`testimonials.${index}.rating`}
-                            control={control}
-                            render={({ field }) => (
-                              <TextField
-                                {...field}
-                                type="number"
-                                size="small"
-                                label="Rating (1-5)"
-                                fullWidth
-                                inputProps={{ min: 1, max: 5 }}
-                                helperText={
-                                  errors?.testimonials?.[index]?.rating?.message
-                                }
-                                error={!!errors?.testimonials?.[index]?.rating}
-                              />
-                            )}
-                          />
-                          <Controller
-                            name={`testimonials.${index}.testimony`}
-                            control={control}
-                            render={({ field }) => (
-                              <TextField
-                                {...field}
-                                size="small"
-                                label="Review"
-                                fullWidth
-                                multiline
-                                minRows={3}
-                                inputProps={{
-                                  maxLength: CHAR_LIMITS.testimonialTestimony,
-                                }}
-                                helperText={getHelperText(
-                                  errors?.testimonials?.[index]?.testimony?.message,
-                                  values?.testimonials?.[index]?.testimony,
-                                  CHAR_LIMITS.testimonialTestimony,
-                                )}
-                                error={!!errors?.testimonials?.[index]?.testimony}
-                              />
-                            )}
-                          />
-                        </div>
-
-                        <div className="mt-3">
-                          <Controller
-                            name={`testimonials.${index}.file`}
-                            control={control}
-                            render={({ field }) => (
-                              <UploadFileInput
-                                value={field.value}
-                                label="Reviewer Image (Optional)"
-                                onChange={field.onChange}
-                                id={`shared-testimonial-file-${index}`}
-                              />
-                            )}
-                          />
-                        </div>
-                      </div>
-                    ))}
-
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => appendTestimonial({ ...defaultTestimonial })}
-                        className="text-sm text-primary"
-                      >
-                        + Add Testimonial
-                      </button>
-                    </div>
-                  </div>
                 </div>
               </div>
             ) : null}
@@ -3474,6 +3473,63 @@ const CreateWebsite = () => {
                 </div>
               </div>
             ) : null}
+
+            {/* Logo Carousel — always visible, shown after Contact section on home page */}
+            <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">Logo Carousel</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Shown below Contact section on home page</p>
+                </div>
+                <Controller
+                  name="logoCarousel.enabled"
+                  control={control}
+                  render={({ field }) => (
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={field.value === true}
+                        onChange={(e) => field.onChange(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 accent-slate-800"
+                      />
+                      <span className="text-xs font-medium text-slate-600">Enable</span>
+                    </label>
+                  )}
+                />
+              </div>
+              <div className="flex flex-col gap-3">
+                <Controller
+                  name="logoCarousel.title"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      value={field.value || ""}
+                      size="small"
+                      label="Section Title (optional)"
+                      fullWidth
+                      placeholder="As Seen In / Our Partners"
+                    />
+                  )}
+                />
+                <div>
+                  <p className="text-xs text-slate-500 mb-2">Upload logos (transparent PNG recommended, max 12)</p>
+                  <Controller
+                    name="logoCarousel.logos"
+                    control={control}
+                    render={({ field }) => (
+                      <UploadMultipleFilesInput
+                        {...field}
+                        label="Logo Images"
+                        maxFiles={12}
+                        allowedExtensions={["jpg", "jpeg", "png", "webp", "svg"]}
+                        id="logo-carousel-logos-persistent"
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
           {activeMainPageSlug === "home" ? (
           <div className="md:grid grid-cols-2 sm:grid-cols-1 md:grid-cols-2 gap-4">
@@ -4408,60 +4464,6 @@ const CreateWebsite = () => {
               </div>
             </div>
             )}
-
-            {/* Logo Carousel Section */}
-            <div className="col-span-2 mt-4 rounded-lg border border-slate-200 bg-white p-3">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-semibold text-slate-800">Logo Carousel (Optional — shown after Contact section)</p>
-                <Controller
-                  name="logoCarousel.enabled"
-                  control={control}
-                  render={({ field }) => (
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={field.value === true}
-                        onChange={(e) => field.onChange(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 accent-slate-800"
-                      />
-                      <span className="text-xs font-medium text-slate-600">Show on home page</span>
-                    </label>
-                  )}
-                />
-              </div>
-              <div className="flex flex-col gap-3">
-                <Controller
-                  name="logoCarousel.title"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      value={field.value || ""}
-                      size="small"
-                      label="Section Title (optional)"
-                      fullWidth
-                      placeholder="As Seen In / Our Partners"
-                    />
-                  )}
-                />
-                <div>
-                  <p className="text-xs text-slate-500 mb-2">Upload logos (transparent PNG recommended, max 12)</p>
-                  <Controller
-                    name="logoCarousel.logos"
-                    control={control}
-                    render={({ field }) => (
-                      <UploadMultipleFilesInput
-                        {...field}
-                        label="Logo Images"
-                        maxFiles={12}
-                        allowedExtensions={["jpg", "jpeg", "png", "webp", "svg"]}
-                        id="logo-carousel-logos"
-                      />
-                    )}
-                  />
-                </div>
-              </div>
-            </div>
 
             {/* FOOTER */}
             {activeSections.includes("footer") && (
