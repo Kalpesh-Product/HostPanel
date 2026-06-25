@@ -65,6 +65,23 @@ function bookingStyle(s) {
   return 'bg-slate-50 text-slate-600 border-slate-200';
 }
 
+function getCabinDesksCount(tenant: any) {
+  const cd = tenant?.companyDetails || {};
+  const pd = tenant?.packageDetails || {};
+  return Number(cd?.cabinDesks ?? pd?.cabinDesks ?? 0);
+}
+
+function getOpenDesksCount(tenant: any) {
+  const cd = tenant?.companyDetails || {};
+  const pd = tenant?.packageDetails || {};
+  return Number(cd?.openDesks ?? pd?.openDesks ?? 0);
+}
+
+function getDeskLabels(prefix: string, count: number) {
+  const n = Math.max(0, Math.floor(Number(count || 0)));
+  return Array.from({ length: n }, (_, i) => `${prefix}${i + 1}`);
+}
+
 // ---------------------------------------------------------------------------
 // TenantBillingDetails – computes billing from desk counts × rates
 // ---------------------------------------------------------------------------
@@ -184,10 +201,32 @@ export default function TenantCompanyDetailPage() {
 
   const fch = useMemo(() => ch.filter(e => { if (!e.date) return true; const d = new Date(e.date); return d.getMonth() === fm && d.getFullYear() === fy; }), [ch, fm, fy]);
 
+  const isCreditEntry = (type = '') => {
+    const t = String(type || '').toLowerCase();
+    return (
+      t.includes('refund') ||
+      t.includes('credit') ||
+      t.includes('added') ||
+      t.includes('credits_added') ||
+      t.includes('credits add') ||
+      t.includes('purchased')
+    );
+  };
+
+  const getEntryCreditAmount = (e) => {
+    // Backend "Purchased Credits" uses `credited`, while usage/debits typically use `used` or `debited`.
+    return Number(e?.credited ?? e?.used ?? e?.debited ?? 0);
+  };
+
   const mStats = useMemo(() => {
-    let u = 0, r = 0;
-    fch.forEach(e => { const a = Number(e.used || e.debited || 0); if (e.type === 'Refund') r += a; else u += a; });
-    return { used: u, refunded: r, net: u - r, count: fch.length };
+    let debitSum = 0, creditSum = 0;
+    fch.forEach(e => {
+      const debitAmt = Number(e.used || e.debited || 0);
+      const creditAmt = getEntryCreditAmount(e);
+      if (isCreditEntry(e.type)) creditSum += creditAmt;
+      else debitSum += debitAmt;
+    });
+    return { used: debitSum, refunded: creditSum, net: debitSum - creditSum, count: fch.length };
   }, [fch]);
 
   // ---------- Handlers ----------
@@ -627,8 +666,12 @@ export default function TenantCompanyDetailPage() {
                                 <p className="text-xs font-bold text-slate-900">{e.roomName || e.resource || e.type || 'Transaction'}</p>
                                 {e.bookedBy && <p className="text-[10px] text-slate-500">Host: {e.bookedBy}</p>}
                               </td>
-                              <td className="px-5 py-4 text-right text-xs font-black text-red-500">{e.type !== 'Refund' && (e.used || e.debited) ? fmt(e.used || e.debited) : '-'}</td>
-                              <td className="px-5 py-4 text-right text-xs font-black text-emerald-600">{e.type === 'Refund' ? fmt(e.used || 0) : '-'}</td>
+                              <td className="px-5 py-4 text-right text-xs font-black text-red-500">
+                                {!isCreditEntry(e.type) && (e.used || e.debited) ? fmt(e.used || e.debited) : '-'}
+                              </td>
+                              <td className="px-5 py-4 text-right text-xs font-black text-emerald-600">
+                                {isCreditEntry(e.type) ? fmt(getEntryCreditAmount(e)) : '-'}
+                              </td>
                               <td className="px-5 py-4 text-right text-xs font-black text-slate-700">{fmt(e.remainingCredits ?? 0)}</td>
                             </tr>
                           ))}
@@ -684,17 +727,58 @@ export default function TenantCompanyDetailPage() {
                         <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Assigned Floor</p>
                         <p className="text-sm font-bold text-slate-900 mt-1">{tenant.space?.floor || tenant.companyDetails?.buildingName || 'N/A'}</p>
                       </div>
-                      <div>
+
+                      <div className="space-y-2">
                         <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Assigned Seats</p>
-                        <div className="flex flex-wrap gap-1.5 mt-1">
-                          {Array.isArray(tenant.space?.seats) && tenant.space.seats.length > 0 ? (
-                            tenant.space.seats.map((s, i) => (
-                              <span key={i} className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-700">{s}</span>
-                            ))
-                          ) : (
-                            <span className="text-xs font-bold text-slate-300">N/A</span>
-                          )}
-                        </div>
+                        {/* <p className="text-sm font-bold text-slate-900 mt-0.5">N/A</p> */}
+                      </div>
+
+                      <div>
+                        {(() => {
+                          const cabinDesks = getCabinDesksCount(tenant);
+                          const openDesks = getOpenDesksCount(tenant);
+
+                          // Priority: if cabin desks exist, show CDS*.
+                          // Else if open desks exist, show ODS*.
+                          if (cabinDesks > 0) {
+                            const labels = getDeskLabels('CDS', cabinDesks);
+                            return (
+                              <div>
+                                {/* <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Cabin Desks</p> */}
+                                <div className="flex flex-wrap gap-1.5 mt-1">
+                                  {labels.map((l) => (
+                                    <span key={l} className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-violet-700">
+                                      {l}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          if (openDesks > 0) {
+                            const labels = getDeskLabels('ODS', openDesks);
+                            return (
+                              <div>
+                                {/* <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Open Desks</p> */}
+                                <div className="flex flex-wrap gap-1.5 mt-1">
+                                  {labels.map((l) => (
+                                    <span key={l} className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-blue-700">
+                                      {l}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div>
+                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Cabin/Open Desks</p>
+                              <p className="text-sm font-bold text-slate-300 mt-0.5">N/A</p>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -934,7 +1018,7 @@ export default function TenantCompanyDetailPage() {
                 <div>
                   <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Credits</p>
                   <p className={`text-lg font-black mt-1 ${viewCredit.type === 'Refund' ? 'text-emerald-600' : 'text-red-500'}`}>
-                    {viewCredit.type === 'Refund' ? '+' : '-'}{fmt(viewCredit.used || viewCredit.debited || 0)}
+                    {viewCredit.type === 'Refund' ? '+' : '-'}{fmt(viewCredit.credited ?? viewCredit.used ?? viewCredit.debited ?? 0)}
                   </p>
                 </div>
                 <div className="text-right">
