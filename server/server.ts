@@ -33,6 +33,7 @@ import plansPricingRoutes from "./routes/plansPricing.routes.js";
 import tenantCompanyRoutes from "./routes/tenant-company.routes.js";
 import calendarRoutes from "./routes/calendarRoutes.js";
 import { seedSystemRoles } from "./config/seedRoles.js";
+import inventoryRoutes from "./routes/inventoryRoutes.js";
 
 const app = express();
 dotenv.config();
@@ -89,6 +90,7 @@ app.use("/api/website-credits", verifyJwt, websiteCreditsRoutes);
 app.use("/api/tickets/support-tickets", verifyJwt, supportTicketRoutes);
 app.use("/api/v1/visitors", verifyJwt, visitorRoutes);
 app.use("/api/assets", verifyJwt, assetRoutes);
+app.use("/api/inventory", verifyJwt, inventoryRoutes);
 app.use("/api/meeting-rooms", verifyJwt, meetingRoomRoutes);
 app.use("/api/calendar", verifyJwt, calendarRoutes);
 app.use("/api/tickets", verifyJwt, ticketRoutes);
