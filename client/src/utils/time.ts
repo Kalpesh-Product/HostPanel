@@ -8,12 +8,17 @@ export const getElapsedSecondsWithOffset = (startTime: string | Date | number, o
   return Math.max(Math.floor(diff / 1000), 0); // ensure it's not negative
 };
 
-export const formatTime12h = (time: string) => {
+export const formatTime12h = (time: string, options?: { includeSeconds?: boolean }) => {
   if (!time) return '';
-  const [hours, minutes] = time.split(':').map(Number);
+  const parts = time.split(':').map(Number);
+  const [hours, minutes] = parts;
   if (isNaN(hours) || isNaN(minutes)) return time;
   const period = hours >= 12 ? 'PM' : 'AM';
   const h = hours % 12 || 12;
-  return `${h}:${String(minutes).padStart(2, '0')} ${period}`;
+  const base = `${h}:${String(minutes).padStart(2, '0')}`;
+  if (options?.includeSeconds && parts[2] !== undefined) {
+    return `${base}:${String(parts[2]).padStart(2, '0')} ${period}`;
+  }
+  return `${base} ${period}`;
 };
 

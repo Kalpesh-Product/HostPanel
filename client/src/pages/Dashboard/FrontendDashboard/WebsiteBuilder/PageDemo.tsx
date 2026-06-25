@@ -429,13 +429,14 @@ const PageDemo = () => {
 
   // Route-based section selection keeps the preview URL and the section
   // currently shown on screen in sync with the hosted version.
-  const { currentSection, currentProductSlug } = useMemo(() => {
+  const { currentSection, currentProductSlug, currentItemSlug } = useMemo(() => {
     const relative = String(location.pathname || "").replace(/^\/website-preview\/?/, "");
     const rawParts = relative.split("/").filter(Boolean);
     const parts = rawParts[0] === "page" ? rawParts.slice(1) : rawParts;
     const section = resolveSectionFromSlug(parts[0] || "home");
     const productSlug = parts[1] ? normalizeSlug(parts[1]) : "";
-    return { currentSection: section, currentProductSlug: productSlug };
+    const itemSlug = parts[2] ? normalizeSlug(parts[2]) : "";
+    return { currentSection: section, currentProductSlug: productSlug, currentItemSlug: itemSlug };
   }, [location.pathname]);
 
   const selectedProductPage = useMemo(
@@ -445,6 +446,13 @@ const PageDemo = () => {
       ) || null,
     [productPages, currentProductSlug],
   );
+
+  const selectedDetailItem = useMemo(() => {
+    if (!currentItemSlug || !selectedProductPage) return null;
+    const contentItems = getProductContentItems(draft, selectedProductPage?.slug || selectedProductPage?.name || "");
+    const pool = contentItems.length ? contentItems : [selectedProductPage];
+    return pool.find((item: any) => normalizeSlug(item?.title || item?.name || item?.heading || "") === currentItemSlug) || null;
+  }, [currentItemSlug, selectedProductPage, draft]);
   const breadcrumbItems = useMemo(() => {
     const items: Array<{ label: string; onClick?: () => void }> = [
       {
@@ -463,7 +471,17 @@ const PageDemo = () => {
     if (currentSection === "products" && selectedProductPage) {
       items.push({
         label: String(selectedProductPage?.heading || selectedProductPage?.name || "Product").trim(),
+        onClick: selectedDetailItem
+          ? () => navigate(`/website-preview/page/products/${normalizeSlug(selectedProductPage?.slug || selectedProductPage?.name || "")}`)
+          : undefined,
       });
+    }
+
+    if (currentSection === "products" && selectedDetailItem) {
+      const detailTitle = String(
+        selectedDetailItem?.title || selectedDetailItem?.name || selectedDetailItem?.heading || "Details"
+      ).trim();
+      items.push({ label: detailTitle });
     }
 
     return items;
@@ -483,6 +501,27 @@ const PageDemo = () => {
   useEffect(() => {
     setProductHeroIndex(0);
   }, [currentProductSlug]);
+
+  // Auto-set the lead product when on a detail item page so the form submits without a modal.
+  useEffect(() => {
+    if (selectedDetailItem && selectedProductPage) {
+      const detailTitle = String(selectedDetailItem?.title || selectedDetailItem?.name || selectedDetailItem?.heading || "Product").trim();
+      const detailDescription = String(selectedDetailItem?.description || selectedDetailItem?.subText || selectedProductPage?.subText || "").trim();
+      const detailImage = getMediaSrc(selectedDetailItem?.images?.[0]) || getMediaSrc(selectedDetailItem?.cardImage) || getMediaSrc(selectedProductPage?.cardImage) || "";
+      setSelectedLeadProduct({
+        ...selectedProductPage,
+        ...selectedDetailItem,
+        name: detailTitle,
+        subText: detailDescription,
+        cardImage: detailImage,
+      });
+      setLeadSubmitted(false);
+      setLeadSubmitError("");
+      setLeadForm({ fullName: "", people: "", mobile: "", email: "", startDate: "", endDate: "" });
+    } else if (!selectedDetailItem) {
+      setSelectedLeadProduct(null);
+    }
+  }, [selectedDetailItem, selectedProductPage]);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -1112,7 +1151,7 @@ const PageDemo = () => {
       </header>
 
       {breadcrumbItems.length > 1 ? (
-        <div className="border-b border-slate-200 px-4 py-2 text-[12px] text-slate-600 md:px-6">
+        <div className="border-b border-slate-200 bg-[#e9e9e9] px-4 py-2 text-[12px] text-slate-600 md:px-6">
           <div className="mx-auto flex w-full max-w-7xl py-1 items-center gap-3 overflow-x-auto whitespace-nowrap">
 
             {/* breadcrumbs with back button and current page highlight */}
@@ -1496,61 +1535,182 @@ const PageDemo = () => {
 
       {/* Products page: category detail view or menu-style rendering based on the selected product slug. */}
       {currentSection === "products" ? (
-        <section className={SECTION_BLOCK}>
-          <div className={CONTENT_WRAP}>
-            {selectedProductPage ? (
-              <>
-                <section className="relative mb-6 h-[30svh] min-h-[220px] overflow-hidden rounded-xl bg-[#1f1f1f] md:mb-10 md:h-[44vh] md:min-h-[280px]">
-                  {selectedProductHeroImage ? (
-                    <img
-                      src={selectedProductHeroImage}
-                      alt={selectedProductPage?.name || "Product Hero"}
-                      className="h-full w-full object-cover opacity-60"
-                    /> 
-                  ) : null}
+        <>
+          {/* ── Product Item Detail Page ── */}
+          {selectedDetailItem && selectedProductPage ? (() => {
+            const detailTitle = String(selectedDetailItem?.title || selectedDetailItem?.name || selectedDetailItem?.heading || "Product").trim();
+            const detailDescription = String(selectedDetailItem?.description || selectedDetailItem?.subText || selectedProductPage?.subText || "").trim();
+            const detailImage = getMediaSrc(selectedDetailItem?.images?.[0]) || getMediaSrc(selectedDetailItem?.cardImage) || getMediaSrc(selectedProductPage?.cardImage) || "";
+            const detailPrice = String(selectedDetailItem?.price || selectedDetailItem?.cost || "").trim();
+            const detailBullets: string[] = (Array.isArray(selectedDetailItem?.features)
+              ? selectedDetailItem.features
+              : Array.isArray(selectedDetailItem?.amenities)
+                ? selectedDetailItem.amenities
+                : []
+            ).map((f: any) => String(f?.name || f?.label || f?.text || f || "").trim()).filter(Boolean);
+            const detailTarget = { ...selectedProductPage, ...selectedDetailItem, name: detailTitle, subText: detailDescription, cardImage: detailImage };
+            const leadFields = getLeadFieldsForProduct(selectedProductPage?.slug || selectedProductPage?.name || "");
 
-                  <div className="sticky inset-0 flex items-self-end justify-center px-4 pb-8 text-center text-white">
-                    <div>
-                      <h1 className="text-[26px] font-bold md:text-4xl">
-                        {selectedProductPage?.heroHeading || selectedProductPage?.name || "Product"}
-                      </h1>
-                      {selectedProductPage?.heroSubHeading ? (
-                        <p className="mt-2 text-[13px] leading-relaxed md:mt-3 md:text-lg">{selectedProductPage.heroSubHeading}</p>
+            return (
+              <section className="bg-[#e9e9e9] px-4 py-10 md:px-6 md:py-16">
+                <div className={CONTENT_WRAP}>
+                  <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:items-end md:gap-12">
+                    {/* Left — Image */}
+                    <div className="w-full">
+                      {detailImage ? (
+                        <img
+                          src={detailImage}
+                          alt={detailTitle}
+                          className="h-[300px] w-full rounded-2xl object-cover md:h-[520px]"
+                        />
+                      ) : (
+                        <div className="h-[300px] w-full rounded-2xl bg-slate-200 md:h-[520px]" />
+                      )}
+                    </div>
+
+                    {/* Right — Info + Form */}
+                    <div className="flex flex-col gap-5 font-['Poppins',ui-sans-serif,system-ui,sans-serif]">
+                      {/* Title & Price */}
+                      <div>
+                        <h1 className="text-[24px] font-bold text-[#111827] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[32px]">{detailTitle}</h1>
+                        {detailPrice ? (
+                          <p className="mt-1 text-[15px] font-semibold text-[#374151] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">{detailPrice}</p>
+                        ) : null}
+                      </div>
+
+                      {/* Description as bullet points */}
+                      {detailDescription ? (
+                        <ul className="space-y-2">
+                          {detailDescription
+                            .split(/\n|(?<=\.)\s+/)
+                            .map((s: string) => s.trim())
+                            .filter(Boolean)
+                            .map((point: string, i: number) => (
+                              <li key={`desc-bullet-${i}`} className="flex items-start gap-2 text-[13px] leading-relaxed text-[#4b5563] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[14px]">
+                                <span className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#6b7280]" />
+                                <span>{point}</span>
+                              </li>
+                            ))}
+                        </ul>
                       ) : null}
-                      {selectedProductPage?.heroButtonText ? (
-                        <button type="button" className={`${IMAGE_ACTION_BUTTON} mt-4 px-5 text-[10px] tracking-[0.18em] md:mt-6 md:px-6 md:text-sm`}>
-                          {String(selectedProductPage.heroButtonText).toUpperCase()}
+
+                      {/* Extra feature bullets */}
+                      {detailBullets.length > 0 ? (
+                        <ul className="space-y-2 border-t border-slate-300 pt-3">
+                          {detailBullets.map((point, i) => (
+                            <li key={`detail-bullet-${i}`} className="flex items-start gap-2 text-[13px] text-[#374151] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[14px]">
+                              <span className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#111827]" />
+                              <span>{point}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+
+                      {/* Lead Form — 2 fields per row, no popup */}
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          void submitLeadForm(e);
+                        }}
+                        className="flex flex-col gap-4 rounded-2xl border border-slate-300 bg-white p-5"
+                      >
+                        <h2 className="text-[14px] font-semibold uppercase tracking-wider text-[#111827] font-['Poppins',ui-sans-serif,system-ui,sans-serif]">Enquire Now</h2>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {leadFields.map((field) => (
+                            <div key={field.key} className="flex flex-col gap-1">
+                              <label className="text-[11px] font-medium uppercase tracking-wide text-[#6b7280] font-['Poppins',ui-sans-serif,system-ui,sans-serif]">
+                                {field.label}{field.required ? <span className="ml-0.5 text-red-500">*</span> : null}
+                              </label>
+                              <input
+                                type={field.type}
+                                required={field.required}
+                                value={(leadForm as any)[field.key] ?? ""}
+                                onChange={(e) =>
+                                  setLeadForm((prev) => ({ ...prev, [field.key]: e.target.value }))
+                                }
+                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px] text-[#111827] outline-none transition font-['Poppins',ui-sans-serif,system-ui,sans-serif] focus:border-[#111827] focus:ring-1 focus:ring-[#111827]"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        {leadSubmitError ? (
+                          <p className="text-[12px] text-red-500 font-['Poppins',ui-sans-serif,system-ui,sans-serif]">{leadSubmitError}</p>
+                        ) : null}
+                        <button
+                          type="submit"
+                          disabled={leadSubmitPending}
+                          className="mt-1 w-full rounded-full bg-[#111827] px-6 py-3 text-[13px] font-semibold uppercase tracking-widest text-white transition font-['Poppins',ui-sans-serif,system-ui,sans-serif] hover:bg-[#1f2937] disabled:opacity-60"
+                        >
+                          {leadSubmitPending ? "Submitting..." : "Submit Enquiry"}
                         </button>
-                      ) : null}
+                      </form>
                     </div>
                   </div>
+                </div>
+              </section>
+            );
+          })() : null}
 
-                  {selectedProductPage?.heroMode === "carousel" && selectedProductHeroImages.length > 1 ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setProductHeroIndex((prev) =>
-                            (prev - 1 + selectedProductHeroImages.length) % selectedProductHeroImages.length,
-                          )
-                        }
-                        className="absolute left-5 top-1/2 hidden -translate-y-1/2 rounded-full bg-black/45 px-4 py-2 text-2xl text-white md:block"
-                      >
-                        {"<"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setProductHeroIndex((prev) => (prev + 1) % selectedProductHeroImages.length)
-                        }
-                        className="absolute right-5 top-1/2 hidden -translate-y-1/2 rounded-full bg-black/45 px-4 py-2 text-2xl text-white md:block"
-                      >
-                        {">"}
-                      </button>
-                    </>
-                  ) : null}
-                </section>
+          {/* ── Product Page: hero + product grid (shown when no item selected) ── */}
+          {!selectedDetailItem && selectedProductPage ? (
+            <>
+              {/* Full-bleed hero — stretches edge to edge, no side or top margins */}
+              <section
+                className="relative h-[62svh] min-h-[380px] overflow-hidden bg-[#1f1f1f] md:h-[84vh] md:min-h-[520px]"
+              >
+                {selectedProductHeroImage ? (
+                  <img
+                    src={selectedProductHeroImage}
+                    alt={selectedProductPage?.name || "Product Hero"}
+                    className="absolute inset-0 h-full w-full object-cover opacity-60"
+                  />
+                ) : null}
 
+                <div className="absolute inset-0 flex items-end justify-center px-4 pb-10 text-center text-white md:pb-16">
+                  <div>
+                    <h1 className="text-[26px] font-bold md:text-4xl">
+                      {selectedProductPage?.heroHeading || selectedProductPage?.name || "Product"}
+                    </h1>
+                    {selectedProductPage?.heroSubHeading ? (
+                      <p className="mt-2 text-[13px] leading-relaxed md:mt-3 md:text-lg">{selectedProductPage.heroSubHeading}</p>
+                    ) : null}
+                    {selectedProductPage?.heroButtonText ? (
+                      <button type="button" className={`${IMAGE_ACTION_BUTTON} mt-4 px-5 text-[10px] tracking-[0.18em] md:mt-6 md:px-6 md:text-sm`}>
+                        {String(selectedProductPage.heroButtonText).toUpperCase()}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+
+                {selectedProductPage?.heroMode === "carousel" && selectedProductHeroImages.length > 1 ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setProductHeroIndex((prev) =>
+                          (prev - 1 + selectedProductHeroImages.length) % selectedProductHeroImages.length,
+                        )
+                      }
+                      className="absolute left-5 top-1/2 hidden -translate-y-1/2 rounded-full bg-black/45 px-4 py-2 text-2xl text-white md:block"
+                    >
+                      {"<"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setProductHeroIndex((prev) => (prev + 1) % selectedProductHeroImages.length)
+                      }
+                      className="absolute right-5 top-1/2 hidden -translate-y-1/2 rounded-full bg-black/45 px-4 py-2 text-2xl text-white md:block"
+                    >
+                      {">"}
+                    </button>
+                  </>
+                ) : null}
+              </section>
+
+              {/* Our Products content below the hero */}
+              <section className="px-4 pb-8 pt-8 md:px-6 md:pb-12 md:pt-10">
+                <div className={CONTENT_WRAP}>
                 {isMenuProductSlug(selectedProductPage?.slug || "") ? (
                   <>
                     <h2 className={MOBILE_SECTION_HEADING}>Our Products</h2>
@@ -1625,7 +1785,11 @@ const PageDemo = () => {
                               <div className="absolute inset-x-0 bottom-4 flex justify-center md:bottom-6">
                                 <button
                                   type="button"
-                                    onClick={() => openLeadModal(detailTarget)}
+                                    onClick={() => {
+                                      const itemSlug = normalizeSlug(item?.title || item?.name || item?.heading || `item-${idx}`);
+                                      const productSlug = normalizeSlug(selectedProductPage?.slug || selectedProductPage?.name || "");
+                                      navigate(`/website-preview/page/products/${productSlug}/${itemSlug}`);
+                                    }}
                                     className={IMAGE_ACTION_BUTTON}
                                   >
                                     VIEW DETAILS
@@ -1639,37 +1803,40 @@ const PageDemo = () => {
                     </div>
                   </>
                 )}
-              </>
-            ) : (
-              <>
-                <h2 className={MOBILE_SECTION_HEADING}>Our Products</h2>
-                <div className="mt-6 grid grid-cols-1 gap-4 md:mt-10 md:grid-cols-3 md:gap-7">
-                  {productPages.map((item: any, idx: number) => (
-                    <article key={`product-page-${idx}`} className="flex flex-col items-center">
-                      <h3 className="mb-3 text-base font-medium md:text-xl">{item?.heading || item?.name || "Product"}</h3>
-                      <div className="relative w-full overflow-hidden rounded-2xl bg-slate-200">
-                        {item?.cardImage ? (
-                          <img src={item.cardImage} alt={item?.heading || item?.name} className="h-[190px] w-full object-cover md:h-[220px]" />
-                        ) : (
-                          <div className="h-[190px] w-full md:h-[220px]" />
-                        )}
-                        <div className="absolute inset-x-0 bottom-4 flex justify-center md:bottom-6">
-                          <button
-                            type="button"
-                            onClick={() => handleProductCardAction(item)}
-                            className={IMAGE_ACTION_BUTTON}
-                          >
-                            VIEW DETAILS
-                          </button>
-                        </div>
-                      </div>
-                    </article>
-                  ))}
                 </div>
-              </>
-            )}
-          </div>
-        </section>
+              </section>
+            </>
+            ) : !selectedDetailItem ? (
+              <section className={SECTION_BLOCK}>
+                <div className={CONTENT_WRAP}>
+                  <h2 className={MOBILE_SECTION_HEADING}>Our Products</h2>
+                  <div className="mt-6 grid grid-cols-1 gap-4 md:mt-10 md:grid-cols-3 md:gap-7">
+                    {productPages.map((item: any, idx: number) => (
+                      <article key={`product-page-${idx}`} className="flex flex-col items-center">
+                        <h3 className="mb-3 text-base font-medium md:text-xl">{item?.heading || item?.name || "Product"}</h3>
+                        <div className="relative w-full overflow-hidden rounded-2xl bg-slate-200">
+                          {item?.cardImage ? (
+                            <img src={item.cardImage} alt={item?.heading || item?.name} className="h-[190px] w-full object-cover md:h-[220px]" />
+                          ) : (
+                            <div className="h-[190px] w-full md:h-[220px]" />
+                          )}
+                          <div className="absolute inset-x-0 bottom-4 flex justify-center md:bottom-6">
+                            <button
+                              type="button"
+                              onClick={() => handleProductCardAction(item)}
+                              className={IMAGE_ACTION_BUTTON}
+                            >
+                              VIEW DETAILS
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            ) : null}
+        </>
       ) : null}
 
       {/* Gallery page: full gallery grid for browsing every uploaded image. */}
@@ -1928,7 +2095,8 @@ const PageDemo = () => {
         </div>
       ) : null}
 
-      {selectedLeadProduct ? (
+      {/* Lead modal popup — commented out: enquiry is now handled inline on the product detail page */}
+      {/* {selectedLeadProduct ? (
         <div
           className="fixed inset-0 z-50 overflow-y-auto bg-black/45 p-3 md:p-4"
           onClick={closeLeadModal}
@@ -1946,85 +2114,39 @@ const PageDemo = () => {
               >
                 ×
               </button>
-
               <div className="relative grid w-full grid-cols-1 gap-6 rounded-xl bg-white p-4 md:grid-cols-2">
                 <div className="relative overflow-hidden rounded-xl bg-slate-100 md:min-h-[520px]">
                   {selectedLeadProduct?.cardImage ? (
-                    <img
-                      src={selectedLeadProduct.cardImage}
-                      alt={selectedLeadProduct?.name || "Product"}
-                      className="h-[260px] w-full object-cover sm:h-[320px] md:h-full"
-                    />
+                    <img src={selectedLeadProduct.cardImage} alt={selectedLeadProduct?.name || "Product"} className="h-[260px] w-full object-cover sm:h-[320px] md:h-full" />
                   ) : (
                     <div className="h-[260px] w-full sm:h-[320px] md:h-full" />
                   )}
                   <div className="absolute inset-0 bg-black/20" />
                 </div>
-
                 <div className="font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:flex md:min-h-[520px] md:flex-col md:justify-between">
                   <div>
-                    <h3 className="text-xl font-bold uppercase text-slate-900">
-                      {selectedLeadProduct?.name || "Product"}
-                    </h3>
-                    {(() => {
-                      const subText = String(selectedLeadProduct?.subText || "").trim();
-                      const desc = String(
-                        getLeadMetaForProduct(selectedLeadProduct)?.description || "",
-                      ).trim();
-                      if (!subText || subText === desc) return null;
-                      return <p className="mt-2 text-base text-gray-600">{subText}</p>;
-                    })()}
-                    <p className="mt-2 text-base font-semibold text-secondary-dark">
-                      {getLeadMetaForProduct(selectedLeadProduct).priceLine}
-                    </p>
-                    <p className="mt-4 border-b border-slate-200 pb-6 text-sm leading-8 text-gray-700">
-                      {getLeadMetaForProduct(selectedLeadProduct).description}
-                    </p>
-
-                    <h4 className="mt-6 text-xl text-center font-bold uppercase text-slate-900">
-                      {getLeadMetaForProduct(selectedLeadProduct).label}
-                    </h4>
-
+                    <h3 className="text-xl font-bold uppercase text-slate-900">{selectedLeadProduct?.name || "Product"}</h3>
+                    <p className="mt-2 text-base font-semibold text-secondary-dark">{getLeadMetaForProduct(selectedLeadProduct).priceLine}</p>
+                    <p className="mt-4 border-b border-slate-200 pb-6 text-sm leading-8 text-gray-700">{getLeadMetaForProduct(selectedLeadProduct).description}</p>
+                    <h4 className="mt-6 text-xl text-center font-bold uppercase text-slate-900">{getLeadMetaForProduct(selectedLeadProduct).label}</h4>
                     <form onSubmit={submitLeadForm} className="mt-4 grid grid-cols-1 gap-x-8 gap-y-6 lg:grid-cols-2">
-                        {getLeadFieldsForProduct(selectedLeadProduct?.slug || "").map((field) => (
-                          <input
-                            key={field.key}
-                            type={field.type}
-                            className="w-full border-0 border-b border-slate-300 bg-transparent px-0 py-2 text-sm text-slate-700 outline-none placeholder:font-['Poppins',ui-sans-serif,system-ui,sans-serif] placeholder:text-gray-400 focus:border-slate-500"
-                            placeholder={field.label}
-                            value={(leadForm as any)[field.key] || ""}
-                            onChange={(e) =>
-                              setLeadForm((prev) => ({ ...prev, [field.key]: e.target.value }))
-                            }
-                            required={field.required}
-                            style={{
-                              borderRadius: 0,
-                              boxShadow: "none",
-                              appearance: "none",
-                              WebkitAppearance: "none",
-                            }}
-                          />
-                        ))}
-                        {leadSubmitError ? (
-                          <p className="lg:col-span-2 text-sm text-red-600">{leadSubmitError}</p>
-                        ) : null}
-                        <div className="pt-2 text-center lg:col-span-2">
-                          <button
-                            type="submit"
-                            disabled={leadSubmitPending}
-                            className="rounded-full bg-[#6f6f6f] px-8 py-3 text-sm font-semibold text-white"
-                          >
-                            {leadSubmitPending ? "SUBMITTING..." : "GET QUOTE"}
-                          </button>
-                        </div>
-                      </form>
+                      {getLeadFieldsForProduct(selectedLeadProduct?.slug || "").map((field) => (
+                        <input key={field.key} type={field.type} className="w-full border-0 border-b border-slate-300 bg-transparent px-0 py-2 text-sm text-slate-700 outline-none placeholder:font-['Poppins',ui-sans-serif,system-ui,sans-serif] placeholder:text-gray-400 focus:border-slate-500" placeholder={field.label} value={(leadForm as any)[field.key] || ""} onChange={(e) => setLeadForm((prev) => ({ ...prev, [field.key]: e.target.value }))} required={field.required} />
+                      ))}
+                      {leadSubmitError ? <p className="lg:col-span-2 text-sm text-red-600">{leadSubmitError}</p> : null}
+                      <div className="pt-2 text-center lg:col-span-2">
+                        <button type="submit" disabled={leadSubmitPending} className="rounded-full bg-[#6f6f6f] px-8 py-3 text-sm font-semibold text-white">
+                          {leadSubmitPending ? "SUBMITTING..." : "GET QUOTE"}
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      ) : null}
+      ) : null} */}
 
       {successPopup.open ? (
         <div className="pointer-events-none fixed inset-x-0 top-6 z-[70] flex justify-center px-4">
