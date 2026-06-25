@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import mongoose from "mongoose";
 
 const templateSchema = new mongoose.Schema(
@@ -167,6 +167,24 @@ const templateSchema = new mongoose.Schema(
           },
           leadEnabled: { type: Boolean, default: true },
           leadFormLabel: { type: String, default: "" },
+          faqs: {
+            type: [
+              {
+                question: { type: String, default: "" },
+                answer: { type: String, default: "" },
+              },
+            ],
+            default: [],
+          },
+          inclusions: {
+            type: [
+              {
+                key: { type: String, default: "" },
+                enabled: { type: Boolean, default: true },
+              },
+            ],
+            default: [],
+          },
         },
       ],
       default: [],
@@ -330,7 +348,35 @@ const templateSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    logoCarousel: {
+      enabled: { type: Boolean, default: false },
+      title: { type: String, default: "" },
+      logos: [
+        {
+          id: { type: String },
+          url: { type: String },
+        },
+      ],
+    },
     isDraft: { type: Boolean, default: false },
+    faqs: {
+      type: [
+        {
+          question: { type: String, default: "" },
+          answer: { type: String, default: "" },
+        },
+      ],
+      default: [],
+    },
+    inclusions: {
+      type: [
+        {
+          key: { type: String, default: "" },
+          enabled: { type: Boolean, default: true },
+        },
+      ],
+      default: [],
+    },
     draftData: {
       type: mongoose.Schema.Types.Mixed,
       default: null,

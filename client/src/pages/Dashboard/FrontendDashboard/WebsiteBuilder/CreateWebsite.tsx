@@ -342,6 +342,8 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
         homeCardSubText: String(item?.homeCardSubText || "").trim(),
         leadEnabled: item?.leadEnabled !== false,
         leadFormLabel: String(item?.leadFormLabel || "").trim(),
+        faqs: Array.isArray(item?.faqs) ? item.faqs : [],
+        inclusions: Array.isArray(item?.inclusions) ? item.inclusions : [],
       }))
     : [],
   productPages: Array.isArray(formValues?.productDropdownPages)
@@ -363,8 +365,17 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
           .filter(Boolean),
         leadEnabled: item?.leadEnabled !== false,
         leadFormLabel: String(item?.leadFormLabel || "").trim(),
+        faqs: Array.isArray(item?.faqs) ? item.faqs : [],
+        inclusions: Array.isArray(item?.inclusions) ? item.inclusions : [],
       }))
     : [],
+  inclusions: Array.isArray(formValues?.inclusions) ? formValues.inclusions : [],
+  faqs: Array.isArray(formValues?.faqs) ? formValues.faqs : [],
+  logoCarousel: {
+    enabled: formValues?.logoCarousel?.enabled === true,
+    title: String(formValues?.logoCarousel?.title || "").trim(),
+    logos: Array.isArray(formValues?.logoCarousel?.logos) ? formValues.logoCarousel.logos : [],
+  },
   aboutPageIntro: String(formValues?.aboutPageIntro || "").trim(),
   aboutPageOverview: String(formValues?.aboutPageOverview || "").trim(),
   aboutPageStory: String(formValues?.aboutPageStory || "").trim(),
@@ -501,7 +512,7 @@ const CreateWebsite = () => {
   const isEditMode = location.pathname.includes("/edit-website");
   // The :website route param (e.g. "biznest") is the deterministic searchKey for the
   // website being edited. We use it to load the correct website on the edit route
-  // WITHOUT depending on async company identity resolution — this is what stops the
+  // WITHOUT depending on async company identity resolution â€” this is what stops the
   // create-website <-> edit-website redirect ping-pong (the component remounts on each
   // route change, resetting all the useRef guards, so we cannot rely on those alone).
   const { website: websiteRouteParam } = useParams();
@@ -552,12 +563,12 @@ const CreateWebsite = () => {
     reset,
     setValue,
     watch,
-    getValues, // ✅ add this
+    getValues, // âœ… add this
     formState: { errors },
   } = useForm({
     defaultValues: {
       // hero/company
-      companyId: "", // ✅ change from businessId
+      companyId: "", // âœ… change from businessId
       companyName: "",
       title: "",
       subTitle: "",
@@ -818,7 +829,7 @@ const CreateWebsite = () => {
       // hostCompanyIdentity resolves asynchronously and triggers a second (or third)
       // reset() call, which is what causes the visible flicker.
       if (hasHydratedFromDbRef.current) return;
-      // Block concurrent in-flight calls — dep changes can fire this effect again
+      // Block concurrent in-flight calls â€” dep changes can fire this effect again
       // before the first async run has finished and set hasHydratedFromDbRef.
       if (isCheckingWebsiteInFlightRef.current) return;
       isCheckingWebsiteInFlightRef.current = true;
@@ -1042,7 +1053,7 @@ const CreateWebsite = () => {
 
               // No product pages configured (existing/older templates): derive one
               // product page per existing product so they show in the home "Our Products"
-              // section and as product pages — using each product's own image as the cover.
+              // section and as product pages â€” using each product's own image as the cover.
               const sourceProducts =
                 Array.isArray(found?.products) && found.products.length
                   ? found.products
@@ -1073,9 +1084,30 @@ const CreateWebsite = () => {
                     homeCardImage: image,
                     leadEnabled: true,
                     leadFormLabel: "View More / Get Details",
+                    faqs: [],
+                    inclusions: [],
                   };
                 });
             })(),
+            inclusions: Array.isArray(draftData?.inclusions) && draftData.inclusions.length
+              ? draftData.inclusions
+              : Array.isArray(found?.inclusions) && found.inclusions.length
+                ? found.inclusions
+                : [],
+            faqs: Array.isArray(draftData?.faqs) && draftData.faqs.length
+              ? draftData.faqs
+              : Array.isArray(found?.faqs) && found.faqs.length
+                ? found.faqs
+                : [],
+            logoCarousel: {
+              enabled: draftData?.logoCarousel?.enabled ?? found?.logoCarousel?.enabled ?? false,
+              title: String(draftData?.logoCarousel?.title || found?.logoCarousel?.title || "").trim(),
+              logos: Array.isArray(draftData?.logoCarousel?.logos) && draftData.logoCarousel.logos.length
+                ? draftData.logoCarousel.logos
+                : Array.isArray(found?.logoCarousel?.logos)
+                  ? found.logoCarousel.logos
+                  : [],
+            },
             aboutPageIntro: String(draftData?.aboutPageIntro || found?.aboutPageIntro || "").trim(),
             aboutPageOverview: String(draftData?.aboutPageOverview || found?.aboutPageOverview || "").trim(),
             aboutPageStory: String(draftData?.aboutPageStory || found?.aboutPageStory || "").trim(),
@@ -1090,7 +1122,7 @@ const CreateWebsite = () => {
                 ? draftData.aboutPageImageCards.map((item: any, index: number) => ({
                     title: String(item?.title || "").trim(),
                     description: String(item?.description || "").trim(),
-                    // Always pull the persisted image from found — draftData only stores text,
+                    // Always pull the persisted image from found â€” draftData only stores text,
                     // never the uploaded image binary/URL, so images are lost on revisit without this.
                     image:
                       Array.isArray(found?.aboutPageImageCards) && found.aboutPageImageCards[index]
@@ -1163,7 +1195,7 @@ const CreateWebsite = () => {
           setHasRestoredDraft(Boolean(found?.draftData));
           // Baseline the autosave snapshot from the ACTUAL form state (getValues) using the
           // same builder the autosave uses. Previously this was built from the raw draftData
-          // object, which has a different shape than the form values — so the snapshots never
+          // object, which has a different shape than the form values â€” so the snapshots never
           // matched and the autosave fired immediately on load, overwriting good text fields
           // with whatever was in the form mid-hydration. Building from getValues() makes the
           // first autosave comparison match, so it won't fire until the user actually edits.
@@ -1221,7 +1253,7 @@ const CreateWebsite = () => {
           setHasExistingWebsite(false);
           // Do NOT redirect back to create-website here. This component is mounted under
           // two different routes (create-website and edit-website/:website), so navigating
-          // between them remounts it and resets every useRef guard — which made this
+          // between them remounts it and resets every useRef guard â€” which made this
           // redirect fire again and again, ping-ponging with the create->edit redirect.
           // If we're on the edit route, stay put; the form simply shows empty fields when
           // no matching website was found.
@@ -1449,7 +1481,7 @@ const CreateWebsite = () => {
       if (t?.file instanceof File) fd.append(`testimonialImages_${i}`, t.file);
     });
 
-    // ✅ Add companyId here
+    // âœ… Add companyId here
     fd.set("companyName", finalCompanyName);
     fd.set("companyId", values.companyId || prefillCompanyId || "");
     fd.append("workspaceId", workspaceId || "");
@@ -1458,6 +1490,8 @@ const CreateWebsite = () => {
       "productDropdownPages",
       JSON.stringify(values.productDropdownPages || []),
     );
+    fd.set("inclusions", JSON.stringify(values.inclusions || []));
+    fd.set("faqs", JSON.stringify(values.faqs || []));
     (values.productDropdownPages || []).forEach((item, index) => {
       appendFileIfPresent(`productPageHeroImage_${index}`, item?.heroImage);
       (item?.heroImages || []).forEach((file) => {
@@ -1650,6 +1684,8 @@ const CreateWebsite = () => {
           .filter(Boolean),
         leadEnabled: item?.leadEnabled !== false,
         leadFormLabel: String(item?.leadFormLabel || "").trim(),
+        faqs: Array.isArray(item?.faqs) ? item.faqs.map((faq: any) => ({ question: String(faq?.question || "").trim(), answer: String(faq?.answer || "").trim() })).filter((faq: any) => faq.question) : [],
+        inclusions: Array.isArray(item?.inclusions) ? item.inclusions : [],
       })),
       productDropdownPages: (formValues?.productDropdownPages || []).map((item: any, index: number) => ({
         name: String(item?.name || "").trim(),
@@ -1670,6 +1706,8 @@ const CreateWebsite = () => {
           .filter(Boolean),
         leadEnabled: item?.leadEnabled !== false,
         leadFormLabel: String(item?.leadFormLabel || "").trim(),
+        faqs: Array.isArray(item?.faqs) ? item.faqs.map((faq: any) => ({ question: String(faq?.question || "").trim(), answer: String(faq?.answer || "").trim() })).filter((faq: any) => faq.question) : [],
+        inclusions: Array.isArray(item?.inclusions) ? item.inclusions : [],
       })),
       menuItems: (formValues?.menuItems || []).map((item: any) => ({
         category: String(item?.category || "").trim(),
@@ -1679,6 +1717,15 @@ const CreateWebsite = () => {
         image: getMediaUrlForPreview(item?.image),
       })),
       galleryTitle: String(formValues?.galleryTitle || "Gallery").trim(),
+      inclusions: Array.isArray(formValues?.inclusions) ? formValues.inclusions : [],
+      faqs: Array.isArray(formValues?.faqs) ? formValues.faqs.map((faq: any) => ({ question: String(faq?.question || "").trim(), answer: String(faq?.answer || "").trim() })).filter((faq: any) => faq.question) : [],
+      logoCarousel: {
+        enabled: formValues?.logoCarousel?.enabled === true,
+        title: String(formValues?.logoCarousel?.title || "").trim(),
+        logos: (formValues?.logoCarousel?.logos || [])
+          .map((item: unknown) => getMediaUrlForPreview(item))
+          .filter(Boolean),
+      },
       gallery: (formValues?.gallery || [])
         .map((item: unknown) => getMediaUrlForPreview(item))
         .filter(Boolean),
@@ -2122,7 +2169,7 @@ const CreateWebsite = () => {
       ...(values?.products || [])
         .map((item) => String(item?.type || "").trim())  // use type as heading, not name
         .filter(Boolean),
-      // ✅ also include pages that are already saved in productDropdownPages
+      // âœ… also include pages that are already saved in productDropdownPages
       // so they always appear in the dropdown (e.g. when loading an existing site)
       ...(values?.productDropdownPages || [])
         .map((item) => String(item?.name || "").trim())
@@ -2262,6 +2309,14 @@ const CreateWebsite = () => {
                           leadFormLabel: isMenuPageSlug(optionSlug)
                             ? "Menu Inquiry Disabled"
                             : "View More / Get Details",
+                          faqs: [],
+                          inclusions: [
+                            "workspace","living-space","air-condition","fast-internet","cafe-dining","receptionist",
+                            "meeting-rooms","training-rooms","it-support","tea-coffee","assist","community",
+                            "on-demand","maintenance","generator","pickup-drop","car-bike-bus","housekeeping",
+                            "swimming-pool","television","gas","laundry","secure","personalised",
+                            "electricity","ups","events","furnished-office","cafeteria","high-speed-internet","assistance",
+                          ].map((k) => ({ key: k, enabled: false })),
                         });
                         setActiveProductPageTab(productPageFields.length);
                       }}
@@ -2587,6 +2642,8 @@ const CreateWebsite = () => {
                                             size="small"
                                             label="Product Description"
                                             fullWidth
+                                            inputProps={{ maxLength: 120 }}
+                                            helperText={`${String(field.value || "").length}/120`}
                                           />
                                         )}
                                       />
@@ -2636,8 +2693,84 @@ const CreateWebsite = () => {
                               </div>
                             );
                           })()}
-                          </div>
                         </div>
+
+                        {/* FAQ is now global â€” edit from the Home/Products section */}
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          <div className="flex items-center justify-between py-2 border-b border-slate-200 mb-2">
+                            <span className="text-sm font-semibold text-slate-700">FAQ (Frequently Asked Questions)</span>
+                          </div>
+                          <p className="text-xs text-slate-500">FAQs are shared across all product pages. Edit them in the <strong>FAQ</strong> section in the Home Section Cards area below.</p>
+                        </div>
+
+                        {/* Inclusions for this product page */}
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          <div className="flex items-center justify-between mb-3 border-b border-slate-200 pb-2">
+                            <span className="text-sm font-semibold text-slate-700">Product Page Inclusions</span>
+                            <span className="text-xs text-slate-400">Toggle per amenity</span>
+                          </div>
+                          <Controller
+                            name={`productDropdownPages.${activeProductPageTab}.inclusions`}
+                            control={control}
+                            defaultValue={[]}
+                            render={({ field }) => {
+                              const ALL_KEYS = [
+                                "workspace","living-space","air-condition","fast-internet","cafe-dining","receptionist",
+                                "meeting-rooms","training-rooms","it-support","tea-coffee","assist","community",
+                                "on-demand","maintenance","generator","pickup-drop","car-bike-bus","housekeeping",
+                                "swimming-pool","television","gas","laundry","secure","personalised",
+                                "electricity","ups","events","furnished-office","cafeteria","high-speed-internet","assistance",
+                              ];
+                              const ALL_LABELS: Record<string, string> = {
+                                "workspace": "Workspace", "living-space": "Living Space", "air-condition": "Air Condition",
+                                "fast-internet": "Fast Internet", "cafe-dining": "Cafe / Dining", "receptionist": "Receptionist",
+                                "meeting-rooms": "Meeting Rooms", "training-rooms": "Training Rooms", "it-support": "IT Support",
+                                "tea-coffee": "Tea & Coffee", "assist": "Assist", "community": "Community",
+                                "on-demand": "On Demand", "maintenance": "Maintenance", "generator": "Generator",
+                                "pickup-drop": "Pickup & Drop", "car-bike-bus": "Car / Bike / Bus", "housekeeping": "Housekeeping",
+                                "swimming-pool": "Swimming Pool", "television": "Television", "gas": "Gas",
+                                "laundry": "Laundry", "secure": "Secure", "personalised": "Personalised",
+                                "electricity": "Electricity", "ups": "UPS", "events": "Events",
+                                "furnished-office": "Furnished Office", "cafeteria": "Cafeteria",
+                                "high-speed-internet": "High Speed Internet", "assistance": "Assistance",
+                              };
+                              const current: Array<{ key: string; enabled: boolean }> = Array.isArray(field.value)
+                                ? field.value
+                                : ALL_KEYS.map((k) => ({ key: k, enabled: false }));
+                              const toggle = (key: string) => {
+                                const exists = current.find((i) => i.key === key);
+                                if (exists) {
+                                  field.onChange(current.map((i) => i.key === key ? { ...i, enabled: !i.enabled } : i));
+                                } else {
+                                  field.onChange([...current, { key, enabled: true }]);
+                                }
+                              };
+                              const isEnabled = (key: string) => {
+                                const found = current.find((i) => i.key === key);
+                                return found ? found.enabled : false;
+                              };
+                              return (
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                  {ALL_KEYS.map((key) => (
+                                    <label key={key} className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 hover:bg-slate-50">
+                                      <input
+                                        type="checkbox"
+                                        checked={isEnabled(key)}
+                                        onChange={() => toggle(key)}
+                                        className="h-4 w-4 rounded border-slate-300 accent-slate-800"
+                                      />
+                                      <span className={`text-[11px] font-medium ${isEnabled(key) ? "text-slate-700" : "text-slate-400 line-through"}`}>
+                                        {ALL_LABELS[key]}
+                                      </span>
+                                    </label>
+                                  ))}
+                                </div>
+                              );
+                            }}
+                          />
+                        </div>
+
+                      </div>
                     ) : null}
                   </>
                 ) : (
@@ -3615,7 +3748,9 @@ const CreateWebsite = () => {
                                 size="small"
                                 label="Card Sub Text"
                                 fullWidth
-                                placeholder="Short description for this product page"
+                                placeholder="Short description for this product page (max 120 chars)"
+                                inputProps={{ maxLength: 120 }}
+                                helperText={`${String(field.value || "").length}/120`}
                               />
                             )}
                           />
@@ -3645,6 +3780,101 @@ const CreateWebsite = () => {
               </div>
             </div>
             )}
+
+            {/* Home Inclusions â€” toggle amenities shown below Our Products on home page */}
+            {productPageFields.length > 0 ? (
+            <div className="col-span-2 mt-4 rounded-lg border border-slate-200 bg-white p-3">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-slate-800">Home Inclusions</p>
+                <span className="text-xs text-slate-400">Shown below Our Products on home page</span>
+              </div>
+              <Controller
+                name="inclusions"
+                control={control}
+                defaultValue={[]}
+                render={({ field }) => {
+                  const ALL_KEYS = [
+                    "workspace","living-space","air-condition","fast-internet","cafe-dining","receptionist",
+                    "meeting-rooms","training-rooms","it-support","tea-coffee","assist","community",
+                    "on-demand","maintenance","generator","pickup-drop","car-bike-bus","housekeeping",
+                    "swimming-pool","television","gas","laundry","secure","personalised",
+                    "electricity","ups","events","furnished-office","cafeteria","high-speed-internet","assistance",
+                  ];
+                  const ALL_LABELS: Record<string, string> = {
+                    "workspace":"Workspace","living-space":"Living Space","air-condition":"Air Condition",
+                    "fast-internet":"Fast Internet","cafe-dining":"Cafe / Dining","receptionist":"Receptionist",
+                    "meeting-rooms":"Meeting Rooms","training-rooms":"Training Rooms","it-support":"IT Support",
+                    "tea-coffee":"Tea & Coffee","assist":"Assist","community":"Community",
+                    "on-demand":"On Demand","maintenance":"Maintenance","generator":"Generator",
+                    "pickup-drop":"Pickup & Drop","car-bike-bus":"Car / Bike / Bus","housekeeping":"Housekeeping",
+                    "swimming-pool":"Swimming Pool","television":"Television","gas":"Gas",
+                    "laundry":"Laundry","secure":"Secure","personalised":"Personalised",
+                    "electricity":"Electricity","ups":"UPS","events":"Events",
+                    "furnished-office":"Furnished Office","cafeteria":"Cafeteria",
+                    "high-speed-internet":"High Speed Internet","assistance":"Assistance",
+                  };
+                  const current: Array<{ key: string; enabled: boolean }> = Array.isArray(field.value) ? field.value : ALL_KEYS.map((k) => ({ key: k, enabled: false }));
+                  const toggle = (key: string) => {
+                    const exists = current.find((i) => i.key === key);
+                    field.onChange(exists ? current.map((i) => i.key === key ? { ...i, enabled: !i.enabled } : i) : [...current, { key, enabled: true }]);
+                  };
+                  const isEnabled = (key: string) => { const f = current.find((i) => i.key === key); return f ? f.enabled : false; };
+                  return (
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                      {ALL_KEYS.map((key) => (
+                        <label key={key} className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 hover:bg-slate-50">
+                          <input type="checkbox" checked={isEnabled(key)} onChange={() => toggle(key)} className="h-4 w-4 rounded border-slate-300 accent-slate-800" />
+                          <span className={`text-[11px] font-medium ${isEnabled(key) ? "text-slate-700" : "text-slate-400 line-through"}`}>{ALL_LABELS[key]}</span>
+                        </label>
+                      ))}
+                    </div>
+                  );
+                }}
+              />
+            </div>
+            ) : null}
+
+            {/* Global FAQ â€” shown on all product pages and product detail pages */}
+            {productPageFields.length > 0 ? (
+            <div className="col-span-2 mt-4 rounded-lg border border-slate-200 bg-white p-3">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-slate-800">FAQ (Shown on all product &amp; detail pages)</p>
+                <span className="text-xs text-slate-400">Max 10</span>
+              </div>
+              <Controller
+                name="faqs"
+                control={control}
+                defaultValue={[]}
+                render={({ field }) => {
+                  const faqs: Array<{ question: string; answer: string }> = Array.isArray(field.value) ? field.value : [];
+                  const updateFaq = (idx: number, key: "question" | "answer", val: string) => {
+                    field.onChange(faqs.map((faq, i) => i === idx ? { ...faq, [key]: val } : faq));
+                  };
+                  const removeFaq = (idx: number) => field.onChange(faqs.filter((_, i) => i !== idx));
+                  const addFaq = () => { if (faqs.length < 10) field.onChange([...faqs, { question: "", answer: "" }]); };
+                  return (
+                    <div className="flex flex-col gap-3">
+                      {faqs.map((faq, idx) => (
+                        <div key={idx} className="rounded-lg border border-slate-200 bg-slate-50 p-3 flex flex-col gap-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-slate-500">Q{idx + 1}</span>
+                            <button type="button" onClick={() => removeFaq(idx)} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                          </div>
+                          <TextField value={faq.question} onChange={(e) => updateFaq(idx, "question", e.target.value)} size="small" label="Question" fullWidth inputProps={{ maxLength: 200 }} />
+                          <TextField value={faq.answer} onChange={(e) => updateFaq(idx, "answer", e.target.value)} size="small" label="Answer" fullWidth multiline minRows={2} inputProps={{ maxLength: 500 }} />
+                        </div>
+                      ))}
+                      {faqs.length < 10 ? (
+                        <button type="button" onClick={addFaq} className="w-fit text-sm text-primary font-medium">+ Add FAQ</button>
+                      ) : (
+                        <p className="text-xs text-slate-400">Maximum 10 FAQs reached.</p>
+                      )}
+                    </div>
+                  );
+                }}
+              />
+            </div>
+            ) : null}
 
             {/* PRODUCTS (Legacy Home Product Editor) - kept for reference, intentionally disabled */}
             {legacyHomeProductsEditorEnabled && selectedVertical === "co-working" && (
@@ -4178,6 +4408,60 @@ const CreateWebsite = () => {
               </div>
             </div>
             )}
+
+            {/* Logo Carousel Section */}
+            <div className="col-span-2 mt-4 rounded-lg border border-slate-200 bg-white p-3">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-slate-800">Logo Carousel (Optional — shown after Contact section)</p>
+                <Controller
+                  name="logoCarousel.enabled"
+                  control={control}
+                  render={({ field }) => (
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={field.value === true}
+                        onChange={(e) => field.onChange(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 accent-slate-800"
+                      />
+                      <span className="text-xs font-medium text-slate-600">Show on home page</span>
+                    </label>
+                  )}
+                />
+              </div>
+              <div className="flex flex-col gap-3">
+                <Controller
+                  name="logoCarousel.title"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      value={field.value || ""}
+                      size="small"
+                      label="Section Title (optional)"
+                      fullWidth
+                      placeholder="As Seen In / Our Partners"
+                    />
+                  )}
+                />
+                <div>
+                  <p className="text-xs text-slate-500 mb-2">Upload logos (transparent PNG recommended, max 12)</p>
+                  <Controller
+                    name="logoCarousel.logos"
+                    control={control}
+                    render={({ field }) => (
+                      <UploadMultipleFilesInput
+                        {...field}
+                        label="Logo Images"
+                        maxFiles={12}
+                        allowedExtensions={["jpg", "jpeg", "png", "webp", "svg"]}
+                        id="logo-carousel-logos"
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+            </div>
 
             {/* FOOTER */}
             {activeSections.includes("footer") && (

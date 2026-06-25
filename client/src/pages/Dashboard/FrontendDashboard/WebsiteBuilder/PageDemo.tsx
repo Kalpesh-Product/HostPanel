@@ -121,6 +121,165 @@ const MapIcon = () => (
   </svg>
 );
 
+// Heading with horizontal lines on both sides
+const LinedHeading = ({ title }: { title: string }) => (
+  <div className="flex items-center gap-4">
+    <div className="flex-1 border-t border-[#111827]" />
+    <h2 className="shrink-0 text-center text-[20px] font-semibold uppercase tracking-[0.15em] text-[#111827] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[26px]">
+      {title}
+    </h2>
+    <div className="flex-1 border-t border-[#111827]" />
+  </div>
+);
+
+const INCLUSION_ICON = (
+  <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="20" cy="20" r="12" />
+  </svg>
+);
+
+const ALL_INCLUSIONS: Array<{ key: string; label: string; icon: React.ReactNode }> = [
+  { key: "workspace", label: "Workspace", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="10" width="28" height="18" rx="2"/><path d="M14 28v4M26 28v4M10 32h20"/><rect x="12" y="15" width="8" height="6" rx="1"/></svg> },
+  { key: "living-space", label: "Living Space", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="18" width="28" height="14" rx="2"/><path d="M10 18v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4"/><path d="M6 26h28M12 32v2M28 32v2"/></svg> },
+  { key: "air-condition", label: "Air Condition", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="10" width="28" height="12" rx="2"/><path d="M14 28c0-2 2-4 6-4s6 2 6 4M20 22v4"/><circle cx="20" cy="16" r="2"/></svg> },
+  { key: "fast-internet", label: "Fast Internet", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 20a20 20 0 0 1 28 0M10 24a14 14 0 0 1 20 0M14 28a8 8 0 0 1 12 0"/><circle cx="20" cy="32" r="2" fill="currentColor" stroke="none"/></svg> },
+  { key: "cafe-dining", label: "Cafe / Dining", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 12h6v8a3 3 0 0 1-6 0v-8z"/><path d="M16 16h2a2 2 0 0 1 0 4h-2"/><path d="M26 12v8M24 20a4 4 0 0 0 4 4M13 28v4M27 28v4M10 32h20"/></svg> },
+  { key: "receptionist", label: "Receptionist", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="20" cy="12" r="5"/><path d="M10 32c0-6 4-10 10-10s10 4 10 10"/><path d="M8 28h24"/></svg> },
+  { key: "meeting-rooms", label: "Meeting Rooms", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="12" width="28" height="18" rx="2"/><path d="M14 21h12M14 25h8"/><circle cx="12" cy="8" r="2"/><circle cx="20" cy="8" r="2"/><circle cx="28" cy="8" r="2"/></svg> },
+  { key: "training-rooms", label: "Training Rooms", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="10" width="28" height="20" rx="2"/><path d="M6 18h28M14 18v12M20 14h6"/></svg> },
+  { key: "it-support", label: "IT Support", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="24" height="18" rx="2"/><path d="M14 26v4M26 26v4M10 30h20"/><path d="M16 17l3 3 5-6"/></svg> },
+  { key: "tea-coffee", label: "Tea & Coffee", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 14h16v12a6 6 0 0 1-6 6h-4a6 6 0 0 1-6-6V14z"/><path d="M26 16h2a3 3 0 0 1 0 6h-2"/><path d="M14 10c0-2 2-2 2-4M19 10c0-2 2-2 2-4"/></svg> },
+  { key: "assist", label: "Assist", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="20" cy="12" r="5"/><path d="M10 32c0-5 4-9 10-9s10 4 10 9"/><path d="M20 21v5M17 26h6"/></svg> },
+  { key: "community", label: "Community", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="14" cy="14" r="4"/><circle cx="26" cy="14" r="4"/><path d="M6 32c0-4 3-7 8-7M26 25c5 0 8 3 8 7M16 32c0-4 2-6 4-6s4 2 4 6"/></svg> },
+  { key: "on-demand", label: "On Demand", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="20" cy="20" r="12"/><path d="M16 15l10 5-10 5V15z"/></svg> },
+  { key: "maintenance", label: "Maintenance", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M28 12a6 6 0 0 0-8.5 8.5L8 32l4 4 11.5-11.5A6 6 0 0 0 28 12z"/><path d="M26 10l4 4"/></svg> },
+  { key: "generator", label: "Generator", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="14" width="28" height="16" rx="2"/><path d="M14 14v-4M26 14v-4M20 18v8M16 22h8"/></svg> },
+  { key: "pickup-drop", label: "Pickup & Drop", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="18" width="32" height="12" rx="2"/><path d="M8 18l4-8h16l4 8"/><circle cx="11" cy="30" r="3"/><circle cx="29" cy="30" r="3"/></svg> },
+  { key: "car-bike-bus", label: "Car / Bike / Bus", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 22h28M10 22l3-8h14l3 8"/><circle cx="13" cy="26" r="3"/><circle cx="27" cy="26" r="3"/><path d="M34 22v4"/></svg> },
+  { key: "housekeeping", label: "Housekeeping", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 32V20l8-10 8 10v12"/><path d="M16 32v-8h8v8"/><path d="M8 20h24"/></svg> },
+  { key: "swimming-pool", label: "Swimming Pool", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 22c2 0 3-2 6-2s4 2 6 2 3-2 6-2 4 2 6 2"/><path d="M6 28c2 0 3-2 6-2s4 2 6 2 3-2 6-2 4 2 6 2"/><path d="M20 8v10M16 12l4-4 4 4"/></svg> },
+  { key: "television", label: "Television", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="10" width="28" height="18" rx="2"/><path d="M14 28v4M26 28v4M10 32h20"/><path d="M14 14h4M14 19h8"/></svg> },
+  { key: "gas", label: "Gas", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8h8v6a8 8 0 0 1-8 0V8z"/><path d="M12 32V22a8 8 0 0 1 16 0v10"/><path d="M10 32h20"/></svg> },
+  { key: "laundry", label: "Laundry", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="24" height="26" rx="2"/><circle cx="20" cy="24" r="6"/><path d="M12 14h4"/><circle cx="18" cy="14" r="1" fill="currentColor" stroke="none"/></svg> },
+  { key: "secure", label: "Secure", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6l12 5v10c0 7-5 12-12 14C13 33 8 28 8 21V11l12-5z"/><path d="M15 20l4 4 6-7"/></svg> },
+  { key: "personalised", label: "Personalised", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M28 12l-4 4-8-8-6 6 8 8-4 4 12 4-8-18z"/></svg> },
+  { key: "electricity", label: "Electricity", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 6l-8 16h8l-4 12 10-18h-8L22 6z"/></svg> },
+  { key: "ups", label: "UPS", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="14" width="24" height="16" rx="2"/><path d="M14 14v-4M26 14v-4M16 22h8M20 20v4"/></svg> },
+  { key: "events", label: "Events", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8 18c4-8 20-8 24 0M12 26c3-6 13-6 16 0M16 32c1-3 7-3 8 0"/></svg> },
+  { key: "furnished-office", label: "Furnished Office", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="10" width="28" height="18" rx="2"/><path d="M14 28v4M26 28v4M10 32h20M14 19h12M14 23h8"/></svg> },
+  { key: "cafeteria", label: "Cafeteria", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="14" width="24" height="16" rx="2"/><path d="M14 14v-4M26 14v-4M8 22h24M16 22v8M24 22v8"/></svg> },
+  { key: "high-speed-internet", label: "High Speed Internet", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="10" width="28" height="18" rx="2"/><path d="M10 18h4M10 22h6M26 18h4M6 28h28"/><circle cx="20" cy="19" r="3"/><path d="M14 13h12"/></svg> },
+  { key: "assistance", label: "Assistance", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="20" cy="12" r="5"/><path d="M10 32c0-5 4-9 10-9s10 4 10 9"/><path d="M16 26l4 2 4-2"/></svg> },
+];
+
+const InclusionsSection = ({
+  inclusions,
+  title = "INCLUSIONS",
+}: {
+  inclusions: Array<{ key: string; enabled: boolean }>;
+  title?: string;
+}) => {
+  if (!inclusions.length) return null;
+  const savedMap = new Map(inclusions.map((i) => [i.key, i.enabled]));
+  const effectiveInclusions = ALL_INCLUSIONS.map((i) => ({
+    key: i.key,
+    enabled: savedMap.has(i.key) ? (savedMap.get(i.key) as boolean) : false,
+  }));
+  const sorted = [...effectiveInclusions].sort((a, b) => {
+    if (a.enabled === b.enabled) return 0;
+    return a.enabled ? -1 : 1;
+  });
+  return (
+    <section className={SECTION_BLOCK}>
+      <div className={CONTENT_WRAP}>
+        <div className="mb-8"><LinedHeading title={title} /></div>
+        <div className="grid grid-cols-3 gap-6 sm:grid-cols-4 md:grid-cols-6">
+          {sorted.map(({ key, enabled }) => {
+            const item = ALL_INCLUSIONS.find((i) => i.key === key);
+            if (!item) return null;
+            return (
+              <div key={key} className={`flex flex-col items-center gap-2 text-center ${enabled ? "text-[#111827]" : "text-slate-400"}`}>
+                <div className="relative">
+                  {item.icon}
+                  {!enabled ? (
+                    <svg viewBox="0 0 40 40" className="absolute inset-0 h-10 w-10 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <line x1="8" y1="8" x2="32" y2="32" /><line x1="32" y1="8" x2="8" y2="32" />
+                    </svg>
+                  ) : null}
+                </div>
+                <span className={`text-[10px] font-semibold uppercase tracking-wider font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[11px] ${!enabled ? "line-through" : ""}`}>
+                  {item.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const LogoCarousel = ({ logos, title }: { logos: string[]; title?: string }) => {
+  const [offset, setOffset] = React.useState(0);
+  const visible = 4;
+  const total = logos.length;
+  React.useEffect(() => {
+    if (total <= visible) return;
+    const timer = window.setInterval(() => setOffset((prev) => (prev + 1) % total), 2500);
+    return () => window.clearInterval(timer);
+  }, [total]);
+  if (!total) return null;
+  const displayed = Array.from({ length: Math.min(visible, total) }, (_, i) => logos[(offset + i) % total]);
+  return (
+    <section className="bg-white px-4 py-10 md:px-6 md:py-12">
+      <div className={CONTENT_WRAP}>
+        {title ? <div className="mb-8"><LinedHeading title={title} /></div> : null}
+        <div className="overflow-hidden">
+          <div className="flex items-center justify-center gap-8 md:gap-16 transition-all duration-700">
+            {displayed.map((src, idx) => (
+              <div key={`logo-${offset}-${idx}`} className="flex h-[72px] w-[200px] shrink-0 items-center justify-center md:h-[80px] md:w-[220px]">
+                <img src={src} alt={`Partner logo ${idx + 1}`} className="max-h-full max-w-full object-contain transition duration-300" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const FaqAccordion = ({ faqs }: { faqs: Array<{ question: string; answer: string }> }) => {
+  const [openIndex, setOpenIndex] = React.useState<number | null>(null);
+  if (!faqs.length) return null;
+  return (
+    <section className="px-4 pb-10 pt-0 md:px-6 md:pb-14">
+      <div className="mx-auto w-full max-w-7xl">
+        <div className="mb-8"><LinedHeading title="Frequently Asked Questions" /></div>
+        <div className="divide-y divide-slate-200 border-t border-slate-200">
+          {faqs.map((faq, idx) => (
+            <div key={idx}>
+              <button type="button" onClick={() => setOpenIndex(openIndex === idx ? null : idx)}
+                className="flex w-full items-center justify-between py-5 text-left transition hover:opacity-80">
+                <span className="pr-6 text-[14px] font-normal text-[#1f1f1f] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[15px]">
+                  <span className="mr-2 font-medium text-[#1f1f1f]">{idx + 1}.</span>{faq.question}
+                </span>
+                <span className="shrink-0 text-[22px] font-light leading-none text-[#1f1f1f]">
+                  {openIndex === idx ? "\u2212" : "+"}
+                </span>
+              </button>
+              {openIndex === idx ? (
+                <div className="pb-5 pt-1">
+                  <p className="text-[13px] leading-relaxed text-[#374151] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[14px]">{faq.answer}</p>
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
 const getLeadFieldsForProduct = (slug: string) => {
   const normalized = normalizeSlug(slug);
   if (normalized.includes("meeting")) {
@@ -184,51 +343,24 @@ const getLeadMetaForProduct = (product: any) => {
   if (dynamicPrice || dynamicDescription) {
     return {
       priceLine: dynamicPrice || "Starting at 5,900 + GST",
-      description:
-        dynamicDescription ||
-        "",
+      description: dynamicDescription || "",
       label: "Enquire & Receive Quote",
     };
   }
 
   if (slug.includes("meeting")) {
-    return {
-      priceLine: "Starting at 2,499 + GST",
-      description:
-        "",
-      label: "Enquire & Receive Quote",
-    };
+    return { priceLine: "Starting at 2,499 + GST", description: "", label: "Enquire & Receive Quote" };
   }
   if (slug.includes("workation")) {
-    return {
-      priceLine: "Starting at 7,900 + GST",
-      description:
-        "",
-      label: "Plan Your Workation",
-    };
+    return { priceLine: "Starting at 7,900 + GST", description: "", label: "Plan Your Workation" };
   }
   if (slug.includes("co-living") || slug.includes("coliving")) {
-    return {
-      priceLine: "Starting at 14,900 + GST",
-      description:
-        "",
-      label: "Enquire About Stay",
-    };
+    return { priceLine: "Starting at 14,900 + GST", description: "", label: "Enquire About Stay" };
   }
   if (slug.includes("hostel")) {
-    return {
-      priceLine: "Starting at 799 + GST",
-      description:
-        "",
-      label: "Check Bed Availability",
-    };
+    return { priceLine: "Starting at 799 + GST", description: "", label: "Check Bed Availability" };
   }
-  return {
-    priceLine: "Starting at 5,900 + GST",
-    description:
-      "",
-    label: "Enquire & Receive Quote",
-  };
+  return { priceLine: "Starting at 5,900 + GST", description: "", label: "Enquire & Receive Quote" };
 };
 
 const getProductContentItems = (draft: any, slug: string) => {
@@ -265,6 +397,7 @@ const PageDemo = () => {
   const [mobileProductsMenuOpen, setMobileProductsMenuOpen] = useState(false);
   const headerRef = useRef<HTMLElement | null>(null);
   const productsDropdownRef = useRef<HTMLDivElement | null>(null);
+  const prevDetailItemSlugRef = useRef<string>("");
 
   const [selectedLeadProduct, setSelectedLeadProduct] = useState<any>(null);
   const [leadSubmitted, setLeadSubmitted] = useState(false);
@@ -296,10 +429,7 @@ const PageDemo = () => {
     const loadDraft = () => {
       try {
         const raw = localStorage.getItem(LIVE_PREVIEW_DRAFT_STORAGE_KEY);
-        if (!raw) {
-          setDraft(null);
-          return;
-        }
+        if (!raw) { setDraft(null); return; }
         setDraft(JSON.parse(raw));
       } catch (error) {
         console.error("Failed to parse preview draft", error);
@@ -329,15 +459,21 @@ const PageDemo = () => {
         setProductsMenuOpen(false);
       }
     };
-
     if (productsMenuOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [productsMenuOpen]);
 
-  // All visible page data comes from the saved draft shape.
-  // When this shape changes, hosted rendering should be updated here too.
+  // Scroll to top on navigation
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setMobileProductsMenuOpen(false);
+    const scrollableDiv = document.getElementById("scrollable-content");
+    if (scrollableDiv) scrollableDiv.scrollTo({ top: 0, behavior: "instant" });
+    else window.scrollTo({ top: 0, behavior: "instant" });
+  }, [location.pathname]);
+
   const navItems = useMemo(() => {
     const sourceNavItems = Array.isArray(draft?.pageNavItems)
       ? draft.pageNavItems
@@ -356,18 +492,13 @@ const PageDemo = () => {
   const productPages = useMemo(
     () => {
       const products = Array.isArray(draft?.products) ? draft.products : [];
-      // Build a slug -> first product image lookup so a product page can be matched
-      // to its product by name/type (not just array position, which can misalign).
       const productImageBySlug: Record<string, string> = {};
       products.forEach((p: any) => {
-        const url =
-          getMediaSrc(p?.images?.[0]) || getMediaSrc(p?.files?.[0]) || "";
+        const url = getMediaSrc(p?.images?.[0]) || getMediaSrc(p?.files?.[0]) || "";
         if (!url) return;
         [normalizeSlug(p?.type), normalizeSlug(p?.name)]
           .filter(Boolean)
-          .forEach((s) => {
-            if (!productImageBySlug[s]) productImageBySlug[s] = url;
-          });
+          .forEach((s) => { if (!productImageBySlug[s]) productImageBySlug[s] = url; });
       });
       const resolveCardImage = (item: any, index: number) =>
         getMediaSrc(item?.cardImage) ||
@@ -377,9 +508,7 @@ const PageDemo = () => {
         getMediaSrc(products?.[index]?.files?.[0]) ||
         "";
 
-      const dropdownPages = Array.isArray(draft?.productDropdownPages)
-        ? draft.productDropdownPages
-        : [];
+      const dropdownPages = Array.isArray(draft?.productDropdownPages) ? draft.productDropdownPages : [];
       if (dropdownPages.length > 0) {
         return dropdownPages.map((item: any, index: number) => ({
           ...item,
@@ -387,9 +516,7 @@ const PageDemo = () => {
         }));
       }
 
-      const serializedPages = Array.isArray(draft?.productPages)
-        ? draft.productPages
-        : [];
+      const serializedPages = Array.isArray(draft?.productPages) ? draft.productPages : [];
       if (serializedPages.length > 0) {
         return serializedPages.map((item: any, index: number) => ({
           ...item,
@@ -397,17 +524,11 @@ const PageDemo = () => {
         }));
       }
 
-      // No product pages configured (older websites): build cards directly from the
-      // products list so their images still show on the home "Our Products" section
-      // and each product opens as a product page.
       return products
         .map((product: any, index: number) => {
           const name = String(product?.name || product?.type || "").trim();
           if (!name) return null;
-          const image =
-            getMediaSrc(product?.images?.[0]) ||
-            getMediaSrc(product?.files?.[0]) ||
-            "";
+          const image = getMediaSrc(product?.images?.[0]) || getMediaSrc(product?.files?.[0]) || "";
           return {
             name,
             slug: normalizeSlug(product?.slug || name || `product-${index + 1}`),
@@ -422,13 +543,12 @@ const PageDemo = () => {
     },
     [draft?.productDropdownPages, draft?.productPages, draft?.products],
   );
+
   const menuItems = useMemo(
     () => (Array.isArray(draft?.menuItems) ? draft.menuItems : []),
     [draft?.menuItems],
   );
 
-  // Route-based section selection keeps the preview URL and the section
-  // currently shown on screen in sync with the hosted version.
   const { currentSection, currentProductSlug, currentItemSlug } = useMemo(() => {
     const relative = String(location.pathname || "").replace(/^\/website-preview\/?/, "");
     const rawParts = relative.split("/").filter(Boolean);
@@ -453,12 +573,10 @@ const PageDemo = () => {
     const pool = contentItems.length ? contentItems : [selectedProductPage];
     return pool.find((item: any) => normalizeSlug(item?.title || item?.name || item?.heading || "") === currentItemSlug) || null;
   }, [currentItemSlug, selectedProductPage, draft]);
+
   const breadcrumbItems = useMemo(() => {
     const items: Array<{ label: string; onClick?: () => void }> = [
-      {
-        label: "Home",
-        onClick: () => navigate("/website-preview/page/home"),
-      },
+      { label: "Home", onClick: () => navigate("/website-preview/page/home") },
     ];
 
     if (currentSection !== "home") {
@@ -485,9 +603,8 @@ const PageDemo = () => {
     }
 
     return items;
-  }, [currentSection, navigate, selectedProductPage]);
+  }, [currentSection, navigate, selectedProductPage, selectedDetailItem]);
 
-  // Home-page images are reused as the top-level hero background.
   const heroImages = Array.isArray(draft?.heroImages) ? draft.heroImages : [];
 
   useEffect(() => {
@@ -524,11 +641,6 @@ const PageDemo = () => {
   }, [selectedDetailItem, selectedProductPage]);
 
   useEffect(() => {
-    setMobileMenuOpen(false);
-    setMobileProductsMenuOpen(false);
-  }, [location.pathname]);
-
-  useEffect(() => {
     if (!mobileMenuOpen) {
       setMobileProductsMenuOpen(false);
     }
@@ -542,11 +654,9 @@ const PageDemo = () => {
         setMobileProductsMenuOpen(false);
       }
     };
-
     if (mobileMenuOpen) {
       document.addEventListener("mousedown", handleClickOutsideHeader);
     }
-
     return () => document.removeEventListener("mousedown", handleClickOutsideHeader);
   }, [mobileMenuOpen]);
 
@@ -572,15 +682,9 @@ const PageDemo = () => {
 
       try {
         const response = await api.get("/api/review/public", {
-          params: {
-            searchKey,
-            companyId,
-            workspaceId,
-          },
+          params: { searchKey, companyId, workspaceId },
         });
-        const reviews = Array.isArray(response?.data?.reviews)
-          ? response.data.reviews
-          : [];
+        const reviews = Array.isArray(response?.data?.reviews) ? response.data.reviews : [];
         setApprovedReviews(reviews);
       } catch (error) {
         console.error("Failed to load approved website reviews", error);
@@ -607,9 +711,7 @@ const PageDemo = () => {
       rating: Number(item?.rating ?? 0) || 0,
     }))
     .filter((item: any) => item.text);
-  const approvedTestimonials = approvedReviews
-    .map(mapReviewToTestimonial)
-    .filter((item) => item.text);
+  const approvedTestimonials = approvedReviews.map(mapReviewToTestimonial).filter((item) => item.text);
   const testimonials = [...draftTestimonials, ...approvedTestimonials].filter(
     (item, index, array) =>
       index ===
@@ -650,46 +752,27 @@ const PageDemo = () => {
   const renderContactCard = () => (
     <div className="flex h-full min-h-[320px] flex-col bg-white px-6 py-7 shadow-sm md:min-h-[430px] md:px-10 md:py-10">
       {draft?.companyLogo ? (
-        <img
-          src={draft.companyLogo}
-          alt={draft.companyName || "Company"}
-          className="mx-auto h-14 w-auto object-contain md:h-16"
-        />
+        <img src={draft.companyLogo} alt={draft.companyName || "Company"} className="mx-auto h-14 w-auto object-contain md:h-16" />
       ) : (
         <div className="mx-auto h-14 w-full max-w-[220px]" />
       )}
-
       <div className="mt-10 space-y-7 text-[15px] leading-7 text-[#111827] md:mt-14 md:text-[16px]">
         {contactEmail ? (
-          <a
-            href={`mailto:${contactEmail}`}
-            className="grid min-w-0 grid-cols-[48px_1fr] items-center gap-5 transition hover:opacity-80"
-          >
-            <IconCircle>
-              <MailIcon />
-            </IconCircle>
+          <a href={`mailto:${contactEmail}`} className="grid min-w-0 grid-cols-[48px_1fr] items-center gap-5 transition hover:opacity-80">
+            <IconCircle><MailIcon /></IconCircle>
             <span className="min-w-0 break-words leading-7">{contactEmail}</span>
           </a>
         ) : null}
-
         {contactPhone ? (
-          <a
-            href={`tel:${contactPhone.replace(/[^\d+]/g, "")}`}
-            className="grid min-w-0 grid-cols-[48px_1fr] items-center gap-5 transition hover:opacity-80"
-          >
-            <IconCircle>
-              <PhoneIcon />
-            </IconCircle>
+          <a href={`tel:${contactPhone.replace(/[^\d+]/g, "")}`} className="grid min-w-0 grid-cols-[48px_1fr] items-center gap-5 transition hover:opacity-80">
+            <IconCircle><PhoneIcon /></IconCircle>
             <span className="min-w-0 break-words leading-7">{contactPhone}</span>
           </a>
         ) : null}
-
         {contactAddress ? (
           <div className="grid min-w-0 grid-cols-[48px_1fr] items-start gap-5">
             <div className="flex items-start justify-center pt-0.5">
-              <IconCircle>
-                <MapIcon />
-              </IconCircle>
+              <IconCircle><MapIcon /></IconCircle>
             </div>
             <span className="min-w-0 break-words pt-0.5 leading-7">{contactAddress}</span>
           </div>
@@ -770,18 +853,12 @@ const PageDemo = () => {
     setHeroIndex((prev) => (prev - 1 + heroImages.length) % heroImages.length);
   };
 
+  // Lead modal is replaced by inline form on detail page
   const openLeadModal = (product: any) => {
     setSelectedLeadProduct(product);
     setLeadSubmitted(false);
     setLeadSubmitError("");
-    setLeadForm({
-      fullName: "",
-      people: "",
-      mobile: "",
-      email: "",
-      startDate: "",
-      endDate: "",
-    });
+    setLeadForm({ fullName: "", people: "", mobile: "", email: "", startDate: "", endDate: "" });
   };
 
   const closeLeadModal = () => setSelectedLeadProduct(null);
@@ -789,11 +866,7 @@ const PageDemo = () => {
   const openReviewModal = () => {
     setReviewSubmitted(false);
     setReviewSubmitError("");
-    setReviewForm({
-      reviewerName: "",
-      rating: "5",
-      review: "",
-    });
+    setReviewForm({ reviewerName: "", rating: "5", review: "" });
     setReviewModalOpen(true);
   };
 
@@ -831,9 +904,7 @@ const PageDemo = () => {
         dormType: selectedLeadProduct?.name || selectedLeadProduct?.heading || "",
         noOfPeople: leadForm.people,
         attendees: leadForm.people,
-        stayDuration: leadForm.endDate
-          ? `${leadForm.startDate || ""} to ${leadForm.endDate}`
-          : "",
+        stayDuration: leadForm.endDate ? `${leadForm.startDate || ""} to ${leadForm.endDate}` : "",
         startDate: leadForm.startDate,
         endDate: leadForm.endDate,
         timeSlot: "",
@@ -882,14 +953,11 @@ const PageDemo = () => {
       ]);
       setReviewSubmitted(true);
       setReviewModalOpen(false);
-      showSuccessPopup(
-        draft?.testimonialsSuccessMessage || "Review submitted successfully.",
-      );
+      showSuccessPopup(draft?.testimonialsSuccessMessage || "Review submitted successfully.");
     } catch (error: any) {
       console.error("Failed to submit website review", error);
       setReviewSubmitError(
-        error?.response?.data?.message ||
-          "Failed to submit review. Please try again.",
+        error?.response?.data?.message || "Failed to submit review. Please try again.",
       );
     } finally {
       setReviewSubmitPending(false);
@@ -908,8 +976,6 @@ const PageDemo = () => {
     getMediaSrc(selectedProductHeroImages[productHeroIndex]) ||
     getMediaSrc(selectedProductHeroImages[0]) ||
     getMediaSrc(selectedProductPage?.heroImage) ||
-    // Fall back to the product's own image (the same one used for the home card)
-    // so the product page always shows the product photo even without a dedicated hero.
     getMediaSrc(selectedProductPage?.cardImage) ||
     "";
   const selectedProductContentItems = selectedProductPage
@@ -929,11 +995,7 @@ const PageDemo = () => {
             aria-label="Go to home"
           >
             {draft?.companyLogo ? (
-              <img
-                src={draft.companyLogo}
-                alt={draft.companyName || "Company Logo"}
-                className="sw-full h-full object-contain"
-              />
+              <img src={draft.companyLogo} alt={draft.companyName || "Company Logo"} className="sw-full h-full object-contain" />
             ) : null}
             {!draft?.companyLogo && draft?.companyName ? (
               <p className="text-sm font-semibold">{draft.companyName}</p>
@@ -942,10 +1004,7 @@ const PageDemo = () => {
 
           <button
             type="button"
-            onClick={() => {
-              setMobileMenuOpen((prev) => !prev);
-              setProductsMenuOpen(false);
-            }}
+            onClick={() => { setMobileMenuOpen((prev) => !prev); setProductsMenuOpen(false); }}
             className="inline-flex h-9 w-9 items-center justify-end rounded-md border border-slate-300 text-slate-700 md:hidden"
             aria-label="Toggle navigation"
             aria-expanded={mobileMenuOpen}
@@ -980,32 +1039,13 @@ const PageDemo = () => {
 
               return (
                 <div key={item.slug} className="relative" ref={productsDropdownRef}>
-                  <div
-                    className={`inline-flex items-center gap-1 whitespace-nowrap border-b-2 px-2 pb-1 text-[13px] font-medium transition hover:font-semibold md:text-[14px] ${
-                      isActive || productsMenuOpen
-                        ? "border-[#3b82f6] font-semibold text-[#111]"
-                        : "border-transparent text-[#222] hover:border-[#3b82f6] hover:text-[#000]"
-                    }`}
-                  >
-                    <button type="button" onClick={() => goToSection(item.slug)}>
-                      {item.name}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setProductsMenuOpen((prev) => !prev)}
-                      aria-label="Toggle products menu"
-                    >
+                  <div className={`inline-flex items-center gap-1 whitespace-nowrap border-b-2 px-2 pb-1 text-[13px] font-medium transition hover:font-semibold md:text-[14px] ${
+                    isActive || productsMenuOpen ? "border-[#3b82f6] font-semibold text-[#111]" : "border-transparent text-[#222] hover:border-[#3b82f6] hover:text-[#000]"
+                  }`}>
+                    <button type="button" onClick={() => goToSection(item.slug)}>{item.name}</button>
+                    <button type="button" onClick={() => setProductsMenuOpen((prev) => !prev)} aria-label="Toggle products menu">
                       <span className={`inline-flex transition-transform ${productsMenuOpen ? "rotate-180" : ""}`}>
-                        <svg
-                          viewBox="0 0 20 20"
-                          aria-hidden="true"
-                          className="h-3 w-3 text-slate-600"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
+                        <svg viewBox="0 0 20 20" aria-hidden="true" className="h-3 w-3 text-slate-600" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M5 7.5l5 5 5-5" />
                         </svg>
                       </span>
@@ -1013,28 +1053,18 @@ const PageDemo = () => {
                   </div>
                   {productsMenuOpen && productPages.length > 0 ? (
                     <div className="absolute left-1/2 top-full z-40 mt-2 w-56 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
-                      <button
-                        type="button"
-                        onClick={() => goToSection(item.slug)}
-                        className="block w-full rounded px-3 py-2 text-left text-sm font-semibold text-slate-800 hover:bg-slate-100"
-                      >
+                      <button type="button" onClick={() => goToSection(item.slug)} className="block w-full rounded px-3 py-2 text-left text-sm font-semibold text-slate-800 hover:bg-slate-100">
                         All Products
                       </button>
-                     {productPages.map((product: any, idx: number) => {
+                      {productPages.map((product: any, idx: number) => {
                         const productSlug = normalizeSlug(product?.slug || product?.name || "product");
-                        const isCurrentProduct =
-                          currentSection === "products" && currentProductSlug === productSlug;
-
+                        const isCurrentProduct = currentSection === "products" && currentProductSlug === productSlug;
                         return (
                           <button
                             key={`product-nav-${idx}`}
                             type="button"
                             onClick={() => goToProductPage(product?.slug || product?.name || "product")}
-                            className={`block w-full rounded px-3 py-2 text-left text-sm hover:bg-slate-100 ${
-                              isCurrentProduct
-                                ? "font-semibold text-slate-900"
-                                : "font-normal text-slate-700"
-                            }`}
+                            className={`block w-full rounded px-3 py-2 text-left text-sm hover:bg-slate-100 ${isCurrentProduct ? "font-semibold text-slate-900" : "font-normal text-slate-700"}`}
                           >
                             {product?.name || "Product"}
                           </button>
@@ -1053,8 +1083,6 @@ const PageDemo = () => {
               Login
             </button>
           </nav>
-
-          
         </div>
 
         {mobileMenuOpen ? (
@@ -1069,29 +1097,16 @@ const PageDemo = () => {
                       key={`mobile-${item.slug}`}
                       type="button"
                       onClick={() => goToSection(item.slug)}
-                      className={`flex items-center justify-between border-b px-1 py-3 text-left text-[15px] ${
-                        isActive
-                          ? "border-[#3b82f6] font-semibold text-[#111]"
-                          : "border-slate-200 text-[#222]"
-                      }`}
+                      className={`flex items-center justify-between border-b px-1 py-3 text-left text-[15px] ${isActive ? "border-[#3b82f6] font-semibold text-[#111]" : "border-slate-200 text-[#222]"}`}
                     >
                       <span>{item.name}</span>
                     </button>
                   );
                 }
-
                 return (
                   <div key={`mobile-${item.slug}`} className="border-b border-slate-200 pb-2">
-                    <div
-                      className={`flex items-center gap-2 px-1 py-3 text-[15px] ${
-                        isActive || mobileProductsMenuOpen ? "font-semibold text-[#111]" : "text-[#222]"
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => goToSection(item.slug)}
-                        className="flex-1 text-left"
-                      >
+                    <div className={`flex items-center gap-2 px-1 py-3 text-[15px] ${isActive || mobileProductsMenuOpen ? "font-semibold text-[#111]" : "text-[#222]"}`}>
+                      <button type="button" onClick={() => goToSection(item.slug)} className="flex-1 text-left">
                         <span>{item.name}</span>
                       </button>
                       <button
@@ -1100,27 +1115,14 @@ const PageDemo = () => {
                         className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white"
                         aria-label="Toggle product pages"
                       >
-                        <svg
-                          viewBox="0 0 20 20"
-                          aria-hidden="true"
-                          className={`h-4 w-4 text-slate-600 transition-transform ${mobileProductsMenuOpen ? "rotate-180" : ""}`}
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
+                        <svg viewBox="0 0 20 20" aria-hidden="true" className={`h-4 w-4 text-slate-600 transition-transform ${mobileProductsMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M5 7.5l5 5 5-5" />
                         </svg>
                       </button>
                     </div>
                     {mobileProductsMenuOpen && productPages.length > 0 ? (
                       <div className="flex flex-col gap-1 rounded-lg bg-white p-2 shadow-sm">
-                        <button
-                          type="button"
-                          onClick={() => goToSection(item.slug)}
-                          className="rounded px-3 py-2 text-left text-sm font-semibold text-slate-800 hover:bg-slate-100"
-                        >
+                        <button type="button" onClick={() => goToSection(item.slug)} className="rounded px-3 py-2 text-left text-sm font-semibold text-slate-800 hover:bg-slate-100">
                           All Products
                         </button>
                         {productPages.map((product: any, idx: number) => (
@@ -1153,51 +1155,21 @@ const PageDemo = () => {
       {breadcrumbItems.length > 1 ? (
         <div className="border-b border-slate-200 bg-[#e9e9e9] px-4 py-2 text-[12px] text-slate-600 md:px-6">
           <div className="mx-auto flex w-full max-w-7xl py-1 items-center gap-3 overflow-x-auto whitespace-nowrap">
-
-            {/* breadcrumbs with back button and current page highlight */}
-            {/* <button
-              type="button"
-              onClick={() => navigate(-1)}
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-black shadow-sm transition hover:border-slate-300"
-              aria-label="Go back"
-            >
-              <svg
-                viewBox="0 0 20 20"
-                aria-hidden="true"
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 15l-5-5 5-5" />
-              </svg>
-            </button> */}
             <div className="flex items-center gap-2">
               {breadcrumbItems.map((item, index) => (
                 <div key={`${item.label}-${index}`} className="flex items-center gap-2">
-                  {index > 0 ? <span className="text-slate-400">›</span> : null}
+                  {index > 0 ? <span className="text-slate-400">/</span> : null}
                   {item.onClick ? (
                     <button
                       type="button"
                       onClick={item.onClick}
                       aria-current={index === breadcrumbItems.length - 1 ? "page" : undefined}
-                      className={`transition hover:text-black ${
-                        index === breadcrumbItems.length - 1
-                          ? "font-semibold text-black"
-                          : "font-medium text-[#222]"
-                      }`}
+                      className={`transition hover:text-black ${index === breadcrumbItems.length - 1 ? "font-semibold text-black" : "font-medium text-[#222]"}`}
                     >
                       {item.label}
                     </button>
                   ) : (
-                    <span
-                      aria-current="page"
-                      className="font-semibold text-black"
-                    >
-                      {item.label}
-                    </span>
+                    <span aria-current="page" className="font-semibold text-black">{item.label}</span>
                   )}
                 </div>
               ))}
@@ -1206,17 +1178,14 @@ const PageDemo = () => {
         </div>
       ) : null}
 
-      {/* Home page: hero, about summary, product cards, gallery preview, testimonials, and contact summary. */}
+      {/* Home page */}
       {currentSection === "home" ? (
         <>
-          {/* Hero section: uses draft.title, draft.subTitle, and heroImages from the saved template. */}
+          {/* Hero */}
           <section id="home" className="relative h-[62svh] min-h-[420px] md:h-[84vh] md:min-h-[640px]">
             <div className="absolute inset-0 overflow-hidden bg-[#242424]">
               {showHeroCarousel ? (
-                <div
-                  className="flex h-full w-full transition-transform duration-700 ease-in-out"
-                  style={{ transform: `translateX(-${heroIndex * 100}%)` }}
-                >
+                <div className="flex h-full w-full transition-transform duration-700 ease-in-out" style={{ transform: `translateX(-${heroIndex * 100}%)` }}>
                   {heroImages.map((src: string, idx: number) => (
                     <div key={`hero-slide-${idx}`} className="h-full min-w-full">
                       <img src={src} alt={`Hero ${idx + 1}`} className="h-full w-full object-cover opacity-65" />
@@ -1237,10 +1206,7 @@ const PageDemo = () => {
                   {draft?.subTitle || ""}
                 </p>
                 <div>
-                  <button
-                    type="button"
-                    className={`${IMAGE_ACTION_BUTTON} pointer-events-auto px-5 text-[10px] tracking-[0.18em] md:px-8 md:text-sm`}
-                  >
+                  <button type="button" className={`${IMAGE_ACTION_BUTTON} pointer-events-auto px-5 text-[10px] tracking-[0.18em] md:px-8 md:text-sm`}>
                     {String(draft?.ctaText || "CLICK HERE").toUpperCase()}
                   </button>
                 </div>
@@ -1248,25 +1214,13 @@ const PageDemo = () => {
             </div>
             {showHeroCarousel ? (
               <>
-                <button
-                  type="button"
-                  onClick={handleHeroPrev}
-                  className="absolute left-5 top-1/2 hidden -translate-y-1/2 rounded-full bg-black/45 px-4 py-2 text-2xl text-white md:block"
-                >
-                  {"<"}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleHeroNext}
-                  className="absolute right-5 top-1/2 hidden -translate-y-1/2 rounded-full bg-black/45 px-4 py-2 text-2xl text-white md:block"
-                >
-                  {">"}
-                </button>
+                <button type="button" onClick={handleHeroPrev} className="absolute left-5 top-1/2 hidden -translate-y-1/2 rounded-full bg-black/45 px-4 py-2 text-2xl text-white md:block">{"<"}</button>
+                <button type="button" onClick={handleHeroNext} className="absolute right-5 top-1/2 hidden -translate-y-1/2 rounded-full bg-black/45 px-4 py-2 text-2xl text-white md:block">{">"}</button>
               </>
             ) : null}
           </section>
 
-          {/* About summary section: compact intro pulled from about text fields. */}
+          {/* About summary */}
           <section id="about" className="bg-black px-4 py-12 text-white md:px-6 md:py-20">
             <div className={`${CONTENT_WRAP} text-center`}>
               <h2 className="text-[24px] font-semibold text-[#f7e53f] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[32px]">
@@ -1275,45 +1229,43 @@ const PageDemo = () => {
               <div className="mt-6 space-y-3 text-white md:mt-7 md:space-y-4">
                 {aboutIntroBlocks.length ? (
                   aboutIntroBlocks.map((item: string, idx: number) => (
-                    <p
-                      key={`about-${idx}`}
-                      className="font-['Poppins',ui-sans-serif,system-ui,sans-serif] text-[14px] leading-[1.7] md:text-[20px] md:leading-[1.4]"
-                    >
+                    <p key={`about-${idx}`} className="font-['Poppins',ui-sans-serif,system-ui,sans-serif] text-[14px] leading-[1.7] md:text-[20px] md:leading-[1.4]">
                       {item}
                     </p>
                   ))
-                ) : (
-                  <p></p>
-                )}
+                ) : <p></p>}
               </div>
             </div>
           </section>
 
-          {/* Products section: home-page product cards that link into product detail routes. */}
+          {/* Products section — dark card style */}
           <section id="products" className={SECTION_BLOCK}>
             <div className={CONTENT_WRAP}>
-              <h2 className={MOBILE_SECTION_HEADING}>Our Products</h2>
+              <LinedHeading title="Our Products" />
               <div className="mt-6 grid grid-cols-1 gap-4 md:mt-10 md:grid-cols-3 md:gap-7">
                 {productPages.map((item: any, idx: number) => (
-                  <article key={`product-${idx}`} className="flex flex-col items-center">
-                    <h3 className="mb-3 text-base font-medium md:text-xl">{item?.heading || item?.name || "Product"}</h3>
-                    <div className="relative w-full overflow-hidden rounded-2xl bg-slate-200">
+                  <article key={`product-${idx}`} className="flex flex-col overflow-hidden rounded-2xl bg-[#1a1a1a] shadow-md">
+                    <div className="w-full overflow-hidden">
                       {item?.cardImage ? (
-                        <img
-                          src={item.cardImage}
-                          alt={item?.heading || item?.name}
-                          className="h-[190px] w-full object-cover md:h-[220px]"
-                        />
+                        <img src={item.cardImage} alt={item?.heading || item?.name} className="h-[190px] w-full object-cover md:h-[220px]" />
                       ) : (
-                        <div className="h-[190px] w-full md:h-[220px]" />
+                        <div className="h-[190px] w-full bg-slate-700 md:h-[220px]" />
                       )}
-                      <div className="absolute inset-x-0 bottom-4 flex justify-center md:bottom-6">
+                    </div>
+                    <div className="flex flex-1 flex-col gap-2 p-4 text-white">
+                      <h3 className="text-base font-semibold md:text-xl">{item?.heading || item?.name || "Product"}</h3>
+                      {item?.subText ? (
+                        <p className="text-[12px] leading-relaxed text-white/75 md:text-[13px]">{String(item?.homeCardSubText || item?.subText || "")}</p>
+                      ) : item?.homeCardSubText ? (
+                        <p className="text-[12px] leading-relaxed text-white/75 md:text-[13px]">{item.homeCardSubText}</p>
+                      ) : null}
+                      <div className="mt-auto pt-3">
                         <button
                           type="button"
                           onClick={() => handleProductCardAction(item)}
-                          className={IMAGE_ACTION_BUTTON}
+                          className="rounded-full border border-white/60 bg-transparent px-6 py-2 text-[11px] font-semibold uppercase tracking-widest text-white transition hover:bg-white/10"
                         >
-                          EXPLORE
+                          Explore
                         </button>
                       </div>
                     </div>
@@ -1323,42 +1275,36 @@ const PageDemo = () => {
             </div>
           </section>
 
-          {/* Gallery preview section: first six images on home, full gallery on the gallery page. */}
+          {/* Logo Carousel — after Contact section */}
+
+          {/* Inclusions */}
+          {Array.isArray(draft?.inclusions) && draft.inclusions.length > 0 ? (
+            <InclusionsSection inclusions={draft.inclusions} />
+          ) : null}
+
+          {/* Gallery preview */}
           <section id="gallery" className={SECTION_BLOCK}>
             <div className={CONTENT_WRAP}>
-              <h2 className={MOBILE_SECTION_HEADING}>{draft?.galleryTitle || "Gallery"}</h2>
+              <LinedHeading title={draft?.galleryTitle || "Gallery"} />
               <div className="mt-6 grid grid-cols-1 gap-[8px] sm:grid-cols-2 md:mt-10 md:grid-cols-3">
                 {homeGalleryItems.map((item: string, idx: number) => (
-                  <button
-                    key={`gallery-${idx}`}
-                    type="button"
-                    onClick={() => openGalleryViewer(idx)}
-                    className="overflow-hidden rounded-lg bg-slate-100 text-left"
-                  >
-                    <img
-                      src={item}
-                      alt={`Gallery ${idx + 1}`}
-                      className="h-[190px] w-full object-cover transition duration-300 hover:scale-[1.02] md:h-[256px]"
-                    />
+                  <button key={`gallery-${idx}`} type="button" onClick={() => openGalleryViewer(idx)} className="overflow-hidden rounded-lg bg-slate-100 text-left">
+                    <img src={item} alt={`Gallery ${idx + 1}`} className="h-[190px] w-full object-cover transition duration-300 hover:scale-[1.02] md:h-[256px]" />
                   </button>
                 ))}
               </div>
               <div className="mt-6 flex justify-center md:mt-8">
-                <button
-                  type="button"
-                  onClick={() => navigate("/website-preview/page/gallery")}
-                  className="rounded-full bg-[#6f6f6f] px-8 py-2 text-xs font-semibold text-white md:px-10 md:text-sm"
-                >
+                <button type="button" onClick={() => navigate("/website-preview/page/gallery")} className="rounded-full bg-[#6f6f6f] px-8 py-2 text-xs font-semibold text-white md:px-10 md:text-sm">
                   SHOW MORE
                 </button>
               </div>
             </div>
           </section>
 
-          {/* Testimonials preview section: merged draft testimonials and approved public reviews. */}
+          {/* Testimonials preview */}
           <section id="testimonials" className={SECTION_BLOCK}>
             <div className={CONTENT_WRAP}>
-              <h2 className={MOBILE_SECTION_HEADING}>{draft?.testimonialTitle || "Testimonials"}</h2>
+              <LinedHeading title={draft?.testimonialTitle || "Testimonials"} />
               <div className="mt-6 grid grid-cols-1 gap-5 md:mt-8 md:grid-cols-3">
                 {visibleTestimonials.map((item: any, index: number) => {
                   const testimonialKey = String(item?.key || `home-testimonial-${testimonialIndex}-${index}`);
@@ -1366,47 +1312,30 @@ const PageDemo = () => {
                   const resolvedText = isExpanded
                     ? { text: String(item?.text || "").trim(), truncated: false }
                     : getTrimmedText(item?.text || "");
-
                   return (
-                    <article
-                      key={testimonialKey}
-                      className="rounded-[24px] px-6 py-7 text-left shadow-[0_14px_40px_rgba(15,23,42,0.08)]"
-                    >
+                    <article key={testimonialKey} className="rounded-[24px] px-6 py-7 text-left shadow-[0_14px_40px_rgba(15,23,42,0.08)]">
                       <div className="flex items-center gap-4">
                         {item?.image ? (
-                          <img
-                            src={item.image}
-                            alt={item?.name || "Reviewer"}
-                            className="h-11 w-11 rounded-full object-cover"
-                          />
+                          <img src={item.image} alt={item?.name || "Reviewer"} className="h-11 w-11 rounded-full object-cover" />
                         ) : (
                           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#000000] text-sm font-semibold text-white">
                             {getAvatarInitials(item?.name || "Reviewer")}
                           </div>
                         )}
-                        <h3 className="text-[18px] font-semibold text-[#111827]">
-                          {item?.name || "Reviewer"}
-                        </h3>
+                        <h3 className="text-[18px] font-semibold text-[#111827]">{item?.name || "Reviewer"}</h3>
                       </div>
                       <div className="mt-4 flex items-center gap-1 text-[18px] text-black">
                         {Array.from({ length: Math.max(1, Math.min(5, Number(item?.rating || 5) || 5)) }).map(
                           (_, starIndex) => (
-                            <span key={`${testimonialKey}-home-star-${starIndex}`}>★</span>
+                            <span key={`${testimonialKey}-home-star-${starIndex}`}>&#9733;</span>
                           ),
                         )}
                       </div>
-                      <p className="mt-4 text-[15px] leading-8 text-[#374151]">
-                        {resolvedText.text || "Great experience."}
-                      </p>
+                      <p className="mt-4 text-[15px] leading-8 text-[#374151]">{resolvedText.text || "Great experience."}</p>
                       {resolvedText.truncated || isExpanded ? (
                         <button
                           type="button"
-                          onClick={() =>
-                            setExpandedTestimonials((prev) => ({
-                              ...prev,
-                              [testimonialKey]: !isExpanded,
-                            }))
-                          }
+                          onClick={() => setExpandedTestimonials((prev) => ({ ...prev, [testimonialKey]: !isExpanded }))}
                           className="mt-4 text-[15px] font-medium text-black underline underline-offset-2"
                         >
                           {isExpanded ? "Show less" : "Show more"}
@@ -1424,83 +1353,64 @@ const PageDemo = () => {
                       type="button"
                       onClick={() => setTestimonialIndex(pageIndex)}
                       aria-label={`Go to testimonial page ${pageIndex + 1}`}
-                      className={`h-2.5 rounded-full transition-all ${
-                        testimonialIndex === pageIndex ? "w-8 bg-[#111827]" : "w-2.5 bg-slate-300"
-                      }`}
+                      className={`h-2.5 rounded-full transition-all ${testimonialIndex === pageIndex ? "w-8 bg-[#111827]" : "w-2.5 bg-slate-300"}`}
                     />
                   ))}
                 </div>
               ) : null}
-              {showWriteReview ? (
-                <div className="mt-6 text-center">
-                  <button
-                    type="button"
-                    onClick={openReviewModal}
-                    className="rounded-full border border-slate-500 px-6 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 md:text-sm"
-                  >
-                    Write a Review
-                  </button>
-                </div>
-              ) : null}
             </div>
           </section>
 
-          {/* Contact summary section: map iframe and shared contact card. */}
+          {/* Contact summary */}
           <section id="contact" className={SECTION_BLOCK}>
             <div className={CONTENT_WRAP}>
-              <h2 className={MOBILE_SECTION_HEADING}>{draft?.contactTitle || "Contact"}</h2>
-            <div className="mt-6 grid grid-cols-1 gap-4 md:mt-8 md:grid-cols-12">
+              <LinedHeading title={draft?.contactTitle || "Contact"} />
+              <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-12">
                 <div className="md:col-span-7">
                   {draft?.mapUrl ? (
-                    <iframe
-                      title="map"
-                      src={draft.mapUrl}
-                      className="h-[220px] w-full border-0 md:h-[420px]"
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                    />
+                    <iframe title="map" src={draft.mapUrl} className="h-[260px] w-full border-0 md:h-[420px]" loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
                   ) : (
-                    <div className="h-[220px] w-full bg-slate-300 md:h-[420px]" />
+                    <div className="h-[260px] w-full bg-slate-300 md:h-[420px]" />
                   )}
                 </div>
-                <div className="md:col-span-5">
-                  {renderContactCard()}
-                </div>
+                <div className="md:col-span-5">{renderContactCard()}</div>
               </div>
             </div>
           </section>
+
+          {/* Logo Carousel — after Contact section */}
+          {Array.isArray(draft?.logoCarousel?.logos) && draft.logoCarousel.logos.length > 0 ? (
+            <LogoCarousel
+              logos={draft.logoCarousel.logos.map((item: any) => {
+                if (typeof item === "string") return item;
+                return item?.url || item?.preview || "";
+              }).filter(Boolean)}
+              title={draft?.logoCarousel?.title || undefined}
+            />
+          ) : null}
         </>
       ) : null}
 
-      {/* About page: full narrative blocks and image cards. */}
+      {/* About page */}
       {currentSection === "about" ? (
-        <section className="bg-black px-4 py-12 text-white md:px-6 md:py-24">
-          <div className={`${CONTENT_WRAP} text-center`}>
-            <h2 className="text-[24px] font-semibold text-[#f7e53f] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[32px]">
-              About Our Vision
+        <section className="bg-black px-4 py-12 text-white md:px-6 md:py-20">
+          <div className={CONTENT_WRAP}>
+            <h2 className="text-center text-[22px] font-semibold text-[#f7e53f] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[32px]">
+              {draft?.aboutPageTitle || "About Us"}
             </h2>
-            <div className="mx-auto mt-8 max-w-5xl space-y-4 text-center text-white">
+            <div className="mt-6 space-y-3 md:mt-7 md:space-y-4">
               {aboutIntroBlocks.length ? (
                 aboutIntroBlocks.map((item: string, idx: number) => (
-                  <p
-                    key={`about-page-${idx}`}
-                    className="font-['Poppins',ui-sans-serif,system-ui,sans-serif] text-[15px] leading-[1.55] md:text-[20px] md:leading-[1.4]"
-                  >
-                    {item}
-                  </p>
+                  <p key={`about-page-${idx}`} className={ABOUT_PARAGRAPH}>{item}</p>
                 ))
-              ) : (
-                <p></p>
-              )}
+              ) : <p></p>}
             </div>
             {aboutNarrativeBlocks.length ? (
               <div className="mt-10 grid grid-cols-1 gap-5 md:mt-14 md:grid-cols-2">
                 {aboutNarrativeBlocks.map((item) => (
                   <article key={item.title} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left md:p-6">
                     <h3 className="text-[20px] font-semibold text-[#f7e53f] md:text-[24px]">{item.title}</h3>
-                    <p className="mt-3 font-['Poppins',ui-sans-serif,system-ui,sans-serif] text-[14px] leading-[1.6] text-white/90 md:text-[17px]">
-                      {item.body}
-                    </p>
+                    <p className="mt-3 font-['Poppins',ui-sans-serif,system-ui,sans-serif] text-[14px] leading-[1.6] text-white/90 md:text-[17px]">{item.body}</p>
                   </article>
                 ))}
               </div>
@@ -1508,9 +1418,7 @@ const PageDemo = () => {
             {aboutPageImageCards.length ? (
               <div className="mt-10 md:mt-14">
                 {draft?.aboutPageTeamHeading ? (
-                  <h3 className="mb-6 text-center text-[22px] font-semibold text-[#f7e53f] md:text-[28px]">
-                    {draft.aboutPageTeamHeading}
-                  </h3>
+                  <h3 className="mb-6 text-center text-[22px] font-semibold text-[#f7e53f] md:text-[28px]">{draft.aboutPageTeamHeading}</h3>
                 ) : null}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
                   {aboutPageImageCards.map((card: any, idx: number) => (
@@ -1533,10 +1441,10 @@ const PageDemo = () => {
         </section>
       ) : null}
 
-      {/* Products page: category detail view or menu-style rendering based on the selected product slug. */}
+      {/* Products page */}
       {currentSection === "products" ? (
         <>
-          {/* ── Product Item Detail Page ── */}
+          {/* Product Item Detail Page */}
           {selectedDetailItem && selectedProductPage ? (() => {
             const detailTitle = String(selectedDetailItem?.title || selectedDetailItem?.name || selectedDetailItem?.heading || "Product").trim();
             const detailDescription = String(selectedDetailItem?.description || selectedDetailItem?.subText || selectedProductPage?.subText || "").trim();
@@ -1548,124 +1456,135 @@ const PageDemo = () => {
                 ? selectedDetailItem.amenities
                 : []
             ).map((f: any) => String(f?.name || f?.label || f?.text || f || "").trim()).filter(Boolean);
-            const detailTarget = { ...selectedProductPage, ...selectedDetailItem, name: detailTitle, subText: detailDescription, cardImage: detailImage };
             const leadFields = getLeadFieldsForProduct(selectedProductPage?.slug || selectedProductPage?.name || "");
 
             return (
+              <>
               <section className="bg-[#e9e9e9] px-4 py-10 md:px-6 md:py-16">
                 <div className={CONTENT_WRAP}>
-                  <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:items-end md:gap-12">
+                  <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:items-start md:gap-12">
                     {/* Left — Image */}
                     <div className="w-full">
                       {detailImage ? (
-                        <img
-                          src={detailImage}
-                          alt={detailTitle}
-                          className="h-[300px] w-full rounded-2xl object-cover md:h-[520px]"
-                        />
+                        <img src={detailImage} alt={detailTitle} className="h-[300px] w-full rounded-2xl object-cover md:h-[520px]" />
                       ) : (
                         <div className="h-[300px] w-full rounded-2xl bg-slate-200 md:h-[520px]" />
                       )}
                     </div>
 
-                    {/* Right — Info + Form */}
-                    <div className="flex flex-col gap-5 font-['Poppins',ui-sans-serif,system-ui,sans-serif]">
-                      {/* Title & Price */}
-                      <div>
+                    {/* Right — Info + Form, fixed height matching image */}
+                    <div className="flex flex-col font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:h-[520px]">
+                      {/* Title pinned at top */}
+                      <div className="shrink-0">
                         <h1 className="text-[24px] font-bold text-[#111827] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[32px]">{detailTitle}</h1>
                         {detailPrice ? (
                           <p className="mt-1 text-[15px] font-semibold text-[#374151] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">{detailPrice}</p>
                         ) : null}
                       </div>
 
-                      {/* Description as bullet points */}
-                      {detailDescription ? (
-                        <ul className="space-y-2">
-                          {detailDescription
-                            .split(/\n|(?<=\.)\s+/)
-                            .map((s: string) => s.trim())
-                            .filter(Boolean)
-                            .map((point: string, i: number) => (
-                              <li key={`desc-bullet-${i}`} className="flex items-start gap-2 text-[13px] leading-relaxed text-[#4b5563] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[14px]">
-                                <span className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#6b7280]" />
+                      {/* Description scrolls in middle */}
+                      <div className="flex-1 overflow-y-auto space-y-3 py-3 pr-1">
+                        {detailDescription ? (
+                          <ul className="space-y-2">
+                            {detailDescription
+                              .split(/\n|(?<=\.)\s+/)
+                              .map((s: string) => s.trim())
+                              .filter(Boolean)
+                              .map((point: string, i: number) => (
+                                <li key={`desc-bullet-${i}`} className="flex items-start gap-2 text-[13px] leading-relaxed text-[#4b5563] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[14px]">
+                                  <span className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#6b7280]" />
+                                  <span>{point}</span>
+                                </li>
+                              ))}
+                          </ul>
+                        ) : null}
+                        {detailBullets.length > 0 ? (
+                          <ul className="space-y-2 border-t border-slate-300 pt-3">
+                            {detailBullets.map((point, i) => (
+                              <li key={`detail-bullet-${i}`} className="flex items-start gap-2 text-[13px] text-[#374151] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[14px]">
+                                <span className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#111827]" />
                                 <span>{point}</span>
                               </li>
                             ))}
-                        </ul>
-                      ) : null}
-
-                      {/* Extra feature bullets */}
-                      {detailBullets.length > 0 ? (
-                        <ul className="space-y-2 border-t border-slate-300 pt-3">
-                          {detailBullets.map((point, i) => (
-                            <li key={`detail-bullet-${i}`} className="flex items-start gap-2 text-[13px] text-[#374151] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[14px]">
-                              <span className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#111827]" />
-                              <span>{point}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-
-                      {/* Lead Form — 2 fields per row, no popup */}
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          void submitLeadForm(e);
-                        }}
-                        className="flex flex-col gap-4 rounded-2xl border border-slate-300 bg-white p-5"
-                      >
-                        <h2 className="text-[14px] font-semibold uppercase tracking-wider text-[#111827] font-['Poppins',ui-sans-serif,system-ui,sans-serif]">Enquire Now</h2>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          {leadFields.map((field) => (
-                            <div key={field.key} className="flex flex-col gap-1">
-                              <label className="text-[11px] font-medium uppercase tracking-wide text-[#6b7280] font-['Poppins',ui-sans-serif,system-ui,sans-serif]">
-                                {field.label}{field.required ? <span className="ml-0.5 text-red-500">*</span> : null}
-                              </label>
-                              <input
-                                type={field.type}
-                                required={field.required}
-                                value={(leadForm as any)[field.key] ?? ""}
-                                onChange={(e) =>
-                                  setLeadForm((prev) => ({ ...prev, [field.key]: e.target.value }))
-                                }
-                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px] text-[#111827] outline-none transition font-['Poppins',ui-sans-serif,system-ui,sans-serif] focus:border-[#111827] focus:ring-1 focus:ring-[#111827]"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                        {leadSubmitError ? (
-                          <p className="text-[12px] text-red-500 font-['Poppins',ui-sans-serif,system-ui,sans-serif]">{leadSubmitError}</p>
+                          </ul>
                         ) : null}
-                        <button
-                          type="submit"
-                          disabled={leadSubmitPending}
-                          className="mt-1 w-full rounded-full bg-[#111827] px-6 py-3 text-[13px] font-semibold uppercase tracking-widest text-white transition font-['Poppins',ui-sans-serif,system-ui,sans-serif] hover:bg-[#1f2937] disabled:opacity-60"
-                        >
-                          {leadSubmitPending ? "Submitting..." : "Submit Enquiry"}
-                        </button>
-                      </form>
+                      </div>
+
+                      {/* Form pinned at bottom */}
+                      <div className="shrink-0">
+                        {leadSubmitted ? (
+                          <div className="rounded-2xl border border-green-200 bg-green-50 p-5 text-center">
+                            <p className="text-[14px] font-semibold text-green-700 font-['Poppins',ui-sans-serif,system-ui,sans-serif]">Enquiry Submitted Successfully!</p>
+                            <p className="mt-1 text-[12px] text-green-600 font-['Poppins',ui-sans-serif,system-ui,sans-serif]">We'll get back to you shortly.</p>
+                            <button type="button" onClick={() => { setLeadSubmitted(false); setLeadForm({ fullName: "", people: "", mobile: "", email: "", startDate: "", endDate: "" }); }}
+                              className="mt-3 rounded-full border border-green-600 px-5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-green-700 transition hover:bg-green-600 hover:text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif]">
+                              Submit Another
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            {leadSubmitPending ? (
+                              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-white/90">
+                                <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-[#111827]" />
+                              </div>
+                            ) : null}
+                            <form
+                              onSubmit={(e) => { e.preventDefault(); void submitLeadForm(e); }}
+                              className="flex flex-col gap-4 rounded-2xl border border-slate-300 bg-white p-5"
+                            >
+                              <h2 className="text-[14px] font-semibold uppercase tracking-wider text-[#111827] font-['Poppins',ui-sans-serif,system-ui,sans-serif]">Enquire Now</h2>
+                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                {leadFields.map((field) => (
+                                  <div key={field.key} className="flex flex-col gap-1">
+                                    <label className="text-[11px] font-medium uppercase tracking-wide text-[#6b7280] font-['Poppins',ui-sans-serif,system-ui,sans-serif]">
+                                      {field.label}{field.required ? <span className="ml-0.5 text-red-500">*</span> : null}
+                                    </label>
+                                    <input
+                                      type={field.type}
+                                      required={field.required}
+                                      value={(leadForm as any)[field.key] ?? ""}
+                                      onChange={(e) => setLeadForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px] text-[#111827] outline-none transition font-['Poppins',ui-sans-serif,system-ui,sans-serif] focus:border-[#111827] focus:ring-1 focus:ring-[#111827]"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                              {leadSubmitError ? <p className="text-[12px] text-red-500 font-['Poppins',ui-sans-serif,system-ui,sans-serif]">{leadSubmitError}</p> : null}
+                              <button
+                                type="submit"
+                                disabled={leadSubmitPending}
+                                className="mt-1 w-full rounded-full bg-[#111827] px-6 py-3 text-[13px] font-semibold uppercase tracking-widest text-white transition font-['Poppins',ui-sans-serif,system-ui,sans-serif] hover:bg-[#1f2937] disabled:opacity-60"
+                              >
+                                Submit Enquiry
+                              </button>
+                            </form>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
               </section>
+              {/* Inclusions for this product on detail page */}
+              {Array.isArray(selectedProductPage?.inclusions) && selectedProductPage.inclusions.length > 0 ? (
+                <InclusionsSection inclusions={selectedProductPage.inclusions} title={`${String(selectedProductPage?.heading || selectedProductPage?.name || "Product").trim()} Inclusions`} />
+              ) : null}
+              {/* FAQ on detail page */}
+              {Array.isArray(draft?.faqs) && draft.faqs.length > 0 ? (
+                <FaqAccordion faqs={draft.faqs} />
+              ) : null}
+              </>
             );
           })() : null}
 
-          {/* ── Product Page: hero + product grid (shown when no item selected) ── */}
+          {/* Product Page: hero + product grid (shown when no item selected) */}
           {!selectedDetailItem && selectedProductPage ? (
             <>
-              {/* Full-bleed hero — stretches edge to edge, no side or top margins */}
-              <section
-                className="relative h-[62svh] min-h-[380px] overflow-hidden bg-[#1f1f1f] md:h-[84vh] md:min-h-[520px]"
-              >
+              {/* Full-bleed hero */}
+              <section className="relative h-[62svh] min-h-[380px] overflow-hidden bg-[#1f1f1f] md:h-[84vh] md:min-h-[520px]">
                 {selectedProductHeroImage ? (
-                  <img
-                    src={selectedProductHeroImage}
-                    alt={selectedProductPage?.name || "Product Hero"}
-                    className="absolute inset-0 h-full w-full object-cover opacity-60"
-                  />
+                  <img src={selectedProductHeroImage} alt={selectedProductPage?.name || "Product Hero"} className="absolute inset-0 h-full w-full object-cover opacity-60" />
                 ) : null}
-
                 <div className="absolute inset-0 flex items-end justify-center px-4 pb-10 text-center text-white md:pb-16">
                   <div>
                     <h1 className="text-[26px] font-bold md:text-4xl">
@@ -1681,182 +1600,159 @@ const PageDemo = () => {
                     ) : null}
                   </div>
                 </div>
-
                 {selectedProductPage?.heroMode === "carousel" && selectedProductHeroImages.length > 1 ? (
                   <>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setProductHeroIndex((prev) =>
-                          (prev - 1 + selectedProductHeroImages.length) % selectedProductHeroImages.length,
-                        )
-                      }
-                      className="absolute left-5 top-1/2 hidden -translate-y-1/2 rounded-full bg-black/45 px-4 py-2 text-2xl text-white md:block"
-                    >
+                    <button type="button"
+                      onClick={() => setProductHeroIndex((prev) => (prev - 1 + selectedProductHeroImages.length) % selectedProductHeroImages.length)}
+                      className="absolute left-5 top-1/2 hidden -translate-y-1/2 rounded-full bg-black/45 px-4 py-2 text-2xl text-white md:block">
                       {"<"}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setProductHeroIndex((prev) => (prev + 1) % selectedProductHeroImages.length)
-                      }
-                      className="absolute right-5 top-1/2 hidden -translate-y-1/2 rounded-full bg-black/45 px-4 py-2 text-2xl text-white md:block"
-                    >
+                    <button type="button"
+                      onClick={() => setProductHeroIndex((prev) => (prev + 1) % selectedProductHeroImages.length)}
+                      className="absolute right-5 top-1/2 hidden -translate-y-1/2 rounded-full bg-black/45 px-4 py-2 text-2xl text-white md:block">
                       {">"}
                     </button>
                   </>
                 ) : null}
               </section>
 
-              {/* Our Products content below the hero */}
+              {/* Product content grid */}
               <section className="px-4 pb-8 pt-8 md:px-6 md:pb-12 md:pt-10">
                 <div className={CONTENT_WRAP}>
-                {isMenuProductSlug(selectedProductPage?.slug || "") ? (
-                  <>
-                    <h2 className={MOBILE_SECTION_HEADING}>Our Products</h2>
-                    <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:mt-8 md:grid-cols-3">
-                      {menuItems.map((item: any, idx: number) => (
-                        <article key={`menu-${idx}`} className="flex flex-col items-center">
-                          <h3 className="mb-3 text-base font-medium md:text-xl">{item?.category || item?.name || `Item ${idx + 1}`}</h3>
-                          <div className="relative w-full overflow-hidden rounded-2xl bg-slate-200">
-                            {item?.image ? (
-                              <img
-                                src={item.image}
-                                alt={item?.name || `Menu Item ${idx + 1}`}
-                                className="h-[220px] w-full object-cover md:h-[300px]"
-                              />
-                            ) : (
-                              <div className="h-[220px] w-full bg-slate-200 md:h-[300px]" />
-                            )}
-                            <div className="absolute inset-0 bg-black/35" />
-                            <div className="absolute inset-x-0 bottom-0 p-4 text-left text-white md:p-5">
-                              <p className="text-[16px] font-semibold md:text-[18px]">{item?.name || `Item ${idx + 1}`}</p>
-                              {item?.price ? <p className="mt-1 text-[14px] font-semibold md:text-[16px]">{item.price}</p> : null}
-                              {item?.description ? (
-                                <p className="mt-2 max-w-[90%] text-[12px] leading-5 text-white/95 md:text-[15px] md:leading-6">
-                                  {item.description}
-                                </p>
-                              ) : null}
-                            </div>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <h2 className={MOBILE_SECTION_HEADING}>Our Products</h2>
-                    <div className="mt-6 grid grid-cols-1 gap-4 md:mt-8 md:grid-cols-3 md:gap-7">
-                      {(selectedProductContentItems.length ? selectedProductContentItems : [selectedProductPage]).map(
-                        (item: any, idx: number) => {
-                          const detailImage =
-                            item?.images?.[0] || item?.cardImage || selectedProductPage?.cardImage || "";
-                          const detailTitle =
-                            item?.title ||
-                            item?.name ||
-                            item?.heading ||
-                            selectedProductPage?.heading ||
-                            selectedProductPage?.name ||
-                            "Product";
-                          const detailDescription =
-                            item?.description || item?.subText || selectedProductPage?.subText || "";
-                          const detailTarget = {
-                            ...selectedProductPage,
-                            ...item,
-                            name: detailTitle,
-                            subText: detailDescription,
-                            cardImage: detailImage,
-                          };
-
-                          return (
-                            <article key={`product-detail-${idx}`} className="flex flex-col items-center">
-                              <h3 className="mb-3 text-base font-medium md:text-xl">{detailTitle}</h3>
-                              <div className="relative w-full overflow-hidden rounded-2xl bg-slate-200">
-                                {detailImage ? (
-                                  <img
-                                    src={detailImage}
-                                    alt={detailTitle}
-                                    className="h-[190px] w-full object-cover md:h-[220px]"
-                                  />
-                                ) : (
-                                  <div className="h-[190px] w-full md:h-[220px]" />
-                                )}
-                                <div className="absolute inset-0 bg-black/20" />
-                              <div className="absolute inset-x-0 bottom-4 flex justify-center md:bottom-6">
-                                <button
-                                  type="button"
-                                    onClick={() => {
-                                      const itemSlug = normalizeSlug(item?.title || item?.name || item?.heading || `item-${idx}`);
-                                      const productSlug = normalizeSlug(selectedProductPage?.slug || selectedProductPage?.name || "");
-                                      navigate(`/website-preview/page/products/${productSlug}/${itemSlug}`);
-                                    }}
-                                    className={IMAGE_ACTION_BUTTON}
-                                  >
-                                    VIEW DETAILS
-                                  </button>
-                                </div>
+                  {isMenuProductSlug(selectedProductPage?.slug || "") ? (
+                    <>
+                      <LinedHeading title="Our Products" />
+                      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:mt-8 md:grid-cols-3">
+                        {menuItems.map((item: any, idx: number) => (
+                          <article key={`menu-${idx}`} className="flex flex-col items-center">
+                            <h3 className="mb-3 text-base font-medium md:text-xl">{item?.category || item?.name || `Item ${idx + 1}`}</h3>
+                            <div className="relative w-full overflow-hidden rounded-2xl bg-slate-200">
+                              {item?.image ? (
+                                <img src={item.image} alt={item?.name || `Menu Item ${idx + 1}`} className="h-[220px] w-full object-cover md:h-[300px]" />
+                              ) : (
+                                <div className="h-[220px] w-full bg-slate-200 md:h-[300px]" />
+                              )}
+                              <div className="absolute inset-0 bg-black/35" />
+                              <div className="absolute inset-x-0 bottom-0 p-4 text-left text-white md:p-5">
+                                <p className="text-[16px] font-semibold md:text-[18px]">{item?.name || `Item ${idx + 1}`}</p>
+                                {item?.price ? <p className="mt-1 text-[14px] font-semibold md:text-[16px]">{item.price}</p> : null}
+                                {item?.description ? (
+                                  <p className="mt-2 max-w-[90%] text-[12px] leading-5 text-white/95 md:text-[15px] md:leading-6">{item.description}</p>
+                                ) : null}
                               </div>
-                            </article>
-                          );
-                        },
-                      )}
-                    </div>
-                  </>
-                )}
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <LinedHeading title="Our Products" />
+                      <div className="mt-6 grid grid-cols-1 gap-4 md:mt-8 md:grid-cols-3 md:gap-7">
+                        {(selectedProductContentItems.length ? selectedProductContentItems : [selectedProductPage]).map(
+                          (item: any, idx: number) => {
+                            const isContentItem = selectedProductContentItems.length > 0;
+                            const detailImage = isContentItem
+                              ? (getMediaSrc(item?.images?.[0]) || getMediaSrc(item?.cardImage) || "")
+                              : (getMediaSrc(item?.cardImage) || getMediaSrc(item?.heroImage) || "");
+                            const detailTitle = item?.title || item?.name || item?.heading || selectedProductPage?.heading || selectedProductPage?.name || "Product";
+                            const detailDescription = item?.description || item?.subText || (isContentItem ? "" : selectedProductPage?.subText) || "";
+
+                            return (
+                              <article key={`product-detail-${idx}`} className="flex flex-col overflow-hidden rounded-2xl bg-[#1a1a1a] shadow-md">
+                                <div className="w-full overflow-hidden">
+                                  {detailImage ? (
+                                    <img src={detailImage} alt={detailTitle} className="h-[190px] w-full object-cover md:h-[220px]" />
+                                  ) : (
+                                    <div className="h-[190px] w-full bg-slate-700 md:h-[220px]" />
+                                  )}
+                                </div>
+                                <div className="flex flex-1 flex-col gap-2 p-4 text-white">
+                                  <h3 className="text-base font-semibold md:text-xl">{detailTitle}</h3>
+                                  {detailDescription ? (
+                                    <p className="text-[12px] leading-relaxed text-white/75 md:text-[13px]">{String(detailDescription).slice(0, 100)}{String(detailDescription).length > 100 ? "..." : ""}</p>
+                                  ) : null}
+                                  <div className="mt-auto pt-3">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const itemSlug = normalizeSlug(item?.title || item?.name || item?.heading || `item-${idx}`);
+                                        const productSlug = normalizeSlug(selectedProductPage?.slug || selectedProductPage?.name || "");
+                                        navigate(`/website-preview/page/products/${productSlug}/${itemSlug}`);
+                                      }}
+                                      className="rounded-full border border-white/60 bg-transparent px-6 py-2 text-[11px] font-semibold uppercase tracking-widest text-white transition hover:bg-white/10"
+                                    >
+                                      View Details
+                                    </button>
+                                  </div>
+                                </div>
+                              </article>
+                            );
+                          },
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </section>
+
+              {/* Inclusions on product page */}
+              {Array.isArray(selectedProductPage?.inclusions) && selectedProductPage.inclusions.length > 0 ? (
+                <InclusionsSection inclusions={selectedProductPage.inclusions} />
+              ) : null}
+
+              {/* FAQs on product page */}
+              {Array.isArray(draft?.faqs) && draft.faqs.length > 0 ? (
+                <FaqAccordion faqs={draft.faqs} />
+              ) : null}
             </>
-            ) : !selectedDetailItem ? (
-              <section className={SECTION_BLOCK}>
-                <div className={CONTENT_WRAP}>
-                  <h2 className={MOBILE_SECTION_HEADING}>Our Products</h2>
-                  <div className="mt-6 grid grid-cols-1 gap-4 md:mt-10 md:grid-cols-3 md:gap-7">
-                    {productPages.map((item: any, idx: number) => (
-                      <article key={`product-page-${idx}`} className="flex flex-col items-center">
-                        <h3 className="mb-3 text-base font-medium md:text-xl">{item?.heading || item?.name || "Product"}</h3>
-                        <div className="relative w-full overflow-hidden rounded-2xl bg-slate-200">
-                          {item?.cardImage ? (
-                            <img src={item.cardImage} alt={item?.heading || item?.name} className="h-[190px] w-full object-cover md:h-[220px]" />
-                          ) : (
-                            <div className="h-[190px] w-full md:h-[220px]" />
-                          )}
-                          <div className="absolute inset-x-0 bottom-4 flex justify-center md:bottom-6">
-                            <button
-                              type="button"
-                              onClick={() => handleProductCardAction(item)}
-                              className={IMAGE_ACTION_BUTTON}
-                            >
-                              VIEW DETAILS
-                            </button>
-                          </div>
+          ) : !selectedDetailItem ? (
+            <section className={SECTION_BLOCK}>
+              <div className={CONTENT_WRAP}>
+                <LinedHeading title="Our Products" />
+                <div className="mt-6 grid grid-cols-1 gap-4 md:mt-10 md:grid-cols-3 md:gap-7">
+                  {productPages.map((item: any, idx: number) => (
+                    <article key={`product-page-${idx}`} className="flex flex-col overflow-hidden rounded-2xl bg-[#1a1a1a] shadow-md">
+                      <div className="w-full overflow-hidden">
+                        {item?.cardImage ? (
+                          <img src={item.cardImage} alt={item?.heading || item?.name} className="h-[190px] w-full object-cover md:h-[220px]" />
+                        ) : (
+                          <div className="h-[190px] w-full bg-slate-700 md:h-[220px]" />
+                        )}
+                      </div>
+                      <div className="flex flex-1 flex-col gap-2 p-4 text-white">
+                        <h3 className="text-base font-semibold md:text-xl">{item?.heading || item?.name || "Product"}</h3>
+                        {(item?.homeCardSubText || item?.subText) ? (
+                          <p className="text-[12px] leading-relaxed text-white/75 md:text-[13px]">{item?.homeCardSubText || item?.subText}</p>
+                        ) : null}
+                        <div className="mt-auto pt-3">
+                          <button
+                            type="button"
+                            onClick={() => handleProductCardAction(item)}
+                            className="rounded-full border border-white/60 bg-transparent px-6 py-2 text-[11px] font-semibold uppercase tracking-widest text-white transition hover:bg-white/10"
+                          >
+                            View Details
+                          </button>
                         </div>
-                      </article>
-                    ))}
-                  </div>
+                      </div>
+                    </article>
+                  ))}
                 </div>
-              </section>
-            ) : null}
+              </div>
+            </section>
+          ) : null}
         </>
       ) : null}
 
-      {/* Gallery page: full gallery grid for browsing every uploaded image. */}
+      {/* Gallery page */}
       {currentSection === "gallery" ? (
         <section className={SECTION_BLOCK}>
           <div className={CONTENT_WRAP}>
-            <h2 className={MOBILE_SECTION_HEADING}>{draft?.galleryTitle || "Gallery"}</h2>
-              <div className="mt-6 grid grid-cols-1 gap-[8px] sm:grid-cols-2 md:mt-10 md:grid-cols-3">
+            <LinedHeading title={draft?.galleryTitle || "Gallery"} />
+            <div className="mt-6 grid grid-cols-1 gap-[8px] sm:grid-cols-2 md:mt-10 md:grid-cols-3">
               {galleryItems.map((item: string, idx: number) => (
-                <button
-                  key={`gallery-page-${idx}`}
-                  type="button"
-                  onClick={() => openGalleryViewer(idx)}
-                  className="overflow-hidden rounded-lg bg-slate-100 text-left"
-                >
-                  <img
-                    src={item}
-                    alt={`Gallery ${idx + 1}`}
-                    className="h-[190px] w-full object-cover transition duration-300 hover:scale-[1.02] md:h-[256px]"
-                  />
+                <button key={`gallery-page-${idx}`} type="button" onClick={() => openGalleryViewer(idx)} className="overflow-hidden rounded-lg bg-slate-100 text-left">
+                  <img src={item} alt={`Gallery ${idx + 1}`} className="h-[190px] w-full object-cover transition duration-300 hover:scale-[1.02] md:h-[256px]" />
                 </button>
               ))}
             </div>
@@ -1864,11 +1760,11 @@ const PageDemo = () => {
         </section>
       ) : null}
 
-      {/* Testimonials page: full approved + draft testimonial list with pagination. */}
+      {/* Testimonials page */}
       {currentSection === "testimonials" ? (
         <section className={SECTION_BLOCK}>
           <div className={CONTENT_WRAP}>
-            <h2 className={MOBILE_SECTION_HEADING}>{draft?.testimonialTitle || "Testimonials"}</h2>
+            <LinedHeading title={draft?.testimonialTitle || "Testimonials"} />
             <div className="mt-6 grid grid-cols-1 gap-5 md:mt-8 md:grid-cols-3">
               {visibleTestimonials.map((item: any, index: number) => {
                 const testimonialKey = String(item?.key || `testimonial-${testimonialIndex}-${index}`);
@@ -1879,47 +1775,31 @@ const PageDemo = () => {
                 const initials = getAvatarInitials(item?.name || "Reviewer");
 
                 return (
-                  <article
-                    key={testimonialKey}
-                    className="rounded-[24px] px-6 py-7 text-left shadow-[0_14px_40px_rgba(15,23,42,0.08)]"
-                  >
+                  <article key={testimonialKey} className="rounded-[24px] px-6 py-7 text-left shadow-[0_14px_40px_rgba(15,23,42,0.08)]">
                     <div className="flex items-center gap-4">
                       {item?.image ? (
-                        <img
-                          src={item.image}
-                          alt={item?.name || "Reviewer"}
-                          className="h-11 w-11 rounded-full object-cover"
-                        />
+                        <img src={item.image} alt={item?.name || "Reviewer"} className="h-11 w-11 rounded-full object-cover" />
                       ) : (
                         <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#000000] text-sm font-semibold text-white">
                           {initials}
                         </div>
                       )}
                       <div>
-                        <h3 className="text-[18px] font-semibold text-[#111827]">
-                          {item?.name || "Reviewer"}
-                        </h3>
+                        <h3 className="text-[18px] font-semibold text-[#111827]">{item?.name || "Reviewer"}</h3>
                       </div>
                     </div>
                     <div className="mt-4 flex items-center gap-1 text-[18px] text-black">
                       {Array.from({ length: Math.max(1, Math.min(5, Number(item?.rating || 5) || 5)) }).map(
                         (_, starIndex) => (
-                          <span key={`${testimonialKey}-star-${starIndex}`}>★</span>
+                          <span key={`${testimonialKey}-star-${starIndex}`}>&#9733;</span>
                         ),
                       )}
                     </div>
-                    <p className="mt-4 text-[15px] leading-8 text-[#374151]">
-                      {resolvedText.text || "Great experience."}
-                    </p>
+                    <p className="mt-4 text-[15px] leading-8 text-[#374151]">{resolvedText.text || "Great experience."}</p>
                     {resolvedText.truncated || isExpanded ? (
                       <button
                         type="button"
-                        onClick={() =>
-                          setExpandedTestimonials((prev) => ({
-                            ...prev,
-                            [testimonialKey]: !isExpanded,
-                          }))
-                        }
+                        onClick={() => setExpandedTestimonials((prev) => ({ ...prev, [testimonialKey]: !isExpanded }))}
                         className="mt-4 text-[15px] font-medium text-black underline underline-offset-2"
                       >
                         {isExpanded ? "Show less" : "Show more"}
@@ -1937,20 +1817,14 @@ const PageDemo = () => {
                     type="button"
                     onClick={() => setTestimonialIndex(pageIndex)}
                     aria-label={`Go to testimonial page ${pageIndex + 1}`}
-                    className={`h-2.5 rounded-full transition-all ${
-                      testimonialIndex === pageIndex ? "w-8 bg-[#111827]" : "w-2.5 bg-slate-300"
-                    }`}
+                    className={`h-2.5 rounded-full transition-all ${testimonialIndex === pageIndex ? "w-8 bg-[#111827]" : "w-2.5 bg-slate-300"}`}
                   />
                 ))}
               </div>
             ) : null}
             {showWriteReview ? (
               <div className="mt-6 text-center">
-                <button
-                  type="button"
-                  onClick={openReviewModal}
-                  className="rounded-full border border-slate-500 px-6 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 md:text-sm"
-                >
+                <button type="button" onClick={openReviewModal} className="rounded-full border border-slate-500 px-6 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 md:text-sm">
                   Write a Review
                 </button>
               </div>
@@ -1959,59 +1833,40 @@ const PageDemo = () => {
         </section>
       ) : null}
 
-      {/* Contact page: embedded map and the detailed contact card. */}
+      {/* Contact page */}
       {currentSection === "contact" ? (
         <section className="px-4 py-10 md:px-6 md:py-12">
           <div className={CONTENT_WRAP}>
-            <h2 className={MOBILE_SECTION_HEADING}>{draft?.contactTitle || "Contact"}</h2>
+            <LinedHeading title={draft?.contactTitle || "Contact"} />
             <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-12">
               <div className="md:col-span-7">
                 {draft?.mapUrl ? (
-                  <iframe
-                    title="map"
-                    src={draft.mapUrl}
-                    className="h-[260px] w-full border-0 md:h-[420px]"
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                  />
+                  <iframe title="map" src={draft.mapUrl} className="h-[260px] w-full border-0 md:h-[420px]" loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
                 ) : (
                   <div className="h-[260px] w-full bg-slate-300 md:h-[420px]" />
                 )}
               </div>
-              <div className="md:col-span-5">
-                {renderContactCard()}
-              </div>
+              <div className="md:col-span-5">{renderContactCard()}</div>
             </div>
           </div>
         </section>
       ) : null}
 
-      {/* Shared footer: shown on every section so hosted and local preview stay consistent. */}
+      {/* Shared footer */}
       <footer className={`mt-8 border-t border-slate-300 bg-[#ffffff] ${FOOTER_TEXT}`}>
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-6 py-8 text-center md:grid-cols-3 md:text-left">
           <div>
             {draft?.companyLogo ? (
-              <img
-                src={draft.companyLogo}
-                alt={draft.companyName || "Company"}
-                className="mx-auto h-10 w-auto object-contain md:mx-0 md:h-12"
-              />
+              <img src={draft.companyLogo} alt={draft.companyName || "Company"} className="mx-auto h-10 w-auto object-contain md:mx-0 md:h-12" />
             ) : null}
-            {footerCompanyName ? (
-              <p className="mt-2 text-[15px] font-semibold text-[#111827] md:text-[14px]">{footerCompanyName}</p>
-            ) : null}
+            {footerCompanyName ? <p className="mt-2 text-[15px] font-semibold text-[#111827] md:text-[14px]">{footerCompanyName}</p> : null}
             {footerAddress ? <p className={FOOTER_BODY_TEXT}>{footerAddress}</p> : null}
           </div>
           <div>
             <h3 className={`${FOOTER_HEADING} md:ml-[130px]`}>Quick Links</h3>
             <div className={`${FOOTER_BODY_TEXT} md:ml-[130px]`}>
               {navItems.map((item) => (
-                <button
-                  key={`footer-${item.slug}`}
-                  type="button"
-                  onClick={() => goToSection(item.slug)}
-                  className="block w-full md:w-auto"
-                >
+                <button key={`footer-${item.slug}`} type="button" onClick={() => goToSection(item.slug)} className="block w-full md:w-auto">
                   {item.name}
                 </button>
               ))}
@@ -2030,211 +1885,113 @@ const PageDemo = () => {
         </div>
       </footer>
 
-      {/* Shared overlays: review form, lead form, success toast, and gallery viewer. */}
+      {/* Review modal */}
       {reviewModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
           <div className="w-full max-w-xl rounded-[24px] bg-white p-5 shadow-xl md:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h3 className="text-[24px] font-semibold text-slate-900">Write a Review</h3>
-                <p className="mt-1 text-sm text-slate-600">
-                  Your review will appear in the Website Builder reviews page for approval.
-                </p>
+                <p className="mt-1 text-sm text-slate-600">Your review will appear in the Website Builder reviews page for approval.</p>
               </div>
               <button
                 type="button"
                 onClick={() => setReviewModalOpen(false)}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-2xl text-slate-700 shadow-sm"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-2xl text-slate-700 transition hover:bg-slate-200"
                 aria-label="Close review form"
               >
-                ×
+                &times;
               </button>
             </div>
-
-            <form onSubmit={submitReviewForm} className="mt-6 grid grid-cols-1 gap-4">
+            <form onSubmit={(e) => { e.preventDefault(); void submitReviewForm(e); }} className="mt-5 flex flex-col gap-4">
+              <div>
+                <label className="block text-[13px] font-medium text-slate-700">Your Name</label>
                 <input
                   type="text"
-                  className="border-b border-slate-300 px-3 py-3 text-sm outline-none placeholder:text-slate-500 md:text-base"
-                  placeholder="Full Name"
+                  required
                   value={reviewForm.reviewerName}
                   onChange={(e) => setReviewForm((prev) => ({ ...prev, reviewerName: e.target.value }))}
-                  required
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
                 />
+              </div>
+              <div>
+                <label className="block text-[13px] font-medium text-slate-700">Rating</label>
                 <select
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none md:text-base"
                   value={reviewForm.rating}
                   onChange={(e) => setReviewForm((prev) => ({ ...prev, rating: e.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
                 >
-                  {[5, 4, 3, 2, 1].map((rating) => (
-                    <option key={rating} value={String(rating)}>
-                      {rating} Star{rating > 1 ? "s" : ""}
-                    </option>
+                  {[5, 4, 3, 2, 1].map((n) => (
+                    <option key={n} value={String(n)}>{n} Star{n > 1 ? "s" : ""}</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="block text-[13px] font-medium text-slate-700">Your Review</label>
                 <textarea
-                  className="min-h-[130px] rounded-lg border border-slate-300 px-3 py-3 text-sm outline-none placeholder:text-slate-500 md:text-base"
-                  placeholder="Write your review"
+                  required
+                  rows={4}
                   value={reviewForm.review}
                   onChange={(e) => setReviewForm((prev) => ({ ...prev, review: e.target.value }))}
-                  required
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
                 />
-                {reviewSubmitError ? (
-                  <p className="text-sm text-red-600">{reviewSubmitError}</p>
-                ) : null}
-                <div className="pt-2 text-center">
-                  <button
-                    type="submit"
-                    disabled={reviewSubmitPending}
-                    className="rounded-full bg-[#6f6f6f] px-8 py-2 text-sm font-semibold text-white"
-                  >
-                    {reviewSubmitPending ? "Submitting..." : "Submit Review"}
-                  </button>
-                </div>
-              </form>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Lead modal popup — commented out: enquiry is now handled inline on the product detail page */}
-      {/* {selectedLeadProduct ? (
-        <div
-          className="fixed inset-0 z-50 overflow-y-auto bg-black/45 p-3 md:p-4"
-          onClick={closeLeadModal}
-        >
-          <div className="flex min-h-full items-start justify-center py-4 md:items-center md:py-6">
-            <div
-              className="relative w-full max-w-6xl overflow-hidden rounded-xl bg-white shadow-xl"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <button
-                type="button"
-                onClick={closeLeadModal}
-                className="absolute right-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-2xl text-slate-700 shadow-sm"
-                aria-label="Close lead form"
-              >
-                ×
-              </button>
-              <div className="relative grid w-full grid-cols-1 gap-6 rounded-xl bg-white p-4 md:grid-cols-2">
-                <div className="relative overflow-hidden rounded-xl bg-slate-100 md:min-h-[520px]">
-                  {selectedLeadProduct?.cardImage ? (
-                    <img src={selectedLeadProduct.cardImage} alt={selectedLeadProduct?.name || "Product"} className="h-[260px] w-full object-cover sm:h-[320px] md:h-full" />
-                  ) : (
-                    <div className="h-[260px] w-full sm:h-[320px] md:h-full" />
-                  )}
-                  <div className="absolute inset-0 bg-black/20" />
-                </div>
-                <div className="font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:flex md:min-h-[520px] md:flex-col md:justify-between">
-                  <div>
-                    <h3 className="text-xl font-bold uppercase text-slate-900">{selectedLeadProduct?.name || "Product"}</h3>
-                    <p className="mt-2 text-base font-semibold text-secondary-dark">{getLeadMetaForProduct(selectedLeadProduct).priceLine}</p>
-                    <p className="mt-4 border-b border-slate-200 pb-6 text-sm leading-8 text-gray-700">{getLeadMetaForProduct(selectedLeadProduct).description}</p>
-                    <h4 className="mt-6 text-xl text-center font-bold uppercase text-slate-900">{getLeadMetaForProduct(selectedLeadProduct).label}</h4>
-                    <form onSubmit={submitLeadForm} className="mt-4 grid grid-cols-1 gap-x-8 gap-y-6 lg:grid-cols-2">
-                      {getLeadFieldsForProduct(selectedLeadProduct?.slug || "").map((field) => (
-                        <input key={field.key} type={field.type} className="w-full border-0 border-b border-slate-300 bg-transparent px-0 py-2 text-sm text-slate-700 outline-none placeholder:font-['Poppins',ui-sans-serif,system-ui,sans-serif] placeholder:text-gray-400 focus:border-slate-500" placeholder={field.label} value={(leadForm as any)[field.key] || ""} onChange={(e) => setLeadForm((prev) => ({ ...prev, [field.key]: e.target.value }))} required={field.required} />
-                      ))}
-                      {leadSubmitError ? <p className="lg:col-span-2 text-sm text-red-600">{leadSubmitError}</p> : null}
-                      <div className="pt-2 text-center lg:col-span-2">
-                        <button type="submit" disabled={leadSubmitPending} className="rounded-full bg-[#6f6f6f] px-8 py-3 text-sm font-semibold text-white">
-                          {leadSubmitPending ? "SUBMITTING..." : "GET QUOTE"}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      ) : null} */}
-
-      {successPopup.open ? (
-        <div className="pointer-events-none fixed inset-x-0 top-6 z-[70] flex justify-center px-4">
-          <div className="rounded-2xl border border-green-200 bg-white px-6 py-4 text-center shadow-[0_18px_50px_rgba(15,23,42,0.14)]">
-            <p className="text-sm font-semibold text-green-700 md:text-base">
-              {successPopup.message}
-            </p>
+              {reviewSubmitError ? <p className="text-[12px] text-red-500">{reviewSubmitError}</p> : null}
+              <button
+                type="submit"
+                disabled={reviewSubmitPending}
+                className="w-full rounded-full bg-[#111827] px-6 py-3 text-[13px] font-semibold uppercase tracking-widest text-white transition hover:bg-[#1f2937] disabled:opacity-60"
+              >
+                {reviewSubmitPending ? "Submitting..." : "Submit Review"}
+              </button>
+            </form>
           </div>
         </div>
       ) : null}
 
-      {galleryViewerOpen && galleryItems.length ? (
+      {/* Success popup toast */}
+      {successPopup.open ? (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#111827] px-6 py-3 text-[13px] font-semibold text-white shadow-lg transition">
+          {successPopup.message}
+        </div>
+      ) : null}
+
+      {/* Gallery lightbox viewer */}
+      {galleryViewerOpen ? (
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 px-2 py-4 backdrop-blur-sm md:px-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Gallery viewer"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85"
           onClick={closeGalleryViewer}
         >
-          <div
-            className="relative flex w-full max-w-[1320px] flex-col gap-3 overflow-hidden rounded-[18px] bg-white p-2 shadow-[0_20px_80px_rgba(15,23,42,0.35)] md:max-h-[88vh] md:p-3 lg:flex-row"
-            onClick={(event) => event.stopPropagation()}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); goToGalleryIndex(galleryViewerIndex - 1); }}
+            className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-black/60 px-4 py-3 text-2xl text-white"
+            aria-label="Previous image"
           >
-            <button
-              type="button"
-              onClick={closeGalleryViewer}
-              className="absolute right-4 top-4 z-10 rounded-full bg-white/90 px-3 py-1 text-2xl leading-none text-slate-700 shadow-sm hover:bg-white"
-              aria-label="Close gallery viewer"
-            >
-              ×
-            </button>
-
-            <div className="relative flex min-h-0 flex-1 items-center justify-center rounded-[14px] bg-slate-100 px-2 py-2 md:px-3 md:py-3">
-              {selectedGalleryImage ? (
-                <img
-                  src={selectedGalleryImage}
-                  alt={`Gallery ${galleryViewerIndex + 1}`}
-                  className="h-[70vh] w-full rounded-[12px] object-cover"
-                />
-              ) : null}
-
-              {galleryItems.length > 1 ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => goToGalleryIndex(galleryViewerIndex - 1)}
-                    className="absolute left-6 top-1/2 hidden -translate-y-1/2 rounded-full bg-black/55 px-4 py-2 text-2xl text-white shadow-lg transition hover:bg-black/70 md:block"
-                    aria-label="Previous gallery image"
-                  >
-                    {"<"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => goToGalleryIndex(galleryViewerIndex + 1)}
-                    className="absolute right-6 top-1/2 hidden -translate-y-1/2 rounded-full bg-black/55 px-4 py-2 text-2xl text-white shadow-lg transition hover:bg-black/70 md:block"
-                    aria-label="Next gallery image"
-                  >
-                    {">"}
-                  </button>
-                </>
-              ) : null}
-            </div>
-
-            <div className="w-full shrink-0 lg:w-[240px]">
-              <div className="grid max-h-[24vh] grid-cols-3 gap-2 overflow-y-auto rounded-[14px] bg-white p-1 lg:max-h-[78vh] lg:grid-cols-1">
-                {galleryItems.map((item: string, idx: number) => {
-                  const isActive = idx === galleryViewerIndex;
-                  return (
-                    <button
-                      key={`gallery-thumb-${idx}`}
-                      type="button"
-                      onClick={() => goToGalleryIndex(idx)}
-                      className={`overflow-hidden rounded-[10px] border-2 text-left transition ${
-                        isActive ? "border-blue-600" : "border-transparent hover:border-slate-300"
-                      }`}
-                      aria-label={`Open gallery image ${idx + 1}`}
-                    >
-                      <img
-                        src={item}
-                        alt={`Gallery thumbnail ${idx + 1}`}
-                        className="h-24 w-full object-cover lg:h-28"
-                      />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+            {"<"}
+          </button>
+          <img
+            src={selectedGalleryImage}
+            alt={`Gallery ${galleryViewerIndex + 1}`}
+            className="max-h-[85vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); goToGalleryIndex(galleryViewerIndex + 1); }}
+            className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-black/60 px-4 py-3 text-2xl text-white"
+            aria-label="Next image"
+          >
+            {">"}
+          </button>
+          <button
+            type="button"
+            onClick={closeGalleryViewer}
+            className="absolute right-4 top-4 rounded-full bg-black/60 px-3 py-2 text-xl text-white"
+            aria-label="Close gallery"
+          >
+            &times;
+          </button>
         </div>
       ) : null}
     </div>
