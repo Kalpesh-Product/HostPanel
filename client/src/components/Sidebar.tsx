@@ -298,6 +298,7 @@ const ROUTE_BY_ID: Record<string, string> = {
   assets: "/extra-common-modules/assets",
   inventory: "/extra-common-modules/inventory",
   "department-inventory": "/extra-common-modules/department-inventory",
+  "finance-management": "/extra-common-modules/finance-management",
   calendar: "/calendar",
   tickets: "/tickets",
   "tenant-dashboard": "/dashboard/tenant",

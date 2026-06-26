@@ -162,6 +162,7 @@ import TenantBuyCreditsPage from "../pages/tenant/TenantBuyCreditsPage";
 import TenantTicketsPage from "../pages/tenant/TenantTicketsPage";
 import { InventoryPage } from "../pages/Inventory/InventoryPage";
 import { DepartmentInventoryPage } from "../pages/Inventory/DepartmentInventoryPage";
+import { FinancePage } from "../pages/Finance/FinancePage";
 
 function VerticalPickerRoute() {
   const location = useLocation();
@@ -545,6 +546,10 @@ export const routes = createBrowserRouter([
               {
                 path: "extra-common-modules/department-inventory",
                 element: <DepartmentInventoryPage />,
+              },
+              {
+                path: "extra-common-modules/finance-management",
+                element: <FinancePage />,
               },
               {
                 path: "module-sections/:sectionId",
