@@ -6,6 +6,7 @@ import AccessGrant from "./AccessGrant";
 import MyAssets from "./MyAssets";
 import MeetingRoomCredits from "./MeetingRoomCredits";
 import TicketsHistory from "./TicketsHistory";
+import { AssignedAssetsTab } from "./AssignedAssetsTab";
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState(0);
@@ -41,6 +42,7 @@ const Profile = () => {
         {/* <Tab label="Change Password" /> */}
         {/* <Tab label="Access Grant" /> */}
         {/* <Tab label="My Assets" /> */}
+        <Tab label="Assigned Assets" />
         <Tab label="Meetings" />
         <Tab label="Tickets History" />
       </Tabs>
@@ -49,6 +51,11 @@ const Profile = () => {
         {activeTab === 0 && (
           <div className="">
             <MyProfile pageTitle={"MY PROFILE"} />
+          </div>
+        )}
+        {activeTab === 1 && (
+          <div className="border-2 border-gray-200 p-4 rounded-md">
+            <AssignedAssetsTab />
           </div>
         )}
         {/* {activeTab === 1 && (
@@ -66,7 +73,7 @@ const Profile = () => {
             <MyAssets pageTitle={"My Assets"} />
           </div>
         )} */}
-        {activeTab === 4 && (
+        {activeTab === 5 && (
           <div>
             <MeetingRoomCredits pageTitle={"Meeting Room Credits"} />
           </div>

@@ -295,6 +295,7 @@ const ROUTE_BY_ID: Record<string, string> = {
   "resource-management": "/administration/resource-management",
   "house-keeping": "/administration/house-keeping",
   "meeting-room-system": "/meetings/meeting-rooms",
+  assets: "/extra-common-modules/assets",
   calendar: "/calendar",
   tickets: "/tickets",
   "tenant-dashboard": "/dashboard/tenant",

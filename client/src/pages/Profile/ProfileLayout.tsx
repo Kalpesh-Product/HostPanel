@@ -10,6 +10,7 @@ const ProfileLayout = () => {
     { label: "Company Profile", path: "company-profile" },
     { label: "My Profile", path: "my-profile" },
     { label: "Change Password", path: "change-password" },
+    { label: "Assigned Assets", path: "assigned-assets" },
   ];
 
   useEffect(() => {

@@ -73,6 +73,7 @@ import AccessGrant from "../pages/Profile/AccessGrant";
 import MyAssets from "../pages/Profile/MyAssets";
 import MeetingRoomCredits from "../pages/Profile/MeetingRoomCredits";
 import TicketsHistory from "../pages/Profile/TicketsHistory";
+import { AssignedAssetsTab } from "../pages/Profile/AssignedAssetsTab";
 import EditTemplate from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/EditTemplate";
 import NotFoundPage from "../pages/NotFoundPage";
 
@@ -108,6 +109,7 @@ import HrCommonDocuments from "../pages/HR/HrCommonDocuments";
 import VendorTable from "../components/Pages/VendorTable";
 import AssetsHome from "../pages/Assets/AssetsHome";
 import ManageAssetsHome from "../pages/Assets/ManageAssetsHome";
+import { AssetsPage } from "../pages/Assets/AssetsPage";
 import LogPage from "../pages/LogPage";
 import AccessPages from "../pages/Access/AccessPages";
 import ModulePermissions from "../pages/Access/ModulePermissions";
@@ -531,6 +533,10 @@ export const routes = createBrowserRouter([
                 element: <ModuleCardsLanding />,
               },
               {
+                path: "extra-common-modules/assets",
+                element: <AssetsPage />,
+              },
+              {
                 path: "module-sections/:sectionId",
                 element: <ModuleCardsLanding />,
               },
@@ -585,6 +591,10 @@ export const routes = createBrowserRouter([
                   {
                     path: "change-password",
                     element: <ChangePassword pageTitle="Change Password" />,
+                  },
+                  {
+                    path: "assigned-assets",
+                    element: <AssignedAssetsTab />,
                   },
                   // {
                   //   path: "permissions",
@@ -666,8 +676,8 @@ export const routes = createBrowserRouter([
                 element: <Navigate to="/tickets" replace />,
               },
               {
-                path: "assets", // Parent path
-                element: <AssetsLayout />, // Parent component for tickets
+                path: "assets",
+                element: <AssetsLayout />,
                 children: [
                   {
                     path: "",
