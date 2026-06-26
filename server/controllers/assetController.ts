@@ -12,6 +12,10 @@ const getCurrentWorkspaceId = (req) => {
     );
 };
 
+const getCurrentUserId = (req) => {
+    return req.user?._id || req.user?.id || req.user || null;
+};
+
 const generateAssetCode = (assetNumber) => {
     return `AST-${String(assetNumber).padStart(4, "0")}`;
 };
@@ -19,12 +23,19 @@ const generateAssetCode = (assetNumber) => {
 export const createAsset = async (req, res, next) => {
     try {
         const workspaceId = getCurrentWorkspaceId(req);
+        const userId = getCurrentUserId(req);
 
         if (!workspaceId) {
             return res.status(400).json({
                 message: "Workspace is required",
             });
         }
+
+        if (!userId) {
+    return res.status(401).json({
+        message: "User is required",
+    });
+}
 
         const lastAsset = await Asset.findOne({ workspaceId })
             .sort({ assetNumber: -1 })
@@ -38,7 +49,7 @@ export const createAsset = async (req, res, next) => {
         const asset = await Asset.create({
             ...req.body,
             workspaceId,
-            createdBy: req.user?._id,
+            createdBy: userId,
             assetNumber,
             assetCode,
         });

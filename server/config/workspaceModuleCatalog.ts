@@ -43,7 +43,7 @@ const MODULE_GROUPS = [
       { id: "inventory", label: "Inventory", implemented: false },
       { id: "finance-management", label: "Finance Management", implemented: false },
       { id: "reports", label: "Reports", implemented: false },
-      { id: "visitor-management", label: "Visitor Management", route: "/visitors/visitor-management", implemented: true },
+      // { id: "visitor-management", label: "Visitor Management", route: "/visitors/visitor-management", implemented: true },
       { id: "website-builder", label: "Website Builder", route: "/company-settings/website-builder", implemented: true },
       { id: "wono-nomad", label: "Wono Nomad", route: "/company-settings/wono-nomad", implemented: true },
       { id: "website-leads", label: "Website Leads", route: "/company-settings/website-builder/leads", implemented: true },

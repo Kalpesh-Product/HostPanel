@@ -102,6 +102,68 @@ function formatDate(value) {
   }).format(d);
 }
 
+function getTenantBaseCredits(company = {}) {
+  return Math.max(0, roundNumber(
+    company?.packageDetails?.monthlyTotalCredits
+    || company?.packageDetails?.monthlyCredits
+    || company?.creditConfiguration?.monthlyTotalCredits
+    || 0
+  ));
+}
+
+function getTenantPurchasedCredits(company = {}) {
+  const allocatedCredits = Math.max(0, roundNumber(company?.creditsAllocated || 0));
+  const storedPurchasedCredits = Math.max(0, roundNumber(company?.addOnCredits?.purchasedCredits || 0));
+  const derivedPurchasedCredits = Math.max(0, allocatedCredits - getTenantBaseCredits(company));
+  return Math.max(storedPurchasedCredits, derivedPurchasedCredits);
+}
+
+function formatUsageCreditHistoryEntries(historyEntries = []) {
+  return (Array.isArray(historyEntries) ? historyEntries : [])
+    .map((history) => {
+      const dateAt = history?.date || history?.createdAt || null;
+      return {
+        ...history,
+        date: dateAt,
+        dateAt,
+        remainingCredits: Number(history?.remainingCredits || 0),
+        used: Number(history?.used || history?.debited || 0),
+        credited: Number(history?.credited || 0),
+      };
+    })
+    .sort((left, right) => new Date(right.dateAt || 0).getTime() - new Date(left.dateAt || 0).getTime());
+}
+
+function buildCreditPurchaseHistoryEntries(creditRequests = [], currentCreditsAllocated = 0) {
+  return (Array.isArray(creditRequests) ? creditRequests : [])
+    .filter((request) => ["CREDITS_ADDED", "COMPLETED"].includes(request.status) || request.creditsAddedAt)
+    .map((request) => {
+      const credited = roundNumber(request.approvedCredits || request.requestedCredits || 0);
+      const dateAt = request.creditsAddedAt || request.completedAt || request.invoiceGeneratedAt || request.financeVerifiedAt || request.updatedAt || request.requestedAt || null;
+      return {
+        id: `credit-purchase-${request.id}`,
+        date: dateAt,
+        dateAt,
+        type: "Purchased Credits",
+        resource: "Extra Credits Purchase",
+        bookedBy: request.creditsAddedByName || request.requestedByName || request.requestedByEmail || "",
+        bookingCode: request.id || "",
+        roomName: "Extra Credits Purchase",
+        location: "Tenant account",
+        wing: "",
+        startTime: "",
+        endTime: "",
+        status: "Credits Added",
+        remainingCredits: Math.max(0, roundNumber(currentCreditsAllocated || 0)),
+        used: 0,
+        credited,
+        transactionId: request.paymentTransactionId || "",
+        invoiceNumber: request.invoiceNumber || "",
+        invoiceFileUrl: request.invoiceFileUrl || "",
+      };
+    });
+}
+
 async function getNextTenantNumber(workspaceId) {
   const latest = await TenantCompany.findOne({ workspaceId })
     .sort({ tenantNumber: -1 })
@@ -382,6 +444,15 @@ async function formatTenantCompany(company) {
     ? employees.find((e) => e.id === company.managerEmployeeId) || null
     : employees.find((e) => e.role === "Manager") || null;
   const status = deriveTenantStatus(company.contractEnd);
+  const creditsAllocated = Number(company.creditsAllocated || 0);
+  const creditsUsed = Number(company.creditsUsed || 0);
+  const creditsRemaining = Math.max(0, creditsAllocated - creditsUsed);
+  const purchasedCredits = getTenantPurchasedCredits(company);
+  const usageCreditHistory = formatUsageCreditHistoryEntries(creditHistory || []);
+  const purchaseCreditHistory = buildCreditPurchaseHistoryEntries(creditRequests || [], creditsAllocated);
+  const combinedCreditHistory = [...purchaseCreditHistory, ...usageCreditHistory].sort(
+    (left, right) => new Date(right.dateAt || right.date || 0).getTime() - new Date(left.dateAt || left.date || 0).getTime()
+  );
 
   return {
     recordId: company._id,
@@ -402,9 +473,9 @@ async function formatTenantCompany(company) {
     contractStartAt: company.contractStart || null,
     contractEndAt: company.contractEnd || null,
     contractDurationMonths: Number(company.contractDurationMonths || 0),
-    creditsAllocated: Number(company.creditsAllocated || 0),
-    creditsUsed: Number(company.creditsUsed || 0),
-    creditsRemaining: Math.max(0, Number(company.creditsAllocated || 0) - Number(company.creditsUsed || 0)),
+    creditsAllocated,
+    creditsUsed,
+    creditsRemaining,
     status,
     notes: company.notes || "",
     managerEmployeeId: company.managerEmployeeId || null,
@@ -412,14 +483,25 @@ async function formatTenantCompany(company) {
     customerDetails: company.customerDetails || {},
     companyDetails: { ...(company.companyDetails || {}), status },
     agreementDetails: company.agreementDetails
-      ? Object.fromEntries(Object.entries(company.agreementDetails.toObject ? company.agreementDetails.toObject() : company.agreementDetails).filter(([k]) => k !== 'rentDate' && k !== 'nextIncrement'))
+      ? Object.fromEntries(
+          Object.entries(
+            company.agreementDetails.toObject ? company.agreementDetails.toObject() : company.agreementDetails
+          ).filter(([k]) => k !== 'rentDate' && k !== 'nextIncrement')
+        )
       : {},
+    ...(company.creditsAllocated !== undefined
+      ? { agreementDetails: { ...(company.agreementDetails ? Object.fromEntries(Object.entries(company.agreementDetails.toObject ? company.agreementDetails.toObject() : company.agreementDetails).filter(([k]) => k !== 'rentDate' && k !== 'nextIncrement')) : {}), totalMeetingCredits: Number(company.creditsAllocated || 0) } }
+      : {}),
     billingDetails: company.billingDetails || {},
     invoiceDetails: company.invoiceDetails || {},
     pocDetails: company.pocDetails || {},
     packageDetails: company.packageDetails || {},
     creditConfiguration: company.creditConfiguration || {},
-    addOnCredits: company.addOnCredits || {},
+    addOnCredits: {
+      ...(company.addOnCredits || {}),
+      purchasedCredits,
+      remainingCredits: creditsRemaining,
+    },
     space: company.space || { floor: "", seats: [], assignedDate: null },
     employees: employees || [],
     creditRequests: creditRequests || [],
@@ -430,13 +512,12 @@ async function formatTenantCompany(company) {
       rejected: creditRequests.filter((r) => ["REJECTED", "PAYMENT_FAILED", "PAYMENT_REJECTED"].includes(r.status)).length,
     },
     agreementDocuments: agreementDocuments || [],
-    creditHistory: creditHistory || [],
+    creditHistory: combinedCreditHistory,
     initials: getInitials(company.companyName),
     createdAt: company.createdAt,
     updatedAt: company.updatedAt,
   };
 }
-
 export async function listTenantCompaniesForCurrentUser(userId, query = {}) {
   const access = await resolveWorkspaceAccess(userId);
   const { workspaceId } = access;
@@ -1275,7 +1356,7 @@ export async function updateTenantCompanyCreditRequestForCurrentUser(userId, ten
   const actorName = normalizeText(access.user?.name || "");
   const previousStatus = request.status;
 
-  // ─── Allowed forward state transitions (state machine) ───
+  // --- Allowed forward state transitions (state machine) ---
   const allowedTransitions = {
     LOW_CREDITS_ALERT: ["PENDING_SALES_APPROVAL", "REJECTED"],
     PENDING_SALES_APPROVAL: ["APPROVED_AWAITING_PAYMENT", "REJECTED"],
@@ -1302,18 +1383,18 @@ export async function updateTenantCompanyCreditRequestForCurrentUser(userId, ten
     request.status = nextStatus;
   }
 
-  // ─── Apply editable fields ───
+  // --- Apply editable fields ---
   if (input.salesNote !== undefined) request.salesNote = normalizeText(input.salesNote);
   if (input.financeNote !== undefined) request.financeNote = normalizeText(input.financeNote);
   if (input.approvedCredits !== undefined) request.approvedCredits = Math.max(0, Number(input.approvedCredits));
   if (input.paymentTransactionId !== undefined) request.paymentTransactionId = normalizeText(input.paymentTransactionId);
   if (input.paymentFailureReason !== undefined) request.paymentFailureReason = normalizeText(input.paymentFailureReason);
 
-  // ─── Recalculate totalAmount whenever approved credits or rate change ───
+  // --- Recalculate totalAmount whenever approved credits or rate change ---
   const effectiveCredits = Number(request.approvedCredits || 0) || Number(request.requestedCredits || 0);
   request.totalAmount = Math.max(0, roundNumber(effectiveCredits * (request.ratePerCredit || 0)));
 
-  // ─── Side effects for specific transitions ───
+  // --- Side effects for specific transitions ---
   if (nextStatus === "APPROVED_AWAITING_PAYMENT") {
     request.reviewedByUserId = userId;
     request.reviewedByName = actorName;
@@ -1329,12 +1410,17 @@ export async function updateTenantCompanyCreditRequestForCurrentUser(userId, ten
     request.paidAt = now;
   }
 
-  // ─── Credits addition with idempotency guard ───
+  // --- Credits addition with idempotency guard ---
   // Only add credits once: when transitioning into CREDITS_ADDED/COMPLETED
   // from a state that has not yet credited the tenant.
   if (["CREDITS_ADDED", "COMPLETED"].includes(nextStatus) && !request.creditsAddedAt) {
     const addCredits = roundNumber(request.approvedCredits || request.requestedCredits || 0);
     company.creditsAllocated = Math.max(0, roundNumber(company.creditsAllocated || 0) + addCredits);
+    company.addOnCredits = {
+      ...(company.addOnCredits || {}),
+      purchasedCredits: Math.max(0, roundNumber(company.addOnCredits?.purchasedCredits || 0) + addCredits),
+      remainingCredits: Math.max(0, roundNumber(company.addOnCredits?.remainingCredits || 0) + addCredits),
+    };
     request.creditsAddedAt = now;
     request.creditsAddedByUserId = userId;
     request.creditsAddedByName = actorName;
@@ -1344,7 +1430,7 @@ export async function updateTenantCompanyCreditRequestForCurrentUser(userId, ten
     await company.save();
   }
 
-  // ─── Audit trail: record an action entry for every transition + note edits ───
+  // --- Audit trail: record an action entry for every transition + note edits ---
   if (nextStatus !== previousStatus || input.salesNote !== undefined || input.financeNote !== undefined) {
     request.actionHistory.push({
       action: nextStatus !== previousStatus ? nextStatus : "NOTE_UPDATED",
@@ -1386,4 +1472,3 @@ export async function getPendingPaymentVerificationsForCurrentUser(userId) {
     message: "Pending payment verifications fetched successfully.",
   };
 }
-
