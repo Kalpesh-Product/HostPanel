@@ -449,12 +449,12 @@ function AssetsSkeleton() {
             <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
               <div>
                 <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                  <Package size={18} /> Asset Directory
+                   Assets
                 </h2>
                 <p className="text-xs font-medium text-slate-500 mt-1">
                   {isAdminScope
-                    ? 'Admin view: track assets only for the departments assigned to you.'
-                    : 'Founder God-Mode: Track all company hardware, software licenses, infrastructure, and equipment globally.'}
+                    ? 'Admin View: track assets only for the departments assigned to you.'
+                    : 'Founder View: Track all company hardware, software licenses, infrastructure, and equipment globally.'}
                 </p>
               </div>
             </div>
@@ -681,9 +681,9 @@ function AssetsSkeleton() {
             <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0" />
             <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
               <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] flex items-center gap-2">
-                  <div className="bg-blue-50 text-[#2563EB] p-2 rounded-xl"><Box size={20} strokeWidth={2.5} /></div>
-                  Add Asset
+                <h2 className="text-xl sm:text-2xl font-pmedium text-primary flex items-center gap-2">
+                  <div className="bg-blue-50 text-[#2563EB]"></div>
+                  ADD ASSET
                 </h2>
                 <p className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-widest mt-2">Register hardware, software, furniture, or infra</p>
               </div>

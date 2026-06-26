@@ -160,6 +160,8 @@ import TenantMeetingRoomBookingPage from "../pages/tenant/TenantMeetingRoomBooki
 import TenantBookingHistoryPage from "../pages/tenant/TenantBookingHistoryPage";
 import TenantBuyCreditsPage from "../pages/tenant/TenantBuyCreditsPage";
 import TenantTicketsPage from "../pages/tenant/TenantTicketsPage";
+import { InventoryPage } from "../pages/Inventory/InventoryPage";
+import { DepartmentInventoryPage } from "../pages/Inventory/DepartmentInventoryPage";
 
 function VerticalPickerRoute() {
   const location = useLocation();
@@ -535,6 +537,14 @@ export const routes = createBrowserRouter([
               {
                 path: "extra-common-modules/assets",
                 element: <AssetsPage />,
+              },
+              {
+                path: "extra-common-modules/inventory",
+                element: <InventoryPage />,
+              },
+              {
+                path: "extra-common-modules/department-inventory",
+                element: <DepartmentInventoryPage />,
               },
               {
                 path: "module-sections/:sectionId",

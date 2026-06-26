@@ -2777,8 +2777,8 @@ const CreateWebsite = () => {
                                             size="small"
                                             label="Product Description"
                                             fullWidth
-                                            inputProps={{ maxLength: 120 }}
-                                            helperText={`${String(field.value || "").length}/120`}
+                                            inputProps={{ maxLength: 200 }}
+                                            helperText={`${String(field.value || "").length}/200`}
                                           />
                                         )}
                                       />
@@ -3473,63 +3473,6 @@ const CreateWebsite = () => {
                 </div>
               </div>
             ) : null}
-
-            {/* Logo Carousel — always visible, shown after Contact section on home page */}
-            <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <p className="text-sm font-semibold text-slate-800">Logo Carousel</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Shown below Contact section on home page</p>
-                </div>
-                <Controller
-                  name="logoCarousel.enabled"
-                  control={control}
-                  render={({ field }) => (
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={field.value === true}
-                        onChange={(e) => field.onChange(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 accent-slate-800"
-                      />
-                      <span className="text-xs font-medium text-slate-600">Enable</span>
-                    </label>
-                  )}
-                />
-              </div>
-              <div className="flex flex-col gap-3">
-                <Controller
-                  name="logoCarousel.title"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      value={field.value || ""}
-                      size="small"
-                      label="Section Title (optional)"
-                      fullWidth
-                      placeholder="As Seen In / Our Partners"
-                    />
-                  )}
-                />
-                <div>
-                  <p className="text-xs text-slate-500 mb-2">Upload logos (transparent PNG recommended, max 12)</p>
-                  <Controller
-                    name="logoCarousel.logos"
-                    control={control}
-                    render={({ field }) => (
-                      <UploadMultipleFilesInput
-                        {...field}
-                        label="Logo Images"
-                        maxFiles={12}
-                        allowedExtensions={["jpg", "jpeg", "png", "webp", "svg"]}
-                        id="logo-carousel-logos-persistent"
-                      />
-                    )}
-                  />
-                </div>
-              </div>
-            </div>
           </div>
           {activeMainPageSlug === "home" ? (
           <div className="md:grid grid-cols-2 sm:grid-cols-1 md:grid-cols-2 gap-4">
@@ -3804,9 +3747,9 @@ const CreateWebsite = () => {
                                 size="small"
                                 label="Card Sub Text"
                                 fullWidth
-                                placeholder="Short description for this product page (max 120 chars)"
-                                inputProps={{ maxLength: 120 }}
-                                helperText={`${String(field.value || "").length}/120`}
+                                placeholder="Short description for this product page (max 200 chars)"
+                                inputProps={{ maxLength: 200 }}
+                                helperText={`${String(field.value || "").length}/200`}
                               />
                             )}
                           />
@@ -4322,6 +4265,65 @@ const CreateWebsite = () => {
                   >
                     + Add Testimonial
                   </button>
+                </div>
+              </div>
+            </div>
+            )}
+
+            {/* Logo Carousel — shown just before Contact & Footer on home page */}
+            {activeSections.includes("contact") && (
+            <div className="col-span-2 mt-4 rounded-lg border border-slate-200 bg-white p-3">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">Logo Carousel</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Shown just before Contact &amp; Footer on home page</p>
+                </div>
+                <Controller
+                  name="logoCarousel.enabled"
+                  control={control}
+                  render={({ field }) => (
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={field.value === true}
+                        onChange={(e) => field.onChange(e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 accent-slate-800"
+                      />
+                      <span className="text-xs font-medium text-slate-600">Enable</span>
+                    </label>
+                  )}
+                />
+              </div>
+              <div className="flex flex-col gap-3">
+                <Controller
+                  name="logoCarousel.title"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      value={field.value || ""}
+                      size="small"
+                      label="Section Title (optional)"
+                      fullWidth
+                      placeholder="As Seen In / Our Partners"
+                    />
+                  )}
+                />
+                <div>
+                  <p className="text-xs text-slate-500 mb-2">Upload logos (transparent PNG recommended, max 12)</p>
+                  <Controller
+                    name="logoCarousel.logos"
+                    control={control}
+                    render={({ field }) => (
+                      <UploadMultipleFilesInput
+                        {...field}
+                        label="Logo Images"
+                        maxFiles={12}
+                        allowedExtensions={["jpg", "jpeg", "png", "webp", "svg"]}
+                        id="logo-carousel-logos-persistent"
+                      />
+                    )}
+                  />
                 </div>
               </div>
             </div>
