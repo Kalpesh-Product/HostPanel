@@ -5,7 +5,7 @@ import LoginPage from "../pages/LoginPage/LoginPage";
 import PersistLogin from "../layouts/PersistLogin";
 
 // Import main pages
-import Reports from "../pages/Reports";
+import { ReportsPage } from "../pages/Reports";
 import { CalendarPage } from "../pages/Calendar/CalendarPage";
 import Access from "../pages/Access/Access";
 import AccessProfile from "../pages/Access/AccessProfile";
@@ -163,6 +163,8 @@ import TenantTicketsPage from "../pages/tenant/TenantTicketsPage";
 import { InventoryPage } from "../pages/Inventory/InventoryPage";
 import { DepartmentInventoryPage } from "../pages/Inventory/DepartmentInventoryPage";
 import { FinancePage } from "../pages/Finance/FinancePage";
+import { TasksPage } from "../pages/Tasks/TasksPage";
+import { LeaveRequestsPage } from "../pages/LeaveRequests/LeaveRequestsPage";
 
 function VerticalPickerRoute() {
   const location = useLocation();
@@ -552,6 +554,18 @@ export const routes = createBrowserRouter([
                 element: <FinancePage />,
               },
               {
+                path: "extra-common-modules/reports",
+                element: <ReportsPage />,
+              },
+              {
+                path: "extra-common-modules/tasks",
+                element: <TasksPage />,
+              },
+              {
+                path: "leave-requests",
+                element: <LeaveRequestsPage />,
+              },
+              {
                 path: "module-sections/:sectionId",
                 element: <ModuleCardsLanding />,
               },
@@ -561,7 +575,7 @@ export const routes = createBrowserRouter([
               },
               {
                 path: "reports",
-                element: <Reports />,
+                element: <ReportsPage />,
               },
               {
                 path: "calendar",

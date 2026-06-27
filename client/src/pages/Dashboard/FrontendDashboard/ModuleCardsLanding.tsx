@@ -130,6 +130,8 @@ const DEFAULT_SECTION_ROUTES: Record<string, string> = {
   tickets: "/tickets",
   "meeting-room-system": "/meetings/meeting-rooms",
   "customer-support": "/company-settings/customer-support",
+  tasks: "/extra-common-modules/tasks",
+  "leave-requests": "/leave-requests",
 };
 
 const ICON_BY_ID: Record<string, ElementType> = {
@@ -196,9 +198,9 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
       { id: "dashboard", label: "Dashboard", route: "/dashboard", implemented: true, unlockedInWorkspace: true },
       { id: "customer-support", label: "Customer Support", route: "/company-settings/customer-support", implemented: true, unlockedInWorkspace: true },
       { id: "attendance", label: "Attendance", implemented: false, unlockedInWorkspace: false },
-      { id: "tasks", label: "Tasks", implemented: false, unlockedInWorkspace: false },
+      { id: "tasks", label: "Tasks", route: "/extra-common-modules/tasks", implemented: true, unlockedInWorkspace: true },
       { id: "tickets", label: "Tickets", route: "/tickets", implemented: true, unlockedInWorkspace: true },
-      { id: "leave-requests", label: "Leave Requests", implemented: false, unlockedInWorkspace: false },
+      { id: "leave-requests", label: "Leave Requests", route: "/leave-requests", implemented: true, unlockedInWorkspace: true },
       { id: "meeting-room-system", label: "Meeting Room Booking", route: "/meetings/meeting-rooms", implemented: true, unlockedInWorkspace: true },
       { id: "calendar", label: "Calendar", route: "/calendar", implemented: true, unlockedInWorkspace: true },
     ],
@@ -211,6 +213,7 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
       { id: "inventory", label: "Inventory", implemented: false, unlockedInWorkspace: false },
       { id: "finance-management", label: "Finance Management", implemented: false, unlockedInWorkspace: false },
       { id: "reports", label: "Reports", implemented: false, unlockedInWorkspace: false },
+      { id: "tasks", label: "Tasks", route: "/extra-common-modules/tasks", implemented: true, unlockedInWorkspace: true },
     ],
   },
   "key-apps": {

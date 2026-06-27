@@ -137,6 +137,20 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/extra-common-modules/tasks",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
+      { label: "Tasks" },
+    ],
+  },
+  {
+    pattern: "/leave-requests",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
+      { label: "Leave Requests" },
+    ],
+  },
+  {
     pattern: "/visitors/visitor-management",
     fromSection: "department-accesses",
     crumbs: [
