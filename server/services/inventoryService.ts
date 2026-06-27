@@ -43,6 +43,7 @@ function normalizeInventoryInput(input = {}) {
     category: input.category,
     trackingType: input.trackingType,
     departmentId: input.departmentId ?? null,
+    department: String(input.department || "").trim(),
     totalQuantity: Number(input.totalQuantity ?? 0),
     availableQuantity: Number(input.availableQuantity ?? input.totalQuantity ?? 0),
     inventoryCode: String(input.inventoryCode || "").trim(),
@@ -60,8 +61,9 @@ export async function listInventoryForCurrentUser(userId, query = {}) {
     throw err;
   }
 
-  const filter = { workspaceId: new mongoose.Types.ObjectId(String(workspaceId)) };
+  const filter: any = { workspaceId: new mongoose.Types.ObjectId(String(workspaceId)) };
   if (departmentId) filter.departmentId = toObjId(departmentId);
+  if (query.department) filter.departmentName = query.department;
   if (category) filter.category = category;
   if (trackingType) filter.trackingType = trackingType;
 
@@ -89,7 +91,11 @@ export async function listInventoryForCurrentUser(userId, query = {}) {
   ]);
 
   return {
-    inventory: items.map((x) => ({ ...x, ledger: x.ledger || [] })),
+    inventory: items.map((x) => ({
+      ...x,
+      ledger: x.ledger || [],
+      department: x.departmentName || "Unassigned"
+    })),
     pagination: {
       total,
       page,
@@ -147,12 +153,13 @@ export async function createInventoryForCurrentUser(userId, input) {
     category: payload.category || "Physical",
     trackingType: payload.trackingType || "Consumable",
     departmentId: payload.departmentId ? toObjId(payload.departmentId) : null,
+    departmentName: payload.department || "",
     totalQuantity,
     availableQuantity,
     ledger: payload.ledger?.length ? payload.ledger : ledger,
   });
 
-  return { inventoryItem: doc };
+  return { inventoryItem: { ...doc.toObject(), department: doc.departmentName || "Unassigned" } };
 }
 
 export async function updateInventoryForCurrentUser(userId, inventoryId, input) {
@@ -167,6 +174,7 @@ export async function updateInventoryForCurrentUser(userId, inventoryId, input) 
   if (input.category !== undefined) update.category = input.category;
   if (input.trackingType !== undefined) update.trackingType = input.trackingType;
   if (input.departmentId !== undefined) update.departmentId = input.departmentId ? toObjId(input.departmentId) : null;
+  if (input.department !== undefined) update.departmentName = String(input.department).trim();
 
   if (input.totalQuantity !== undefined) update.totalQuantity = Math.max(0, Number(input.totalQuantity));
   if (input.availableQuantity !== undefined) update.availableQuantity = Math.max(0, Number(input.availableQuantity));
@@ -185,7 +193,7 @@ export async function updateInventoryForCurrentUser(userId, inventoryId, input) 
     throw err;
   }
 
-  return { inventoryItem: doc };
+  return { inventoryItem: { ...doc, department: doc.departmentName || "Unassigned" } };
 }
 
 export async function allocateInventoryForCurrentUser(userId, inventoryId, input) {

@@ -4,11 +4,13 @@ import { Asset } from "../models/Asset.js";
 
 const getCurrentWorkspaceId = (req) => {
     return (
+        req.workspaceMembership?.workspace ||
         req.user?.activeWorkspaceId ||
         req.user?.activeWorkspace ||
         req.user?.primaryWorkspace ||
         req.user?.workspaceId ||
-        req.body?.workspaceId
+        req.body?.workspaceId ||
+        req.query?.workspaceId
     );
 };
 

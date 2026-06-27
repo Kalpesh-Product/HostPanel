@@ -1,5 +1,5 @@
+﻿import sharp from "sharp";
 // @ts-nocheck
-import sharp from "sharp";
 import WebsiteTemplate from "../../models/website/WebsiteTemplate.js";
 import mongoose from "mongoose";
 import {
@@ -151,6 +151,8 @@ const normalizeProductDropdownPages = (items = []) =>
       homeCardSubText: String(item?.homeCardSubText || "").trim(),
       leadEnabled: toBool(item?.leadEnabled, true),
       leadFormLabel: String(item?.leadFormLabel || "").trim(),
+      faqs: Array.isArray(item?.faqs) ? item.faqs : [],
+      inclusions: Array.isArray(item?.inclusions) ? item.inclusions : [],
     };
 
     if (item?.heroImage && typeof item.heroImage === "object") {
@@ -217,7 +219,7 @@ const serializeProductDropdownPagesForClient = (items = [], products = []) => {
   const productImageBySlug = buildProductImageBySlug(products);
   return normalizeProductDropdownPages(items).map((page, index) => {
     // Match the product page to its product by slug/name first, then fall back to
-    // the product at the same index — so the product photo shows as the page's
+    // the product at the same index â€” so the product photo shows as the page's
     // cover on the home cards and on the products page.
     const fallbackProductImage =
       productImageBySlug[slugifyForMatch(page?.slug || page?.name || "")] ||
@@ -254,7 +256,7 @@ const serializeWebsiteTemplateForClient = (template) => {
     payload.products,
   );
   // Older websites have no productDropdownPages but do have a products list with
-  // images — derive product cards from products so their images still show on the
+  // images â€” derive product cards from products so their images still show on the
   // home "Our Products" section and each product opens as a product page.
   payload.productPages =
     serializedProductPages.length > 0
@@ -792,6 +794,49 @@ export const saveTemplateDraft = async (req, res) => {
         }))
       : template.testimonials;
 
+    if (Array.isArray(draftData?.faqs)) {
+      template.faqs = draftData.faqs
+        .map((faq) => ({
+          question: String(faq?.question || "").trim(),
+          answer: String(faq?.answer || "").trim(),
+        }))
+        .filter((faq) => faq.question);
+    }
+
+    if (Array.isArray(draftData?.inclusions)) {
+      template.inclusions = draftData.inclusions;
+    }
+
+    if (draftData?.logoCarousel !== undefined) {
+      template.logoCarousel = {
+        enabled: toBool(draftData.logoCarousel?.enabled, false),
+        title: String(draftData.logoCarousel?.title || "").trim(),
+        logos: Array.isArray(template.logoCarousel?.logos) ? template.logoCarousel.logos : [],
+      };
+    }
+
+    // Partner page fields
+    if (draftData?.partnerPageHeading !== undefined) {
+      template.partnerPageHeading = String(draftData.partnerPageHeading || "").trim();
+    }
+    if (draftData?.partnerPageContent !== undefined) {
+      template.partnerPageContent = String(draftData.partnerPageContent || "").trim();
+    }
+    if (draftData?.partnerFormTitle !== undefined) {
+      template.partnerFormTitle = String(draftData.partnerFormTitle || "").trim();
+    }
+
+    // Founders (text only — images handled via filesByField below)
+    if (Array.isArray(draftData?.founders)) {
+      template.founders = draftData.founders.map((f, index) => ({
+        name: String(f?.name || "").trim(),
+        role: String(f?.role || "").trim(),
+        bio: String(f?.bio || "").trim(),
+        highlights: String(f?.highlights || "").trim(),
+        image: template.founders?.[index]?.image || undefined,
+      }));
+    }
+
     const filesByField = {};
     for (const file of req.files || []) {
       if (!filesByField[file.fieldname]) filesByField[file.fieldname] = [];
@@ -839,6 +884,16 @@ export const saveTemplateDraft = async (req, res) => {
         40,
       );
       template.gallery = [...(template.gallery || []), ...uploaded];
+    }
+
+    if (filesByField.logoCarouselLogos?.length) {
+      const uploaded = await uploadImagesForDraft(
+        filesByField.logoCarouselLogos,
+        `${baseFolder}/logoCarousel`,
+        12,
+      );
+      if (!template.logoCarousel) template.logoCarousel = { enabled: false, title: "", logos: [] };
+      template.logoCarousel.logos = [...(template.logoCarousel.logos || []), ...uploaded];
     }
 
     if (filesByField.aboutPageImages?.length) {
@@ -1038,6 +1093,22 @@ export const saveTemplateDraft = async (req, res) => {
       }
     }
 
+    // Founder images (uploaded from builder)
+    for (const fieldName of Object.keys(filesByField)) {
+      const founderMatch = fieldName.match(/^founderImage_(\d+)$/);
+      if (founderMatch) {
+        const idx = Number(founderMatch[1]);
+        const uploaded = await uploadImagesForDraft(
+          [filesByField[fieldName][0]],
+          `${baseFolder}/founders/${idx}`,
+          1,
+        );
+        if (!Array.isArray(template.founders)) template.founders = [];
+        while (template.founders.length <= idx) template.founders.push({});
+        template.founders[idx] = { ...(template.founders[idx] || {}), image: uploaded[0] || template.founders[idx]?.image };
+      }
+    }
+
     template.draftData = draftData;
 
     template.productDropdownPages = sanitizeProductDropdownPagesForPersistence(
@@ -1079,6 +1150,7 @@ export const createTemplate = async (req, res, next) => {
       enabledSections,
       sectionOverrides,
       styleConfig,
+      inclusions,
       source = "Host Panel",
     } = req.body;
 
@@ -1364,6 +1436,12 @@ export const createTemplate = async (req, res, next) => {
         styleConfig,
         pageNavItems: normalizePageNavItems(pageNavItems),
         productDropdownPages: normalizeProductDropdownPages(productDropdownPages),
+        inclusions: Array.isArray(inclusions) ? inclusions : (typeof inclusions === "string" ? JSON.parse(inclusions || "[]") : []),
+        logoCarousel: {
+          enabled: toBool(req.body?.logoCarouselEnabled, false),
+          title: String(req.body?.logoCarouselTitle || "").trim(),
+          logos: [],
+        },
         aboutPageIntro: String(req.body?.aboutPageIntro || "").trim(),
         aboutPageOverview: String(req.body?.aboutPageOverview || "").trim(),
         aboutPageStory: String(req.body?.aboutPageStory || "").trim(),
@@ -1386,6 +1464,15 @@ export const createTemplate = async (req, res, next) => {
         contactPersonRole: String(req.body?.contactPersonRole || "").trim(),
         contactPersonEmail: String(req.body?.contactPersonEmail || "").trim(),
         contactPersonPhone: String(req.body?.contactPersonPhone || "").trim(),
+        partnerPageHeading: String(req.body?.partnerPageHeading || "").trim(),
+        partnerPageContent: String(req.body?.partnerPageContent || "").trim(),
+        partnerFormTitle: String(req.body?.partnerFormTitle || "").trim(),
+        founders: (() => {
+          try {
+            const raw = typeof req.body?.founders === "string" ? JSON.parse(req.body.founders) : (Array.isArray(req.body?.founders) ? req.body.founders : []);
+            return raw.map((f) => ({ name: String(f?.name || "").trim(), role: String(f?.role || "").trim(), bio: String(f?.bio || "").trim(), highlights: String(f?.highlights || "").trim() }));
+          } catch { return []; }
+        })(),
         isWebsiteTemplate: true,
         isActive: true,
         products: [],
@@ -1429,6 +1516,12 @@ export const createTemplate = async (req, res, next) => {
         styleConfig,
         pageNavItems: normalizePageNavItems(pageNavItems),
         productDropdownPages: normalizeProductDropdownPages(productDropdownPages),
+        inclusions: Array.isArray(inclusions) ? inclusions : (typeof inclusions === "string" ? JSON.parse(inclusions || "[]") : []),
+        logoCarousel: {
+          enabled: toBool(req.body?.logoCarouselEnabled, false),
+          title: String(req.body?.logoCarouselTitle || "").trim(),
+          logos: [],
+        },
         aboutPageIntro: String(req.body?.aboutPageIntro || "").trim(),
         aboutPageOverview: String(req.body?.aboutPageOverview || "").trim(),
         aboutPageStory: String(req.body?.aboutPageStory || "").trim(),
@@ -1451,6 +1544,15 @@ export const createTemplate = async (req, res, next) => {
         contactPersonRole: String(req.body?.contactPersonRole || "").trim(),
         contactPersonEmail: String(req.body?.contactPersonEmail || "").trim(),
         contactPersonPhone: String(req.body?.contactPersonPhone || "").trim(),
+        partnerPageHeading: String(req.body?.partnerPageHeading || "").trim(),
+        partnerPageContent: String(req.body?.partnerPageContent || "").trim(),
+        partnerFormTitle: String(req.body?.partnerFormTitle || "").trim(),
+        founders: (() => {
+          try {
+            const raw = typeof req.body?.founders === "string" ? JSON.parse(req.body.founders) : (Array.isArray(req.body?.founders) ? req.body.founders : []);
+            return raw.map((f) => ({ name: String(f?.name || "").trim(), role: String(f?.role || "").trim(), bio: String(f?.bio || "").trim(), highlights: String(f?.highlights || "").trim() }));
+          } catch { return []; }
+        })(),
         isWebsiteTemplate: true,
         isActive: true,
         products: [],
@@ -1869,6 +1971,17 @@ export const createTemplate = async (req, res, next) => {
       }
     }
 
+    // FOUNDER IMAGES
+    if (Array.isArray(template.founders)) {
+      for (let i = 0; i < template.founders.length; i++) {
+        const founderFile = (filesByField[`founderImage_${i}`] || [])[0];
+        if (founderFile) {
+          const uploaded = await uploadImages([founderFile], `${baseFolder}/founders/${i}`);
+          template.founders[i] = { ...(template.founders[i] || {}), image: uploaded[0] || template.founders[i]?.image };
+        }
+      }
+    }
+
     // template.testimonials = (testimonials || []).map((t, i) => ({
     template.testimonials = (
       Array.isArray(testimonials) ? testimonials : []
@@ -1943,7 +2056,7 @@ export const createTemplate = async (req, res, next) => {
       ).catch(() => {});
     }
 
-    // First-time website creation is FREE — no credit deduction.
+    // First-time website creation is FREE â€” no credit deduction.
     // Credits are only deducted on edit (PATCH /edit-website), which goes through
     // the checkAndDeductCredit middleware and deductWorkspaceCreditOnSuccess in editTemplate.
 
@@ -2148,6 +2261,7 @@ export const editTemplate = async (req, res, next) => {
       sectionOverrides,
       styleConfig,
       companyName,
+      inclusions,
     } = req.body;
 
     const safeParse = (val, fallback) => {
@@ -2173,6 +2287,7 @@ export const editTemplate = async (req, res, next) => {
     enabledSections = safeParse(enabledSections, null);
     sectionOverrides = safeParse(sectionOverrides, null);
     styleConfig = safeParse(styleConfig, null);
+    const parsedInclusions = safeParse(inclusions, null);
 
     const formatCompanyName = (name) =>
       (name || "").toLowerCase().split("-")[0].replace(/\s+/g, "");
@@ -2414,6 +2529,20 @@ export const editTemplate = async (req, res, next) => {
         productDropdownPages === null
           ? template.productDropdownPages
           : normalizeProductDropdownPages(productDropdownPages),
+      inclusions:
+        parsedInclusions === null ? template.inclusions : parsedInclusions,
+      faqs: req.body?.faqs !== undefined
+        ? (Array.isArray(req.body.faqs) ? req.body.faqs : (typeof req.body.faqs === "string" ? JSON.parse(req.body.faqs || "[]") : []))
+        : template.faqs,
+      logoCarousel: {
+        enabled: req.body?.logoCarouselEnabled !== undefined
+          ? toBool(req.body.logoCarouselEnabled, false)
+          : template.logoCarousel?.enabled ?? false,
+        title: req.body?.logoCarouselTitle !== undefined
+          ? String(req.body.logoCarouselTitle || "").trim()
+          : template.logoCarousel?.title ?? "",
+        logos: Array.isArray(template.logoCarousel?.logos) ? template.logoCarousel.logos : [],
+      },
       aboutPageIntro:
         req.body?.aboutPageIntro !== undefined
           ? String(req.body.aboutPageIntro || "").trim()
@@ -2502,6 +2631,31 @@ export const editTemplate = async (req, res, next) => {
         req.body?.contactPersonPhone !== undefined
           ? String(req.body.contactPersonPhone || "").trim()
           : template.contactPersonPhone,
+      partnerPageHeading:
+        req.body?.partnerPageHeading !== undefined
+          ? String(req.body.partnerPageHeading || "").trim()
+          : template.partnerPageHeading,
+      partnerPageContent:
+        req.body?.partnerPageContent !== undefined
+          ? String(req.body.partnerPageContent || "").trim()
+          : template.partnerPageContent,
+      partnerFormTitle:
+        req.body?.partnerFormTitle !== undefined
+          ? String(req.body.partnerFormTitle || "").trim()
+          : template.partnerFormTitle,
+      founders: (() => {
+        if (req.body?.founders === undefined) return template.founders;
+        try {
+          const raw = typeof req.body.founders === "string" ? JSON.parse(req.body.founders) : (Array.isArray(req.body.founders) ? req.body.founders : []);
+          return raw.map((f, i) => ({
+            name: String(f?.name || "").trim(),
+            role: String(f?.role || "").trim(),
+            bio: String(f?.bio || "").trim(),
+            highlights: String(f?.highlights || "").trim(),
+            image: template.founders?.[i]?.image || undefined,
+          }));
+        } catch { return template.founders; }
+      })(),
       menuItems:
         String(normalizedVertical || template?.vertical || "").trim() === "cafe"
           ? template.menuItems
@@ -2534,7 +2688,7 @@ export const editTemplate = async (req, res, next) => {
         : template.activeSections;
     }
 
-    // === 🏢 COMPANY LOGO (limit 1) ===
+    // === ðŸ¢ COMPANY LOGO (limit 1) ===
     if (filesByField.companyLogo?.length) {
       if (filesByField.companyLogo.length > 1) {
         throw new Error("Only one company logo is allowed.");
@@ -2549,7 +2703,7 @@ export const editTemplate = async (req, res, next) => {
       template.companyLogo = uploaded[0];
     }
 
-    // === 🖼 HERO IMAGES (max 5 total) ===
+    // === ðŸ–¼ HERO IMAGES (max 5 total) ===
     const heroKeepIds = safeParse(req.body.heroImageIds, []);
 
     if (req.body.heroImageIds !== undefined) {
@@ -2579,7 +2733,7 @@ export const editTemplate = async (req, res, next) => {
       template.heroImages.push(...newHero);
     }
 
-    // === 🏞 GALLERY (max 40 total) ===
+    // === ðŸž GALLERY (max 40 total) ===
     const galleryKeepIds = safeParse(req.body.galleryImageIds, []);
     if (req.body.galleryImageIds !== undefined) {
       const toDelete = template.gallery.filter(
@@ -2711,7 +2865,7 @@ export const editTemplate = async (req, res, next) => {
       template.productDropdownPages = normalizedPages;
     }
 
-    // === 🛍 PRODUCTS (max 10 per product) ===
+    // === ðŸ› PRODUCTS (max 10 per product) ===
     const existingMap = new Map(
       (template.products || []).map((p) => [String(p._id), p]),
     );
@@ -2818,7 +2972,7 @@ export const editTemplate = async (req, res, next) => {
         : template.enabledSections;
     }
 
-    // === 💬 TESTIMONIALS (max 1 per testimonial) ===
+    // === ðŸ’¬ TESTIMONIALS (max 1 per testimonial) ===
     const testimonialMap = new Map(
       (template.testimonials || []).map((t) => [String(t._id), t]),
     );
@@ -2878,6 +3032,20 @@ export const editTemplate = async (req, res, next) => {
     for (const r of removedT)
       if (r.image?.url) await deleteImagesFromS3([r.image]);
     template.testimonials = updatedTestimonials;
+
+    // FOUNDER IMAGES in editTemplate
+    if (Array.isArray(template.founders)) {
+      for (let i = 0; i < template.founders.length; i++) {
+        const founderFile = (filesByField[`founderImage_${i}`] || [])[0];
+        if (founderFile) {
+          if (template.founders[i]?.image?.url) {
+            await deleteImagesFromS3([template.founders[i].image]);
+          }
+          const uploaded = await uploadImages([founderFile], `${baseFolder}/founders/${i}`, 1);
+          template.founders[i] = { ...(template.founders[i] || {}), image: uploaded[0] || template.founders[i]?.image };
+        }
+      }
+    }
 
     // Validate before saving to catch schema validation errors
     await template.validate();
@@ -2973,3 +3141,17 @@ export const publishWebsite = async (req, res, next) => {
   }
 };
 
+﻿// @ts-nocheck
+import sharp from "sharp";
+import WebsiteTemplate from "../../models/website/WebsiteTemplate.js";
+import mongoose from "mongoose";
+import {
+  deleteFileFromS3ByUrl,
+  uploadFileToS3,
+} from "../../config/s3config.js";
+import HostCompany from "../../models/Company.js";
+import Workspace from "../../models/Workspace.js";
+import axios from "axios";
+import { VERTICAL_CONFIG } from "../../config/verticalConfig.js";
+import { THEME_TOKENS } from "../../config/themeTokens.js";
+import WorkspaceSubscription from "../../models/WorkspaceSubscription.js";

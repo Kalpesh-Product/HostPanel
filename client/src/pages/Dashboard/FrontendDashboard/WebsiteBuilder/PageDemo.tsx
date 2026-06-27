@@ -18,7 +18,7 @@ const FALLBACK_NAV = [
   { name: "About", slug: "about" },
   { name: "Products", slug: "products" },
   { name: "Gallery", slug: "gallery" },
-  { name: "Testimonials", slug: "testimonials" },
+  { name: "Partner", slug: "partner" },
   { name: "Contact", slug: "contact" },
 ];
 
@@ -27,6 +27,7 @@ const resolveSectionFromSlug = (slug: string) => {
   if (normalized.includes("about")) return "about";
   if (normalized.includes("product")) return "products";
   if (normalized.includes("gallery")) return "gallery";
+  if (normalized.includes("partner")) return "partner";
   if (normalized.includes("testimonial") || normalized.includes("review")) return "testimonials";
   if (normalized.includes("contact")) return "contact";
   return "home";
@@ -46,10 +47,230 @@ const FOOTER_TEXT = "font-['Poppins',ui-sans-serif,system-ui,sans-serif] text-[#
 const FOOTER_HEADING = "text-[14px] font-semibold text-[#111827]";
 const FOOTER_BODY_TEXT = "mt-2 text-sm leading-relaxed text-[#374151]";
 const SECTION_BLOCK = "px-4 py-8 md:px-6 md:py-12";
+
+// -- Inclusions ----------------------------------------------------------------
+// Master list of all possible inclusions used across home + product pages.
+// Icons are inline SVGs at 40â€º40 viewBox, stroke-based, no fill.
+const ALL_INCLUSIONS: Array<{ key: string; label: string; icon: React.ReactNode }> = [
+  { key: "workspace", label: "Workspace", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="10" width="28" height="18" rx="2"/><path d="M14 28v4M26 28v4M10 32h20"/><rect x="12" y="15" width="8" height="6" rx="1"/></svg> },
+  { key: "living-space", label: "Living Space", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="18" width="28" height="14" rx="2"/><path d="M10 18v-4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4"/><path d="M6 26h28M12 32v2M28 32v2"/></svg> },
+  { key: "air-condition", label: "Air Condition", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="10" width="28" height="12" rx="2"/><path d="M14 28c0-2 2-4 6-4s6 2 6 4M20 22v4"/><circle cx="20" cy="16" r="2"/></svg> },
+  { key: "fast-internet", label: "Fast Internet", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="10" width="28" height="18" rx="2"/><path d="M10 18h4M10 22h6M26 18h4M6 28h28"/><circle cx="20" cy="19" r="3"/><path d="M14 13h12"/></svg> },
+  { key: "cafe-dining", label: "Cafe / Dining", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 12h6v8a3 3 0 0 1-6 0v-8z"/><path d="M16 16h2a2 2 0 0 1 0 4h-2"/><path d="M26 12v8M24 20a4 4 0 0 0 4 4M13 28v4M27 28v4M10 32h20"/></svg> },
+  { key: "receptionist", label: "Receptionist", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="20" cy="12" r="5"/><path d="M10 32c0-6 4-10 10-10s10 4 10 10"/><path d="M8 28h24"/></svg> },
+  { key: "meeting-rooms", label: "Meeting Rooms", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="12" width="28" height="18" rx="2"/><path d="M14 21h12M14 25h8"/><circle cx="12" cy="8" r="2"/><circle cx="20" cy="8" r="2"/><circle cx="28" cy="8" r="2"/></svg> },
+  { key: "training-rooms", label: "Training Rooms", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="10" width="28" height="20" rx="2"/><path d="M6 18h28M14 18v12M20 14h6"/></svg> },
+  { key: "it-support", label: "IT Support", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="24" height="18" rx="2"/><path d="M14 26v4M26 26v4M10 30h20"/><path d="M16 17l3 3 5-6"/></svg> },
+  { key: "tea-coffee", label: "Tea & Coffee", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 14h16v12a6 6 0 0 1-6 6h-4a6 6 0 0 1-6-6V14z"/><path d="M26 16h2a3 3 0 0 1 0 6h-2"/><path d="M14 10c0-2 2-2 2-4M19 10c0-2 2-2 2-4"/></svg> },
+  { key: "assist", label: "Assist", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="20" cy="12" r="5"/><path d="M10 32c0-5 4-9 10-9s10 4 10 9"/><path d="M20 21v5M17 26h6"/></svg> },
+  { key: "community", label: "Community", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="14" cy="14" r="4"/><circle cx="26" cy="14" r="4"/><path d="M6 32c0-4 3-7 8-7M26 25c5 0 8 3 8 7M16 32c0-4 2-6 4-6s4 2 4 6"/></svg> },
+  { key: "on-demand", label: "On Demand", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="20" cy="20" r="12"/><path d="M16 15l10 5-10 5V15z"/></svg> },
+  { key: "maintenance", label: "Maintenance", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M28 12a6 6 0 0 0-8.5 8.5L8 32l4 4 11.5-11.5A6 6 0 0 0 28 12z"/><path d="M26 10l4 4"/></svg> },
+  { key: "generator", label: "Generator", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="14" width="28" height="16" rx="2"/><path d="M14 14v-4M26 14v-4M20 18v8M16 22h8"/></svg> },
+  { key: "pickup-drop", label: "Pickup & Drop", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="18" width="32" height="12" rx="2"/><path d="M8 18l4-8h16l4 8"/><circle cx="11" cy="30" r="3"/><circle cx="29" cy="30" r="3"/></svg> },
+  { key: "car-bike-bus", label: "Car / Bike / Bus", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 22h28M10 22l3-8h14l3 8"/><circle cx="13" cy="26" r="3"/><circle cx="27" cy="26" r="3"/><path d="M34 22v4"/></svg> },
+  { key: "housekeeping", label: "Housekeeping", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 32V20l8-10 8 10v12"/><path d="M16 32v-8h8v8"/><path d="M8 20h24"/></svg> },
+  { key: "swimming-pool", label: "Swimming Pool", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 22c2 0 3-2 6-2s4 2 6 2 3-2 6-2 4 2 6 2"/><path d="M6 28c2 0 3-2 6-2s4 2 6 2 3-2 6-2 4 2 6 2"/><path d="M20 8v10M16 12l4-4 4 4"/></svg> },
+  { key: "television", label: "Television", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="10" width="28" height="18" rx="2"/><path d="M14 28v4M26 28v4M10 32h20"/><path d="M14 14h4M14 19h8"/></svg> },
+  { key: "gas", label: "Gas", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8h8v6a8 8 0 0 1-8 0V8z"/><path d="M14 14a8 8 0 0 0 12 0"/><path d="M12 32V22a8 8 0 0 1 16 0v10"/><path d="M10 32h20"/></svg> },
+  { key: "laundry", label: "Laundry", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="24" height="26" rx="2"/><circle cx="20" cy="24" r="6"/><path d="M12 14h4"/><circle cx="18" cy="14" r="1" fill="currentColor" stroke="none"/></svg> },
+  { key: "secure", label: "Secure", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6l12 5v10c0 7-5 12-12 14C13 33 8 28 8 21V11l12-5z"/><path d="M15 20l4 4 6-7"/></svg> },
+  { key: "personalised", label: "Personalised", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M28 12l-4 4-8-8-6 6 8 8-4 4 12 4-8-18z"/></svg> },
+  { key: "electricity", label: "Electricity", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 6l-8 16h8l-4 12 10-18h-8L22 6z"/></svg> },
+  { key: "ups", label: "UPS", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="14" width="24" height="16" rx="2"/><path d="M14 14v-4M26 14v-4M16 22h8M20 20v4"/></svg> },
+  { key: "events", label: "Events", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8 18c4-8 20-8 24 0M12 26c3-6 13-6 16 0M16 32c1-3 7-3 8 0"/></svg> },
+  { key: "furnished-office", label: "Furnished Office", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="10" width="28" height="18" rx="2"/><path d="M14 28v4M26 28v4M10 32h20M14 19h12M14 23h8"/></svg> },
+  { key: "cafeteria", label: "Cafeteria", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="14" width="24" height="16" rx="2"/><path d="M14 14v-4M26 14v-4M8 22h24M16 22v8M24 22v8"/></svg> },
+  { key: "high-speed-internet", label: "High Speed Internet", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 20a20 20 0 0 1 28 0M10 24a14 14 0 0 1 20 0M14 28a8 8 0 0 1 12 0"/><circle cx="20" cy="32" r="2" fill="currentColor" stroke="none"/></svg> },
+  { key: "assistance", label: "Assistance", icon: <svg viewBox="0 0 40 40" className="h-10 w-10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="20" cy="12" r="5"/><path d="M10 32c0-5 4-9 10-9s10 4 10 9"/><path d="M16 26l4 2 4-2"/></svg> },
+];
+
+const InclusionsSection = ({
+  inclusions,
+  title = "INCLUSIONS",
+}: {
+  inclusions: Array<{ key: string; enabled: boolean }>;
+  title?: string;
+}) => {
+  if (!inclusions.length) return null;
+  return (
+    <section className={SECTION_BLOCK}>
+      <div className={CONTENT_WRAP}>
+        <div className="mb-8">
+          <LinedHeading title={title} />
+        </div>
+        <div className="grid grid-cols-3 gap-6 sm:grid-cols-4 md:grid-cols-6">
+          {inclusions.map(({ key, enabled }) => {
+            const item = ALL_INCLUSIONS.find((i) => i.key === key);
+            if (!item) return null;
+            return (
+              <div
+                key={key}
+                className={`flex flex-col items-center gap-2 text-center ${enabled ? "text-[#111827]" : "text-slate-400"}`}
+              >
+                {/* Icon with optional cross overlay */}
+                <div className="relative">
+                  {item.icon}
+                  {!enabled ? (
+                    <svg viewBox="0 0 40 40" className="absolute inset-0 h-10 w-10 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <line x1="8" y1="8" x2="32" y2="32" />
+                      <line x1="32" y1="8" x2="8" y2="32" />
+                    </svg>
+                  ) : null}
+                </div>
+                {/* Label â€” strikethrough when disabled */}
+                <span className={`text-[10px] font-semibold uppercase tracking-wider font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[11px] ${!enabled ? "line-through" : ""}`}>
+                  {item.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const LogoCarousel = ({ logos, title }: { logos: string[]; title?: string }) => {
+  const [offset, setOffset] = React.useState(0);
+  const visible = 4;
+  const total = logos.length;
+
+  React.useEffect(() => {
+    if (total <= visible) return;
+    const timer = window.setInterval(() => {
+      setOffset((prev) => (prev + 1) % total);
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [total]);
+
+  if (!total) return null;
+
+  // Build the display list — always show `visible` items, cycling
+  const displayed = Array.from({ length: visible }, (_, i) => logos[(offset + i) % total]);
+
+  return (
+    <section className="bg-white px-4 py-10 md:px-6 md:py-12">
+      <div className={CONTENT_WRAP}>
+        {title ? (
+          <div className="mb-8">
+            <LinedHeading title={title} />
+          </div>
+        ) : null}
+        <div className="overflow-hidden">
+          <div
+            className="flex items-center justify-center gap-8 md:gap-16 transition-all duration-700"
+          >
+            {displayed.map((src, idx) => (
+              <div
+                key={`logo-${offset}-${idx}`}
+                className="flex h-[72px] w-[200px] shrink-0 items-center justify-center md:h-[80px] md:w-[220px]"
+              >
+                <img
+                  src={src}
+                  alt={`Partner logo ${idx + 1}`}
+                  className="max-h-full max-w-full object-contain transition duration-300"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const FaqAccordion = ({ faqs }: { faqs: Array<{ question: string; answer: string }> }) => {
+  const [openIndex, setOpenIndex] = React.useState<number | null>(null);
+  if (!faqs.length) return null;
+  return (
+    <section className="px-4 pb-10 pt-0 md:px-6 md:pb-14">
+      <div className="mx-auto w-full max-w-7xl">
+        <div className="mb-6">
+          <LinedHeading title="Frequently Asked Questions" />
+        </div>
+        <div className="flex flex-col gap-3">
+          {faqs.map((faq, idx) => (
+            <div key={idx} className="overflow-hidden rounded-xl border border-slate-300 bg-white shadow-sm">
+              <button
+                type="button"
+                onClick={() => setOpenIndex(openIndex === idx ? null : idx)}
+                className="flex w-full items-center justify-between border-b border-transparent px-5 py-4 text-left transition hover:bg-slate-50 data-[open=true]:border-slate-200"
+                data-open={openIndex === idx ? "true" : "false"}
+              >
+                <span className="flex items-center gap-3 min-w-0">
+                  <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-[#111827] text-[12px] font-bold text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif]">
+                    {idx + 1}
+                  </span>
+                  <span className="text-[14px] font-semibold text-[#111827] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[15px]">
+                    {faq.question}
+                  </span>
+                </span>
+                <span className={`ml-4 shrink-0 flex h-7 w-7 items-center justify-center rounded-full border border-slate-300 text-[18px] text-slate-500 transition-transform duration-200 ${openIndex === idx ? "border-slate-400" : ""}`}>
+                  {openIndex === idx ? "-" : "+"}
+                </span>
+              </button>
+              {openIndex === idx ? (
+                <div className="border-t border-slate-200 bg-slate-50 px-5 py-4">
+                  {(() => {
+                    const lines = faq.answer.split("\n").map((l) => l.trim()).filter(Boolean);
+                    const blocks: Array<{ type: "bullet" | "para"; text: string }> = [];
+                    let paraBuffer: string[] = [];
+                    const flushPara = () => {
+                      if (paraBuffer.length) {
+                        blocks.push({ type: "para", text: paraBuffer.join(" ") });
+                        paraBuffer = [];
+                      }
+                    };
+                    lines.forEach((line) => {
+                      if (line.endsWith(".") || line.endsWith("!") || line.endsWith("?")) {
+                        flushPara();
+                        blocks.push({ type: "bullet", text: line });
+                      } else {
+                        paraBuffer.push(line);
+                      }
+                    });
+                    flushPara();
+                    const hasBullets = blocks.some((b) => b.type === "bullet");
+                    return (
+                      <div className="space-y-2">
+                        {blocks.map((block, bi) =>
+                          block.type === "bullet" ? (
+                            <div key={bi} className="flex items-start gap-2">
+                              <span className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#374151]" />
+                              <p className="text-[13px] leading-relaxed text-[#374151] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[14px]">{block.text}</p>
+                            </div>
+                          ) : (
+                            <p key={bi} className={`text-[13px] leading-relaxed text-[#374151] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[14px] ${hasBullets ? "pl-4" : ""}`}>{block.text}</p>
+                          )
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
 const IMAGE_ACTION_BUTTON =
   "rounded-full border-2 border-white/90 bg-black/60 px-8 py-2 text-[12px] font-semibold uppercase text-white shadow-[0_10px_30px_rgba(0,0,0,0.24)] backdrop-blur-[2px] transition hover:bg-black/70 font-['Poppins',ui-sans-serif,system-ui,sans-serif]";
 const MOBILE_SECTION_HEADING =
   "text-center text-[22px] md:text-[32px] font-semibold uppercase tracking-normal text-[#000000] font-['Poppins',ui-sans-serif,system-ui,sans-serif]";
+
+// Heading with horizontal lines on both sides â€º used across all section headings
+const LinedHeading = ({ title }: { title: string }) => (
+  <div className="flex items-center gap-4">
+    <div className="flex-1 border-t border-[#111827]" />
+    <h2 className="shrink-0 text-center text-[20px] font-semibold uppercase tracking-[0.15em] text-[#111827] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[26px]">
+      {title}
+    </h2>
+    <div className="flex-1 border-t border-[#111827]" />
+  </div>
+);
 
 const getNonEmptyTextList = (...values: unknown[]) =>
   values.map((value) => String(value || "").trim()).filter(Boolean);
@@ -277,6 +498,8 @@ const PageDemo = () => {
   const [approvedReviews, setApprovedReviews] = useState<any[]>([]);
   const [expandedTestimonials, setExpandedTestimonials] = useState<Record<string, boolean>>({});
   const [successPopup, setSuccessPopup] = useState({ open: false, message: "" });
+  const [partnerForm, setPartnerForm] = useState({ name: "", email: "", mobile: "", message: "" });
+  const [partnerSubmitPending, setPartnerSubmitPending] = useState(false);
   const [leadForm, setLeadForm] = useState({
     fullName: "",
     people: "",
@@ -463,7 +686,7 @@ const PageDemo = () => {
 
     if (currentSection !== "home") {
       items.push({
-        label: currentSection === "testimonials" ? "Testimonials" : currentSection.charAt(0).toUpperCase() + currentSection.slice(1),
+        label: currentSection === "partner" ? "Partner" : currentSection === "testimonials" ? "Testimonials" : currentSection.charAt(0).toUpperCase() + currentSection.slice(1),
         onClick: () => navigate(`/website-preview/page/${currentSection}`),
       });
     }
@@ -502,12 +725,17 @@ const PageDemo = () => {
     setProductHeroIndex(0);
   }, [currentProductSlug]);
 
+  // Track previous item slug to avoid resetting the form on every draft re-poll
+  const prevDetailItemSlugRef = useRef<string>("");
+
   // Auto-set the lead product when on a detail item page so the form submits without a modal.
   useEffect(() => {
     if (selectedDetailItem && selectedProductPage) {
       const detailTitle = String(selectedDetailItem?.title || selectedDetailItem?.name || selectedDetailItem?.heading || "Product").trim();
       const detailDescription = String(selectedDetailItem?.description || selectedDetailItem?.subText || selectedProductPage?.subText || "").trim();
       const detailImage = getMediaSrc(selectedDetailItem?.images?.[0]) || getMediaSrc(selectedDetailItem?.cardImage) || getMediaSrc(selectedProductPage?.cardImage) || "";
+      const currentSlug = normalizeSlug(selectedDetailItem?.title || selectedDetailItem?.name || selectedDetailItem?.heading || "");
+
       setSelectedLeadProduct({
         ...selectedProductPage,
         ...selectedDetailItem,
@@ -515,10 +743,15 @@ const PageDemo = () => {
         subText: detailDescription,
         cardImage: detailImage,
       });
-      setLeadSubmitted(false);
-      setLeadSubmitError("");
-      setLeadForm({ fullName: "", people: "", mobile: "", email: "", startDate: "", endDate: "" });
-    } else if (!selectedDetailItem) {
+
+      // Only reset the form if we navigated to a different item
+      if (prevDetailItemSlugRef.current !== currentSlug) {
+        prevDetailItemSlugRef.current = currentSlug;
+        setLeadSubmitted(false);
+        setLeadSubmitError("");
+        setLeadForm({ fullName: "", people: "", mobile: "", email: "", startDate: "", endDate: "" });
+      }    } else if (!selectedDetailItem) {
+      prevDetailItemSlugRef.current = "";
       setSelectedLeadProduct(null);
     }
   }, [selectedDetailItem, selectedProductPage]);
@@ -526,6 +759,15 @@ const PageDemo = () => {
   useEffect(() => {
     setMobileMenuOpen(false);
     setMobileProductsMenuOpen(false);
+    // Scroll to top on every page/section change.
+    // The preview is inside the dashboard's scrollable-content div — scroll that.
+    // For standalone preview (new tab), scroll window.
+    const scrollableDiv = document.getElementById("scrollable-content");
+    if (scrollableDiv) {
+      scrollableDiv.scrollTo({ top: 0, behavior: "instant" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
   }, [location.pathname]);
 
   useEffect(() => {
@@ -640,6 +882,10 @@ const PageDemo = () => {
     ...aboutBlocks,
   );
   const showWriteReview = draft?.testimonialsEnableWriteReview !== false;
+  const founders = Array.isArray(draft?.founders) ? draft.founders.filter((f: any) => String(f?.name || "").trim()) : [];
+  const partnerPageHeading = String(draft?.partnerPageHeading || "").trim();
+  const partnerPageContent = String(draft?.partnerPageContent || "").trim();
+  const partnerFormTitle = String(draft?.partnerFormTitle || "").trim();
   const contactEmail = String(draft?.email || "").trim();
   const contactPhone = String(draft?.phone || "").trim();
   const contactAddress = String(draft?.address || "Panjim-Goa").trim();
@@ -841,7 +1087,10 @@ const PageDemo = () => {
         websiteUrl: window.location.href,
       });
       setLeadSubmitted(true);
-      closeLeadModal();
+      // Only close the modal if we're not on the inline detail page
+      if (!selectedDetailItem) {
+        closeLeadModal();
+      }
       showSuccessPopup("Lead submitted successfully.");
     } catch (error: any) {
       console.error("Failed to submit website lead", error);
@@ -1177,7 +1426,7 @@ const PageDemo = () => {
             <div className="flex items-center gap-2">
               {breadcrumbItems.map((item, index) => (
                 <div key={`${item.label}-${index}`} className="flex items-center gap-2">
-                  {index > 0 ? <span className="text-slate-400">›</span> : null}
+                  {index > 0 ? <span className="text-slate-400">/</span> : null}
                   {item.onClick ? (
                     <button
                       type="button"
@@ -1292,28 +1541,40 @@ const PageDemo = () => {
           {/* Products section: home-page product cards that link into product detail routes. */}
           <section id="products" className={SECTION_BLOCK}>
             <div className={CONTENT_WRAP}>
-              <h2 className={MOBILE_SECTION_HEADING}>Our Products</h2>
-              <div className="mt-6 grid grid-cols-1 gap-4 md:mt-10 md:grid-cols-3 md:gap-7">
+              <LinedHeading title="Our Products" />
+              <div className="mt-6 grid grid-cols-1 gap-6 md:mt-10 md:grid-cols-3 md:gap-7">
                 {productPages.map((item: any, idx: number) => (
-                  <article key={`product-${idx}`} className="flex flex-col items-center">
-                    <h3 className="mb-3 text-base font-medium md:text-xl">{item?.heading || item?.name || "Product"}</h3>
-                    <div className="relative w-full overflow-hidden rounded-2xl bg-slate-200">
+                  <article key={`product-${idx}`} className="flex flex-col overflow-hidden rounded-2xl shadow-md">
+                    {/* Image */}
+                    <div className="w-full overflow-hidden bg-slate-200">
                       {item?.cardImage ? (
                         <img
                           src={item.cardImage}
                           alt={item?.heading || item?.name}
-                          className="h-[190px] w-full object-cover md:h-[220px]"
+                          className="h-[200px] w-full object-cover md:h-[230px]"
                         />
                       ) : (
-                        <div className="h-[190px] w-full md:h-[220px]" />
+                        <div className="h-[200px] w-full md:h-[230px]" />
                       )}
-                      <div className="absolute inset-x-0 bottom-4 flex justify-center md:bottom-6">
+                    </div>
+
+                    {/* Dark card: name + description + explore button */}
+                    <div className="flex flex-1 flex-col items-center gap-3 bg-[#1a1a1a] px-5 py-5 text-center">
+                      <h3 className="text-[15px] font-semibold uppercase tracking-wide text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">
+                        {item?.heading || item?.name || "Product"}
+                      </h3>
+                      {(item?.homeCardSubText || item?.subText) ? (
+                        <p className="text-[12px] leading-relaxed text-white/75 font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[13px]">
+                          {item?.homeCardSubText || item?.subText}
+                        </p>
+                      ) : null}
+                      <div className="mt-auto pt-1">
                         <button
                           type="button"
                           onClick={() => handleProductCardAction(item)}
-                          className={IMAGE_ACTION_BUTTON}
+                          className="rounded-full border border-white/60 px-6 py-2 text-[11px] font-semibold uppercase tracking-widest text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
                         >
-                          EXPLORE
+                          Explore
                         </button>
                       </div>
                     </div>
@@ -1323,10 +1584,15 @@ const PageDemo = () => {
             </div>
           </section>
 
+          {/* Inclusions section: home-page amenities grid */}
+          {Array.isArray(draft?.inclusions) && draft.inclusions.length > 0 ? (
+            <InclusionsSection inclusions={draft.inclusions} />
+          ) : null}
+
           {/* Gallery preview section: first six images on home, full gallery on the gallery page. */}
           <section id="gallery" className={SECTION_BLOCK}>
             <div className={CONTENT_WRAP}>
-              <h2 className={MOBILE_SECTION_HEADING}>{draft?.galleryTitle || "Gallery"}</h2>
+              <LinedHeading title={draft?.galleryTitle || "Gallery"} />
               <div className="mt-6 grid grid-cols-1 gap-[8px] sm:grid-cols-2 md:mt-10 md:grid-cols-3">
                 {homeGalleryItems.map((item: string, idx: number) => (
                   <button
@@ -1358,7 +1624,7 @@ const PageDemo = () => {
           {/* Testimonials preview section: merged draft testimonials and approved public reviews. */}
           <section id="testimonials" className={SECTION_BLOCK}>
             <div className={CONTENT_WRAP}>
-              <h2 className={MOBILE_SECTION_HEADING}>{draft?.testimonialTitle || "Testimonials"}</h2>
+              <LinedHeading title={draft?.testimonialTitle || "Testimonials"} />
               <div className="mt-6 grid grid-cols-1 gap-5 md:mt-8 md:grid-cols-3">
                 {visibleTestimonials.map((item: any, index: number) => {
                   const testimonialKey = String(item?.key || `home-testimonial-${testimonialIndex}-${index}`);
@@ -1448,7 +1714,7 @@ const PageDemo = () => {
           {/* Contact summary section: map iframe and shared contact card. */}
           <section id="contact" className={SECTION_BLOCK}>
             <div className={CONTENT_WRAP}>
-              <h2 className={MOBILE_SECTION_HEADING}>{draft?.contactTitle || "Contact"}</h2>
+              <LinedHeading title={draft?.contactTitle || "Contact"} />
             <div className="mt-6 grid grid-cols-1 gap-4 md:mt-8 md:grid-cols-12">
                 <div className="md:col-span-7">
                   {draft?.mapUrl ? (
@@ -1469,6 +1735,17 @@ const PageDemo = () => {
               </div>
             </div>
           </section>
+
+          {/* Logo Carousel — optional section after contact */}
+          {draft?.logoCarousel?.enabled && Array.isArray(draft.logoCarousel.logos) && draft.logoCarousel.logos.length > 0 ? (
+            <LogoCarousel
+              logos={draft.logoCarousel.logos.map((item: any) => {
+                if (typeof item === "string") return item;
+                return item?.url || item?.preview || "";
+              }).filter(Boolean)}
+              title={draft?.logoCarousel?.title || undefined}
+            />
+          ) : null}
         </>
       ) : null}
 
@@ -1505,6 +1782,56 @@ const PageDemo = () => {
                 ))}
               </div>
             ) : null}
+
+            {founders.length ? (
+              <div className="mt-14 space-y-16">
+                <h3 className="text-center text-[22px] font-semibold text-[#f7e53f] md:text-[28px]">
+                  Our Founders
+                </h3>
+                {founders.map((founder: any, idx: number) => {
+                  const founderImg = typeof founder?.image === "string" ? founder.image : founder?.image?.url || "";
+                  const founderHighlights = Array.isArray(founder?.highlights)
+                    ? founder.highlights
+                    : String(founder?.highlights || "")
+                        .split("\n")
+                        .map((s: string) => s.trim())
+                        .filter(Boolean);
+                  return (
+                    <div
+                      key={`founder-${idx}`}
+                      className={`flex flex-col items-stretch md:flex-row ${idx % 2 === 1 ? "md:flex-row-reverse" : ""}`}
+                    >
+                      {founderImg ? (
+                        <div className="w-full md:w-1/2">
+                          <img
+                            src={founderImg}
+                            alt={founder?.name || "Founder"}
+                            className="h-full w-full rounded-2xl object-cover"
+                          />
+                        </div>
+                      ) : null}
+                      <div className="flex w-full flex-col justify-center md:w-1/2 md:px-8 text-left">
+                        <h3 className="text-[22px] font-semibold text-[#f7e53f] md:text-[28px]">
+                          {founder.name}
+                        </h3>
+                        <p className="mt-1 text-[15px] font-medium text-white/70">{founder.role}</p>
+                        <p className="mt-3 font-['Poppins',ui-sans-serif,system-ui,sans-serif] text-[14px] leading-[1.7] text-white/85 md:text-[16px]">
+                          {founder.bio}
+                        </p>
+                        {founderHighlights.length ? (
+                          <ul className="mt-4 list-inside list-disc space-y-1 text-[14px] font-semibold text-white/75">
+                            {founderHighlights.map((h: string, hi: number) => (
+                              <li key={`fhi-${hi}`}>{h}</li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+
             {aboutPageImageCards.length ? (
               <div className="mt-10 md:mt-14">
                 {draft?.aboutPageTeamHeading ? (
@@ -1536,7 +1863,7 @@ const PageDemo = () => {
       {/* Products page: category detail view or menu-style rendering based on the selected product slug. */}
       {currentSection === "products" ? (
         <>
-          {/* ── Product Item Detail Page ── */}
+          {/* -- Product Item Detail Page -- */}
           {selectedDetailItem && selectedProductPage ? (() => {
             const detailTitle = String(selectedDetailItem?.title || selectedDetailItem?.name || selectedDetailItem?.heading || "Product").trim();
             const detailDescription = String(selectedDetailItem?.description || selectedDetailItem?.subText || selectedProductPage?.subText || "").trim();
@@ -1552,10 +1879,11 @@ const PageDemo = () => {
             const leadFields = getLeadFieldsForProduct(selectedProductPage?.slug || selectedProductPage?.name || "");
 
             return (
-              <section className="bg-[#e9e9e9] px-4 py-10 md:px-6 md:py-16">
+              <>
+              <section className="bg-[#e9e9e9] px-4 py-10 md:px-6 md:py-12">
                 <div className={CONTENT_WRAP}>
-                  <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:items-end md:gap-12">
-                    {/* Left — Image */}
+                  <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:items-start md:gap-12">
+                    {/* Left â€º Image, fixed height */}
                     <div className="w-full">
                       {detailImage ? (
                         <img
@@ -1568,15 +1896,18 @@ const PageDemo = () => {
                       )}
                     </div>
 
-                    {/* Right — Info + Form */}
-                    <div className="flex flex-col gap-5 font-['Poppins',ui-sans-serif,system-ui,sans-serif]">
-                      {/* Title & Price */}
-                      <div>
+                    {/* Right â€º fixed same height as image: heading at top, form pinned at bottom, description scrolls in between */}
+                    <div className="flex flex-col font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:h-[520px]">
+                      {/* Title & Price â€º pinned at top */}
+                      <div className="shrink-0">
                         <h1 className="text-[24px] font-bold text-[#111827] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[32px]">{detailTitle}</h1>
                         {detailPrice ? (
                           <p className="mt-1 text-[15px] font-semibold text-[#374151] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">{detailPrice}</p>
                         ) : null}
                       </div>
+
+                      {/* Description + extra bullets â€º scrollable middle zone */}
+                      <div className="flex-1 overflow-y-auto space-y-3 py-2 pr-1">
 
                       {/* Description as bullet points */}
                       {detailDescription ? (
@@ -1605,58 +1936,96 @@ const PageDemo = () => {
                           ))}
                         </ul>
                       ) : null}
+                      </div>{/* end scrollable middle zone */}
 
-                      {/* Lead Form — 2 fields per row, no popup */}
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          void submitLeadForm(e);
-                        }}
-                        className="flex flex-col gap-4 rounded-2xl border border-slate-300 bg-white p-5"
-                      >
-                        <h2 className="text-[14px] font-semibold uppercase tracking-wider text-[#111827] font-['Poppins',ui-sans-serif,system-ui,sans-serif]">Enquire Now</h2>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          {leadFields.map((field) => (
-                            <div key={field.key} className="flex flex-col gap-1">
-                              <label className="text-[11px] font-medium uppercase tracking-wide text-[#6b7280] font-['Poppins',ui-sans-serif,system-ui,sans-serif]">
-                                {field.label}{field.required ? <span className="ml-0.5 text-red-500">*</span> : null}
-                              </label>
-                              <input
-                                type={field.type}
-                                required={field.required}
-                                value={(leadForm as any)[field.key] ?? ""}
-                                onChange={(e) =>
-                                  setLeadForm((prev) => ({ ...prev, [field.key]: e.target.value }))
-                                }
-                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px] text-[#111827] outline-none transition font-['Poppins',ui-sans-serif,system-ui,sans-serif] focus:border-[#111827] focus:ring-1 focus:ring-[#111827]"
-                              />
-                            </div>
-                          ))}
+                      {/* Lead Form â€º pinned at bottom, shrink-0 */}
+                      <div className="shrink-0">
+                      {leadSubmitted ? (
+                        /* -- Success state â€º fills same space as the form -- */
+                        <div className="flex h-full min-h-[320px] flex-col items-center justify-center gap-5 rounded-2xl border border-green-200 bg-green-50 p-8 text-center">
+                          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-4xl text-green-600">?</div>
+                          <div className="space-y-2">
+                            <p className="text-[20px] font-bold text-green-700 font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[24px]">Enquiry Submitted Successfully!</p>
+                            <p className="text-[14px] text-green-600 font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[16px]">We'll get back to you shortly.</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLeadSubmitted(false);
+                              setLeadForm({ fullName: "", people: "", mobile: "", email: "", startDate: "", endDate: "" });
+                            }}
+                            className="rounded-full border-2 border-green-600 px-7 py-2.5 text-[13px] font-semibold uppercase tracking-wider text-green-700 transition hover:bg-green-600 hover:text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
+                          >
+                            Submit Another
+                          </button>
                         </div>
-                        {leadSubmitError ? (
-                          <p className="text-[12px] text-red-500 font-['Poppins',ui-sans-serif,system-ui,sans-serif]">{leadSubmitError}</p>
-                        ) : null}
-                        <button
-                          type="submit"
-                          disabled={leadSubmitPending}
-                          className="mt-1 w-full rounded-full bg-[#111827] px-6 py-3 text-[13px] font-semibold uppercase tracking-widest text-white transition font-['Poppins',ui-sans-serif,system-ui,sans-serif] hover:bg-[#1f2937] disabled:opacity-60"
-                        >
-                          {leadSubmitPending ? "Submitting..." : "Submit Enquiry"}
-                        </button>
-                      </form>
+                      ) : (
+                        /* -- Form (with loading overlay while submitting) -- */
+                        <div className="relative">
+                          {leadSubmitPending ? (
+                            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-2xl bg-white/90 backdrop-blur-[2px]">
+                              <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-[#111827]" />
+                              <p className="text-[12px] font-medium text-[#374151] font-['Poppins',ui-sans-serif,system-ui,sans-serif]">Submitting...</p>
+                            </div>
+                          ) : null}
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              void submitLeadForm(e);
+                            }}
+                            className="flex flex-col gap-4 rounded-2xl border border-slate-300 bg-white p-5"
+                          >
+                            <h2 className="text-[14px] font-semibold uppercase tracking-wider text-[#111827] font-['Poppins',ui-sans-serif,system-ui,sans-serif]">Enquire Now</h2>
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                              {leadFields.map((field) => (
+                                <div key={field.key} className="flex flex-col gap-1">
+                                  <label className="text-[11px] font-medium uppercase tracking-wide text-[#6b7280] font-['Poppins',ui-sans-serif,system-ui,sans-serif]">
+                                    {field.label}{field.required ? <span className="ml-0.5 text-red-500">*</span> : null}
+                                  </label>
+                                  <input
+                                    type={field.type}
+                                    required={field.required}
+                                    value={(leadForm as any)[field.key] ?? ""}
+                                    onChange={(e) =>
+                                      setLeadForm((prev) => ({ ...prev, [field.key]: e.target.value }))
+                                    }
+                                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px] text-[#111827] outline-none transition font-['Poppins',ui-sans-serif,system-ui,sans-serif] focus:border-[#111827] focus:ring-1 focus:ring-[#111827]"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                            {leadSubmitError ? (
+                              <p className="text-[12px] text-red-500 font-['Poppins',ui-sans-serif,system-ui,sans-serif]">{leadSubmitError}</p>
+                            ) : null}
+                            <button
+                              type="submit"
+                              disabled={leadSubmitPending}
+                              className="mt-1 w-full rounded-full bg-[#111827] px-6 py-3 text-[13px] font-semibold uppercase tracking-widest text-white transition font-['Poppins',ui-sans-serif,system-ui,sans-serif] hover:bg-[#1f2937] disabled:opacity-60"
+                            >
+                              Submit Enquiry
+                            </button>
+                          </form>
+                        </div>
+                      )}
+                      </div>{/* end shrink-0 form wrapper */}
                     </div>
                   </div>
                 </div>
               </section>
+              {Array.isArray(selectedProductPage?.inclusions) && selectedProductPage.inclusions.length > 0 ? (
+                <InclusionsSection inclusions={selectedProductPage.inclusions} title={`${String(selectedProductPage?.heading || selectedProductPage?.name || "Product").trim()} Inclusions`} />
+              ) : null}
+              <FaqAccordion faqs={Array.isArray(draft?.faqs) ? draft.faqs : []} />
+              </>
             );
           })() : null}
 
-          {/* ── Product Page: hero + product grid (shown when no item selected) ── */}
+          {/* -- Product Page: hero + product grid (shown when no item selected) -- */}
           {!selectedDetailItem && selectedProductPage ? (
             <>
-              {/* Full-bleed hero — stretches edge to edge, no side or top margins */}
+              {/* Full-bleed hero â€º stretches edge to edge, no side or top margins */}
               <section
-                className="relative h-[62svh] min-h-[380px] overflow-hidden bg-[#1f1f1f] md:h-[84vh] md:min-h-[520px]"
+                className="relative h-[62svh] min-h-[450px] overflow-hidden bg-[#1f1f1f] md:h-[84vh] md:min-h-[550px]"
               >
                 {selectedProductHeroImage ? (
                   <img
@@ -1713,7 +2082,7 @@ const PageDemo = () => {
                 <div className={CONTENT_WRAP}>
                 {isMenuProductSlug(selectedProductPage?.slug || "") ? (
                   <>
-                    <h2 className={MOBILE_SECTION_HEADING}>Our Products</h2>
+                    <LinedHeading title="Our Products" />
                     <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:mt-8 md:grid-cols-3">
                       {menuItems.map((item: any, idx: number) => (
                         <article key={`menu-${idx}`} className="flex flex-col items-center">
@@ -1745,12 +2114,14 @@ const PageDemo = () => {
                   </>
                 ) : (
                   <>
-                    <h2 className={MOBILE_SECTION_HEADING}>Our Products</h2>
-                    <div className="mt-6 grid grid-cols-1 gap-4 md:mt-8 md:grid-cols-3 md:gap-7">
+                    <LinedHeading title="Our Products" />
+                    <div className="mt-6 grid grid-cols-1 gap-6 md:mt-8 md:grid-cols-3 md:gap-7">
                       {(selectedProductContentItems.length ? selectedProductContentItems : [selectedProductPage]).map(
                         (item: any, idx: number) => {
-                          const detailImage =
-                            item?.images?.[0] || item?.cardImage || selectedProductPage?.cardImage || "";
+                          const isContentItem = selectedProductContentItems.length > 0;
+                          const detailImage = isContentItem
+                            ? (getMediaSrc(item?.images?.[0]) || getMediaSrc(item?.cardImage) || "")
+                            : (getMediaSrc(item?.cardImage) || getMediaSrc(item?.heroImage) || "");
                           const detailTitle =
                             item?.title ||
                             item?.name ||
@@ -1759,40 +2130,43 @@ const PageDemo = () => {
                             selectedProductPage?.name ||
                             "Product";
                           const detailDescription =
-                            item?.description || item?.subText || selectedProductPage?.subText || "";
-                          const detailTarget = {
-                            ...selectedProductPage,
-                            ...item,
-                            name: detailTitle,
-                            subText: detailDescription,
-                            cardImage: detailImage,
-                          };
+                            item?.description || item?.subText || (isContentItem ? "" : selectedProductPage?.subText) || "";
 
                           return (
-                            <article key={`product-detail-${idx}`} className="flex flex-col items-center">
-                              <h3 className="mb-3 text-base font-medium md:text-xl">{detailTitle}</h3>
-                              <div className="relative w-full overflow-hidden rounded-2xl bg-slate-200">
+                            <article key={`product-detail-${idx}`} className="flex flex-col overflow-hidden rounded-2xl shadow-md">
+                              {/* Image */}
+                              <div className="w-full overflow-hidden bg-slate-200">
                                 {detailImage ? (
                                   <img
                                     src={detailImage}
                                     alt={detailTitle}
-                                    className="h-[190px] w-full object-cover md:h-[220px]"
+                                    className="h-[200px] w-full object-cover md:h-[230px]"
                                   />
                                 ) : (
-                                  <div className="h-[190px] w-full md:h-[220px]" />
+                                  <div className="h-[200px] w-full md:h-[230px]" />
                                 )}
-                                <div className="absolute inset-0 bg-black/20" />
-                              <div className="absolute inset-x-0 bottom-4 flex justify-center md:bottom-6">
-                                <button
-                                  type="button"
+                              </div>
+                              {/* Dark card */}
+                              <div className="flex flex-1 flex-col items-center gap-3 bg-[#1a1a1a] px-5 py-5 text-center">
+                                <h3 className="text-[15px] font-semibold uppercase tracking-wide text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">
+                                  {detailTitle}
+                                </h3>
+                                {detailDescription ? (
+                                  <p className="text-[12px] leading-relaxed text-white/75 font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[13px]">
+                                    {detailDescription}
+                                  </p>
+                                ) : null}
+                                <div className="mt-auto pt-1">
+                                  <button
+                                    type="button"
                                     onClick={() => {
                                       const itemSlug = normalizeSlug(item?.title || item?.name || item?.heading || `item-${idx}`);
                                       const productSlug = normalizeSlug(selectedProductPage?.slug || selectedProductPage?.name || "");
                                       navigate(`/website-preview/page/products/${productSlug}/${itemSlug}`);
                                     }}
-                                    className={IMAGE_ACTION_BUTTON}
+                                    className="rounded-full border border-white/60 px-6 py-2 text-[11px] font-semibold uppercase tracking-widest text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
                                   >
-                                    VIEW DETAILS
+                                    View Details
                                   </button>
                                 </div>
                               </div>
@@ -1805,28 +2179,43 @@ const PageDemo = () => {
                 )}
                 </div>
               </section>
+              {Array.isArray(selectedProductPage?.inclusions) && selectedProductPage.inclusions.length > 0 ? (
+                <InclusionsSection inclusions={selectedProductPage.inclusions} title={`${String(selectedProductPage?.heading || selectedProductPage?.name || "Product").trim()} Inclusions`} />
+              ) : null}
+              <FaqAccordion faqs={Array.isArray(draft?.faqs) ? draft.faqs : []} />
             </>
             ) : !selectedDetailItem ? (
               <section className={SECTION_BLOCK}>
                 <div className={CONTENT_WRAP}>
-                  <h2 className={MOBILE_SECTION_HEADING}>Our Products</h2>
-                  <div className="mt-6 grid grid-cols-1 gap-4 md:mt-10 md:grid-cols-3 md:gap-7">
+                  <LinedHeading title="Our Products" />
+                  <div className="mt-6 grid grid-cols-1 gap-6 md:mt-10 md:grid-cols-3 md:gap-7">
                     {productPages.map((item: any, idx: number) => (
-                      <article key={`product-page-${idx}`} className="flex flex-col items-center">
-                        <h3 className="mb-3 text-base font-medium md:text-xl">{item?.heading || item?.name || "Product"}</h3>
-                        <div className="relative w-full overflow-hidden rounded-2xl bg-slate-200">
+                      <article key={`product-page-${idx}`} className="flex flex-col overflow-hidden rounded-2xl shadow-md">
+                        {/* Image */}
+                        <div className="w-full overflow-hidden bg-slate-200">
                           {item?.cardImage ? (
-                            <img src={item.cardImage} alt={item?.heading || item?.name} className="h-[190px] w-full object-cover md:h-[220px]" />
+                            <img src={item.cardImage} alt={item?.heading || item?.name} className="h-[200px] w-full object-cover md:h-[230px]" />
                           ) : (
-                            <div className="h-[190px] w-full md:h-[220px]" />
+                            <div className="h-[200px] w-full md:h-[230px]" />
                           )}
-                          <div className="absolute inset-x-0 bottom-4 flex justify-center md:bottom-6">
+                        </div>
+                        {/* Dark card */}
+                        <div className="flex flex-1 flex-col items-center gap-3 bg-[#1a1a1a] px-5 py-5 text-center">
+                          <h3 className="text-[15px] font-semibold uppercase tracking-wide text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">
+                            {item?.heading || item?.name || "Product"}
+                          </h3>
+                          {(item?.homeCardSubText || item?.subText) ? (
+                            <p className="text-[12px] leading-relaxed text-white/75 font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[13px]">
+                              {item?.homeCardSubText || item?.subText}
+                            </p>
+                          ) : null}
+                          <div className="mt-auto pt-1">
                             <button
                               type="button"
                               onClick={() => handleProductCardAction(item)}
-                              className={IMAGE_ACTION_BUTTON}
+                              className="rounded-full border border-white/60 px-6 py-2 text-[11px] font-semibold uppercase tracking-widest text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
                             >
-                              VIEW DETAILS
+                              Explore
                             </button>
                           </div>
                         </div>
@@ -1843,7 +2232,7 @@ const PageDemo = () => {
       {currentSection === "gallery" ? (
         <section className={SECTION_BLOCK}>
           <div className={CONTENT_WRAP}>
-            <h2 className={MOBILE_SECTION_HEADING}>{draft?.galleryTitle || "Gallery"}</h2>
+            <LinedHeading title={draft?.galleryTitle || "Gallery"} />
               <div className="mt-6 grid grid-cols-1 gap-[8px] sm:grid-cols-2 md:mt-10 md:grid-cols-3">
               {galleryItems.map((item: string, idx: number) => (
                 <button
@@ -1868,7 +2257,7 @@ const PageDemo = () => {
       {currentSection === "testimonials" ? (
         <section className={SECTION_BLOCK}>
           <div className={CONTENT_WRAP}>
-            <h2 className={MOBILE_SECTION_HEADING}>{draft?.testimonialTitle || "Testimonials"}</h2>
+            <LinedHeading title={draft?.testimonialTitle || "Testimonials"} />
             <div className="mt-6 grid grid-cols-1 gap-5 md:mt-8 md:grid-cols-3">
               {visibleTestimonials.map((item: any, index: number) => {
                 const testimonialKey = String(item?.key || `testimonial-${testimonialIndex}-${index}`);
@@ -1959,11 +2348,73 @@ const PageDemo = () => {
         </section>
       ) : null}
 
+      {/* Partner page: heading, content on left, inquiry form on right. */}
+      {currentSection === "partner" ? (
+        <section className={SECTION_BLOCK}>
+          <div className={CONTENT_WRAP}>
+            <LinedHeading title={partnerPageHeading || "Become A Partner"} />
+            <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2">
+              <div className="font-['Poppins',ui-sans-serif,system-ui,sans-serif] text-[15px] leading-[1.7] text-[#374151] md:text-[17px]">
+                {partnerPageContent ? (
+                  partnerPageContent.split("\n").map((para: string, i: number) => (
+                    <p key={`partner-para-${i}`} className="mb-4 last:mb-0">{para}</p>
+                  ))
+                ) : (
+                  <p className="text-slate-400">Partner content coming soon.</p>
+                )}
+              </div>
+              <div className="rounded-2xl bg-[#f8f8f8] p-6 shadow-sm md:p-8">
+                <h3 className="text-center text-[18px] font-semibold text-[#111827] md:text-[20px]">
+                  {partnerFormTitle || `Partner With ${draft?.companyName || "Us"}`}
+                </h3>
+                <div className="mt-6 space-y-4">
+                  <input
+                    type="text"
+                    placeholder="Your Name"
+                    value={partnerForm.name}
+                    onChange={(e) => setPartnerForm((p) => ({ ...p, name: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-300 px-4 py-3 text-[14px] outline-none focus:border-black"
+                  />
+                  <input
+                    type="email"
+                    placeholder="Your Email"
+                    value={partnerForm.email}
+                    onChange={(e) => setPartnerForm((p) => ({ ...p, email: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-300 px-4 py-3 text-[14px] outline-none focus:border-black"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Mobile Number"
+                    value={partnerForm.mobile}
+                    onChange={(e) => setPartnerForm((p) => ({ ...p, mobile: e.target.value }))}
+                    className="w-full rounded-lg border border-slate-300 px-4 py-3 text-[14px] outline-none focus:border-black"
+                  />
+                  <textarea
+                    rows={4}
+                    placeholder="Your Message"
+                    value={partnerForm.message}
+                    onChange={(e) => setPartnerForm((p) => ({ ...p, message: e.target.value }))}
+                    className="w-full resize-none rounded-lg border border-slate-300 px-4 py-3 text-[14px] outline-none focus:border-black"
+                  />
+                  <button
+                    type="button"
+                    disabled={partnerSubmitPending}
+                    className="w-full rounded-full bg-black px-6 py-3 text-[14px] font-semibold text-white transition-opacity hover:opacity-85 disabled:opacity-60"
+                  >
+                    {partnerSubmitPending ? "Submitting..." : "Connect"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {/* Contact page: embedded map and the detailed contact card. */}
       {currentSection === "contact" ? (
         <section className="px-4 py-10 md:px-6 md:py-12">
           <div className={CONTENT_WRAP}>
-            <h2 className={MOBILE_SECTION_HEADING}>{draft?.contactTitle || "Contact"}</h2>
+            <LinedHeading title={draft?.contactTitle || "Contact"} />
             <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-12">
               <div className="md:col-span-7">
                 {draft?.mapUrl ? (
@@ -1987,7 +2438,7 @@ const PageDemo = () => {
       ) : null}
 
       {/* Shared footer: shown on every section so hosted and local preview stay consistent. */}
-      <footer className={`mt-8 border-t border-slate-300 bg-[#ffffff] ${FOOTER_TEXT}`}>
+      <footer className={`mt- border-t border-slate-300 bg-[#ffffff] ${FOOTER_TEXT}`}>
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-6 py-8 text-center md:grid-cols-3 md:text-left">
           <div>
             {draft?.companyLogo ? (
@@ -2047,7 +2498,7 @@ const PageDemo = () => {
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 text-2xl text-slate-700 shadow-sm"
                 aria-label="Close review form"
               >
-                ×
+                â€º
               </button>
             </div>
 
@@ -2095,7 +2546,7 @@ const PageDemo = () => {
         </div>
       ) : null}
 
-      {/* Lead modal popup — commented out: enquiry is now handled inline on the product detail page */}
+      {/* Lead modal popup â€º commented out: enquiry is now handled inline on the product detail page */}
       {/* {selectedLeadProduct ? (
         <div
           className="fixed inset-0 z-50 overflow-y-auto bg-black/45 p-3 md:p-4"
@@ -2112,7 +2563,7 @@ const PageDemo = () => {
                 className="absolute right-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-2xl text-slate-700 shadow-sm"
                 aria-label="Close lead form"
               >
-                ×
+                â€º
               </button>
               <div className="relative grid w-full grid-cols-1 gap-6 rounded-xl bg-white p-4 md:grid-cols-2">
                 <div className="relative overflow-hidden rounded-xl bg-slate-100 md:min-h-[520px]">
@@ -2176,7 +2627,7 @@ const PageDemo = () => {
               className="absolute right-4 top-4 z-10 rounded-full bg-white/90 px-3 py-1 text-2xl leading-none text-slate-700 shadow-sm hover:bg-white"
               aria-label="Close gallery viewer"
             >
-              ×
+              â€º
             </button>
 
             <div className="relative flex min-h-0 flex-1 items-center justify-center rounded-[14px] bg-slate-100 px-2 py-2 md:px-3 md:py-3">

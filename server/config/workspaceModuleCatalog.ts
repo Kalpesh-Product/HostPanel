@@ -21,7 +21,7 @@ const MODULE_GROUPS = [
     sectionId: "extra-common-modules",
     sectionLabel: "Extra Common Modules",
     items: [
-      { id: "assets", label: "Assets", implemented: false },
+      { id: "assets", label: "Assets", route: "/extra-common-modules/assets", implemented: true },
       { id: "inventory", label: "Inventory", implemented: false },
       { id: "finance-management", label: "Finance Management", implemented: false },
       { id: "reports", label: "Reports", implemented: false },
@@ -39,7 +39,7 @@ const MODULE_GROUPS = [
       { id: "leave-requests", label: "Leave Requests", implemented: false },
       { id: "meeting-room-system", label: "Meeting Room Booking", implemented: false },
       { id: "calendar", label: "Calendar", route: "/calendar", implemented: true },
-      { id: "assets", label: "Assets", implemented: false },
+      { id: "assets", label: "Assets", route: "/extra-common-modules/assets", implemented: true },
       { id: "inventory", label: "Inventory", implemented: false },
       { id: "finance-management", label: "Finance Management", implemented: false },
       { id: "reports", label: "Reports", implemented: false },

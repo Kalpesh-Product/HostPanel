@@ -18,6 +18,7 @@ export interface IInventory extends Document {
     category: "Physical" | "Digital" | "Other" | "Office Supplies" | "Pantry" | "Facilities" | "Branding" | "Hardware" | "Safety Equipment";
     trackingType: "Consumable" | "Returnable Asset";
     departmentId?: mongoose.Types.ObjectId | null;
+    departmentName?: string;
     totalQuantity: number;
     availableQuantity: number;
     ledger: IInventoryLedger[];
@@ -94,6 +95,11 @@ const inventorySchema = new Schema<IInventory>(
             ref: "Department",
             default: null,
             index: true,
+        },
+        departmentName: {
+            type: String,
+            default: "",
+            trim: true,
         },
         totalQuantity: {
             type: Number,
