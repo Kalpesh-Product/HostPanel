@@ -128,7 +128,7 @@ import Reimbursement from "../components/Pages/Reimbursement";
 import BudgetPage from "../components/Pages/BudgetPage";
 import SopUpload from "../components/Pages/SopUpload";
 import PolicyUpload from "../components/Pages/PolicyUpload";
-import AccessGrant from "../components/Tables/AccessGrantTable";
+import AccessGrant from "../pages/Profile/AccessGrant";
 import ProfileLayout from "../pages/Profile/ProfileLayout";
 import UserDetails from "../pages/Profile/UserDetails";
 import CompanyProfile from "../pages/Profile/CompanyProfile";
