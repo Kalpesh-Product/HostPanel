@@ -137,6 +137,13 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/extra-common-modules/attendance",
+    crumbs: [
+      { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
+      { label: "Attendance" },
+    ],
+  },
+  {
     pattern: "/extra-common-modules/tasks",
     crumbs: [
       { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
@@ -471,6 +478,46 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
       { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
       { label: "Sales Department", path: "/module-sections/department-accesses/sales-department" },
       { label: "Sales Architecture" },
+    ],
+  },
+  {
+    pattern: "/hr/employee-management",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "HR Department", path: "/module-sections/department-accesses/hr-department" },
+      { label: "Employee Management" },
+    ],
+  },
+  {
+    pattern: "/hr/documents",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "HR Department", path: "/module-sections/department-accesses/hr-department" },
+      { label: "Documents" },
+    ],
+  },
+  {
+    pattern: "/hr/attendance-review",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "HR Department", path: "/module-sections/department-accesses/hr-department" },
+      { label: "Attendance Review" },
+    ],
+  },
+  {
+    pattern: "/hr/leave-request-processing",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "HR Department", path: "/module-sections/department-accesses/hr-department" },
+      { label: "Leave Request Processing" },
+    ],
+  },
+  {
+    pattern: "/hr/recruitment",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "HR Department", path: "/module-sections/department-accesses/hr-department" },
+      { label: "Recruitment" },
     ],
   },
   {

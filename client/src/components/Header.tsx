@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, type MouseEvent } from "react";
+import { useState, useEffect, type MouseEvent } from "react";
 import {
   Avatar,
   Badge,
@@ -65,6 +65,7 @@ const Header = ({
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [notificationAnchorEl, setNotificationAnchorEl] = useState<HTMLElement | null>(null);
+  const [departmentName, setDepartmentName] = useState<string>("");
   const storedUser = getStoredUser();
 
   const headerLogoUrl =
@@ -88,6 +89,32 @@ const Header = ({
       toast.error(error.message || "Error");
     },
   });
+
+  useEffect(() => {
+    const fetchDepartmentName = async () => {
+      try {
+        const orgResult = await axios.get("/api/organization/overview");
+        const orgPayload = orgResult?.data?.data || {};
+        const teamMembers = Array.isArray(orgPayload?.teamMembers) ? orgPayload.teamMembers : [];
+        const currentUserId = String(auth?.user?.id || auth?.user?._id || "").trim();
+        const currentUserEmail = String(auth?.user?.email || "").trim().toLowerCase();
+        const me = teamMembers.find((member: any) => {
+          const memberUserId = String(member?.userId || member?.id || "").trim();
+          const memberEmail = String(member?.email || "").trim().toLowerCase();
+          return (
+            (memberUserId && memberUserId === currentUserId) ||
+            (currentUserEmail && memberEmail === currentUserEmail)
+          );
+        });
+        if (me?.departmentNames && Array.isArray(me.departmentNames) && me.departmentNames.length > 0) {
+          setDepartmentName(me.departmentNames[0]);
+        }
+      } catch {
+        // Ignore errors
+      }
+    };
+    void fetchDepartmentName();
+  }, [axios, auth?.user]);
 
   const handleAvatarClick = (event: MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -188,9 +215,9 @@ const Header = ({
     "co-founder": "Founder",
     "master-admin": "Founder",
     "super-admin": "Super Admin",
-    admin: "Department Admin",
-    manager: "Department Manager",
-    employee: "Employee",
+    admin: departmentName ? `${departmentName} Admin` : "Department Admin",
+    manager: departmentName ? `${departmentName} Manager` : "Department Manager",
+    employee: departmentName ? `${departmentName} Employee` : "Employee",
     "tenant-manager": "Tenant Manager",
     "tenant-employee": "Tenant Employee",
   };

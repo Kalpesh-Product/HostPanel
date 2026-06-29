@@ -234,6 +234,8 @@ export function OrganizationPage() {
   );
   const [expandedDepartmentKey, setExpandedDepartmentKey] = useState('');
   const [isSavingDepartments, setIsSavingDepartments] = useState(false);
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
+  const [isAddingEmployee, setIsAddingEmployee] = useState(false);
 
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -713,50 +715,58 @@ export function OrganizationPage() {
     setShowDepartmentModal(true);
   };
 
-  const handleAddEmployee = () => {
+  const handleAddEmployee = async () => {
+    if (isAddingEmployee) return;
     if (selectedDepartment && employeeFormData.name && employeeFormData.email) {
-      inviteOrganizationMember(axiosPrivate, {
-        fullName: employeeFormData.name,
-        email: employeeFormData.email,
-        role: 'employee',
-        departments: [selectedDepartment.id || ''],
-      })
-        .then(() => loadOrganization(selectedDepartment.id || ''))
-        .then(() => {
-          setEmployeeFormData({ name: '', email: '' });
-          setShowEmployeeModal(false);
-          setActiveTab('users');
-          toast.success(`Invite sent to ${employeeFormData.name}.`);
-        })
-        .catch((error) => {
-          console.error("Failed to add employee", error);
+      setIsAddingEmployee(true);
+      try {
+        await inviteOrganizationMember(axiosPrivate, {
+          fullName: employeeFormData.name,
+          email: employeeFormData.email,
+          role: 'employee',
+          departments: [selectedDepartment.id || ''],
         });
+        await loadOrganization(selectedDepartment.id || '');
+        setEmployeeFormData({ name: '', email: '' });
+        setShowEmployeeModal(false);
+        setActiveTab('users');
+        toast.success(`Invite sent to ${employeeFormData.name}.`);
+      } catch (error) {
+        console.error("Failed to add employee", error);
+        toast.error('Failed to send invite. Please try again.');
+      } finally {
+        setIsAddingEmployee(false);
+      }
     }
   };
 
-  const handleSendInvite = () => {
+  const handleSendInvite = async () => {
+    if (isSendingInvite) return;
     if (teamMemberFormData.name && teamMemberFormData.email) {
-      const normalizedRole =
-        teamMemberFormData.role === 'super-admin'
-          ? 'super_admin'
-          : teamMemberFormData.role === 'admin-manager'
-            ? 'admin_manager'
-            : teamMemberFormData.role;
-      inviteOrganizationMember(axiosPrivate, {
-        fullName: teamMemberFormData.name,
-        email: teamMemberFormData.email,
-        role: normalizedRole,
-        departments: teamMemberFormData.departments,
-      })
-        .then(() => loadOrganization())
-        .then(() => {
-          toast.success(`Invitation sent to ${teamMemberFormData.email}.`);
-          setShowTeamMemberModal(false);
-          setTeamMemberFormData({ name: '', email: '', role: 'manager', departments: [] });
-        })
-        .catch((error) => {
-          console.error("Failed to send invite", error);
+      setIsSendingInvite(true);
+      try {
+        const normalizedRole =
+          teamMemberFormData.role === 'super-admin'
+            ? 'super_admin'
+            : teamMemberFormData.role === 'admin-manager'
+              ? 'admin_manager'
+              : teamMemberFormData.role;
+        await inviteOrganizationMember(axiosPrivate, {
+          fullName: teamMemberFormData.name,
+          email: teamMemberFormData.email,
+          role: normalizedRole,
+          departments: teamMemberFormData.departments,
         });
+        await loadOrganization();
+        toast.success(`Invitation sent to ${teamMemberFormData.email}.`);
+        setShowTeamMemberModal(false);
+        setTeamMemberFormData({ name: '', email: '', role: 'manager', departments: [] });
+      } catch (error) {
+        console.error("Failed to send invite", error);
+        toast.error('Failed to send invite. Please try again.');
+      } finally {
+        setIsSendingInvite(false);
+      }
     }
   };
 
@@ -904,8 +914,8 @@ export function OrganizationPage() {
       case 'owner': return <span className="px-3 py-1 bg-[#111827] text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Crown size={12}/> Founder</span>;
       case 'super-admin': return <span className="px-3 py-1 bg-[#2563EB]/10 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Crown size={12}/> Super Admin</span>;
       case 'admin-manager': return <span className="px-3 py-1 bg-cyan-50 text-cyan-700 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Shield size={12}/> Admin Manager</span>;
-      case 'admin': return <span className="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Shield size={12}/> Department Admin</span>;
-      case 'manager': return <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Briefcase size={12}/> Dept Manager</span>;
+      case 'admin': return <span className="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Shield size={12}/>  Admin</span>;
+      case 'manager': return <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Briefcase size={12}/> Manager</span>;
       case 'employee': return <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Users size={12}/> Employee</span>;
       default: return null;
     }
@@ -1598,105 +1608,7 @@ export function OrganizationPage() {
               </table>
             </div>
           </div>
-
-          {/* Dept Employee Table (updated to DESIGN.md) */}
-          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50 flex items-center justify-between">
-              <h3 className="text-[13px] font-bold text-slate-900">Department Roster</h3>
-            </div>
-            <div className="overflow-x-auto flex-1">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
-                  <tr>
-                    <th className="px-5 py-4">Employee Info</th>
-                    <th className="px-5 py-4">Employee ID</th>
-                    <th className="px-5 py-4">Role</th>
-                    <th className="px-5 py-4">Contact Details</th>
-                    <th className="px-5 py-4">Join Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100/60">
-                  {(selectedDepartment?.employees ?? []).map((emp: any) => (
-                    <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors group">
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-[10px] shadow-sm bg-gradient-to-br from-[#2563EB] to-blue-700">
-                            {getInitials(emp.name)}
-                          </div>
-                          <div className="font-bold text-[11px] text-slate-900">{emp.name}</div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        {emp.employeeId ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded-lg bg-blue-50 text-[#2563EB] text-[10px] font-black tracking-widest uppercase">
-                            {emp.employeeId}
-                          </span>
-                        ) : (
-                          <span className="text-[12px] font-medium text-slate-300">—</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-4">{getRoleBadge(emp.role)}</td>
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-2 text-[12px] text-slate-600"><Mail size={14} className="text-slate-400"/> {emp.email}</div>
-                      </td>
-                      <td className="px-5 py-4 text-[12px] font-medium text-slate-500">{formatJoinedDate((emp as any).joinedAt)}</td>
-                    </tr>
-                  ))}
-                  {(selectedDepartment?.employees?.length ?? 0) === 0 && (
-                    <tr><td colSpan={5} className="text-center py-20 text-slate-400 font-semibold"><Users size={32} className="mx-auto mb-3 opacity-30"/>No personnel assigned.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Transferred From This Department (updated to DESIGN.md) */}
-          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50 flex items-center justify-between">
-              <h3 className="text-[13px] font-bold text-slate-900">Transferred From This Department</h3>
-                <span className="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest">
-                {(selectedDepartment as any)?.transferredEmployees?.length || 0} Recorded
-              </span>
-            </div>
-            <div className="overflow-x-auto flex-1">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
-                  <tr>
-                    <th className="px-5 py-4">Employee</th>
-                    <th className="px-5 py-4">Previous Role</th>
-                    <th className="px-5 py-4">Transferred To</th>
-                    <th className="px-5 py-4">Transfer Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100/60">
-                  {((selectedDepartment as any)?.transferredEmployees || []).map((emp: any) => (
-                    <tr key={`dept-transfer-${emp.id}`} className="hover:bg-slate-50/50 transition-colors group">
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-[10px] shadow-sm bg-slate-400">
-                            {getInitials(emp.name)}
-                          </div>
-                          <div>
-                            <div className="font-bold text-[11px] text-slate-900">{emp.name}</div>
-                            <div className="text-[10px] font-medium text-slate-500">{emp.email}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4">{getRoleBadge(emp.role)}</td>
-                      <td className="px-5 py-4">
-                        <div className="font-bold text-[11px] text-slate-900">{emp.transferredToWorkspaceName || 'Linked Unit'}</div>
-                        <div className="text-[10px] font-medium text-slate-500">{emp.transferredToWorkspaceLocation || 'Location not set'}</div>
-                      </td>
-                      <td className="px-5 py-4 text-[12px] font-medium text-slate-500">{formatTransferDate(emp.transferredAt)}</td>
-                    </tr>
-                  ))}
-                  {(!selectedDepartment.transferredEmployees || selectedDepartment.transferredEmployees.length === 0) && (
-                    <tr><td colSpan={4} className="text-center py-20 text-slate-400 font-semibold"><Users size={32} className="mx-auto mb-3 opacity-30"/>No transferred records for this department yet.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+ 
         </div>
       )}
 
@@ -1710,7 +1622,7 @@ export function OrganizationPage() {
           <div className="bg-white rounded-[2.5rem] max-w-xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70">
             <div className="p-6 sm:p-8 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">Add Employee</h2>
+                <h2 className="text-xl font-pmedium text-primary">Add Employee</h2>
                 <p className="text-xs text-[#2563EB] font-medium mt-1">Invite directly into {selectedDepartment.name}</p>
               </div>
               <button onClick={() => setShowEmployeeModal(false)} className="w-9 h-9 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"><X size={18} /></button>
@@ -1738,8 +1650,15 @@ export function OrganizationPage() {
               </div>
             </div>
             <div className="p-5 sm:p-6 border-t border-slate-100 flex gap-3">
-              <button onClick={() => setShowEmployeeModal(false)} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors">Cancel</button>
-              <button onClick={handleAddEmployee} disabled={!employeeFormData.name || !employeeFormData.email} className="flex-2 py-3 bg-[#2563EB] text-white rounded-xl font-bold text-sm shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all">Send Invite</button>
+              <button onClick={() => setShowEmployeeModal(false)} disabled={isAddingEmployee} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors disabled:opacity-50">Cancel</button>
+              <button onClick={handleAddEmployee} disabled={!employeeFormData.name || !employeeFormData.email || isAddingEmployee} className="flex-1 py-3 bg-[#2563EB] text-white rounded-xl font-bold text-sm shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+                {isAddingEmployee ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                    Sending...
+                  </>
+                ) : 'Send Invite'}
+              </button>
             </div>
           </div>
         </div>
@@ -1750,7 +1669,7 @@ export function OrganizationPage() {
           <div className="bg-white rounded-[2.5rem] max-w-6xl w-full shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-white/70 max-h-[90vh]">
             <div className="p-6 sm:p-8 border-b border-slate-100 bg-slate-50/50 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">Manage Departments</h2>
+                <h2 className="text-xl font-pmedium text-primary">Manage Departments</h2>
                 <p className="text-xs text-slate-500 mt-1">
                   Use the same platform department set from workspace setup. Enabled departments stay active, disabled ones stay hidden, and module configuration follows the same state.
                 </p>
@@ -1855,7 +1774,7 @@ export function OrganizationPage() {
                             : [...current.employeeUserIds, value],
                         }));
                       }}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 font-pmedium text-primary"
                     >
                       <option value="">Add employee</option>
                       {teamMembers.map((member) => (
@@ -2119,15 +2038,23 @@ export function OrganizationPage() {
               <button
                 onClick={handleSendInvite}
                 disabled={
+                  isSendingInvite ||
                   !teamMemberFormData.name ||
                   !teamMemberFormData.email ||
                   !canAddUserOnCurrentPlan ||
                   (teamMemberFormData.role !== 'super-admin' && teamMemberFormData.departments.length === 0) ||
                   (teamMemberFormData.role === 'super-admin' && !canInviteSuperAdmin)
                 }
-                className="flex-2 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[12px] shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[12px] shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >
-                <Send size={14}/> Send Secure Invite
+                {isSendingInvite ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                    Sending...
+                  </>
+                ) : (
+                  <><Send size={14}/> Send Secure Invite</>
+                )}
               </button>
             </div>
           </div>

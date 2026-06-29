@@ -489,7 +489,19 @@ export const login = async (req, res, next) => {
       { expiresIn: "15d" }
     );
 
-    await HostUser.findOneAndUpdate({ email }, { refreshToken }).lean().exec();
+    const inviteStatusUpdate =
+      user.inviteStatus === "invite_sent" || user.inviteStatus === "registered"
+        ? { inviteStatus: "joined", joinedAt: new Date() }
+        : {};
+    await HostUser.findOneAndUpdate({ email }, { refreshToken, ...inviteStatusUpdate }).lean().exec();
+
+    if (inviteStatusUpdate.inviteStatus) {
+      // Keep WorkspaceMember.status in sync
+      await WorkspaceMember.updateMany(
+        { user: user._id, status: "invited", isActive: true },
+        { $set: { status: "joined" } },
+      );
+    }
 
     res.cookie("clientCookie", refreshToken, {
       httpOnly: true,

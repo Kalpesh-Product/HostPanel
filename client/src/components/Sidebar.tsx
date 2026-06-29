@@ -182,11 +182,11 @@ const departmentModules: NavNode[] = [
     icon: Users,
     defaultOpen: false,
     children: [
-      { id: "employee-management", label: "Employee Management", icon: Users, disabled: true },
-      { id: "hr-documents", label: "Documents", icon: NotebookText, disabled: true },
-      { id: "recruitment", label: "Recruitment", icon: UserPlus, disabled: true },
-      { id: "leave-request-processing", label: "Leave Request Processing", icon: CalendarCheck, disabled: true },
-      { id: "attendance-review", label: "Attendance Review", icon: ClipboardCheck, disabled: true },
+      { id: "employee-management", label: "Employee Management", icon: Users, route: "/hr/employee-management", disabled: false },
+      { id: "hr-documents", label: "Documents", icon: NotebookText, route: "/hr/documents", disabled: false },
+      { id: "recruitment", label: "Recruitment", icon: UserPlus, route: "/hr/recruitment", disabled: false },
+      { id: "leave-request-processing", label: "Leave Request Processing", icon: CalendarCheck, route: "/hr/leave-request-processing", disabled: false },
+      { id: "attendance-review", label: "Attendance Review", icon: ClipboardCheck, route: "/hr/attendance-review", disabled: false },
       { id: "payroll-management", label: "Payroll Management", icon: Wallet, disabled: true },
       { id: "exit-management", label: "Exit Management", icon: UserMinus, disabled: true },
     ],
@@ -275,7 +275,7 @@ const SECTION_ABBR: Record<string, string> = {
 
 const ROUTE_BY_ID: Record<string, string> = {
   dashboard: "/dashboard",
-  attendance: "/dashboard/attendance",
+  attendance: "/extra-common-modules/attendance",
   "customer-support": "/company-settings/customer-support",
   "website-builder": "/company-settings/website-builder",
   "wono-nomad": "/company-settings/wono-nomad",
@@ -311,6 +311,11 @@ const ROUTE_BY_ID: Record<string, string> = {
   "tenant-tickets": "/dashboard/tenant/tickets",
   "tenant-profile": "/profile/company-profile",
   profile: "/profile/company-profile",
+  "employee-management": "/hr/employee-management",
+  "hr-documents": "/hr/documents",
+  "attendance-review": "/hr/attendance-review",
+  "leave-request-processing": "/hr/leave-request-processing",
+  "recruitment": "/hr/recruitment",
 };
 
 const ICON_BY_ID: Record<string, ElementType> = {
@@ -1074,7 +1079,12 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
       title: String(section?.sectionLabel || "Section"),
       items: sortedItems,
     };
-  }).filter((section) => section.items.length > 0);
+  })
+  .filter((section) => {
+    if (section.items.length === 0) return false;
+    if (section.key === "founder-core-modules" && !isFounderRole) return false;
+    return true;
+  });
 
   const handleUpgradePlanRequest = async (plan: string) => {
     if (requestedUpgradePlan === plan) {

@@ -179,6 +179,38 @@ const MODULE_GROUPS = [
   },
 ];
 
+export const COMMON_MODULE_IDS = [
+  "dashboard",
+  "customer-support",
+  "attendance",
+  "tasks",
+  "tickets",
+  "leave-requests",
+  "meeting-room-system",
+  "calendar",
+];
+
+export const EXTRA_COMMON_MODULE_IDS = [
+  "assets",
+  "inventory",
+  "finance-management",
+  "reports",
+];
+
+export const getAllModuleIds = (): string[] => {
+  const ids = new Set<string>();
+  for (const section of MODULE_GROUPS) {
+    for (const item of section.items) {
+      if (Array.isArray(item.tabs) && item.tabs.length) {
+        for (const tab of item.tabs) ids.add(tab.id);
+      } else {
+        ids.add(item.id);
+      }
+    }
+  }
+  return Array.from(ids);
+};
+
 const normalizePlan = (value = "") => {
   const plan = String(value || "").trim().toLowerCase();
   if (PLAN_ORDER.includes(plan)) return plan;

@@ -15,7 +15,8 @@ import Chat from "../pages/Chat";
 // Test page
 import TestPage from "../pages/Test/TestPage";
 import DashboardLayout from "../pages/Dashboard/DashboardLayout";
-import Attendance from "../pages/Dashboard/Attendance/Attendance";
+// import Attendance from "../pages/Dashboard/Attendance/Attendance"; // OLD - moved to extra-common-modules
+import { AttendancePage } from "../pages/Attendance/AttendancePage";
 import FrontendDashboard from "../pages/Dashboard/FrontendDashboard/FrontendDashboard";
 import { MeetingRoomsPage } from "../pages/Meetings/MeetingRoomsPage";
 import FrontendLayout from "../pages/Dashboard/FrontendDashboard/FrontendLayout";
@@ -51,61 +52,11 @@ import TaskReportLayout from "../pages/Tasks/TaskReports/TaskReportLayout";
 import MyTaskReports from "../pages/Tasks/TaskReports/MyTaskReports";
 import AssignedTaskReports from "../pages/Tasks/TaskReports/AssignedTaskReports";
 import DepartmentTaskReports from "../pages/Tasks/TaskReports/DepartmentTaskReports";
-import HrCommonLayout from "../pages/HR/HrCommonLayout";
-import HrCommonAttendance from "../pages/HR/HrCommonAttendance";
-import HrCommonLeaves from "../pages/HR/HrCommonLeaves";
-import HrCommonAgreements from "../pages/HR/HrCommonAgreements";
-import HrCommonPayslips from "../pages/HR/HrCommonPayslips";
-import Unauthorized from "../pages/Unauthorized";
-import VisitorLayout from "../pages/Visitors/VisitorLayout";
-import VisitorDashboard from "../pages/Visitors/VisitorDashboard";
-import AddVisitor from "../pages/Visitors/Forms/AddVisitor";
-import ManageVisitors from "../pages/Visitors/ManageVisitors";
-import VisitorTeamMembers from "../pages/Visitors/VisitorTeamMembers";
-import VisitorReports from "../pages/Visitors/VisitorReports";
-import VisitorReviews from "../pages/Visitors/VisitorReviews";
-import VisitorSettings from "../pages/Visitors/VisitorSettings/VisitorSettings";
-import VisitorBulkUpload from "../pages/Visitors/VisitorSettings/VisitorBulkUpload";
-import VisitorManagement from "../pages/Visitors/VisitorManagement";
-import ProfileLayout from "../pages/Profile/ProfileLayout";
-import ChangePassword from "../pages/Profile/ChangePassword";
-import AccessGrant from "../pages/Profile/AccessGrant";
-import MyAssets from "../pages/Profile/MyAssets";
-import MeetingRoomCredits from "../pages/Profile/MeetingRoomCredits";
-import TicketsHistory from "../pages/Profile/TicketsHistory";
-import { AssignedAssetsTab } from "../pages/Profile/AssignedAssetsTab";
-import EditTemplate from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/EditTemplate";
-import NotFoundPage from "../pages/NotFoundPage";
-
-import PerformanceLayout from "../pages/Performance/PerformanceLayout";
-import PerformanceHome from "../pages/Performance/PerformanceHome";
-import DepartmentPerformanceLayout from "../pages/Performance/DepartmentPerformanceLayout";
-import PerformanceKra from "../pages/Performance/DepartmentDetails/PerformanceKra";
-import PerformanceAnnual from "../pages/Performance/DepartmentDetails/PerformanceAnnual";
-import PerformanceMonthly from "../pages/Performance/DepartmentDetails/PerformanceMonthly";
-import DepartmentTasksLayout from "../pages/Tasks/DepartmentTasks/DepartmentTasksLayout";
-import DepartmentTasks from "../pages/Tasks/DepartmentTasks/DepartmentTasks";
-import TasksDepartmentLayout from "../pages/Tasks/DepartmentTasks/TasksDepartmentLayout";
-import TasksViewDepartment from "../pages/Tasks/DepartmentTasks/TasksViewDepartment";
-import Reimbursement from "../components/Pages/Reimbursement";
-import AddClient from "../pages/Visitors/Forms/AddClient";
-import ManageVisitorLayout from "../pages/Visitors/ManageVisitorLayout";
-import ExternalClients from "../pages/Visitors/ExternalClients";
-import Vendor from "../components/Vendor";
-import ViewVendor from "../components/vendor/ViewVendor";
-import MonthlyInvoiceCommon from "../components/Pages/MonthlyInvoiceCommon";
-import UserDetails from "../pages/Profile/UserDetails";
-import CompanyProfile from "../pages/Profile/CompanyProfile";
-import BudgetPage from "../components/Pages/BudgetPage";
-import PaymentScheduleCommon from "../components/Pages/PaymentScheduleCommon";
-import DepartmentAssetCommon from "../components/Pages/DepartmentAssetCommon";
-import SopUpload from "../components/Pages/SopUpload";
-import PolicyUpload from "../components/Pages/PolicyUpload";
-import MainDashboard from "../pages/Dashboard/MainDashboard/MainDashboard";
-import DepartmentWiseBulkUpload from "../components/Pages/BulkUpload";
-import HrCommonAttandenceRequests from "../pages/HR/HrCommonAttandenceRequests";
-import HrCommonHandbook from "../pages/HR/HrCommonHandbook";
-import HrCommonDocuments from "../pages/HR/HrCommonDocuments";
+import HREmployeeManagementPage from "../pages/HR/HREmployeeManagementPage";
+import HRDocumentsPage from "../pages/HR/HRDocumentsPage";
+import HRAttendanceReviewPage from "../pages/HR/HRAttendanceReviewPage";
+import HRLeaveRequestsProcessingPage from "../pages/HR/HRLeaveRequestsProcessingPage";
+import HRRecruitmentPage from "../pages/HR/HRRecruitmentPage";
 import VendorTable from "../components/Pages/VendorTable";
 import AssetsHome from "../pages/Assets/AssetsHome";
 import ManageAssetsHome from "../pages/Assets/ManageAssetsHome";
@@ -165,6 +116,52 @@ import { DepartmentInventoryPage } from "../pages/Inventory/DepartmentInventoryP
 import { FinancePage } from "../pages/Finance/FinancePage";
 import { TasksPage } from "../pages/Tasks/TasksPage";
 import { LeaveRequestsPage } from "../pages/LeaveRequests/LeaveRequestsPage";
+
+// Missing imports - added to fix ESLint errors
+import EditTemplate from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/EditTemplate";
+import DepartmentAssetCommon from "../components/Pages/DepartmentAssetCommon";
+import MonthlyInvoiceCommon from "../components/Pages/MonthlyInvoiceCommon";
+import Vendor from "../components/Vendor";
+import ViewVendor from "../components/vendor/ViewVendor";
+import PaymentScheduleCommon from "../components/Pages/PaymentScheduleCommon";
+import Reimbursement from "../components/Pages/Reimbursement";
+import BudgetPage from "../components/Pages/BudgetPage";
+import SopUpload from "../components/Pages/SopUpload";
+import PolicyUpload from "../components/Pages/PolicyUpload";
+import AccessGrant from "../components/Tables/AccessGrantTable";
+import ProfileLayout from "../pages/Profile/ProfileLayout";
+import UserDetails from "../pages/Profile/UserDetails";
+import CompanyProfile from "../pages/Profile/CompanyProfile";
+import ChangePassword from "../pages/Profile/ChangePassword";
+import { AssignedAssetsTab } from "../pages/Profile/AssignedAssetsTab";
+import PerformanceLayout from "../pages/Performance/PerformanceLayout";
+import PerformanceHome from "../pages/Performance/PerformanceHome";
+import DepartmentPerformanceLayout from "../pages/Performance/DepartmentPerformanceLayout";
+import PerformanceKra from "../pages/Performance/DepartmentDetails/PerformanceKra";
+import PerformanceMonthly from "../pages/Performance/DepartmentDetails/PerformanceMonthly";
+import PerformanceAnnual from "../pages/Performance/DepartmentDetails/PerformanceAnnual";
+import DepartmentTasksLayout from "../pages/Tasks/DepartmentTasks/DepartmentTasksLayout";
+import DepartmentTasks from "../pages/Tasks/DepartmentTasks/DepartmentTasks";
+import TasksDepartmentLayout from "../pages/Tasks/DepartmentTasks/TasksDepartmentLayout";
+import TasksViewDepartment from "../pages/Tasks/DepartmentTasks/TasksViewDepartment";
+import VisitorLayout from "../pages/Visitors/VisitorLayout";
+import VisitorManagement from "../pages/Visitors/VisitorManagement";
+import VisitorDashboard from "../pages/Visitors/VisitorDashboard";
+import AddVisitor from "../pages/Visitors/Forms/AddVisitor";
+import AddClient from "../pages/Visitors/Forms/AddClient";
+import ManageVisitorLayout from "../pages/Visitors/ManageVisitorLayout";
+import ManageVisitors from "../pages/Visitors/ManageVisitors";
+import ExternalClients from "../pages/Visitors/ExternalClients";
+import VisitorTeamMembers from "../pages/Visitors/VisitorTeamMembers";
+import VisitorReports from "../pages/Visitors/VisitorReports";
+import VisitorReviews from "../pages/Visitors/VisitorReviews";
+import VisitorSettings from "../pages/Visitors/VisitorSettings/VisitorSettings";
+import VisitorBulkUpload from "../pages/Visitors/VisitorSettings/VisitorBulkUpload";
+import Unauthorized from "../pages/Unauthorized";
+import NotFoundPage from "../pages/NotFoundPage";
+
+// Placeholder for DepartmentWiseBulkUpload (does not exist yet)
+const DepartmentWiseBulkUpload = () => <div>DepartmentWiseBulkUpload - Coming Soon</div>;
 
 function VerticalPickerRoute() {
   const location = useLocation();
@@ -261,10 +258,10 @@ export const routes = createBrowserRouter([
                     index: true, // login lands here
                     element: <CompanySettingsDashboard />,
                   },
-                  {
-                    path: "attendance",
-                    element: <Attendance />,
-                  },
+                  // {
+                  //   path: "attendance",
+                  //   element: <Attendance />, // OLD - moved to extra-common-modules
+                  // },
                   {
                     path: "nomad-listings",
                     element: <NomadListingsOverview />,
@@ -538,6 +535,10 @@ export const routes = createBrowserRouter([
                 element: <ModuleCardsLanding />,
               },
               {
+                path: "extra-common-modules/attendance",
+                element: <AttendancePage />,
+              },
+              {
                 path: "extra-common-modules/assets",
                 element: <AssetsPage />,
               },
@@ -663,7 +664,7 @@ export const routes = createBrowserRouter([
                   //     },
                   //   ],
                   // },
-                  // {
+              // {
                   //   path: "my-assets",
                   //   element: <MyAssets />,
                   // },
@@ -1023,6 +1024,31 @@ export const routes = createBrowserRouter([
                   {
                     path: "house-keeping",
                     element: <AdministrationHousekeepingPage />,
+                  },
+                ],
+              },
+              {
+                path: "hr",
+                children: [
+                  {
+                    path: "employee-management",
+                    element: <HREmployeeManagementPage />,
+                  },
+                  {
+                    path: "documents",
+                    element: <HRDocumentsPage />,
+                  },
+                  {
+                    path: "attendance-review",
+                    element: <HRAttendanceReviewPage />,
+                  },
+                  {
+                    path: "leave-request-processing",
+                    element: <HRLeaveRequestsProcessingPage />,
+                  },
+                  {
+                    path: "recruitment",
+                    element: <HRRecruitmentPage />,
                   },
                 ],
               },

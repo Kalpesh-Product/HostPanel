@@ -304,15 +304,7 @@ export function InventoryPage() {
                   : 'Founder view: monitor tracking, create inventory, and execute global stock reallocations.'}
               </p>
             </div>
-            <button
-              onClick={() => {
-                setAddStockData({ name: '', category: 'Physical', trackingType: 'Consumable', department: defaultDepartment, quantity: '' });
-                setIsAddStockOpen(true);
-              }}
-              className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
-            >
-              <Plus size={13} strokeWidth={3} /> ADD INVENTORY
-            </button>
+            
           </div>
 
           {errorMessage && (
@@ -367,7 +359,7 @@ export function InventoryPage() {
                 <div className="relative">
                   <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                   <select
-                    className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
+                    className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
                     value={departmentFilter}
                     onChange={(e) => setDepartmentFilter(e.target.value)}
                   >
@@ -388,6 +380,15 @@ export function InventoryPage() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
+                <button
+              onClick={() => {
+                setAddStockData({ name: '', category: 'Physical', trackingType: 'Consumable', department: defaultDepartment, quantity: '' });
+                setIsAddStockOpen(true);
+              }}
+              className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
+            >
+              <Plus size={13} strokeWidth={3} /> ADD INVENTORY
+            </button>
               </div>
             </div>
 

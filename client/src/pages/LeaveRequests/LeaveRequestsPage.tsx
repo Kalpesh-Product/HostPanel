@@ -821,7 +821,7 @@ export function LeaveRequestsPage() {
                       <div className="relative">
                         <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                         <select
-                          className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
+                          className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
                           value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}
                         >
                           <option value="All">All Departments</option>
@@ -832,7 +832,7 @@ export function LeaveRequestsPage() {
                       <div className="relative">
                         <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                         <select
-                          className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
+                          className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
                           value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
                         >
                           <option value="All">All Statuses</option>
@@ -1169,8 +1169,8 @@ export function LeaveRequestsPage() {
                     </div>
                     <div className="p-4 sm:p-6 bg-[#0F172A] border-b border-slate-800 flex justify-between items-center shrink-0">
                       <div>
-                        <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2"><Calendar size={18} /> Apply for Leave</h2>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{isOwnerProfile ? 'Submit to HR Manager for approval' : 'Submit to Founder / HR Manager for approval'}</p>
+                        <h2 className="text-lg sm:text-xl font-pmedium text-white flex items-center gap-2"><Calendar size={18} /> Apply for Leave</h2>
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{isOwnerProfile ? 'Submit to HR & Manager for approval' : 'Submit to Founder / HR Manager for approval'}</p>
                       </div>
                       <button onClick={() => setIsApplyModalOpen(false)} className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-red-500 transition-all"><X size={15} /></button>
                     </div>
@@ -1326,7 +1326,7 @@ export function LeaveRequestsPage() {
                       )}
                       <div className="flex gap-2">
                         <button type="button" onClick={() => setIsApplyModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-black hover:bg-slate-200 transition-all text-[10px] uppercase tracking-wider">CANCEL</button>
-                        <button type="submit" disabled={!isFormValid || isSubmittingLeave} className="flex-[2] py-3 bg-[#2563EB] text-white rounded-xl font-black shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider">
+                        <button type="submit" disabled={!isFormValid || isSubmittingLeave} className="flex-1 py-3 bg-[#2563EB] text-white rounded-xl font-black shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider">
                           {isSubmittingLeave ? 'SUBMITTING...' : 'SUBMIT REQUEST'} <Send size={13} />
                         </button>
                       </div>
