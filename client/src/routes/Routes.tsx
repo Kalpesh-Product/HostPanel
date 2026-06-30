@@ -105,6 +105,8 @@ import AdministrationTenantCompaniesPage from "../pages/Administration/TenantCom
 import AdministrationBookingsPage from "../pages/Administration/Bookings/BookingsPage";
 import AdministrationResourceManagementPage from "../pages/Administration/ResourceManagement/ResourceManagementPage";
 import AdministrationHousekeepingPage from "../pages/Administration/HouseKeeping/HousekeepingPage";
+import RepairLogsPage from "../pages/Maintenance/RepairLogsPage";
+import AMCMaintenanceSchedulerPage from "../pages/Maintenance/AMCMaintenanceSchedulerPage";
 import { TicketsPage } from "../pages/Tickets/TicketsPage";
 import TenantDashboardPage from "../pages/tenant/TenantDashboardPage";
 import TenantMeetingRoomBookingPage from "../pages/tenant/TenantMeetingRoomBookingPage";
@@ -1006,27 +1008,40 @@ export const routes = createBrowserRouter([
                   },
                 ],
               },
-              {
-                path: "administration",
-                children: [
                   {
-                    path: "tenant-companies",
-                    element: <AdministrationTenantCompaniesPage />,
+                    path: "administration",
+                    children: [
+                      {
+                        path: "tenant-companies",
+                        element: <AdministrationTenantCompaniesPage />,
+                      },
+                      {
+                        path: "bookings",
+                        element: <AdministrationBookingsPage />,
+                      },
+                      {
+                        path: "resource-management",
+                        element: <AdministrationResourceManagementPage />,
+                      },
+                      {
+                        path: "house-keeping",
+                        element: <AdministrationHousekeepingPage />,
+                      },
+                    ],
                   },
                   {
-                    path: "bookings",
-                    element: <AdministrationBookingsPage />,
+                    path: "maintenance",
+                    children: [
+                      {
+                        path: "repair-logs",
+                        element: <RepairLogsPage />,
+                      },
+                      {
+                        path: "amc-scheduler",
+                        element: <AMCMaintenanceSchedulerPage />,
+                      },
+                    ],
                   },
-                  {
-                    path: "resource-management",
-                    element: <AdministrationResourceManagementPage />,
-                  },
-                  {
-                    path: "house-keeping",
-                    element: <AdministrationHousekeepingPage />,
-                  },
-                ],
-              },
               {
                 path: "hr",
                 children: [
