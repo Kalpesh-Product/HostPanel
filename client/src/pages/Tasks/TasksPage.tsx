@@ -19,6 +19,7 @@ import {
   getStoredUser,
 } from '@/lib/auth-session';
 import { getWorkspaceMembers } from '@/services/auth';
+import { axiosPrivate } from '@/utils/axios';
 import {
   addTaskComment,
   acceptTask,
@@ -1340,8 +1341,74 @@ export function TasksPage() {
         }
 
         setOrgData(grouped);
+
+        if (Object.keys(grouped).length === 0) {
+          try {
+            const ovRes = await axiosPrivate.get("/api/organization/overview");
+            const overview = ovRes?.data?.data || ovRes?.data || {};
+            const teamMembers: any[] = Array.isArray(overview.teamMembers) ? overview.teamMembers : [];
+            if (teamMembers.length > 0) {
+              const fallback: Record<string, Member[]> = {};
+              const added = new Set<string>();
+              const canon = (val: string) => val.trim().toLowerCase().replace(/[\s_]+/g, '-');
+              teamMembers.forEach((tm: any) => {
+                (tm.departmentNames || []).forEach((dept: string) => {
+                  const key = canon(dept);
+                  if (!key) return;
+                  if (!fallback[dept]) fallback[dept] = [];
+                  const memberId = tm.userId || tm.id || '';
+                  const dedupKey = memberId ? `${key}::${memberId}` : `${key}::${canon(tm.name || '')}`;
+                  if (!added.has(dedupKey)) {
+                    added.add(dedupKey);
+                    fallback[dept].push({
+                      id: memberId,
+                      userId: tm.userId,
+                      name: tm.name || '',
+                      role: normalizeRoleValue(tm.role || 'employee'),
+                      departments: tm.departmentNames || [],
+                    });
+                  }
+                });
+              });
+              if (Object.keys(fallback).length > 0) setOrgData(fallback);
+            }
+          } catch {
+            // fallback failed, orgData stays empty
+          }
+        }
       } catch {
-        // Keep task page usable even when member directory cannot be loaded.
+        try {
+          const ovRes = await axiosPrivate.get("/api/organization/overview");
+          const overview = ovRes?.data?.data || ovRes?.data || {};
+          const teamMembers: any[] = Array.isArray(overview.teamMembers) ? overview.teamMembers : [];
+          if (teamMembers.length > 0) {
+            const fallback: Record<string, Member[]> = {};
+            const added = new Set<string>();
+            const canon = (val: string) => val.trim().toLowerCase().replace(/[\s_]+/g, '-');
+            teamMembers.forEach((tm: any) => {
+              (tm.departmentNames || []).forEach((dept: string) => {
+                const key = canon(dept);
+                if (!key) return;
+                if (!fallback[dept]) fallback[dept] = [];
+                const memberId = tm.userId || tm.id || '';
+                const dedupKey = memberId ? `${key}::${memberId}` : `${key}::${canon(tm.name || '')}`;
+                if (!added.has(dedupKey)) {
+                  added.add(dedupKey);
+                  fallback[dept].push({
+                    id: memberId,
+                    userId: tm.userId,
+                    name: tm.name || '',
+                    role: normalizeRoleValue(tm.role || 'employee'),
+                    departments: tm.departmentNames || [],
+                  });
+                }
+              });
+            });
+            if (Object.keys(fallback).length > 0) setOrgData(fallback);
+          }
+        } catch {
+          // Keep task page usable even when member directory cannot be loaded.
+        }
       } finally {
         if (isMounted) {
           setIsLoadingMembers(false);
@@ -1447,11 +1514,13 @@ export function TasksPage() {
         uploadedAttachments = uploadResponse?.attachments || [];
       }
 
-      const response = await createTask({
+      await createTask({
         title: taskForm.title,
         description: taskForm.description,
         type: taskForm.type,
         department: taskForm.department,
+        raisedBy: profile.name || storedUser?.fullName || storedUser?.name || 'Unknown',
+        raisedByUserId: currentUserId || undefined,
         assignee: taskForm.assignee || 'Unassigned',
         assigneeUserId: taskForm.assigneeUserId === 'owner' ? undefined : (taskForm.assigneeUserId || undefined),
         priority: taskForm.priority,
@@ -1459,10 +1528,9 @@ export function TasksPage() {
         attachments: uploadedAttachments,
       });
 
-      const createdTask: Task = response?.task;
-      if (createdTask) {
-        setTasks((current) => [createdTask, ...current]);
-      }
+      const refresh = await getTasks({ page: 1, limit: TASKS_PAGE_SIZE });
+      setTasks(refresh?.tasks || []);
+      setPagination(refresh?.pagination || null);
 
       setErrorMessage('');
       setIsAssignModalOpen(false);

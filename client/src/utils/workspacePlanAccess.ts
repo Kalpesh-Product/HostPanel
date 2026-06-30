@@ -31,6 +31,7 @@ const BASIC_DEPARTMENT_IDS = [
   "resource-pricing",
   "sales-architecture",
   "it-repair-logs",
+  "it-system-access",
 ] as const;
 
 const PROFESSIONAL_EXTRA_IDS = [
@@ -78,6 +79,7 @@ const ALL_LEAF_IDS = [
   "amc-maintenance-scheduler",
   "tech-website-builder",
   "it-repair-logs",
+  "it-system-access",
 ] as const;
 
 export const getWorkspaceCount = (value: unknown): number => {

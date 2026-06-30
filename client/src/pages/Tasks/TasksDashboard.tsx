@@ -141,10 +141,10 @@ const TasksDashboard = () => {
     queryKey: ["allTasks"],
     queryFn: async () => {
       try {
-        const response = await axios.get(`/api/tasks/get-all-tasks`);
-        return response.data;
+        const response = await axios.get("/api/tasks", { params: { limit: 1000 } });
+        return response.data?.data?.tasks || response.data?.tasks || [];
       } catch (error) {
-        throw new Error(error.response.data.message);
+        throw new Error(error.response?.data?.message || "Failed to load tasks");
       }
     },
   });
@@ -234,10 +234,10 @@ const TasksDashboard = () => {
     queryKey: ["taskList"],
     queryFn: async () => {
       try {
-        const response = await axios.get("/api/tasks/get-today-tasks");
-        return response.data;
+        const response = await axios.get("/api/tasks", { params: { limit: 100 } });
+        return response.data?.data?.tasks || response.data?.tasks || [];
       } catch (error) {
-        throw new Error(error.response.data.message);
+        throw new Error(error.response?.data?.message || "Failed to load tasks");
       }
     },
   });

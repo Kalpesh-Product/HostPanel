@@ -239,8 +239,8 @@ const departmentModules: NavNode[] = [
     icon: Wrench,
     defaultOpen: false,
     children: [
-      { id: "maintenance-repair-logs", label: "Maintenance Repair Logs", icon: ScanSearch, disabled: true },
-      { id: "amc-maintenance-scheduler", label: "AMC Maintenance Scheduler", icon: CalendarClock, disabled: true },
+      { id: "maintenance-repair-logs", label: "Maintenance Repair Logs", icon: ScanSearch, route: "/maintenance/repair-logs" },
+      { id: "amc-maintenance-scheduler", label: "AMC Maintenance Scheduler", icon: CalendarClock, route: "/maintenance/amc-scheduler" },
     ],
   },
   {
@@ -256,8 +256,8 @@ const departmentModules: NavNode[] = [
     icon: MonitorCog,
     defaultOpen: false,
     children: [
-      { id: "it-repair-logs", label: "IT Repair Logs", icon: FileSearch },
-      { id: "it-system-access", label: "System Access", icon: ShieldCheck },
+      { id: "it-repair-logs", label: "IT Repair Logs", icon: FileSearch, route: "/it/repair-logs" },
+      { id: "it-system-access", label: "System Access", icon: ShieldCheck, route: "/it/system-access" },
     ],
   },
 ];
@@ -319,6 +319,10 @@ const ROUTE_BY_ID: Record<string, string> = {
   "attendance-review": "/hr/attendance-review",
   "leave-request-processing": "/hr/leave-request-processing",
   "recruitment": "/hr/recruitment",
+  "it-repair-logs": "/it/repair-logs",
+  "it-system-access": "/it/system-access",
+  "maintenance-repair-logs": "/maintenance/repair-logs",
+  "amc-maintenance-scheduler": "/maintenance/amc-scheduler",
 };
 
 const ICON_BY_ID: Record<string, ElementType> = {
@@ -1191,14 +1195,19 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
           (mappedSections.length > 0
             ? (() => {
               const hasKeyApps = mappedSections.some(s => s.key === "key-apps");
-              if (hasKeyApps) {
-                return mappedSections.map(s =>
-                  s.key === "key-apps"
-                    ? { ...s, items: [...s.items, ...keyAppsItems.filter(k => k.route && !k.disabled && !s.items.some(ex => ex.id === k.id))] }
-                    : s
-                );
-              }
-              return [...mappedSections, { key: "key-apps", title: "Key Apps", items: keyAppsItems }];
+              const hasDeptAccess = mappedSections.some(s => s.key === "department-accesses");
+              const sections = mappedSections.map(s => {
+                if (s.key === "key-apps") {
+                  return { ...s, items: [...s.items, ...keyAppsItems.filter(k => k.route && !k.disabled && !s.items.some(ex => ex.id === k.id))] };
+                }
+                if (s.key === "department-accesses") {
+                  return { ...s, items: [...s.items, ...departmentItems.filter(d => d.route || (d.children?.length && !s.items.some(ex => ex.id === d.id)))] };
+                }
+                return s;
+              });
+              if (!hasKeyApps) sections.push({ key: "key-apps", title: "Key Apps", items: keyAppsItems });
+              if (!hasDeptAccess) sections.push({ key: "department-accesses", title: "Department Accesses", items: departmentItems });
+              return sections;
             })()
             : [
               { key: "company-settings", title: "Company Settings", items: companySettingsItems },
