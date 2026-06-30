@@ -115,3 +115,13 @@ export const getStoredTenantCompanyName = (): string => {
     return "";
   }
 };
+
+export const resolvePostLoginRoute = (user?: any): string => {
+  const role = getRoleString(user);
+  if (role === "owner" || role === "super_admin" || role === "super-admin" || role === "admin") return "/dashboard";
+  if (role === "hr-manager" || role === "hr_manager" || role === "hr") return "/hr/employee-management";
+  if (role === "finance-manager" || role === "finance_manager" || role === "finance") return "/dashboard/finance/billing-payments";
+  if (role === "sales-manager" || role === "sales_manager" || role === "sales") return "/sales-crm/leads-management";
+  if (role === "it-manager" || role === "it_manager" || role === "it") return "/it/repair-logs";
+  return "/dashboard";
+};

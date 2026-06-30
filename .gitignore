@@ -1,6 +1,11 @@
 # Kiro AI dev environment (specs, steering, local config)
 .kiro/
 
+# Local AI agent skills (not for shared dev use)
+.agents/
+SKILL.md
+skills-lock.json
+
 # OS
 .DS_Store
 Thumbs.db

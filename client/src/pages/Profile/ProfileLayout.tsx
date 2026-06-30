@@ -11,6 +11,8 @@ const ProfileLayout = () => {
     { label: "My Profile", path: "my-profile" },
     { label: "Change Password", path: "change-password" },
     { label: "Assigned Assets", path: "assigned-assets" },
+    { label: "Payslips", path: "payslips" },
+    { label: "Exit Request", path: "exit-request" },
   ];
 
   useEffect(() => {

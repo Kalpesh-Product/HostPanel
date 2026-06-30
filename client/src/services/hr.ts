@@ -38,3 +38,23 @@ export const getEmployeeDocumentsVault = async () => {
   const response = await axiosPrivate.get("/api/hr/documents/vault");
   return unwrap(response);
 };
+
+export const getPayrollSnapshot = async (params?: Record<string, any>) => {
+  const response = await axiosPrivate.get("/api/hr/payroll/snapshot", { params });
+  return unwrap(response);
+};
+
+export const preparePayrollCycle = async (payload: Record<string, any>) => {
+  const response = await axiosPrivate.post("/api/hr/payroll/prepare", payload);
+  return unwrap(response);
+};
+
+export const updatePayrollCycleStatus = async (cycleId: string, payload: Record<string, any>) => {
+  const response = await axiosPrivate.patch(`/api/hr/payroll/cycles/${cycleId}/status`, payload);
+  return unwrap(response);
+};
+
+export const addPayrollAdjustment = async (cycleId: string, profileId: string, payload: Record<string, any>) => {
+  const response = await axiosPrivate.post(`/api/hr/payroll/cycles/${cycleId}/employees/${profileId}/adjustments`, payload);
+  return unwrap(response);
+};

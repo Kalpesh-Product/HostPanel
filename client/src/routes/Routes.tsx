@@ -57,6 +57,8 @@ import HRDocumentsPage from "../pages/HR/HRDocumentsPage";
 import HRAttendanceReviewPage from "../pages/HR/HRAttendanceReviewPage";
 import HRLeaveRequestsProcessingPage from "../pages/HR/HRLeaveRequestsProcessingPage";
 import HRRecruitmentPage from "../pages/HR/HRRecruitmentPage";
+import HRPayrollPage from "../pages/HR/HRPayrollPage";
+import HRExitManagementPage from "../pages/HR/HRExitManagementPage";
 import VendorTable from "../components/Pages/VendorTable";
 import AssetsHome from "../pages/Assets/AssetsHome";
 import ManageAssetsHome from "../pages/Assets/ManageAssetsHome";
@@ -138,6 +140,8 @@ import UserDetails from "../pages/Profile/UserDetails";
 import CompanyProfile from "../pages/Profile/CompanyProfile";
 import ChangePassword from "../pages/Profile/ChangePassword";
 import { AssignedAssetsTab } from "../pages/Profile/AssignedAssetsTab";
+import { PayslipsTab } from "../pages/Profile/PayslipsTab";
+import { ExitRequestTab } from "../pages/Profile/ExitRequestTab";
 import PerformanceLayout from "../pages/Performance/PerformanceLayout";
 import PerformanceHome from "../pages/Performance/PerformanceHome";
 import DepartmentPerformanceLayout from "../pages/Performance/DepartmentPerformanceLayout";
@@ -630,6 +634,14 @@ export const routes = createBrowserRouter([
                     path: "assigned-assets",
                     element: <AssignedAssetsTab />,
                   },
+                  {
+                    path: "payslips",
+                    element: <PayslipsTab />,
+                  },
+                  {
+                    path: "exit-request",
+                    element: <ExitRequestTab />,
+                  },
                   // {
                   //   path: "permissions",
                   //   element: <AccessGrant />,
@@ -1057,31 +1069,40 @@ export const routes = createBrowserRouter([
                       },
                     ],
                   },
-              {
-                path: "hr",
-                children: [
                   {
-                    path: "employee-management",
-                    element: <HREmployeeManagementPage />,
+                    path: "hr",
+                    element: <Outlet />,
+                    children: [
+                      {
+                        path: "employee-management",
+                        element: <HREmployeeManagementPage />,
+                      },
+                      {
+                        path: "documents",
+                        element: <HRDocumentsPage />,
+                      },
+                      {
+                        path: "attendance-review",
+                        element: <HRAttendanceReviewPage />,
+                      },
+                      {
+                        path: "leave-request-processing",
+                        element: <HRLeaveRequestsProcessingPage />,
+                      },
+                      {
+                        path: "recruitment",
+                        element: <HRRecruitmentPage />,
+                      },
+                      {
+                        path: "payroll-management",
+                        element: <HRPayrollPage />,
+                      },
+                      {
+                        path: "exit-management",
+                        element: <HRExitManagementPage />,
+                      },
+                    ],
                   },
-                  {
-                    path: "documents",
-                    element: <HRDocumentsPage />,
-                  },
-                  {
-                    path: "attendance-review",
-                    element: <HRAttendanceReviewPage />,
-                  },
-                  {
-                    path: "leave-request-processing",
-                    element: <HRLeaveRequestsProcessingPage />,
-                  },
-                  {
-                    path: "recruitment",
-                    element: <HRRecruitmentPage />,
-                  },
-                ],
-              },
             ],
           },
         ],

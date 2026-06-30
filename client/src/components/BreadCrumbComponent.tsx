@@ -521,6 +521,22 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/hr/payroll-management",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "HR Department", path: "/module-sections/department-accesses/hr-department" },
+      { label: "Payroll Management" },
+    ],
+  },
+  {
+    pattern: "/hr/exit-management",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "HR Department", path: "/module-sections/department-accesses/hr-department" },
+      { label: "Exit Management" },
+    ],
+  },
+  {
     pattern: "/dashboard/tenant",
     crumbs: [
       { label: SECTION_LABELS.tenantPortal },

@@ -43,3 +43,8 @@ export const updateMonthlyExpenseStatus = async (payload: {
   );
   return unwrap(response);
 };
+
+export const getMyPayslips = async () => {
+  const response = await axiosPrivate.get("/api/finance/payroll/my-payslips");
+  return unwrap(response);
+};
