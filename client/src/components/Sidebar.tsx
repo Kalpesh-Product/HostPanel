@@ -255,7 +255,10 @@ const departmentModules: NavNode[] = [
     label: "IT Department",
     icon: MonitorCog,
     defaultOpen: false,
-    children: [{ id: "it-repair-logs", label: "IT Repair Logs", icon: FileSearch, disabled: true }],
+    children: [
+      { id: "it-repair-logs", label: "IT Repair Logs", icon: FileSearch },
+      { id: "it-system-access", label: "System Access", icon: ShieldCheck },
+    ],
   },
 ];
 
@@ -373,6 +376,7 @@ const ICON_BY_ID: Record<string, ElementType> = {
   "amc-maintenance-scheduler": CalendarClock,
   "tech-website-builder": Globe,
   "it-repair-logs": FileSearch,
+  "it-system-access": ShieldCheck,
   "tenant-dashboard": LayoutDashboard,
   "tenant-meeting-room-booking": CalendarCheck,
   "tenant-booking-history": Clock,

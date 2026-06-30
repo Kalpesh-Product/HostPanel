@@ -107,6 +107,8 @@ import AdministrationResourceManagementPage from "../pages/Administration/Resour
 import AdministrationHousekeepingPage from "../pages/Administration/HouseKeeping/HousekeepingPage";
 import RepairLogsPage from "../pages/Maintenance/RepairLogsPage";
 import AMCMaintenanceSchedulerPage from "../pages/Maintenance/AMCMaintenanceSchedulerPage";
+import ITRepairLogsPage from "../pages/IT/ITRepairLogsPage";
+import SystemAccessManagementPage from "../pages/IT/SystemAccessManagementPage";
 import { TicketsPage } from "../pages/Tickets/TicketsPage";
 import TenantDashboardPage from "../pages/tenant/TenantDashboardPage";
 import TenantMeetingRoomBookingPage from "../pages/tenant/TenantMeetingRoomBookingPage";
@@ -1039,6 +1041,19 @@ export const routes = createBrowserRouter([
                       {
                         path: "amc-scheduler",
                         element: <AMCMaintenanceSchedulerPage />,
+                      },
+                    ],
+                  },
+                  {
+                    path: "it",
+                    children: [
+                      {
+                        path: "repair-logs",
+                        element: <ITRepairLogsPage />,
+                      },
+                      {
+                        path: "system-access",
+                        element: <SystemAccessManagementPage />,
                       },
                     ],
                   },
