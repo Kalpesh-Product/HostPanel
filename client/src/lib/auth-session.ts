@@ -72,6 +72,32 @@ export const canAccessEmployeeDashboard = (user?: any): boolean => {
   return true;
 };
 
+export const normalizeUserRole = (role: string): string => {
+  return String(role || '').trim().toLowerCase().replace(/\s+/g, '_');
+};
+
+export const canAccessEmployeeModule = (
+  user?: any,
+  moduleId?: string,
+  options?: { section?: string },
+): boolean => {
+  if (!user || !moduleId) return false;
+  const role = normalizeUserRole(user?.workspaceMembership?.role || user?.role);
+  const grantedModules = user?.workspaceMembership?.grantedModules || [];
+  if (role === 'owner' || role === 'founder' || role === 'super_admin' || role === 'super-admin') {
+    return true;
+  }
+  const normalizedModuleId = moduleId.toLowerCase().replace(/[\s_]+/g, '-');
+  const hasModule = grantedModules.some(
+    (m: string) => m.toLowerCase().replace(/[\s_]+/g, '-') === normalizedModuleId || m === moduleId,
+  );
+  if (hasModule) return true;
+  if (options?.section === 'core') {
+    return ['hr', 'hr_manager', 'hr-manager', 'admin', 'manager'].includes(role);
+  }
+  return false;
+};
+
 export const getStoredTenantCompanyId = (): string => {
   try {
     const raw = localStorage.getItem("hostpanel_tenant_company_id") || sessionStorage.getItem("tenant_company_id");

@@ -236,6 +236,13 @@ const getCurrentWorkspace = async (userId) => {
   return { user, workspace };
 };
 
+const resolveMemberStatus = (isActive: boolean, inviteStatus?: string) => {
+  if (!isActive) return "disabled";
+  if (inviteStatus === "invite_sent") return "invited";
+  if (inviteStatus === "registered") return "registered";
+  return "joined";
+};
+
 export const getOrganizationOverview = async (req, res, next) => {
   try {
     const { user, workspace } = await getCurrentWorkspace(req.user);
@@ -285,7 +292,7 @@ export const getOrganizationOverview = async (req, res, next) => {
           name: selfMember.user?.name || "",
           email: selfMember.user?.email || "",
           role: toRoleLabel(selfMember.role),
-          status: selfMember.isActive === false ? "disabled" : "joined",
+          status: resolveMemberStatus(selfMember.isActive !== false, selfMember.user?.inviteStatus),
           departmentNames: Array.isArray(selfMember.departments)
             ? selfMember.departments.map((d: any) => d.name || String(d))
             : [],
@@ -315,7 +322,7 @@ export const getOrganizationOverview = async (req, res, next) => {
     const activeDepartments = await ensureWorkspaceDepartments(workspace);
 
     const members = await WorkspaceMember.find({ workspace: workspace._id })
-      .populate("user", "name email isActive")
+      .populate("user", "name email isActive inviteStatus")
       .populate("role")
       .populate("departments")
       .lean()
@@ -356,7 +363,7 @@ export const getOrganizationOverview = async (req, res, next) => {
           name: member.user?.name || "",
           email: member.user?.email || "",
           role: toRoleLabel(member.role),
-          status: member.isActive === false ? "disabled" : "joined",
+          status: resolveMemberStatus(member.isActive !== false, member.user?.inviteStatus),
           departmentNames: Array.isArray(member.departments)
             ? member.departments.map((d: any) => d.name || String(d))
             : [],
@@ -388,7 +395,7 @@ export const getOrganizationOverview = async (req, res, next) => {
       name: member.user?.name || "",
       email: member.user?.email || "",
       role: toRoleLabel(member.role),
-      status: member.isActive === false ? "disabled" : "joined",
+      status: resolveMemberStatus(member.isActive !== false, member.user?.inviteStatus),
       departmentNames: Array.isArray(member.departments)
         ? member.departments.map((d: any) => d.name || String(d))
         : [],
@@ -595,6 +602,21 @@ export const assignOrganizationDepartmentManager = async (req, res, next) => {
     department.managerUser = managerUserId;
     await department.save();
 
+    // Promote the member's role to "manager" if they are currently below that level
+    const currentRoleBand = getRoleBand(membership?.role || "");
+    if (currentRoleBand === "employee") {
+      const managerRole = await Role.findOne({ name: "manager" }).lean();
+      if (managerRole) {
+        membership.role = managerRole._id;
+      }
+    }
+
+    // Add this department to the manager's department list if not already there
+    if (!membership.departments.some((d) => String(d) === String(department._id))) {
+      membership.departments.push(department._id);
+    }
+    await membership.save();
+
     return res.status(200).json({ message: "Department manager assigned successfully." });
   } catch (error) {
     next(error);
@@ -759,6 +781,8 @@ export const inviteOrganizationMember = async (req, res, next) => {
       isFreshInviteAccount = true;
     }
 
+    const isExistingRegisteredUser = !isFreshInviteAccount && !!targetUser.password;
+
     await WorkspaceMember.findOneAndUpdate(
       { workspace: workspace._id, user: targetUser._id },
       {
@@ -767,11 +791,17 @@ export const inviteOrganizationMember = async (req, res, next) => {
           departments: resolvedDepartmentIds,
           isPrimary: false,
           isActive: true,
-          status: "joined",
+          status: isExistingRegisteredUser ? "joined" : "invited",
         },
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
+
+    if (!isExistingRegisteredUser) {
+      targetUser.inviteStatus = "invite_sent";
+      targetUser.inviteSentAt = new Date();
+      await targetUser.save();
+    }
 
     const inviteSecret =
       process.env.HOST_INVITE_TOKEN_SECRET ||

@@ -1,4 +1,5 @@
-import WidgetSection from "../../../components/WidgetSection";
+{/* OLD Attendance - moved to src/pages/Attendance/AttendancePage.tsx */}
+{/* import WidgetSection from "../../../components/WidgetSection";
 import ClockInOutAttendance from "../../../components/ClockInOutAttendance";
 import AttendanceTimeline from "../../../components/AttendanceTimeline";
 
@@ -19,4 +20,4 @@ const Attendance = () => {
   );
 };
 
-export default Attendance;
+export default Attendance; */}

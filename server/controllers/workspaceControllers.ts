@@ -9,7 +9,30 @@ import {
   buildWorkspaceModuleCatalog,
   buildWorkspaceModulesStructure,
   getEffectiveEnabledModuleIds,
+  COMMON_MODULE_IDS,
+  EXTRA_COMMON_MODULE_IDS,
+  getAllModuleIds,
 } from "../config/workspaceModuleCatalog.js";
+
+const _getRoleName = (role: any) => {
+  if (!role) return "";
+  if (typeof role === "object" && role.name) return String(role.name);
+  return String(role);
+};
+const _normalizeRole = (role = "") => {
+  const n = _getRoleName(role).trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (n === "founder") return "owner";
+  if (n === "superadmin") return "super_admin";
+  return n || "employee";
+};
+const _getRoleBand = (role: any) => {
+  const n = _normalizeRole(_getRoleName(role));
+  if (n === "owner") return "owner";
+  if (n === "super_admin") return "super_admin";
+  if (n === "admin" || n === "admin_manager") return "admin";
+  if (n === "manager") return "manager";
+  return "employee";
+};
 
 const normalizeStringArray = (value: unknown) =>
   Array.isArray(value)
@@ -644,9 +667,45 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
           user: currentUserId,
           isActive: true,
         })
+          .populate("role")
           .lean()
           .exec()
       : null;
+
+    const roleBand = _getRoleBand(currentMember?.role);
+    const explicitGrants: string[] = Array.isArray(currentMember?.grantedModules)
+      ? currentMember.grantedModules.map((m) => String(m).trim()).filter(Boolean)
+      : [];
+
+    let baseModules: string[] = [];
+
+    if (roleBand === "owner" || roleBand === "super_admin") {
+      baseModules = getAllModuleIds();
+    } else if (roleBand === "admin" || roleBand === "manager") {
+      // Collect dept modules from assigned departments (WorkspaceMember.departments)
+      const assignedDeptIds = Array.isArray(currentMember?.departments)
+        ? currentMember.departments
+        : [];
+      const deptQuery: any[] = [{ _id: { $in: assignedDeptIds }, workspaceId: workspace._id, isActive: true }];
+
+      // Managers also get modules for departments they directly manage
+      if (roleBand === "manager") {
+        deptQuery.push({ managerUser: currentUserId, workspaceId: workspace._id, isActive: true });
+      }
+
+      const depts = await Department.find({ $or: deptQuery }).select("moduleIds").lean();
+      const deptModuleIds = depts.flatMap((d) =>
+        Array.isArray(d.moduleIds) ? d.moduleIds.map((m) => String(m).trim()).filter(Boolean) : [],
+      );
+
+      baseModules = [...COMMON_MODULE_IDS, ...EXTRA_COMMON_MODULE_IDS, ...deptModuleIds];
+    } else {
+      // employee — common modules only
+      baseModules = [...COMMON_MODULE_IDS];
+    }
+
+    // Founder can add extra access on top of the role base
+    const effectiveGrantedModules = Array.from(new Set([...baseModules, ...explicitGrants]));
 
     return res.status(200).json({
       message: "Workspace module access map loaded successfully.",
@@ -657,9 +716,7 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
         enabledModuleIds,
         modules,
         moduleMap: catalog,
-        currentMemberGrantedModules: Array.isArray(currentMember?.grantedModules)
-          ? currentMember.grantedModules
-          : [],
+        currentMemberGrantedModules: effectiveGrantedModules,
         currentMemberEnabledModules: Array.isArray(currentMember?.enabledModules)
           ? currentMember.enabledModules
           : [],

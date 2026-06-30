@@ -13,7 +13,7 @@ import {
 
 const AccessGrantTable = ({
   title,
-  permissions,
+  permissions = [],
   selectAll,
   handleSelectAll,
   handlePermissionChange,

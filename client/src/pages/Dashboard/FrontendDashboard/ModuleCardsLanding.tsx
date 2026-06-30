@@ -132,6 +132,7 @@ const DEFAULT_SECTION_ROUTES: Record<string, string> = {
   "customer-support": "/company-settings/customer-support",
   tasks: "/extra-common-modules/tasks",
   "leave-requests": "/leave-requests",
+  attendance: "/extra-common-modules/attendance",
 };
 
 const ICON_BY_ID: Record<string, ElementType> = {
@@ -197,7 +198,7 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
     items: [
       { id: "dashboard", label: "Dashboard", route: "/dashboard", implemented: true, unlockedInWorkspace: true },
       { id: "customer-support", label: "Customer Support", route: "/company-settings/customer-support", implemented: true, unlockedInWorkspace: true },
-      { id: "attendance", label: "Attendance", implemented: false, unlockedInWorkspace: false },
+      { id: "attendance", label: "Attendance", route: "/extra-common-modules/attendance", implemented: true, unlockedInWorkspace: true },
       { id: "tasks", label: "Tasks", route: "/extra-common-modules/tasks", implemented: true, unlockedInWorkspace: true },
       { id: "tickets", label: "Tickets", route: "/tickets", implemented: true, unlockedInWorkspace: true },
       { id: "leave-requests", label: "Leave Requests", route: "/leave-requests", implemented: true, unlockedInWorkspace: true },
@@ -689,7 +690,18 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
 
   const cards = useMemo(() => {
     const rawItems = Array.isArray(sectionData?.items) ? sectionData.items : [];
-    const remappedItems = rawItems.map((item) => {
+    const itemsWithAttendance = sectionId === "common-modules"
+      ? (rawItems.some((i) => String(i?.id || "").trim() === "attendance")
+          ? rawItems
+          : [...rawItems, { id: "attendance", label: "Attendance", route: "/extra-common-modules/attendance", implemented: true, unlockedInWorkspace: true }])
+      : rawItems;
+    const filteredItems = sectionId === "extra-common-modules"
+      ? itemsWithAttendance.filter((item) => {
+          const itemId = String(item?.id || "").trim();
+          return itemId !== "attendance";
+        })
+      : itemsWithAttendance;
+    const remappedItems = filteredItems.map((item) => {
       const itemId = String(item?.id || "").trim();
       if (itemId === "website-leads")
         return { ...item, id: "leads-management", label: "Leads Management", route: "/sales-crm/leads-management" };

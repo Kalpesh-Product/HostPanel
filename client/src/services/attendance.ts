@@ -45,3 +45,13 @@ export const getEmployeeAttendanceHistory = async (userId: string, params?: Reco
   const response = await axiosPrivate.get(`/api/attendance/employee/${userId}`, { params });
   return unwrap(response);
 };
+
+export const getHrAttendanceReview = async (params?: Record<string, any>) => {
+  const response = await axiosPrivate.get("/api/attendance/hr/review", { params });
+  return unwrap(response);
+};
+
+export const reviewAttendanceCorrection = async (correctionId: string, action: string, reason?: string) => {
+  const response = await axiosPrivate.patch(`/api/attendance/correction/${correctionId}/review`, { action, reason });
+  return unwrap(response);
+};
