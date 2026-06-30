@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, type FormEvent, type ChangeEvent } from 'react';
 import { getStoredUser } from '@/lib/auth-session';
 import { getWorkspaceMembers } from '@/services/auth';
-import { createAsset, getAssets, updateAsset } from '@/services/assets';
+import { createAsset, getAssets, updateAsset, getDepartments } from '@/services/assets';
 import {
   Search, ChevronDown, X, Eye, ShieldCheck,
   CheckCircle2, Wrench, Box, ArrowRightLeft, MapPin, Building2,
@@ -217,21 +217,34 @@ export function AssetsPage() {
   const [isLoadingAssets, setIsLoadingAssets] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [departmentOptions, setDepartmentOptions] = useState<string[]>([]);
 
   const [assets, setAssets] = useState<Asset[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadDepartments() {
+      try {
+        const data = await getDepartments();
+        const depts = (Array.isArray(data) ? data : data?.departments || data?.data || [])
+          .map((d: any) => d.name || d)
+          .filter(Boolean);
+        if (mounted) setDepartmentOptions(depts);
+      } catch {
+        // non-critical
+      }
+    }
+    loadDepartments();
+    return () => { mounted = false; };
+  }, []);
 
   const availableDepartments = useMemo(() => {
     const filterDepts = (departments: string[]) => {
       if (!isAdminScope || assignedDepartmentKeys.size === 0) return departments;
       return departments.filter((d) => assignedDepartmentKeys.has(normalizeDepartmentName(d)));
     };
-    const fromMembers = Object.keys(orgData);
-    if (fromMembers.length > 0) return filterDepts(fromMembers);
-    const fromAssets = Array.from(new Set(assets.map((a) => a.department).filter(Boolean))) as string[];
-    if (fromAssets.length > 0) return filterDepts(fromAssets);
-    const fromWorkspace: string[] = storedUser?.workspace?.departments || storedUser?.workspaceDraft?.departments || [];
-    return filterDepts(Array.isArray(fromWorkspace) ? fromWorkspace.filter(Boolean) : []);
-  }, [orgData, storedUser, assets, isAdminScope, assignedDepartmentKeys]);
+    return filterDepts(departmentOptions);
+  }, [departmentOptions, isAdminScope, assignedDepartmentKeys]);
 
   const defaultDepartment = useMemo(() => {
     const fromMembership = storedUser?.workspaceMembership?.departments?.find(Boolean);

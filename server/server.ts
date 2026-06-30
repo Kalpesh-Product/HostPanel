@@ -38,6 +38,7 @@ import maintenanceRoutes from "./routes/maintenanceRoutes.js";
 import housekeepingRoutes from "./routes/housekeepingRoutes.js";
 import itRoutes from "./routes/itRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
+import financeRoutes from "./routes/financeRoutes.js";
 
 const app = express();
 dotenv.config();
@@ -98,6 +99,7 @@ app.use("/api/inventory", verifyJwt, inventoryRoutes);
 app.use("/api/housekeeping", verifyJwt, housekeepingRoutes);
 app.use("/api/maintenance", verifyJwt, maintenanceRoutes);
 app.use("/api/tasks", verifyJwt, taskRoutes);
+app.use("/api/finance", verifyJwt, financeRoutes);
 app.use("/api/it", verifyJwt, itRoutes);
 app.use("/api/meeting-rooms", verifyJwt, meetingRoomRoutes);
 app.use("/api/calendar", verifyJwt, calendarRoutes);

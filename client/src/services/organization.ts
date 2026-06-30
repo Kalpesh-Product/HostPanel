@@ -3,6 +3,9 @@ import type { AxiosInstance } from "axios";
 export const getOrganizationOverview = (axiosPrivate: AxiosInstance) =>
   axiosPrivate.get("/api/organization/overview");
 
+export const getDepartments = (axiosPrivate: AxiosInstance) =>
+  axiosPrivate.get("/api/organization/departments");
+
 export const saveOrganizationDepartment = (
   axiosPrivate: AxiosInstance,
   payload: {

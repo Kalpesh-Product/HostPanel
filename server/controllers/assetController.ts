@@ -1,6 +1,7 @@
 // @ts-nocheck
 import mongoose from "mongoose";
 import { Asset } from "../models/Asset.js";
+import Department from "../models/Department.js";
 
 const getCurrentWorkspaceId = (req) => {
     return (
@@ -22,6 +23,12 @@ const generateAssetCode = (assetNumber) => {
     return `AST-${String(assetNumber).padStart(4, "0")}`;
 };
 
+async function resolveDepartmentId(workspaceId, name) {
+    if (!name) return null;
+    const dept = await Department.findOne({ workspaceId, name: { $regex: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } }).select("_id").lean().exec();
+    return dept?._id || null;
+}
+
 export const createAsset = async (req, res, next) => {
     try {
         const workspaceId = getCurrentWorkspaceId(req);
@@ -34,10 +41,19 @@ export const createAsset = async (req, res, next) => {
         }
 
         if (!userId) {
-    return res.status(401).json({
-        message: "User is required",
-    });
-}
+            return res.status(401).json({
+                message: "User is required",
+            });
+        }
+
+        const { department, assignedTo, assignedToUserId, assignedToDepartment, ...rest } = req.body;
+
+        const departmentId = await resolveDepartmentId(workspaceId, department || assignedToDepartment);
+
+        let assignedToDepartmentId = null;
+        if (!assignedToUserId && assignedTo) {
+            assignedToDepartmentId = await resolveDepartmentId(workspaceId, assignedTo);
+        }
 
         const lastAsset = await Asset.findOne({ workspaceId })
             .sort({ assetNumber: -1 })
@@ -48,17 +64,32 @@ export const createAsset = async (req, res, next) => {
         const assetNumber = (lastAsset?.assetNumber || 0) + 1;
         const assetCode = req.body.assetCode || generateAssetCode(assetNumber);
 
-        const asset = await Asset.create({
-            ...req.body,
+        const created = await Asset.create({
+            ...rest,
             workspaceId,
             createdBy: userId,
             assetNumber,
             assetCode,
+            departmentId,
+            assignedToDepartmentId,
+            assignedToUserId: assignedToUserId || null,
         });
+
+        const asset = await Asset.findById(created._id)
+            .populate("departmentId", "name")
+            .populate("assignedToDepartmentId", "name")
+            .lean()
+            .exec();
 
         return res.status(201).json({
             message: "Asset created successfully",
-            data: { asset },
+            data: {
+                asset: {
+                    ...asset,
+                    department: asset.departmentId?.name || department || "",
+                    assignedTo: asset.assignedToDepartmentId?.name || asset.assignedToUserId || assignedTo || "Unassigned",
+                },
+            },
         });
     } catch (error) {
         if (error?.code === 11000) {
@@ -126,6 +157,8 @@ export const getAssets = async (req, res, next) => {
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limitNumber)
+                .populate("departmentId", "name")
+                .populate("assignedToDepartmentId", "name")
                 .lean()
                 .exec(),
 
@@ -135,7 +168,11 @@ export const getAssets = async (req, res, next) => {
         return res.status(200).json({
             message: "Assets loaded successfully",
             data: {
-                assets,
+                assets: assets.map((a) => ({
+                    ...a,
+                    department: a.departmentId?.name || "",
+                    assignedTo: a.assignedToDepartmentId?.name || a.assignedToUserId || "Unassigned",
+                })),
                 pagination: {
                     total,
                     page: pageNumber,
@@ -170,6 +207,8 @@ export const getAssetById = async (req, res, next) => {
             _id: assetId,
             workspaceId,
         })
+            .populate("departmentId", "name")
+            .populate("assignedToDepartmentId", "name")
             .lean()
             .exec();
 
@@ -181,7 +220,13 @@ export const getAssetById = async (req, res, next) => {
 
         return res.status(200).json({
             message: "Asset loaded successfully",
-            data: { asset },
+            data: {
+                asset: {
+                    ...asset,
+                    department: asset.departmentId?.name || "",
+                    assignedTo: asset.assignedToDepartmentId?.name || asset.assignedToUserId || "Unassigned",
+                },
+            },
         });
     } catch (error) {
         next(error);
@@ -209,17 +254,28 @@ export const updateAsset = async (req, res, next) => {
         delete req.body.createdBy;
         delete req.body.assetNumber;
 
+        const { department, assignedTo, ...updateBody } = req.body;
+
+        if (department) {
+            updateBody.departmentId = await resolveDepartmentId(workspaceId, department);
+        }
+        if (assignedTo && !updateBody.assignedToUserId) {
+            updateBody.assignedToDepartmentId = await resolveDepartmentId(workspaceId, assignedTo);
+        }
+
         const asset = await Asset.findOneAndUpdate(
             {
                 _id: assetId,
                 workspaceId,
             },
-            req.body,
+            updateBody,
             {
                 new: true,
                 runValidators: true,
             }
         )
+            .populate("departmentId", "name")
+            .populate("assignedToDepartmentId", "name")
             .lean()
             .exec();
 
@@ -231,7 +287,13 @@ export const updateAsset = async (req, res, next) => {
 
         return res.status(200).json({
             message: "Asset updated successfully",
-            data: { asset },
+            data: {
+                asset: {
+                    ...asset,
+                    department: asset.departmentId?.name || department || "",
+                    assignedTo: asset.assignedToDepartmentId?.name || asset.assignedToUserId || assignedTo || "Unassigned",
+                },
+            },
         });
     } catch (error) {
         if (error?.code === 11000) {

@@ -31,3 +31,8 @@ export const transferAsset = async (assetId: string, payload: Record<string, any
   const response = await axiosPrivate.patch(`/api/assets/${assetId}/transfer`, payload);
   return unwrap(response);
 };
+
+export const getDepartments = async () => {
+  const response = await axiosPrivate.get("/api/organization/departments");
+  return unwrap(response);
+};

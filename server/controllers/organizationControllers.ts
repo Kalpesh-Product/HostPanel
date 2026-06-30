@@ -1282,6 +1282,8 @@ export const transferOrganizationOwnership = async (req, res, next) => {
   }
 };
 
+// GET /api/organization/departments — returns active (isActive: true) departments for the current workspace.
+// Use this endpoint to populate department dropdowns across the app (finance, tickets, HR, etc.).
 export const getDepartments = async (req, res) => {
   try {
     const workspaceId = req.workspaceMembership?.workspace || req.query.workspaceId;
