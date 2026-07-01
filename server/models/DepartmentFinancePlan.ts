@@ -189,7 +189,6 @@ const departmentFinancePlanSchema = new Schema<IDepartmentFinancePlan>(
 );
 
 departmentFinancePlanSchema.index({ workspaceId: 1, fiscalYear: 1, department: 1 }, { unique: true });
-departmentFinancePlanSchema.index({ snapshotId: 1 });
 
 export const DepartmentFinancePlan = (mongoose.models.DepartmentFinancePlan as mongoose.Model<IDepartmentFinancePlan>) ||
     mongoose.model<IDepartmentFinancePlan>("DepartmentFinancePlan", departmentFinancePlanSchema);

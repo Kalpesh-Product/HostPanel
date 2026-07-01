@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BadgeCheck, CheckCircle2, Eye, Search, Sparkles, Star, Target, X,
 } from "lucide-react";
@@ -16,6 +16,7 @@ const nomadsAxios = axios.create({
 });
 
 const STATUSES = ["pending", "approved", "rejected"];
+const REVIEW_CACHE_KEY = "wbr_review_cache";
 
 function formatDate(raw) {
   if (!raw) return "—";
@@ -63,21 +64,65 @@ export default function WebsiteBuilderReviews() {
     },
   });
 
-  const reviews = rawData ?? [];
+  const [localCache, setLocalCache] = useState(() => {
+    try {
+      const stored = localStorage.getItem(REVIEW_CACHE_KEY);
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem(REVIEW_CACHE_KEY, JSON.stringify(localCache));
+  }, [localCache]);
 
   const updateMutation = useMutation({
     mutationFn: async ({ reviewId, status }) => {
       const res = await nomadsAxios.patch(`/api/review/website-review/${reviewId}`, { status });
       return res.data;
     },
-    onSuccess: (_data, { status }) => {
+    onSuccess: (_data, { status, reviewId }) => {
       toast.success(status === "approved" ? "Review approved." : "Review rejected.");
-      queryClient.invalidateQueries({ queryKey: ["websiteReviews"] });
+      const currentData = queryClient.getQueryData(["websiteReviews", companyId, workspaceId]);
+      if (Array.isArray(currentData)) {
+        const review = currentData.find((r) => r._id === reviewId);
+        if (review) {
+          setLocalCache((prev) => ({ ...prev, [reviewId]: { ...review, status } }));
+        }
+      }
     },
     onError: () => {
       toast.error("Failed to update review.");
     },
   });
+
+  const reviews = useMemo(() => {
+    const base = rawData ?? [];
+    const cache = localCache;
+    const cacheIds = Object.keys(cache);
+    const merged = cacheIds.length === 0 ? [...base] : [...base];
+    if (cacheIds.length > 0) {
+      for (const id of cacheIds) {
+        const idx = merged.findIndex((r) => r._id === id);
+        if (idx >= 0) {
+          merged[idx] = { ...merged[idx], status: cache[id].status };
+        } else {
+          merged.push(cache[id]);
+        }
+      }
+    }
+    const statusOrder = { pending: 0, approved: 1, rejected: 2 };
+    merged.sort((a, b) => {
+      const aOrder = statusOrder[a.status || "pending"] ?? 99;
+      const bOrder = statusOrder[b.status || "pending"] ?? 99;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      const aDate = new Date(a.createdAt || a.submittedAt || 0).getTime();
+      const bDate = new Date(b.createdAt || b.submittedAt || 0).getTime();
+      return bDate - aDate;
+    });
+    return merged;
+  }, [rawData, localCache]);
 
   const handleStatusChange = (reviewId, newStatus) => {
     updateMutation.mutate({ reviewId, status: newStatus });

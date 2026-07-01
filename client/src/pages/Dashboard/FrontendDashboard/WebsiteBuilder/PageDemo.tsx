@@ -99,7 +99,7 @@ const InclusionsSection = ({
         <div className="mb-8">
           <LinedHeading title={title} />
         </div>
-        <div className="grid grid-cols-3 gap-6 sm:grid-cols-4 md:grid-cols-6">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 md:grid-cols-6 md:gap-6">
           {inclusions.map(({ key, enabled }) => {
             const item = ALL_INCLUSIONS.find((i) => i.key === key);
             if (!item) return null;
@@ -133,8 +133,14 @@ const InclusionsSection = ({
 
 const LogoCarousel = ({ logos, title }: { logos: string[]; title?: string }) => {
   const [offset, setOffset] = React.useState(0);
-  const visible = 4;
+  const [visible, setVisible] = React.useState(window.innerWidth < 768 ? 2 : 4);
   const total = logos.length;
+
+  React.useEffect(() => {
+    const onResize = () => setVisible(window.innerWidth < 768 ? 2 : 4);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   React.useEffect(() => {
     if (total <= visible) return;
@@ -142,11 +148,10 @@ const LogoCarousel = ({ logos, title }: { logos: string[]; title?: string }) => 
       setOffset((prev) => (prev + 1) % total);
     }, 2500);
     return () => window.clearInterval(timer);
-  }, [total]);
+  }, [total, visible]);
 
   if (!total) return null;
 
-  // Build the display list — always show `visible` items, cycling
   const displayed = Array.from({ length: visible }, (_, i) => logos[(offset + i) % total]);
 
   return (
@@ -158,13 +163,11 @@ const LogoCarousel = ({ logos, title }: { logos: string[]; title?: string }) => 
           </div>
         ) : null}
         <div className="overflow-hidden">
-          <div
-            className="flex items-center justify-center gap-8 md:gap-16 transition-all duration-700"
-          >
+          <div className="flex items-center justify-center gap-6 md:gap-16 transition-all duration-700">
             {displayed.map((src, idx) => (
               <div
                 key={`logo-${offset}-${idx}`}
-                className="flex h-[72px] w-[200px] shrink-0 items-center justify-center md:h-[80px] md:w-[220px]"
+                className="flex h-[60px] w-[140px] shrink-0 items-center justify-center md:h-[80px] md:w-[220px]"
               >
                 <img
                   src={src}
@@ -265,12 +268,32 @@ const MOBILE_SECTION_HEADING =
 const LinedHeading = ({ title }: { title: string }) => (
   <div className="flex items-center gap-4">
     <div className="flex-1 border-t border-[#111827]" />
-    <h2 className="shrink-0 text-center text-[20px] font-semibold uppercase tracking-[0.15em] text-[#111827] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[26px]">
+    <h2 className="shrink-0 text-center text-sm font-semibold uppercase tracking-[0.15em] text-[#111827] font-['Poppins',ui-sans-serif,system-ui,sans-serif] sm:text-base md:text-xl lg:text-[26px]">
       {title}
     </h2>
     <div className="flex-1 border-t border-[#111827]" />
   </div>
 );
+
+const OverallRating = ({ testimonials }: { testimonials: any[] }) => {
+  const ratings = testimonials.map((t) => Number(t?.rating || 0)).filter((r) => r > 0);
+  if (!ratings.length) return null;
+  const average = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+  const rounded = Math.round(average);
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <span className="text-5xl font-bold text-[#111827]">{average.toFixed(1)}</span>
+      <div className="flex items-center gap-1 text-[18px] text-[#f1c40f]">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <span key={i}>{i < rounded ? "★" : "☆"}</span>
+        ))}
+      </div>
+      <span className="text-sm text-[#374151]">
+        {ratings.length} review{ratings.length !== 1 ? "s" : ""}
+      </span>
+    </div>
+  );
+};
 
 const getNonEmptyTextList = (...values: unknown[]) =>
   values.map((value) => String(value || "").trim()).filter(Boolean);
@@ -296,25 +319,6 @@ const mapReviewToTestimonial = (item: any) => ({
   text: String(item?.review || item?.comment || item?.description || "").trim(),
   rating: Number(item?.starCount ?? item?.rating ?? item?.rate ?? 0) || 0,
 });
-
-const getAvatarInitials = (name: string) => {
-  const parts = String(name || "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2);
-  if (!parts.length) return "R";
-  return parts.map((part) => part.charAt(0).toUpperCase()).join("");
-};
-
-const getTrimmedText = (value: string, limit = 95) => {
-  const text = String(value || "").trim();
-  if (text.length <= limit) return { text, truncated: false };
-  return {
-    text: `${text.slice(0, limit).trimEnd()}...`,
-    truncated: true,
-  };
-};
 
 const IconCircle = ({ children }: { children: React.ReactNode }) => (
   <span className="inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#f1dc3a] text-[#111827]">
@@ -486,6 +490,11 @@ const PageDemo = () => {
   const [mobileProductsMenuOpen, setMobileProductsMenuOpen] = useState(false);
   const headerRef = useRef<HTMLElement | null>(null);
   const productsDropdownRef = useRef<HTMLDivElement | null>(null);
+  const [testimonialPerView, setTestimonialPerView] = useState(() => {
+    if (window.innerWidth < 768) return 1;
+    if (window.innerWidth < 1024) return 2;
+    return 3;
+  });
 
   const [selectedLeadProduct, setSelectedLeadProduct] = useState<any>(null);
   const [leadSubmitted, setLeadSubmitted] = useState(false);
@@ -779,6 +788,7 @@ const PageDemo = () => {
   useEffect(() => {
     const handleClickOutsideHeader = (event: MouseEvent) => {
       if (!mobileMenuOpen || !headerRef.current) return;
+      if (mobileProductsMenuOpen) return;
       if (!headerRef.current.contains(event.target as Node)) {
         setMobileMenuOpen(false);
         setMobileProductsMenuOpen(false);
@@ -790,16 +800,16 @@ const PageDemo = () => {
     }
 
     return () => document.removeEventListener("mousedown", handleClickOutsideHeader);
-  }, [mobileMenuOpen]);
+  }, [mobileMenuOpen, mobileProductsMenuOpen]);
 
   useEffect(() => {
     const testimonialCount =
       approvedReviews.length + (Array.isArray(draft?.testimonials) ? draft.testimonials.length : 0);
-    const maxPages = Math.max(1, Math.ceil(testimonialCount / 3));
+    const maxPages = Math.max(1, Math.ceil(testimonialCount / testimonialPerView));
     if (testimonialIndex >= maxPages) {
       setTestimonialIndex(0);
     }
-  }, [approvedReviews, draft?.testimonials, testimonialIndex]);
+  }, [approvedReviews, draft?.testimonials, testimonialIndex, testimonialPerView]);
 
   useEffect(() => {
     const fetchApprovedReviews = async () => {
@@ -861,8 +871,8 @@ const PageDemo = () => {
           (candidate?.name === item?.name && candidate?.text === item?.text),
       ),
   );
-  const testimonialPages = Math.max(1, Math.ceil(testimonials.length / 3));
-  const visibleTestimonials = testimonials.slice(testimonialIndex * 3, testimonialIndex * 3 + 3);
+  const testimonialPages = Math.max(1, Math.ceil(testimonials.length / testimonialPerView));
+  const visibleTestimonials = testimonials.slice(testimonialIndex * testimonialPerView, testimonialIndex * testimonialPerView + testimonialPerView);
   const aboutBlocks = Array.isArray(draft?.about) ? draft.about : [];
   const aboutPageImageCards = Array.isArray(draft?.aboutPageImageCards)
     ? draft.aboutPageImageCards.filter(
@@ -948,7 +958,7 @@ const PageDemo = () => {
     if (testimonialPages <= 1) return;
     const timer = window.setInterval(() => {
       setTestimonialIndex((prev) => (prev + 1) % testimonialPages);
-    }, 5000);
+    }, 3000);
     return () => window.clearInterval(timer);
   }, [testimonialPages]);
 
@@ -957,6 +967,16 @@ const PageDemo = () => {
       setGalleryViewerIndex(0);
     }
   }, [galleryItems.length, galleryViewerIndex]);
+
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth < 768) setTestimonialPerView(1);
+      else if (window.innerWidth < 1024) setTestimonialPerView(2);
+      else setTestimonialPerView(3);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   if (!draft) {
     return (
@@ -1170,18 +1190,18 @@ const PageDemo = () => {
   return (
     <div className="min-h-screen bg-[#e9e9e9] text-[#1f1f1f]">
       <header ref={headerRef} className="sticky top-0 z-30 border-b border-slate-300 bg-[#ffffff] shadow-sm">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-end gap-4 px-4 py-3 md:px-0 md:py-3">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-3 md:px-0 md:py-3">
           <button
             type="button"
             onClick={() => goToSection("home")}
-            className="flex h-16 w-24 items-center justify-end overflow-hidden lg:w-36"
+            className="flex h-16 w-24 items-center justify-start overflow-hidden lg:w-36"
             aria-label="Go to home"
           >
             {draft?.companyLogo ? (
               <img
                 src={draft.companyLogo}
                 alt={draft.companyName || "Company Logo"}
-                className="sw-full h-full object-contain"
+                className="sw-full h-full object-left object-contain"
               />
             ) : null}
             {!draft?.companyLogo && draft?.companyName ? (
@@ -1206,7 +1226,7 @@ const PageDemo = () => {
             </span>
           </button>
 
-          <nav className="ml-autohidden flex-1 items-center justify-end gap-6 px-0 md:flex">
+          <nav className="ml-auto hidden flex-1 items-center justify-end gap-6 px-0 md:flex">
             {navItems.map((item) => {
               const isProducts = resolveSectionFromSlug(item.slug) === "products";
               const isActive = currentSection === resolveSectionFromSlug(item.slug);
@@ -1478,8 +1498,8 @@ const PageDemo = () => {
             </div>
             {!showHeroCarousel && !resolvedHomeHeroImage ? <div className="absolute inset-0 bg-gradient-to-r from-[#232323] via-[#2d2d2d] to-[#1a1a1a]" /> : null}
             <div className="absolute inset-0 bg-black/40">
-              <div className="flex h-full flex-col items-center justify-end gap-3 px-5 py-10 text-center text-white md:gap-6 md:px-6 md:py-24">
-                <h1 className="text-[28px] font-bold leading-tight sm:text-[34px] md:text-5xl">
+              <div className="flex h-full flex-col items-center justify-end gap-4 px-5 pb-12 pt-20 text-center text-white md:gap-6 md:px-6 md:py-24">
+                <h1 className="text-[26px] font-bold leading-tight sm:text-[34px] md:text-5xl">
                   {draft?.title || draft?.companyName || ""}
                 </h1>
                 <p className="mx-auto max-w-xl text-[13px] leading-relaxed md:max-w-4xl md:text-[22px]">
@@ -1488,7 +1508,7 @@ const PageDemo = () => {
                 <div>
                   <button
                     type="button"
-                    className={`${IMAGE_ACTION_BUTTON} pointer-events-auto px-5 text-[10px] tracking-[0.18em] md:px-8 md:text-sm`}
+                    className={`${IMAGE_ACTION_BUTTON} pointer-events-auto px-5 text-[11px] tracking-[0.18em] md:px-8 md:text-sm`}
                   >
                     {String(draft?.ctaText || "CLICK HERE").toUpperCase()}
                   </button>
@@ -1625,46 +1645,36 @@ const PageDemo = () => {
           <section id="testimonials" className={SECTION_BLOCK}>
             <div className={CONTENT_WRAP}>
               <LinedHeading title={draft?.testimonialTitle || "Testimonials"} />
-              <div className="mt-6 grid grid-cols-1 gap-5 md:mt-8 md:grid-cols-3">
+              {testimonials.filter((t: any) => Number(t?.rating || 0) > 0).length > 0 ? (
+                <div className="mt-6">
+                  <OverallRating testimonials={testimonials} />
+                </div>
+              ) : null}
+              <div className="mt-6 grid grid-cols-1 gap-5 md:mt-8 md:grid-cols-2 lg:grid-cols-3">
                 {visibleTestimonials.map((item: any, index: number) => {
                   const testimonialKey = String(item?.key || `home-testimonial-${testimonialIndex}-${index}`);
                   const isExpanded = Boolean(expandedTestimonials[testimonialKey]);
-                  const resolvedText = isExpanded
-                    ? { text: String(item?.text || "").trim(), truncated: false }
-                    : getTrimmedText(item?.text || "");
+                  const fullText = String(item?.text || "").trim();
 
                   return (
                     <article
                       key={testimonialKey}
-                      className="rounded-[24px] px-6 py-7 text-left shadow-[0_14px_40px_rgba(15,23,42,0.08)]"
+                      className="flex h-full w-full min-w-0 flex-col"
                     >
-                      <div className="flex items-center gap-4">
-                        {item?.image ? (
-                          <img
-                            src={item.image}
-                            alt={item?.name || "Reviewer"}
-                            className="h-11 w-11 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#000000] text-sm font-semibold text-white">
-                            {getAvatarInitials(item?.name || "Reviewer")}
-                          </div>
-                        )}
-                        <h3 className="text-[18px] font-semibold text-[#111827]">
-                          {item?.name || "Reviewer"}
-                        </h3>
-                      </div>
-                      <div className="mt-4 flex items-center gap-1 text-[18px] text-black">
+                      <h3 className="text-[18px] font-semibold text-[#111827]">
+                        {item?.name || "Reviewer"}
+                      </h3>
+                      <div className="mt-1 flex items-center gap-1 text-[14px] text-black">
                         {Array.from({ length: Math.max(1, Math.min(5, Number(item?.rating || 5) || 5)) }).map(
                           (_, starIndex) => (
                             <span key={`${testimonialKey}-home-star-${starIndex}`}>★</span>
                           ),
                         )}
                       </div>
-                      <p className="mt-4 text-[15px] leading-8 text-[#374151]">
-                        {resolvedText.text || "Great experience."}
+                      <p className="mt-4 break-words text-[15px] leading-8 text-[#374151]">
+                        {isExpanded ? fullText : fullText.length > 200 ? `${fullText.slice(0, 200).trimEnd()}...` : fullText || "Great experience."}
                       </p>
-                      {resolvedText.truncated || isExpanded ? (
+                      {fullText.length > 200 ? (
                         <button
                           type="button"
                           onClick={() =>
@@ -1673,9 +1683,9 @@ const PageDemo = () => {
                               [testimonialKey]: !isExpanded,
                             }))
                           }
-                          className="mt-4 text-[15px] font-medium text-black underline underline-offset-2"
+                          className="mt-2 text-[15px] font-medium text-black underline underline-offset-2"
                         >
-                          {isExpanded ? "Show less" : "Show more"}
+                          {isExpanded ? "Show less" : "Read more"}
                         </button>
                       ) : null}
                     </article>
@@ -2258,49 +2268,36 @@ const PageDemo = () => {
         <section className={SECTION_BLOCK}>
           <div className={CONTENT_WRAP}>
             <LinedHeading title={draft?.testimonialTitle || "Testimonials"} />
-            <div className="mt-6 grid grid-cols-1 gap-5 md:mt-8 md:grid-cols-3">
+            {testimonials.filter((t: any) => Number(t?.rating || 0) > 0).length > 0 ? (
+              <div className="mt-6">
+                <OverallRating testimonials={testimonials} />
+              </div>
+            ) : null}
+            <div className="mt-6 grid grid-cols-1 gap-5 md:mt-8 md:grid-cols-2 lg:grid-cols-3">
               {visibleTestimonials.map((item: any, index: number) => {
                 const testimonialKey = String(item?.key || `testimonial-${testimonialIndex}-${index}`);
                 const isExpanded = Boolean(expandedTestimonials[testimonialKey]);
-                const resolvedText = isExpanded
-                  ? { text: String(item?.text || "").trim(), truncated: false }
-                  : getTrimmedText(item?.text || "");
-                const initials = getAvatarInitials(item?.name || "Reviewer");
+                const fullText = String(item?.text || "").trim();
 
                 return (
                   <article
                     key={testimonialKey}
-                    className="rounded-[24px] px-6 py-7 text-left shadow-[0_14px_40px_rgba(15,23,42,0.08)]"
+                    className="flex h-full w-full min-w-0 flex-col"
                   >
-                    <div className="flex items-center gap-4">
-                      {item?.image ? (
-                        <img
-                          src={item.image}
-                          alt={item?.name || "Reviewer"}
-                          className="h-11 w-11 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#000000] text-sm font-semibold text-white">
-                          {initials}
-                        </div>
-                      )}
-                      <div>
-                        <h3 className="text-[18px] font-semibold text-[#111827]">
-                          {item?.name || "Reviewer"}
-                        </h3>
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center gap-1 text-[18px] text-black">
+                    <h3 className="text-[18px] font-semibold text-[#111827]">
+                      {item?.name || "Reviewer"}
+                    </h3>
+                    <div className="mt-1 flex items-center gap-1 text-[14px] text-black">
                       {Array.from({ length: Math.max(1, Math.min(5, Number(item?.rating || 5) || 5)) }).map(
                         (_, starIndex) => (
                           <span key={`${testimonialKey}-star-${starIndex}`}>★</span>
                         ),
                       )}
                     </div>
-                    <p className="mt-4 text-[15px] leading-8 text-[#374151]">
-                      {resolvedText.text || "Great experience."}
+                    <p className="mt-4 break-words text-[15px] leading-8 text-[#374151]">
+                      {isExpanded ? fullText : fullText.length > 200 ? `${fullText.slice(0, 200).trimEnd()}...` : fullText || "Great experience."}
                     </p>
-                    {resolvedText.truncated || isExpanded ? (
+                    {fullText.length > 200 ? (
                       <button
                         type="button"
                         onClick={() =>
@@ -2309,9 +2306,9 @@ const PageDemo = () => {
                             [testimonialKey]: !isExpanded,
                           }))
                         }
-                        className="mt-4 text-[15px] font-medium text-black underline underline-offset-2"
+                        className="mt-2 text-[15px] font-medium text-black underline underline-offset-2"
                       >
-                        {isExpanded ? "Show less" : "Show more"}
+                        {isExpanded ? "Show less" : "Read more"}
                       </button>
                     ) : null}
                   </article>
@@ -2439,7 +2436,7 @@ const PageDemo = () => {
 
       {/* Shared footer: shown on every section so hosted and local preview stay consistent. */}
       <footer className={`mt- border-t border-slate-300 bg-[#ffffff] ${FOOTER_TEXT}`}>
-        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-6 py-8 text-center md:grid-cols-3 md:text-left">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-6 py-8 text-center md:grid-cols-[1.35fr_1fr_1fr_1fr] md:text-left">
           <div>
             {draft?.companyLogo ? (
               <img
@@ -2454,8 +2451,8 @@ const PageDemo = () => {
             {footerAddress ? <p className={FOOTER_BODY_TEXT}>{footerAddress}</p> : null}
           </div>
           <div>
-            <h3 className={`${FOOTER_HEADING} md:ml-[130px]`}>Quick Links</h3>
-            <div className={`${FOOTER_BODY_TEXT} md:ml-[130px]`}>
+            <h3 className={FOOTER_HEADING}>Quick Links</h3>
+            <div className={FOOTER_BODY_TEXT}>
               {navItems.map((item) => (
                 <button
                   key={`footer-${item.slug}`}
@@ -2466,6 +2463,25 @@ const PageDemo = () => {
                   {item.name}
                 </button>
               ))}
+            </div>
+          </div>
+          <div>
+            <h3 className={FOOTER_HEADING}>Products</h3>
+            <div className={FOOTER_BODY_TEXT}>
+              {productPages.length > 0 ? (
+                productPages.map((page: any, idx: number) => (
+                  <button
+                    key={`footer-product-${idx}`}
+                    type="button"
+                    onClick={() => goToProductPage(page?.slug || page?.name || "")}
+                    className="block w-full md:w-auto"
+                  >
+                    {page?.name || page?.heading || "Product"}
+                  </button>
+                ))
+              ) : (
+                <p className="text-slate-400">No products listed</p>
+              )}
             </div>
           </div>
           <div>
