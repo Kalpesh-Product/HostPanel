@@ -5,8 +5,8 @@ import * as XLSX from "xlsx";
 import {
   Users, Search, UserPlus, Shield, Mail, Phone, Building, Briefcase,
   CheckCircle2, Key, Lock, X, Power, MailOpen, Calendar, FileText,
-  FileSpreadsheet, UploadCloud, Download, Plus, Filter, AlertCircle,
-  Eye, Edit3, Clock, UserCheck, UserX, Loader2, ChevronDown,
+  FileSpreadsheet, UploadCloud, Download, FileDown, Plus, Filter, AlertCircle,
+  Eye, Edit3, Clock, UserCheck, UserX, Loader2, ChevronDown, ArrowLeft,
   ChevronRight, AlertTriangle, XCircle, Camera, Save, Ban,
   Settings,
 } from "lucide-react";
@@ -415,8 +415,6 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   const [bankNameOptions, setBankNameOptions] = useState<string[]>(() => mergeBankNameOptions());
   const [bankBranchOptions, setBankBranchOptions] = useState<BankBranchOption[]>(() => mergeBankBranchOptions());
 
-  const [activeMainTab, setActiveMainTab] = useState<"employees" | "add">("employees");
-
   const currentRoleKey = normalizeUserRole(
     (currentUser?.workspaceMembership as Record<string, unknown>)?.role as string || (currentUser?.role as string),
   );
@@ -545,6 +543,12 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   const [addForm, setAddForm] = useState<EmployeeFormState>(() => createEmployeeFormState());
   const [addFormErrors, setAddFormErrors] = useState<Record<string, string>>({});
   const [addFormSubmitting, setAddFormSubmitting] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(() => new URLSearchParams(window.location.search).get("mode") === "add");
+  const setShowAddFormWithUrl = (show: boolean) => {
+    setShowAddForm(show);
+    const p = window.location.pathname;
+    window.history.replaceState(null, "", show ? `${p}?mode=add` : p);
+  };
 
   const resetAddForm = () => {
     setAddForm(createEmployeeFormState());
@@ -572,6 +576,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       if (response?.success) {
         toast.success("Employee created & invite sent");
         resetAddForm();
+        setShowAddForm(false);
         loadEmployees({ silent: true });
       } else {
         toast.error(response?.message || "Failed to create employee");
@@ -581,6 +586,58 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     } finally {
       setAddFormSubmitting(false);
     }
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      const reportRows = visibleEmployees.map((emp) => ({
+        label: emp.name || emp.email,
+        value: `ID: ${emp.employeeNumber} | Email: ${emp.email} | Dept: ${emp.department} | Role: ${emp.role} | Status: ${emp.status}`,
+      }));
+      const response = await createReport({
+        title: "Employee Management Report",
+        department: "HR",
+        category: "HR",
+        dataWindow: "All",
+        reportMonth: new Date().toISOString().slice(0, 7),
+        period: new Date().toISOString().slice(0, 7),
+        generatedBy: (currentUser?.name as string) || "Admin",
+        format: "PDF",
+        description: `Employee report — ${visibleEmployees.length} employees`,
+        sourceType: "custom",
+        sourceRef: "hr-employee-management",
+        reportRows,
+      });
+      if (response?.data?.download) await downloadReportFile(response.data.download, { openInNewTab: true });
+      window.dispatchEvent(new Event("reports:refresh"));
+      toast.success("PDF report saved.");
+    } catch { toast.error("Failed to export PDF."); }
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      const reportRows = visibleEmployees.map((emp) => ({
+        label: emp.name || emp.email,
+        value: `ID: ${emp.employeeNumber} | Email: ${emp.email} | Dept: ${emp.department} | Role: ${emp.role} | Status: ${emp.status}`,
+      }));
+      const response = await createReport({
+        title: "Employee Management Report",
+        department: "HR",
+        category: "HR",
+        dataWindow: "All",
+        reportMonth: new Date().toISOString().slice(0, 7),
+        period: new Date().toISOString().slice(0, 7),
+        generatedBy: (currentUser?.name as string) || "Admin",
+        format: "Excel",
+        description: `Employee report — ${visibleEmployees.length} employees`,
+        sourceType: "custom",
+        sourceRef: "hr-employee-management",
+        reportRows,
+      });
+      await downloadReportFile(response?.data?.download, `${new Date().toISOString().slice(0, 10)}_Employees.xlsx`);
+      window.dispatchEvent(new Event("reports:refresh"));
+      toast.success("Excel report saved.");
+    } catch { toast.error("Failed to export Excel."); }
   };
 
   /* ───────────────────── Add Form Field Handlers ───────────────────── */
@@ -1182,11 +1239,6 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
   if (isLoading) return <HREmployeeManagementSkeleton />;
 
-  const MAIN_TABS = [
-    { key: "employees" as const, label: "All Employees", icon: Users },
-    { key: "add" as const, label: "Add Employee", icon: UserPlus },
-  ];
-
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
@@ -1202,6 +1254,31 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 Manage employees, invitations, department roles and access permissions.
               </p>
             </div>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button
+                type="button"
+                onClick={handleBulkUploadClick}
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all"
+              >
+                <UploadCloud size={13} /> BULK UPLOAD
+              </button>
+              <button
+                type="button"
+                onClick={handleExportPDF}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                title="Export as PDF"
+              >
+                <FileDown size={15} className="text-red-500" />
+              </button>
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-[#2563EB] text-white shadow-sm transition hover:bg-blue-700"
+                title="Export as Excel"
+              >
+                <FileSpreadsheet size={15} />
+              </button>
+            </div>
           </div>
 
           {/* ═══ ERROR BANNER ═══ */}
@@ -1211,283 +1288,40 @@ export default function HREmployeeManagementPage(): React.ReactElement {
             </div>
           )}
 
-          {/* ═══ MAIN TABS (Pill-Style) ═══ */}
-          <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            {MAIN_TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveMainTab(tab.key)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${
-                  activeMainTab === tab.key
-                    ? "bg-[#2563EB] text-white shadow-sm"
-                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
-                <tab.icon size={14} />
-                {tab.label}
-              </button>
-            ))}
+          {/* ═══ STAT CARDS ═══ */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
+            {employeeSummaryCards.map((card) => {
+              const CardIcon = card.icon;
+              return (
+                <div
+                  key={card.label}
+                  className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.accentClass}`}
+                >
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                  </div>
+                  <div className={`p-2 rounded-2xl ${card.toneClass} shrink-0`}>
+                    <CardIcon size={16} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          {/* ═══════════════════════════════════════════════════════
-               TAB: ALL EMPLOYEES
-               ═══════════════════════════════════════════════════════ */}
-          {activeMainTab === "employees" && (
-            <>
-              {/* ─── Stat Cards (4-col) ─── */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
-                {employeeSummaryCards.map((card, idx) => {
-                  const CardIcon = card.icon;
-                  return (
-                    <div
-                      key={card.label}
-                      className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${card.accentClass}`}
-                    >
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                        <p className="text-[15px] font-black text-slate-900">{card.value}</p>
-                      </div>
-                      <div className={`p-2 rounded-2xl ${card.toneClass} shrink-0`}>
-                        <CardIcon size={16} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* ─── Data Panel ─── */}
-              <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
-                {/* Header Row: Search + Filters + Bulk Upload */}
-                <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-                  {/* Search */}
-                  <div className="relative flex-1 min-w-[180px] w-full xl:w-auto">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                      placeholder="Search by name or email..."
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
-                    />
-                  </div>
-
-                  {/* Right: Filters + Action */}
-                  <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-                    {/* Department filter */}
-                    <div className="relative">
-                      <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
-                      <select
-                        value={deptFilter}
-                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setDeptFilter(e.target.value)}
-                        className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
-                      >
-                        <option>All Departments</option>
-                        {availableDepartments.map((department) => (
-                          <option key={department} value={department}>{department}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Role filter */}
-                    <div className="relative">
-                      <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
-                      <select
-                        value={roleFilter}
-                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRoleFilter(e.target.value)}
-                        className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
-                      >
-                        <option>All Roles</option>
-                        {roleFilterOptions.map((role) => (
-                          <option key={role} value={role}>{role}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Bulk Upload button */}
-                    <button
-                      onClick={handleBulkUploadClick}
-                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
-                    >
-                      <UploadCloud size={13} strokeWidth={2.5} /> BULK UPLOAD
-                    </button>
-                  </div>
-                </div>
-
-                {/* Status Sub-Tabs (Pill Filters) */}
-                <div className="px-3 sm:px-4 lg:px-5 py-2 border-b border-slate-100/40 bg-white flex items-center gap-1.5 overflow-x-auto">
-                  <button
-                    onClick={() => setStatusFilter("all")}
-                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
-                      statusFilter === "all"
-                        ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
-                        : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
-                    }`}
-                  >
-                    All
-                  </button>
-                  {statusFilterOptions.map((opt) => (
-                    <button
-                      key={opt.key}
-                      onClick={() => setStatusFilter(opt.key)}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
-                        statusFilter === opt.key
-                          ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
-                          : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
-                      <tr>
-                        <th className="px-5 py-4 text-left">Employee ID</th>
-                        <th className="px-5 py-4 text-left">Employee Name</th>
-                        <th className="px-5 py-4 text-left">Email</th>
-                        <th className="px-5 py-4 text-left">Department &amp; Role</th>
-                        <th className="px-5 py-4 text-center">Status</th>
-                        <th className="px-5 py-4 text-left">Last Login</th>
-                        <th className="px-5 py-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100/60">
-                      {visibleEmployees.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="text-center py-20 text-slate-400 font-semibold">
-                            No employees found.
-                          </td>
-                        </tr>
-                      ) : (
-                        visibleEmployees.map((emp) => {
-                          const isTenantEmployee = emp.source === "tenant-company";
-                          const isFounderEmployee = normalizeUserRole(emp?.rawRole || emp?.role) === "owner" || String(emp?.role || "").trim() === "Founder";
-                          const isEditAccessLocked = isTenantEmployee || ["inactive", "terminated"].includes(emp.statusKey);
-                          const isAccessActionLocked = isTenantEmployee || isFounderEmployee || !canOpenEmployeeAccessPanelByRole || !hasEmployeeManagementModuleAccess;
-
-                          return (
-                            <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors group">
-                              <td className="px-5 py-4">
-                                <span className="font-bold text-slate-800 text-[12px]">{emp.employeeNumber || emp.id}</span>
-                              </td>
-                              <td className="px-5 py-4">
-                                <div className="flex items-center gap-3">
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-bold shadow-sm shrink-0 border ${
-                                    ["pending", "invite_sent"].includes(emp.statusKey)
-                                      ? "bg-orange-50 text-orange-600 border-orange-200"
-                                      : "bg-[#2563EB] text-white border-blue-800"
-                                  }`}>
-                                    {(emp.name || "?").charAt(0).toUpperCase()}
-                                  </div>
-                                  <span className="font-semibold text-slate-800 text-[12px]">{emp.name}</span>
-                                </div>
-                              </td>
-                              <td className="px-5 py-4">
-                                <span className="text-[11px] font-medium text-slate-500">{emp.email}</span>
-                              </td>
-                              <td className="px-5 py-4">
-                                <div className="flex flex-col gap-0.5">
-                                  <span className="font-semibold text-slate-700 text-[11px]">{emp.department}</span>
-                                  <span className={`inline-block w-fit px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
-                                    emp.role === "Founder" || emp.role === "Super Admin" || emp.role === "Admin"
-                                      ? "bg-purple-100 text-purple-700"
-                                      : emp.role === "Manager"
-                                        ? "bg-blue-100 text-blue-600"
-                                        : "bg-slate-100 text-slate-500"
-                                  }`}>{emp.role}</span>
-                                </div>
-                              </td>
-                              <td className="px-5 py-4 text-center">{getStatusBadge(emp.statusKey || emp.status)}</td>
-                              <td className="px-5 py-4">
-                                <span className="text-[10px] font-medium text-slate-400">{emp.lastLogin}</span>
-                              </td>
-                              <td className="px-5 py-4 text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  <button
-                                    onClick={() => { setIsEditModalOpen(false); setManagingAccessFor(null); setViewingEmployee(emp); setViewTab("personal"); }}
-                                    className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
-                                    title="View"
-                                  >
-                                    <Eye size={14} strokeWidth={2.5} />
-                                  </button>
-                                  <button
-                                    onClick={() => handleOpenEditEmployee(emp)}
-                                    disabled={isEditAccessLocked}
-                                    className={`p-1.5 rounded-lg transition-all ${
-                                      isEditAccessLocked
-                                        ? "bg-slate-50 text-slate-300 cursor-not-allowed"
-                                        : "bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700"
-                                    }`}
-                                    title="Edit"
-                                  >
-                                    <Edit3 size={14} strokeWidth={2.5} />
-                                  </button>
-                                  {!isAccessActionLocked && (
-                                    <button
-                                      onClick={() => handleOpenAccessPanel(emp)}
-                                      className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all"
-                                      title="Access"
-                                    >
-                                      <Shield size={14} strokeWidth={2.5} />
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* ─── Transferred Employees Table ─── */}
-              {visibleTransferredEmployees.length > 0 && (
-                <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-                  <div className="px-5 py-4 border-b border-slate-100/60 bg-slate-50/50">
-                    <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                      <Building size={14} /> Transferred Employees ({visibleTransferredEmployees.length})
-                    </h3>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
-                        <tr>
-                          <th className="px-5 py-4 text-left">Name</th>
-                          <th className="px-5 py-4 text-left">Email</th>
-                          <th className="px-5 py-4 text-left">From</th>
-                          <th className="px-5 py-4 text-left">To</th>
-                          <th className="px-5 py-4 text-left">Transferred</th>
-                          <th className="px-5 py-4 text-left">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100/60">
-                        {visibleTransferredEmployees.map((emp) => (
-                          <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="px-5 py-4 font-semibold text-slate-800 text-[12px]">{emp.name}</td>
-                            <td className="px-5 py-4 text-[11px] font-medium text-slate-500">{emp.email}</td>
-                            <td className="px-5 py-4 text-[11px] text-slate-600">{emp.transferredFromWorkspaceName || "-"}</td>
-                            <td className="px-5 py-4 text-[11px] text-slate-600">{emp.transferredToWorkspaceName || "-"}</td>
-                            <td className="px-5 py-4 text-[10px] font-medium text-slate-400">{formatTransferredDate(emp.transferredAt)}</td>
-                            <td className="px-5 py-4">{getStatusBadge(emp.statusKey)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </>
+          {/* ═══ BACK ARROW (when inside create employee) ═══ */}
+          {showAddForm && (
+            <button
+              type="button"
+              onClick={() => { resetAddForm(); setShowAddForm(false); }}
+              className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-[#2563EB] transition-colors w-fit"
+            >
+              <ArrowLeft size={14} /> Back
+            </button>
           )}
 
-          {/* ═══════════════════════════════════════════════════════
-               TAB: ADD EMPLOYEE (Inline Form)
-               ═══════════════════════════════════════════════════════ */}
-          {activeMainTab === "add" && (
+          {/* ═══ ADD EMPLOYEE FORM ═══ */}
+          {showAddForm && (
             <form onSubmit={handleAddFormSubmit}>
               <div className="flex flex-col gap-4">
 
@@ -1719,25 +1553,14 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   {/* Departments */}
                   <div className="mt-4">
                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 block">Departments</label>
-                    <div className="flex flex-wrap gap-2">
-                      {allDepartments.map((dept) => {
-                        const isSelected = addForm.departments.includes(dept);
-                        return (
-                          <button
-                            key={dept}
-                            type="button"
-                            onClick={() => handleAddDepartmentToggle(dept, !isSelected)}
-                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
-                              isSelected
-                                ? "bg-[#2563EB] text-white shadow-sm"
-                                : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                            }`}
-                          >
-                            {dept}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    <select
+                      value={addForm.departments[0] || ""}
+                      onChange={(e) => handleAddDepartmentToggle(e.target.value, true)}
+                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                    >
+                      <option value="">Select Department</option>
+                    </select>
+                    <p className="text-[9px] font-medium text-slate-400 mt-1">Department options will be loaded from API.</p>
                   </div>
                 </FormSection>
 
@@ -1875,10 +1698,10 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 <div className="flex items-center justify-end gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={resetAddForm}
+                    onClick={() => { resetAddForm(); setShowAddForm(false); }}
                     className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
                   >
-                    Reset
+                    Cancel
                   </button>
                   <button
                     type="submit"
@@ -1892,6 +1715,238 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
               </div>
             </form>
+          )}
+
+          {/* ═══ EMPLOYEE TABLE (hidden when add form is open) ═══ */}
+          {!showAddForm && (
+            <>
+              {/* ─── Data Panel ─── */}
+              <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
+                {/* Header Row: Search + Filters */}
+                <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+                  {/* Search */}
+                  <div className="relative flex-1 min-w-[180px] w-full xl:w-auto">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                      placeholder="Search by name or email..."
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                    />
+                  </div>
+
+                  {/* Right: Filters */}
+                  <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                    {/* Department filter */}
+                    <div className="relative">
+                      <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
+                      <select
+                        value={deptFilter}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setDeptFilter(e.target.value)}
+                        className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
+                      >
+                        <option>All Departments</option>
+                        {availableDepartments.map((department) => (
+                          <option key={department} value={department}>{department}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Role filter */}
+                    <div className="relative">
+                      <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
+                      <select
+                        value={roleFilter}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRoleFilter(e.target.value)}
+                        className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
+                      >
+                        <option>All Roles</option>
+                        {roleFilterOptions.map((role) => (
+                          <option key={role} value={role}>{role}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Add Employee button */}
+                    <button
+                      onClick={() => { setShowAddForm(true); resetAddForm(); }}
+                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                    >
+                      <UserPlus size={13} strokeWidth={2.5} /> ADD EMPLOYEE
+                    </button>
+                  </div>
+                </div>
+
+                {/* Status Sub-Tabs (Pill Filters) */}
+                <div className="px-3 sm:px-4 lg:px-5 py-2 border-b border-slate-100/40 bg-white flex items-center gap-1.5 overflow-x-auto">
+                  <button
+                    onClick={() => setStatusFilter("all")}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
+                      statusFilter === "all"
+                        ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
+                        : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
+                    }`}
+                  >
+                    All
+                  </button>
+                  {statusFilterOptions.filter((o) => o.key !== "probation" && o.key !== "terminated").map((opt) => (
+                    <button
+                      key={opt.key}
+                      onClick={() => setStatusFilter(opt.key)}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
+                        statusFilter === opt.key
+                          ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
+                          : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                      <tr>
+                        <th className="px-5 py-4 text-left">Employee ID</th>
+                        <th className="px-5 py-4 text-left">Employee Name</th>
+                        <th className="px-5 py-4 text-left">Email</th>
+                        <th className="px-5 py-4 text-left">Department &amp; Role</th>
+                        <th className="px-5 py-4 text-center">Status</th>
+                        <th className="px-5 py-4 text-left">Last Login</th>
+                        <th className="px-5 py-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100/60">
+                      {visibleEmployees.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="text-center py-20 text-slate-400 font-semibold">
+                            No employees found.
+                          </td>
+                        </tr>
+                      ) : (
+                        visibleEmployees.map((emp) => {
+                          const isTenantEmployee = emp.source === "tenant-company";
+                          const isFounderEmployee = normalizeUserRole(emp?.rawRole || emp?.role) === "owner" || String(emp?.role || "").trim() === "Founder";
+                          const isEditAccessLocked = isTenantEmployee || ["inactive", "terminated"].includes(emp.statusKey);
+                          const isAccessActionLocked = isTenantEmployee || isFounderEmployee || !canOpenEmployeeAccessPanelByRole || !hasEmployeeManagementModuleAccess;
+
+                          return (
+                            <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors group">
+                              <td className="px-5 py-4">
+                                <span className="font-bold text-slate-800 text-[12px]">{emp.employeeNumber || emp.id}</span>
+                              </td>
+                              <td className="px-5 py-4">
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-bold shadow-sm shrink-0 border ${
+                                    ["pending", "invite_sent"].includes(emp.statusKey)
+                                      ? "bg-orange-50 text-orange-600 border-orange-200"
+                                      : "bg-[#2563EB] text-white border-blue-800"
+                                  }`}>
+                                    {(emp.name || "?").charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className="font-semibold text-slate-800 text-[12px]">{emp.name}</span>
+                                </div>
+                              </td>
+                              <td className="px-5 py-4">
+                                <span className="text-[11px] font-medium text-slate-500">{emp.email}</span>
+                              </td>
+                              <td className="px-5 py-4">
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="font-semibold text-slate-700 text-[11px]">{emp.department}</span>
+                                  <span className={`inline-block w-fit px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
+                                    emp.role === "Founder" || emp.role === "Super Admin" || emp.role === "Admin"
+                                      ? "bg-purple-100 text-purple-700"
+                                      : emp.role === "Manager"
+                                        ? "bg-blue-100 text-blue-600"
+                                        : "bg-slate-100 text-slate-500"
+                                  }`}>{emp.role}</span>
+                                </div>
+                              </td>
+                              <td className="px-5 py-4 text-center">{getStatusBadge(emp.statusKey || emp.status)}</td>
+                              <td className="px-5 py-4">
+                                <span className="text-[10px] font-medium text-slate-400">{emp.lastLogin}</span>
+                              </td>
+                              <td className="px-5 py-4 text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <button
+                                    onClick={() => { setIsEditModalOpen(false); setManagingAccessFor(null); setViewingEmployee(emp); setViewTab("personal"); }}
+                                    className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"
+                                    title="View"
+                                  >
+                                    <Eye size={14} strokeWidth={2.5} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleOpenEditEmployee(emp)}
+                                    disabled={isEditAccessLocked}
+                                    className={`p-1.5 rounded-lg transition-all ${
+                                      isEditAccessLocked
+                                        ? "bg-slate-50 text-slate-300 cursor-not-allowed"
+                                        : "bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700"
+                                    }`}
+                                    title="Edit"
+                                  >
+                                    <Edit3 size={14} strokeWidth={2.5} />
+                                  </button>
+                                  {!isAccessActionLocked && (
+                                    <button
+                                      onClick={() => handleOpenAccessPanel(emp)}
+                                      className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all"
+                                      title="Access"
+                                    >
+                                      <Shield size={14} strokeWidth={2.5} />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* ─── Transferred Employees Table ─── */}
+              {visibleTransferredEmployees.length > 0 && (
+                <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
+                  <div className="px-5 py-4 border-b border-slate-100/60 bg-slate-50/50">
+                    <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                      <Building size={14} /> Transferred Employees ({visibleTransferredEmployees.length})
+                    </h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                        <tr>
+                          <th className="px-5 py-4 text-left">Name</th>
+                          <th className="px-5 py-4 text-left">Email</th>
+                          <th className="px-5 py-4 text-left">From</th>
+                          <th className="px-5 py-4 text-left">To</th>
+                          <th className="px-5 py-4 text-left">Transferred</th>
+                          <th className="px-5 py-4 text-left">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100/60">
+                        {visibleTransferredEmployees.map((emp) => (
+                          <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-5 py-4 font-semibold text-slate-800 text-[12px]">{emp.name}</td>
+                            <td className="px-5 py-4 text-[11px] font-medium text-slate-500">{emp.email}</td>
+                            <td className="px-5 py-4 text-[11px] text-slate-600">{emp.transferredFromWorkspaceName || "-"}</td>
+                            <td className="px-5 py-4 text-[11px] text-slate-600">{emp.transferredToWorkspaceName || "-"}</td>
+                            <td className="px-5 py-4 text-[10px] font-medium text-slate-400">{formatTransferredDate(emp.transferredAt)}</td>
+                            <td className="px-5 py-4">{getStatusBadge(emp.statusKey)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
         </div>
