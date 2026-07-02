@@ -61,6 +61,7 @@ import HRPayrollPage from "../pages/HR/HRPayrollPage";
 import HRExitManagementPage from "../pages/HR/HRExitManagementPage";
 import { ExpensesBudgetPage } from "../pages/Finance/ExpensesBudgetPage";
 import { BillingPaymentsPage } from "../pages/Finance/BillingPaymentsPage";
+import AccountingPage from "../pages/Finance/AccountingPage";
 import VendorTable from "../components/Pages/VendorTable";
 import AssetsHome from "../pages/Assets/AssetsHome";
 import ManageAssetsHome from "../pages/Assets/ManageAssetsHome";
@@ -1116,6 +1117,10 @@ export const routes = createBrowserRouter([
                       {
                         path: "billing-payments",
                         element: <BillingPaymentsPage />,
+                      },
+                      {
+                        path: "accounting",
+                        element: <AccountingPage />,
                       },
                     ],
                   },

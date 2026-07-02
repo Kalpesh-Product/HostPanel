@@ -885,7 +885,7 @@ export default function HRPayrollPage() {
         <div className="flex flex-col gap-4">
 
           {/* ── Header ── */}
-          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-3">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-3">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Payroll Processing
@@ -933,10 +933,10 @@ export default function HRPayrollPage() {
           )}
 
           {/* ── Main Tabs (pill-style, before stat cards) ── */}
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full">
+          <div className="mb-3 flex bg-slate-100 p-1.5 rounded-2xl w-full">
             <button
               onClick={() => { setActiveTab("master"); setSearchQuery(""); }}
-              className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
                 activeTab === "master" ? "bg-white shadow-sm text-[#2563EB]" : "text-slate-400 hover:text-slate-600"
               }`}
             >
@@ -944,7 +944,7 @@ export default function HRPayrollPage() {
             </button>
             <button
               onClick={() => { setActiveTab("history"); setSearchQuery(""); }}
-              className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
                 activeTab === "history" ? "bg-white shadow-sm text-[#2563EB]" : "text-slate-400 hover:text-slate-600"
               }`}
             >

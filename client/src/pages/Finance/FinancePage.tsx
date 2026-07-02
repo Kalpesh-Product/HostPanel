@@ -291,7 +291,7 @@ export function FinancePage() {
         <div className="flex flex-col gap-4">
           
           {/* HEADER */}
-          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Executive Finance Hub
@@ -308,12 +308,12 @@ export function FinancePage() {
           </div>
 
           {/* MAIN TABS */}
-          <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0">
+          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm shrink-0">
             {tabs.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
                   activeTab === tab.key
                     ? 'bg-[#2563EB] text-white shadow-sm'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'

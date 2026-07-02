@@ -1181,7 +1181,8 @@ export default function AdministrationTenantCompaniesPage() {
     <AppShell>
       <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
         <PageFrame>
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-col gap-4">
+          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-3">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Administration Tenant Companies
@@ -1194,62 +1195,132 @@ export default function AdministrationTenantCompaniesPage() {
                 onClick={() => handleExportCompaniesReport('PDF')}
                 disabled={Boolean(isExportingReport)}
                 title="Export PDF"
-                className="px-4 py-2.5 bg-white text-[#f10505] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <FileDown size={14} /> {isExportingReport === 'PDF' ? 'Exporting...' : ''}
-                
+                <FileDown size={15} className="text-red-500" />
               </button>
               <button
                 type="button"
                 onClick={() => handleExportCompaniesReport('Excel')}
                 disabled={Boolean(isExportingReport)}
                 title="Export Excel"
-                className="px-4 py-2.5 bg-[#ffffff] text-[#1fd628] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-[#2563EB] text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <FileSpreadsheet size={14} /> {isExportingReport === 'Excel' ? 'Exporting...' : ''}
-                
+                <FileSpreadsheet size={15} />
               </button>
             </div>
           </div>
 
-          <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
-            <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md"><div><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Total Tenants</p><p className="text-[13px] font-black text-slate-900">{stats.totalTenants}</p></div><div className="p-1.5 rounded-xl bg-slate-100 text-slate-600"><Building2 size={16} /></div></div>
-            <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-green-500"><div><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Active Contracts</p><p className="text-[13px] font-black text-slate-900">{stats.activeContracts}</p></div><div className="p-1.5 rounded-xl bg-green-50 text-green-600"><CheckCircle2 size={16} /></div></div>
-            <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500"><div><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Expiring Soon</p><p className="text-[13px] font-black text-slate-900">{stats.expiringSoon}</p></div><div className="p-1.5 rounded-xl bg-amber-50 text-amber-600"><AlertTriangle size={16} /></div></div>
-            <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500"><div><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Total Credits Issued</p><p className="text-[13px] font-black text-slate-900">{stats.totalCreditsIssued}</p></div><div className="p-1.5 rounded-xl bg-blue-50 text-blue-600"><CreditCard size={16} /></div></div>
+          {/* Pill Tabs */}
+          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            {[
+              { key: 'all', label: 'All Companies' },
+              { key: 'active', label: 'Active' },
+              { key: 'expiring', label: 'Expiring Soon' },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setStatusFilter(tab.key === 'all' ? 'All Status' : tab.key === 'active' ? 'Active' : 'Expiring Soon')}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  (tab.key === 'all' && statusFilter === 'All Status') ||
+                  (tab.key === 'active' && statusFilter === 'Active') ||
+                  (tab.key === 'expiring' && statusFilter === 'Expiring Soon')
+                    ? 'bg-[#2563EB] text-white shadow-sm'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5 mb-3">
-            <select className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>All Status</option><option>Active</option><option>Expiring Soon</option><option>Expired</option></select>
-            <select className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"><option>All Resources</option></select>
-            <div className="relative w-full xl:w-72 shrink-0"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} /><input type="text" placeholder="Search company or contact..." className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} /></div>
+          {/* Stat Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+            {[
+              { key: 'total', label: 'Total Tenants', value: String(stats.totalTenants), icon: Building2 },
+              { key: 'active', label: 'Active Contracts', value: String(stats.activeContracts), icon: CheckCircle2 },
+              { key: 'expiring', label: 'Expiring Soon', value: String(stats.expiringSoon), icon: AlertTriangle },
+              { key: 'credits', label: 'Total Credits Issued', value: String(stats.totalCreditsIssued), icon: CreditCard },
+            ].map((card, idx) => {
+              const Icon = card.icon;
+              const borderColors = ['', 'border-l-4 border-l-green-500', 'border-l-4 border-l-amber-500', 'border-l-4 border-l-blue-500'];
+              const iconClasses = ['bg-slate-50 text-slate-600', 'bg-green-50 text-green-600', 'bg-amber-50 text-amber-600', 'bg-blue-50 text-blue-600'];
+              return (
+                <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                  </div>
+                  <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
+                    <Icon size={16} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          <div className="border border-slate-100 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-white text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100"><tr><th className="px-3.5 py-2">Tenant Company</th><th className="px-3.5 py-2">Plan & Contract Dates</th><th className="px-3.5 py-2 text-center">Credits (Used / Total)</th><th className="px-3.5 py-2 text-center">Status</th><th className="px-3.5 py-2 text-center">Actions</th></tr></thead>
-                <tbody className="divide-y divide-slate-50">
-                  {filteredCompanies.map((company) => {
-                    const progress = company.creditsAllocated > 0 ? company.creditsUsed / company.creditsAllocated : 0;
-                    return (
-                      <tr key={company.recordId || company.id} className="hover:bg-blue-50/30 transition-all group">
-                        <td className="px-3.5 py-2"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-[11px] font-black shadow-sm shrink-0 border border-slate-200">{company.initials}</div><div><div className="font-pmedium text-primary text-sm">{company.name}</div></div></div></td>
-                        <td className="px-3.5 py-2"><span className="text-xs font-bold text-slate-700">{company.planType}</span><p className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-500"><Calendar size={10} />{company.contractStart} - {company.contractEnd}</p></td>
-                        <td className="px-3.5 py-2"><div className="flex items-center justify-center gap-2"><span className="text-sm font-black text-slate-900">{company.creditsUsed}</span><span className="text-[10px] font-bold text-slate-600">/ {company.creditsAllocated}</span></div><div className="mx-auto mt-1 h-1.5 w-24 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${progress > 0.9 ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(progress * 100, 100)}%` }} /></div></td>
-                        <td className="px-3.5 py-2 text-center"><span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${getStatusBadge(company.status)}`}>{company.status}</span></td>
-                        <td className="px-3.5 py-2">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button onClick={() => { setViewingCompany(company); setActiveDetailTab('summary'); setAgreementFiles([]); }} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm" title="View Details"><Eye size={14} /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {filteredCompanies.length === 0 && <tr><td colSpan={5} className="py-20 text-center font-bold text-slate-400">No tenant companies found matching your filters.</td></tr>}
-                </tbody>
-              </table>
+          {/* Data Panel */}
+          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+            {/* Panel Header */}
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
+              <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+                <select
+                  className="w-full sm:w-44 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value)}
+                >
+                  <option>All Status</option>
+                  <option>Active</option>
+                  <option>Expiring Soon</option>
+                  <option>Expired</option>
+                </select>
+              </div>
+                <div className="flex flex-wrap items-center gap-2">
+                <div className="relative min-w-[200px]">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input
+                    type="text"
+                    placeholder="Search company or contact..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                  />
+                </div>
+              </div>
             </div>
+
+            <table className="w-full table-auto text-left">
+              <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                <tr>
+                  <th className="px-3 py-4 text-left whitespace-nowrap">Tenant Company</th>
+                  <th className="px-3 py-4 text-left whitespace-nowrap">Plan & Contract Dates</th>
+                  <th className="px-3 py-4 text-center whitespace-nowrap">Credits (Used / Total)</th>
+                  <th className="px-3 py-4 text-center whitespace-nowrap">Status</th>
+                  <th className="px-3 py-4 text-center whitespace-nowrap">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100/60">
+                {filteredCompanies.map((company) => {
+                  const progress = company.creditsAllocated > 0 ? company.creditsUsed / company.creditsAllocated : 0;
+                  return (
+                    <tr key={company.recordId || company.id} className="hover:bg-blue-50/30 transition-all group">
+                      <td className="px-3 py-4"><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-[11px] font-black shadow-sm shrink-0 border border-slate-200">{company.initials}</div><div><div className="font-pmedium text-primary text-sm">{company.name}</div></div></div></td>
+                      <td className="px-3 py-4"><span className="text-xs font-bold text-slate-700">{company.planType}</span><p className="mt-1 flex items-center gap-1 text-[10px] font-bold text-slate-500"><Calendar size={10} />{company.contractStart} - {company.contractEnd}</p></td>
+                      <td className="px-3 py-4"><div className="flex items-center justify-center gap-2"><span className="text-sm font-black text-slate-900">{company.creditsUsed}</span><span className="text-[10px] font-bold text-slate-600">/ {company.creditsAllocated}</span></div><div className="mx-auto mt-1 h-1.5 w-24 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${progress > 0.9 ? 'bg-red-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(progress * 100, 100)}%` }} /></div></td>
+                      <td className="px-3 py-4 text-center"><span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${getStatusBadge(company.status)}`}>{company.status}</span></td>
+                      <td className="px-3 py-4">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button onClick={() => { setViewingCompany(company); setActiveDetailTab('summary'); setAgreementFiles([]); }} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all shadow-sm" title="View Details"><Eye size={14} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredCompanies.length === 0 && <tr><td colSpan={5} className="px-3 py-20 text-center font-bold text-slate-400">No tenant companies found matching your filters.</td></tr>}
+              </tbody>
+            </table>
+          </div>
           </div>
         </PageFrame>
       </div>
@@ -1393,7 +1464,7 @@ export default function AdministrationTenantCompaniesPage() {
                             <p className="text-xs font-bold text-slate-900">{viewingCompany.managerEmployee?.name || 'No manager assigned'}</p>
                             <p className="text-[10px] text-slate-500">{viewingCompany.managerEmployee?.email || 'Assign one manager from the employee list below.'}</p>
                           </div>
-                          <span className="inline-flex w-max rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-blue-600">
+                          <span className="inline-flex w-max rounded-xl border border-blue-200 bg-blue-50 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-blue-600">
                             {viewingCompany.managerEmployeeId ? 'Manager Active' : 'Pending Assignment'}
                           </span>
                         </div>
@@ -1497,7 +1568,7 @@ export default function AdministrationTenantCompaniesPage() {
                   <div className="space-y-3">
                     <div className="mb-2 flex items-center justify-between">
                       <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">Managed Employees</h3>
-                      <button onClick={() => openAddEmployeeModal(viewingCompany)} className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-600 transition-all hover:bg-blue-100">
+                      <button onClick={() => openAddEmployeeModal(viewingCompany)} className="flex items-center gap-1.5 rounded-xl bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-600 transition-all hover:bg-blue-100">
                         <Plus size={12} /> Add Employee
                       </button>
                     </div>
@@ -1538,15 +1609,15 @@ export default function AdministrationTenantCompaniesPage() {
                                   </div>
 
                                   <div className="flex flex-wrap justify-start gap-1.5 lg:justify-end">
-                                    <button onClick={() => setSelectedEmployee(employee)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">View Profile</button>
+                                    <button onClick={() => setSelectedEmployee(employee)} className="rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">View Profile</button>
                                     {employee.status === 'Active' && !isManager && (
-                                      <button onClick={() => handleAssignManager(employee.id!)} className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-blue-700 transition-colors hover:bg-blue-100">Set Manager</button>
+                                      <button onClick={() => handleAssignManager(employee.id!)} className="rounded-xl border border-blue-200 bg-blue-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-blue-700 transition-colors hover:bg-blue-100">Set Manager</button>
                                     )}
                                     {employee.status === 'Active' && isManager && (
-                                      <span className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-blue-700">Current Manager</span>
+                                      <span className="inline-flex items-center rounded-xl border border-blue-200 bg-blue-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-blue-700">Current Manager</span>
                                     )}
                                     {employee.status === 'Active' && (
-                                      <button onClick={() => handleDeactivateEmployee(employee.id!)} className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-red-600 transition-colors hover:bg-red-100 hover:text-red-700">Deactivate</button>
+                                      <button onClick={() => handleDeactivateEmployee(employee.id!)} className="rounded-xl border border-red-200 bg-red-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-red-600 transition-colors hover:bg-red-100 hover:text-red-700">Deactivate</button>
                                     )}
                                   </div>
                                 </div>
@@ -1740,7 +1811,7 @@ export default function AdministrationTenantCompaniesPage() {
             <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-100 p-5">
                 <h3 className="text-lg font-black text-slate-900">Edit Employee</h3>
-                <button onClick={closeEditEmployeeModal} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><X size={18} /></button>
+                <button onClick={closeEditEmployeeModal} className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100"><X size={18} /></button>
               </div>
               <form onSubmit={handleEmployeeEditSave} className="space-y-4 p-6">
                 <div>
@@ -1773,10 +1844,10 @@ export default function AdministrationTenantCompaniesPage() {
             <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-100 p-4">
                 <h3 className="flex items-center gap-2 text-base font-black text-slate-900"><RefreshCw size={16} className="text-blue-600" /> Renew Contract</h3>
-                <button onClick={closeRenewModal} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
+                <button onClick={closeRenewModal} className="rounded-xl p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
               </div>
               <form onSubmit={handleRenewSave} className="space-y-4 p-4">
-                <div className="flex items-start gap-1.5 rounded-lg bg-blue-50 p-2.5 text-[10px] font-bold text-blue-800">
+                <div className="flex items-start gap-1.5 rounded-xl bg-blue-50 p-2.5 text-[10px] font-bold text-blue-800">
                   <ShieldCheck size={14} className="mt-0.5 shrink-0" />
                   <p>Finance gets notified automatically upon saving. Contract dates will be updated from the tenant company API.</p>
                 </div>
@@ -1803,7 +1874,7 @@ export default function AdministrationTenantCompaniesPage() {
             <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-100 p-4">
                 <h3 className="text-base font-black text-slate-900">Add Employee</h3>
-                <button onClick={closeAddEmployeeModal} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
+                <button onClick={closeAddEmployeeModal} className="rounded-xl p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
               </div>
               <form onSubmit={handleAddEmployee} className="space-y-3 p-4">
                 <div>
@@ -1840,7 +1911,7 @@ export default function AdministrationTenantCompaniesPage() {
             <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-4">
                 <h3 className="flex items-center gap-2 text-base font-black text-slate-900"><Edit size={16} className="text-amber-500" /> Edit Company Record</h3>
-                <button onClick={closeEditModal} className="rounded-lg border border-slate-200 bg-white p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
+                <button onClick={closeEditModal} className="rounded-xl border border-slate-200 bg-white p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
               </div>
               <form onSubmit={handleEditSave} className="flex-1 overflow-y-auto p-4">
                 <div className="grid gap-4">

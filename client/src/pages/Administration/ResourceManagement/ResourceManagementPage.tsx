@@ -891,172 +891,166 @@ function ResourceManagementPageInner() {
         />
 
         <PageFrame>
-          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="flex flex-col gap-4">
+
+          <div className="mb-3 flex items-center justify-between">
             <div>
               <h1 className="text-title font-pmedium text-primary uppercase">Resource Management</h1>
               <p className="text-xs font-medium text-slate-500 mt-1">
                 Manage floor-by-floor inventory for open desks, cabin desks, meeting rooms, conference rooms, and virtual offices.
               </p>
             </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={handleBulkUploadClick}
-                className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm inline-flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest transition-all hover:border-blue-200 hover:text-blue-600"
-              >
-                <UploadCloud size={16} />
-                Bulk Upload
-              </button>
-              <button
-                onClick={openAddModal}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-all hover:bg-blue-700"
-              >
-                <Plus size={16} />
-                Add Resource
-              </button>
-            </div>
           </div>
 
           {errorMessage ? (
-            <div className="mb-6 rounded-3xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-950 shadow-sm">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="mt-0.5 shrink-0 text-amber-500" size={20} />
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">
-                    Resource page error
-                  </p>
-                  <p className="mt-1 text-sm font-semibold leading-6">{errorMessage}</p>
-                </div>
-              </div>
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700 flex items-center gap-2">
+              <AlertTriangle size={14} /> {errorMessage}
             </div>
           ) : null}
 
           {bulkUploadSummary ? (
-            <div className="mb-6 rounded-3xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-900 shadow-sm">
-              <div className="flex items-start gap-3">
-                <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-500" size={20} />
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">
-                    Bulk upload summary
-                  </p>
-                  <p className="mt-1 text-sm font-semibold leading-6">
-                    Imported {bulkUploadSummary.createdCount} of {bulkUploadSummary.processedRows} resources from {bulkUploadSummary.fileName}.
-                    {bulkUploadSummary.failedCount > 0 ? ` ${bulkUploadSummary.failedCount} row(s) failed.` : ''}
-                  </p>
-                </div>
-              </div>
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700 flex items-center gap-2">
+              <CheckCircle2 size={14} /> Imported {bulkUploadSummary.createdCount} of {bulkUploadSummary.processedRows} resources from {bulkUploadSummary.fileName}.
+              {bulkUploadSummary.failedCount > 0 ? ` ${bulkUploadSummary.failedCount} row(s) failed.` : ''}
             </div>
           ) : null}
 
           {isInitialLoading ? <ResourceManagementSkeleton /> : null}
 
-          <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm">
-              <p className="text-xs font-medium text-slate-500">Total Resources</p>
-              <p className="mt-1 text-title font-pmedium text-primary uppercase">{stats.total}</p>
-            </div>
-            <div className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm">
-              <p className="text-xs font-medium text-slate-500">Active</p>
-              <p className="mt-1 text-title font-pmedium text-emerald-600 uppercase">{stats.active}</p>
-            </div>
-            <div className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm">
-              <p className="text-xs font-medium text-slate-500">Under Maintenance</p>
-              <p className="mt-1 text-title font-pmedium text-amber-600 uppercase">{stats.maintenance}</p>
-            </div>
-            <div className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm">
-              <p className="text-xs font-medium text-slate-500">Disabled</p>
-              <p className="mt-1 text-title font-pmedium text-slate-600 uppercase">{stats.disabled}</p>
-            </div>
+          {/* ── Pill Tabs ── */}
+          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            {[
+              { key: 'all', label: 'All Resources' },
+              { key: 'active', label: 'Active' },
+              { key: 'maintenance', label: 'Under Maintenance' },
+              { key: 'disabled', label: 'Disabled' },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setStatusFilter(tab.key === 'all' ? 'All Status' : tab.key === 'active' ? 'Active' : tab.key === 'maintenance' ? 'Under Maintenance' : 'Disabled')}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                   (tab.key === 'all' && statusFilter === 'All Status') ||
+                   (tab.key === 'active' && statusFilter === 'Active') ||
+                   (tab.key === 'maintenance' && statusFilter === 'Under Maintenance') ||
+                   (tab.key === 'disabled' && statusFilter === 'Disabled')
+                     ? 'bg-[#2563EB] text-white shadow-sm'
+                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                 }`}
+               >
+                 {tab.label}
+               </button>
+             ))}
+           </div>
+
+          {/* ── Stat Cards (DESIGN.md: border-l-4 accent per card) ── */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+            {[
+              { key: 'total', label: 'Total Resources', value: String(stats.total), icon: LayoutGrid },
+              { key: 'active', label: 'Active', value: String(stats.active), icon: CheckCircle2 },
+              { key: 'maintenance', label: 'Under Maintenance', value: String(stats.maintenance), icon: Wrench },
+              { key: 'disabled', label: 'Disabled', value: String(stats.disabled), icon: ShieldAlert },
+            ].map((card, idx) => {
+              const Icon = card.icon;
+              const borderColors = ['', 'border-l-4 border-l-blue-500', 'border-l-4 border-l-emerald-500', 'border-l-4 border-l-amber-500', 'border-l-4 border-l-slate-500'];
+              const iconClasses = ['bg-slate-50 text-slate-600', 'bg-blue-50 text-blue-600', 'bg-emerald-50 text-emerald-600', 'bg-amber-50 text-amber-600', 'bg-slate-100 text-slate-500'];
+              return (
+                <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                  </div>
+                  <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
+                    <Icon size={16} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          <div className="mb-6 grid gap-4 rounded-3xl border border-white bg-white p-5 shadow-sm xl:grid-cols-6">
-            <div className="xl:col-span-2">
-              <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Search</label>
-              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <Search size={18} className="text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search by name, ID, category, or location"
-                  className="w-full bg-transparent text-sm font-semibold text-slate-900 border-none outline-none focus:ring-0 placeholder:text-slate-400"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                />
+          {/* ── Data Panel ── */}
+          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+            {/* ── Panel Header ── */}
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
+              <div className="flex items-center gap-3 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">
+                  <LayoutGrid size={14} /> Resources
+                  <span className="ml-1 text-xs font-semibold text-slate-500 normal-case tracking-normal">({filteredResources.length} of {resources.length})</span>
+                </div>
+                <select
+                  className="shrink-0 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
+                  value={categoryFilter}
+                  onChange={(event) => setCategoryFilter(event.target.value)}
+                >
+                  <option>All Categories</option>
+                  {resourceCategoryOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+                <select
+                  className="shrink-0 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
+                  value={floorFilter}
+                  onChange={(event) => setFloorFilter(event.target.value)}
+                >
+                  <option>All Floors</option>
+                  {availableFloors.map((floor) => (
+                    <option key={floor}>{floor}</option>
+                  ))}
+                </select>
+                <select
+                  className="shrink-0 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
+                  value={wingFilter}
+                  onChange={(event) => setWingFilter(event.target.value)}
+                >
+                  <option>All Wings</option>
+                  {availableWings.map((wing) => (
+                    <option key={wing}>{wing}</option>
+                  ))}
+                </select>
+                <select
+                  className="shrink-0 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value)}
+                >
+                  <option>All Status</option>
+                  {statusOptions.map((status) => (
+                    <option key={status}>{status}</option>
+                  ))}
+                </select>
               </div>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Category</label>
-              <select
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none"
-                value={categoryFilter}
-                onChange={(event) => setCategoryFilter(event.target.value)}
-              >
-                <option>All Categories</option>
-                {resourceCategoryOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Floor</label>
-              <select
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none"
-                value={floorFilter}
-                onChange={(event) => setFloorFilter(event.target.value)}
-              >
-                <option>All Floors</option>
-                {availableFloors.map((floor) => (
-                  <option key={floor}>{floor}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Wing</label>
-              <select
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none"
-                value={wingFilter}
-                onChange={(event) => setWingFilter(event.target.value)}
-              >
-                <option>All Wings</option>
-                {availableWings.map((wing) => (
-                  <option key={wing}>{wing}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-slate-400">Status</label>
-              <select
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none"
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-              >
-                <option>All Status</option>
-                {statusOptions.map((status) => (
-                  <option key={status}>{status}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="overflow-hidden rounded-[36px] border border-white bg-white p-5 shadow-sm sm:p-6">
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Resource Registry</p>
-                <h2 className="mt-1 text-lg font-pmedium text-primary tracking-tight">Company Resources</h2>
+              <div className="flex items-center gap-2 flex-nowrap shrink-0">
+                <div className="relative min-w-[200px]">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <input
+                    type="text"
+                    placeholder="Search by name, ID, category, or location"
+                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                  />
+                </div>
+                <button
+                  onClick={handleBulkUploadClick}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 whitespace-nowrap"
+                >
+                  <UploadCloud size={16} />
+                  
+                </button>
+                <button
+                  onClick={openAddModal}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
+                >
+                  <Plus size={13} strokeWidth={3} />
+                  Add Resource
+                </button>
               </div>
-              <p className="text-sm font-semibold text-slate-500">
-                Showing {filteredResources.length} of {resources.length}
-              </p>
             </div>
 
             {filteredResources.length > 0 ? (
               <>
-                <div className="grid gap-3 xl:hidden">
+                <div className="grid gap-3 p-3 xl:hidden">
                   {filteredResources.map((resource) => (
-                    <div key={resource.recordId} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div key={resource.recordId} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex min-w-0 items-start gap-3">
                           <div className="shrink-0 rounded-xl bg-slate-100 p-2.5 text-blue-600">
@@ -1111,13 +1105,13 @@ function ResourceManagementPageInner() {
                       ) : null}
 
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <button title="View" onClick={() => setViewingResource(resource)} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm transition-all hover:border-blue-200 hover:text-blue-600">
+                        <button title="View" onClick={() => setViewingResource(resource)} className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white p-2 text-slate-600 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700">
                           <Eye size={16} />
                         </button>
-                        <button title="Edit" onClick={() => openEditModal(resource)} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm transition-all hover:border-blue-200 hover:text-blue-600">
+                        <button title="Edit" onClick={() => openEditModal(resource)} className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white p-2 text-slate-600 shadow-sm transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600">
                           <Edit size={16} />
                         </button>
-                        <button title="Delete" onClick={() => setDeletingResource(resource)} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm transition-all hover:border-red-200 hover:text-red-600 hover:bg-red-50">
+                        <button title="Delete" onClick={() => setDeletingResource(resource)} className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white p-2 text-slate-600 shadow-sm transition hover:border-red-300 hover:bg-red-50 hover:text-red-600">
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -1125,32 +1119,41 @@ function ResourceManagementPageInner() {
                   ))}
                 </div>
 
-                <div className="hidden overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm xl:block">
-                  <table className="w-full table-fixed divide-y divide-slate-200">
-                    <thead className="bg-white text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100">
+                <div className="hidden xl:block">
+                  <table className="w-full text-left table-auto">
+                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                       <tr>
-                        <th className="w-8 px-3.5 py-2 text-center whitespace-nowrap">#</th>
-                        <th className="w-1/6 px-3.5 py-2 text-center whitespace-nowrap">Resource</th>
-                        <th className="px-3.5 py-2 text-center whitespace-nowrap">Location</th>
-                        <th className="px-3.5 py-2 text-center whitespace-nowrap">Category</th>
-                        <th className="px-3.5 py-2 text-center whitespace-nowrap">Inventory</th>
-                        <th className="w-20 px-3.5 py-2 text-center whitespace-nowrap">Floor</th>
-                        <th className="w-14 px-3.5 py-2 text-center whitespace-nowrap">Wing</th>
-                        <th className="px-3.5 py-2 text-center whitespace-nowrap">Seating</th>
-                        <th className="w-28 px-3.5 py-2 text-center whitespace-nowrap">Status</th>
-                        <th className="px-3.5 py-2 text-center whitespace-nowrap">Actions</th>
+                        <th className="px-3 py-4 text-center w-10">#</th>
+                        <th className="px-3 py-4 text-left">Resource</th>
+                        <th className="px-3 py-4 text-left">Location</th>
+                        <th className="px-3 py-4 text-left">Category</th>
+                        <th className="px-3 py-4 text-center">Inventory</th>
+                        <th className="px-3 py-4 text-center">Seats</th>
+                        <th className="px-3 py-4 text-center">Status</th>
+                        <th className="px-3 py-4 text-center w-32">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-100/60">
                       {filteredResources.map((resource, index) => (
-                        <tr key={resource.recordId} className="transition-colors hover:bg-slate-50/70">
-                          <td className="px-3.5 py-2 text-center text-sm font-bold text-slate-400">{index + 1}</td>
-                          <td className="px-3.5 py-2 text-left text-sm font-bold text-slate-900 whitespace-nowrap">{resource.name}</td>
-                          <td className="px-3.5 py-2 text-center text-sm font-bold text-slate-900 truncate">
-                            {[resource.location, resource.wing].filter(Boolean).join(' - ') || '-'}
+                        <tr key={resource.recordId} className="transition-colors hover:bg-blue-50/30">
+                          <td className="px-3 py-4 text-center text-xs font-bold text-slate-400">{index + 1}</td>
+                          <td className="px-3 py-4 text-left">
+                            <div className="flex items-center gap-2.5">
+                              <div className="shrink-0 rounded-xl bg-slate-100 p-2 text-blue-600 leading-none">
+                                {typeIcon(resource.type)}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-black text-slate-900 truncate max-w-[150px]">{resource.name}</p>
+                                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{resource.id || resource.recordId}</p>
+                              </div>
+                            </div>
                           </td>
-                          <td className="px-3.5 py-2 text-center text-sm font-bold text-slate-900 whitespace-nowrap">{getResourceCategoryLabel(resource.resourceCategory)}</td>
-                          <td className="px-3.5 py-2 text-center">
+                          <td className="px-3 py-4 text-left">
+                            <p className="text-xs font-bold text-slate-900">{resource.location || '-'}</p>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Fl {resource.floor}{resource.wing ? ` / ${resource.wing}` : ''}</p>
+                          </td>
+                          <td className="px-3 py-4 text-left text-xs font-bold text-slate-900 whitespace-nowrap">{getResourceCategoryLabel(resource.resourceCategory)}</td>
+                          <td className="px-3 py-4 text-center">
                             {isDeskCategory(resource.resourceCategory) ? (
                               <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.22em] ${resource.inventoryMode === 'single'
                                 ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
@@ -1159,30 +1162,30 @@ function ResourceManagementPageInner() {
                                 {getInventoryModeLabel(resource.inventoryMode)}
                               </span>
                             ) : (
-                              <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">Not applicable</span>
+                              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">—</span>
                             )}
                           </td>
-                          <td className="px-3.5 py-2 text-center text-sm font-bold text-slate-900 whitespace-nowrap">{resource.floor}</td>
-                          <td className="px-3.5 py-2 text-center text-[10px] font-bold text-slate-500 whitespace-nowrap">{resource.wing || '-'}</td>
-                          <td className="px-3.5 py-2 text-center text-sm font-bold text-slate-900 whitespace-nowrap">{resource.capacity} Seat</td>
-                          <td className="px-3.5 py-2 text-center whitespace-nowrap">
-                            <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.22em] ${statusClass(resource.status)}`}>
-                              {resource.status}
-                            </span>
-                            {resource.currentlyBooked ? (
-                              <p className="mt-1.5 text-[10px] font-black uppercase tracking-widest text-amber-600">Currently booked</p>
-                            ) : null}
+                          <td className="px-3 py-4 text-center text-xs font-bold text-slate-900 whitespace-nowrap">{resource.capacity}</td>
+                          <td className="px-3 py-4 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.22em] ${statusClass(resource.status)}`}>
+                                {resource.status}
+                              </span>
+                              {resource.currentlyBooked ? (
+                                <div className="w-2 h-2 rounded-full bg-amber-500" title="Currently booked" />
+                              ) : null}
+                            </div>
                           </td>
-                          <td className="px-3.5 py-2 text-center">
+                          <td className="px-3 py-4 text-center">
                             <div className="inline-flex gap-1.5">
-                              <button title="View" onClick={() => setViewingResource(resource)} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm transition-all hover:border-blue-200 hover:text-blue-600">
-                                <Eye size={16} />
+                              <button title="View" onClick={() => setViewingResource(resource)} className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white p-2 text-slate-500 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700">
+                                <Eye size={14} />
                               </button>
-                              <button title="Edit" onClick={() => openEditModal(resource)} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm transition-all hover:border-blue-200 hover:text-blue-600">
-                                <Edit size={16} />
+                              <button title="Edit" onClick={() => openEditModal(resource)} className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white p-2 text-slate-500 shadow-sm transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600">
+                                <Edit size={14} />
                               </button>
-                              <button title="Delete" onClick={() => setDeletingResource(resource)} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm transition-all hover:border-red-200 hover:text-red-600 hover:bg-red-50">
-                                <Trash2 size={16} />
+                              <button title="Delete" onClick={() => setDeletingResource(resource)} className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white p-2 text-slate-500 shadow-sm transition hover:border-red-300 hover:bg-red-50 hover:text-red-600">
+                                <Trash2 size={14} />
                               </button>
                             </div>
                           </td>
@@ -1193,13 +1196,14 @@ function ResourceManagementPageInner() {
                 </div>
               </>
             ) : (
-              <div className="rounded-[28px] border border-dashed border-slate-200 bg-slate-50 p-10 text-center">
+              <div className="m-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center">
                 <p className="text-sm font-black uppercase tracking-widest text-slate-500">No resources found</p>
                 <p className="mt-2 text-sm font-medium text-slate-500">
                   Try clearing the filters or add a new desk, meeting room, conference room, cabin, or virtual office.
                 </p>
               </div>
             )}
+          </div>
           </div>
         </PageFrame>
 
@@ -1541,7 +1545,7 @@ function ResourceManagementPageInner() {
               <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-slate-50/70 p-8">
                 <div>
                   <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-xl font-black text-slate-900">{viewingResource.name}</h2>
+                    <h2 className="text-xl font-pmedium text-primary">{viewingResource.name}</h2>
                     <span className={`rounded-md border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${statusClass(viewingResource.status)}`}>
                       {viewingResource.status}
                     </span>

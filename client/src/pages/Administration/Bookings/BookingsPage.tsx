@@ -1703,72 +1703,47 @@ export default function BookingsPage() {
           <BookingsSkeleton />
         ) : (
           <PageFrame>
+            <div className="flex flex-col gap-4">
+
             {/* ── Header ────────────────────────────────────────────── */}
-            <div className="flex items-center justify-between mb-3">
+            <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-3">
               <div>
                 <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                   Administration Meeting Room Bookings
                 </h2>
                 <p className="text-xs font-medium text-slate-500 mt-1">View meeting room bookings Internal, External, and Tenant.</p>
-              
               </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setViewingCalendar(true)}
                   title="Master Calendar"
-                  className="px-4 py-2.5 bg-white text-[#0F172A] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                 >
-                  <CalendarDays size={14} />
+                  <CalendarDays size={16} />
                 </button>
-                {/* <button
-                  type="button"
-                  onClick={() => alert('Sync bookings is not available in demo mode.')}
-                  className="px-4 py-2.5 bg-white text-[#0F172A] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5"
-                >
-                  <RefreshCw size={14} />
-                  Sync
-                </button> */}
                 <button
                   type="button"
                   onClick={() => handleExportBookingsReport('PDF')}
                   disabled={Boolean(isExportingReport)}
                   title="Export PDF"
-                  className="px-4 py-2.5 bg-white text-[#f90808] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <FileDown size={14} /> {isExportingReport === 'PDF' ? 'Exporting...' : ''}
+                  <FileDown size={15} className="text-red-500" />
                 </button>
                 <button
                   type="button"
                   onClick={() => handleExportBookingsReport('Excel')}
                   disabled={Boolean(isExportingReport)}
                   title="Export Excel"
-                  className="px-4 py-2.5 bg-[#ffffff] text-[#1fd628] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-[#2563EB] text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <FileSpreadsheet size={14} /> {isExportingReport === 'Excel' ? 'Exporting...' : ''}
+                  <FileSpreadsheet size={15} />
                 </button>
               </div>
             </div>
 
-            {/* ── Stats Cards ───────────────────────────────────────── */}
-            <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5">
-              {stats.map((stat) => (
-                <div
-                  key={stat.label}
-                  className="bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md"
-                >
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
-                    <p className="text-[15px] font-black text-slate-900">{stat.value}</p>
-                  </div>
-                  <div className="p-2 rounded-2xl bg-slate-100 text-slate-600">
-                    <stat.icon size={20} />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* ── Scope Tabs ────────────────────────────────────────── */}
+            {/* ── Scope Tabs (pill tabs) ────────────────────────────── */}
             <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               {scopeTabs.map((tab) => (
                 <button
@@ -1786,6 +1761,26 @@ export default function BookingsPage() {
               ))}
             </div>
 
+            {/* ── Stat Cards ────────────────────────────────────────── */}
+            <div className="mb-3 grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
+              {stats.map((stat, idx) => {
+                const Icon = stat.icon;
+                const borderColors = ['', 'border-l-4 border-l-blue-500', 'border-l-4 border-l-emerald-500', 'border-l-4 border-l-amber-500'];
+                const iconClasses = ['bg-slate-50 text-slate-600', 'bg-blue-50 text-blue-600', 'bg-emerald-50 text-emerald-600', 'bg-amber-50 text-amber-600'];
+                return (
+                  <div key={stat.label} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
+                      <p className="text-[15px] font-black text-slate-900">{stat.value}</p>
+                    </div>
+                    <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
+                      <Icon size={16} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
             {/* ── Department Tracker (internal scope) ──────────────── */}
             {activeScope === 'internal' && trackerPeriods.length > 0 && (
               <div className="mb-3 rounded-[2rem] border border-slate-100 bg-white p-4 shadow-sm">
@@ -1796,7 +1791,7 @@ export default function BookingsPage() {
                   </h3>
                   <div className="flex items-center gap-2">
                     <select
-                      className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                      className="w-full sm:w-auto px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
                       value={trackerMonth}
                       onChange={(e) => setTrackerMonth(e.target.value)}
                     >
@@ -1808,208 +1803,207 @@ export default function BookingsPage() {
                     </select>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-white text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100">
-                      <tr>
-                        <th className="px-3.5 py-2">Department</th>
-                        <th className="px-3.5 py-2 text-center">Bookings</th>
+                <table className="w-full table-auto text-left">
+                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                    <tr>
+                      <th className="px-3 py-4">Department</th>
+                      <th className="px-3 py-4 text-center">Bookings</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100/60">
+                    {departmentTrackerSummary.map((dept) => (
+                      <tr key={dept.department} className="hover:bg-blue-50/30 transition-all group">
+                        <td className="px-3 py-4 text-xs font-bold text-slate-900">{dept.department}</td>
+                        <td className="px-3 py-4 text-center text-xs font-bold text-slate-900">{dept.bookings}</td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {departmentTrackerSummary.map((dept) => (
-                        <tr key={dept.department} className="hover:bg-blue-50/30 transition-all group">
-                          <td className="px-3.5 py-2 text-xs font-bold text-slate-900">{dept.department}</td>
-                          <td className="px-3.5 py-2 text-center text-xs font-bold text-slate-900">{dept.bookings}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot className="border-t border-slate-200 bg-slate-50/50">
-                      <tr>
-                        <td className="px-3.5 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Totals</td>
-                        <td className="px-3.5 py-2 text-center text-xs font-black text-slate-900">{departmentTrackerTotals.bookings}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                  <tfoot className="border-t border-slate-200 bg-slate-50/50">
+                    <tr>
+                      <td className="px-3 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Totals</td>
+                      <td className="px-3 py-4 text-center text-xs font-black text-slate-900">{departmentTrackerTotals.bookings}</td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
             )}
 
-            
-            {/* ── Status Tabs ──────────────────────────────────────── */}
-            <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-              {(activeScope === 'tenant' ? tenantStatusOptions : bookingStatusOptions).map((status) => (
-                <button
-                  key={status}
-                  type="button"
-                  onClick={() => setActiveTab(status)}
-                  className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
-                    activeTab === status
-                      ? 'bg-[#030303] text-white shadow-sm'
-                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                  }`}
-                >
-                  {status}
-                </button>
-              ))}
-            </div>
-
-            {/* ── Search & Filters ─────────────────────────────────── */}
-            <div className="flex flex-wrap items-center gap-2.5 mb-3">
-              {activeScope !== 'tenant' && (
-                <>
-                  <select
-                    className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
-                    value={resourceFilter}
-                    onChange={(e) => setResourceFilter(e.target.value)}
-                  >
-                    {resourceOptions.map((opt) => (
-                      <option key={opt}>{opt}</option>
+            {/* ── Data Panel ──────────────────────────────────────── */}
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+              {/* ── Panel Header ── */}
+              <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
+                <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+                  {/* ── Sub-tabs: Status ── */}
+                  <div className="flex items-center gap-1 rounded-2xl bg-slate-100/70 p-1">
+                    {(activeScope === 'tenant' ? tenantStatusOptions : bookingStatusOptions).map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => setActiveTab(status)}
+                        className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${
+                          activeTab === status
+                            ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                            : 'bg-transparent text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                        }`}
+                      >
+                        {status}
+                      </button>
                     ))}
-                  </select>
-                  <select
-                    className="w-full sm:w-auto px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
-                    value={bookingTypeFilter}
-                    onChange={(e) => setBookingTypeFilter(e.target.value)}
-                  >
-                    {bookingTypeOptions.map((opt) => (
-                      <option key={opt}>{opt}</option>
-                    ))}
-                  </select>
-                </>
-              )}
-              <div className="relative w-full xl:w-72 shrink-0">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                <input
-                  type="text"
-                  placeholder={activeScope === 'tenant' ? 'Search company, resource, date...' : 'Search bookings...'}
-                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+                  </div>
+                  {activeScope !== 'tenant' && (
+                    <>
+                      <select
+                        className="w-full sm:w-auto px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
+                        value={resourceFilter}
+                        onChange={(e) => setResourceFilter(e.target.value)}
+                      >
+                        {resourceOptions.map((opt) => (
+                          <option key={opt}>{opt}</option>
+                        ))}
+                      </select>
+                      <select
+                        className="w-full sm:w-auto px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
+                        value={bookingTypeFilter}
+                        onChange={(e) => setBookingTypeFilter(e.target.value)}
+                      >
+                        {bookingTypeOptions.map((opt) => (
+                          <option key={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative min-w-[200px]">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      type="text"
+                      placeholder={activeScope === 'tenant' ? 'Search company, resource, date...' : 'Search bookings...'}
+                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
 
-
-            {/* ── Bookings Table ──────────────────────────────────── */}
-            <div className="border border-slate-100 rounded-xl overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-white text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100">
+              {/* ── Bookings Table ──────────────────────────────────── */}
+              <table className="w-full table-auto text-left">
+                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <tr>
+                    <th className="px-3 py-4 whitespace-nowrap">Resource</th>
+                    {activeScope === 'tenant' && <th className="px-3 py-4 whitespace-nowrap">Company</th>}
+                    <th className="px-3 py-4 whitespace-nowrap">Schedule</th>
+                    <th className="px-3 py-4 whitespace-nowrap">Booked By</th>
+                    {activeScope !== 'tenant' && <th className="px-3 py-4 whitespace-nowrap">Company / Dept</th>}
+                    <th className="px-3 py-4 text-center whitespace-nowrap">Status</th>
+                    {activeScope !== 'tenant' && <th className="px-3 py-4 text-center whitespace-nowrap">Type</th>}
+                    <th className="px-3 py-4 text-center whitespace-nowrap">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100/60">
+                  {visibleRows.length === 0 ? (
                     <tr>
-                      <th className="px-3.5 py-2">Resource</th>
-                      {activeScope === 'tenant' && <th className="px-3.5 py-2">Company</th>}
-                      <th className="px-3.5 py-2">Schedule</th>
-                      <th className="px-3.5 py-2">Booked By</th>
-                      {activeScope !== 'tenant' && <th className="px-3.5 py-2">Company / Dept</th>}
-                      <th className="px-3.5 py-2 text-center">Status</th>
-                      {activeScope !== 'tenant' && <th className="px-3.5 py-2 text-center">Type</th>}
-                      <th className="px-3.5 py-2 text-center">Actions</th>
+                      <td colSpan={activeScope === 'tenant' ? 5 : 7} className="px-3 py-20 text-center font-bold text-slate-400">
+                        No bookings found matching your filters.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {visibleRows.length === 0 ? (
-                      <tr>
-                        <td colSpan={activeScope === 'tenant' ? 5 : 7} className="py-20 text-center font-bold text-slate-400">
-                          No bookings found matching your filters.
-                        </td>
-                      </tr>
-                    ) : (
-                      visibleRows.map((row) => {
-                        const liveStatus = activeScope === 'tenant' ? getLiveMeetingStatus(row as unknown as Record<string, unknown>) : row.status;
-                        const actionMode = getInternalActionMode(row as unknown as Record<string, unknown>);
-                        const isExternal = isExternalBooking(row as unknown as Record<string, unknown>);
-                        const canManage = canManageExternalBooking(row as unknown as Record<string, unknown>);
-                        return (
-                          <tr key={row.id || row.bookingCode} className="hover:bg-blue-50/30 transition-all group">
-                            <td className="px-3.5 py-2">
-                              <div className="flex items-center gap-3">
-                                <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm">
-                                  <MapPin size={14} />
-                                </div>
-                                <div>
-                                  <div className="font-black text-slate-900 text-sm">{row.resourceName}</div>
-                                  <div className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">
-                                    {row.resourceType}{row.resourceLocation ? ` • ${row.resourceLocation}` : ''}
-                                  </div>
+                  ) : (
+                    visibleRows.map((row) => {
+                      const liveStatus = activeScope === 'tenant' ? getLiveMeetingStatus(row as unknown as Record<string, unknown>) : row.status;
+                      const actionMode = getInternalActionMode(row as unknown as Record<string, unknown>);
+                      const isExternal = isExternalBooking(row as unknown as Record<string, unknown>);
+                      const canManage = canManageExternalBooking(row as unknown as Record<string, unknown>);
+                      return (
+                        <tr key={row.id || row.bookingCode} className="hover:bg-blue-50/30 transition-all group">
+                          <td className="px-3 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm">
+                                <MapPin size={14} />
+                              </div>
+                              <div>
+                                <div className="font-black text-slate-900 text-sm">{row.resourceName}</div>
+                                <div className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">
+                                  {row.resourceType}{row.resourceLocation ? ` • ${row.resourceLocation}` : ''}
                                 </div>
                               </div>
+                            </div>
+                          </td>
+                          {activeScope === 'tenant' && (
+                            <td className="px-3 py-4">
+                              <span className="font-black text-slate-900 text-sm">{row.companyName || row.company}</span>
                             </td>
-                            {activeScope === 'tenant' && (
-                              <td className="px-3.5 py-2">
-                                <span className="font-black text-slate-900 text-sm">{row.companyName || row.company}</span>
-                              </td>
-                            )}
-                            <td className="px-3.5 py-2">
-                              {renderScheduleSummary(row as unknown as Record<string, unknown>, { showDate: true })}
+                          )}
+                          <td className="px-3 py-4">
+                            {renderScheduleSummary(row as unknown as Record<string, unknown>, { showDate: true })}
+                          </td>
+                          <td className="px-3 py-4">
+                            <div className="font-bold text-slate-800 text-xs">{row.bookedBy || '-'}</div>
+                            <div className="text-[10px] font-bold text-slate-500 flex items-center gap-1.5">
+                              {row.role || 'Manager'}
+                            </div>
+                          </td>
+                          {activeScope !== 'tenant' && (
+                            <td className="px-3 py-4">
+                              <span className="font-black text-slate-900 text-sm">{row.company || row.department}</span>
                             </td>
-                            <td className="px-3.5 py-2">
-                              <div className="font-bold text-slate-800 text-xs">{row.bookedBy || '-'}</div>
-                              <div className="text-[10px] font-bold text-slate-500 flex items-center gap-1.5">
-                                {row.role || 'Manager'}
-                              </div>
-                            </td>
-                            {activeScope !== 'tenant' && (
-                              <td className="px-3.5 py-2">
-                                <span className="font-black text-slate-900 text-sm">{row.company || row.department}</span>
-                              </td>
-                            )}
-                            <td className="px-3.5 py-2 text-center">
-                              <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${statusBadge(liveStatus)}`}>
-                                {liveStatus}
+                          )}
+                          <td className="px-3 py-4 text-center">
+                            <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${statusBadge(liveStatus)}`}>
+                              {liveStatus}
+                            </span>
+                          </td>
+                          {activeScope !== 'tenant' && (
+                            <td className="px-3 py-4 text-center">
+                              <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${bookingTypeBadgeClass(row.bookingType)}`}>
+                                {row.bookingType}
                               </span>
                             </td>
-                            {activeScope !== 'tenant' && (
-                              <td className="px-3.5 py-2 text-center">
-                                <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${bookingTypeBadgeClass(row.bookingType)}`}>
-                                  {row.bookingType}
-                                </span>
-                              </td>
-                            )}
-                            <td className="px-3.5 py-2">
-                              <div className="flex items-center justify-center gap-1.5">
+                          )}
+                          <td className="px-3 py-4">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => setViewingDetails(row)}
+                                className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all shadow-sm"
+                                title="View Details"
+                              >
+                                <Eye size={14} />
+                              </button>
+                              {activeScope === 'internal' && actionMode && (
                                 <button
-                                  onClick={() => setViewingDetails(row)}
-                                  className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm"
-                                  title="View Details"
+                                  onClick={() => { setReschedulingBooking(row); setBookingActionMode(actionMode); }}
+                                  className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all shadow-sm"
+                                  title={actionMode === 'extend' ? 'Extend Booking' : 'Reschedule Booking'}
                                 >
-                                  <Eye size={14} />
+                                  <Clock size={14} />
                                 </button>
-                                {activeScope === 'internal' && actionMode && (
-                                  <button
-                                    onClick={() => { setReschedulingBooking(row); setBookingActionMode(actionMode); }}
-                                    className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm"
-                                    title={actionMode === 'extend' ? 'Extend Booking' : 'Reschedule Booking'}
-                                  >
-                                    <Clock size={14} />
-                                  </button>
-                                )}
-                                {(activeScope === 'internal' || isExternal) && (canManage || (activeScope === 'internal' && liveStatus !== 'Completed' && liveStatus !== 'Cancelled')) && (
-                                  <button
-                                    onClick={() => setCancellingBooking(row)}
-                                    className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm"
-                                    title="Cancel Booking"
-                                  >
-                                    <XCircle size={14} />
-                                  </button>
-                                )}
+                              )}
+                              {(activeScope === 'internal' || isExternal) && (canManage || (activeScope === 'internal' && liveStatus !== 'Completed' && liveStatus !== 'Cancelled')) && (
                                 <button
-                                  onClick={() => handleExportBookingReport(row as unknown as Record<string, unknown>, 'PDF')}
-                                  disabled={Boolean(isExportingReport)}
-                                  className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-all shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
-                                  title="Export Booking Report"
+                                  onClick={() => setCancellingBooking(row)}
+                                  className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all shadow-sm"
+                                  title="Cancel Booking"
                                 >
-                                  <FileText size={14} />
+                                  <XCircle size={14} />
                                 </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                              )}
+                              <button
+                                onClick={() => handleExportBookingReport(row as unknown as Record<string, unknown>, 'PDF')}
+                                disabled={Boolean(isExportingReport)}
+                                className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+                                title="Export Booking Report"
+                              >
+                                <FileText size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
             </div>
           </PageFrame>
         )}

@@ -1019,7 +1019,7 @@ export default function HRRecruitmentPage() {
         <div className="flex flex-col gap-4">
 
           {/* ── Header ── */}
-          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 {activeForm === "add-candidate"
@@ -1053,6 +1053,32 @@ export default function HRRecruitmentPage() {
             </div>
           )}
 
+          {/* ── Main Pill Tabs ── */}
+          {!activeForm && (
+            <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+              <button
+                onClick={() => { setActiveTab("candidates"); setActiveForm(null); setSearchQuery(""); if (activeForm === "add-candidate") setNewCandidate(EMPTY_CANDIDATE); }}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  activeTab === "candidates"
+                    ? "bg-[#2563EB] text-white shadow-sm"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                CANDIDATES TRACKING
+              </button>
+              <button
+                onClick={() => { setActiveTab("jobs"); setActiveForm(null); setSearchQuery(""); if (activeForm === "add-job") setNewJob(EMPTY_JOB); }}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  activeTab === "jobs"
+                    ? "bg-[#2563EB] text-white shadow-sm"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                }`}
+              >
+                JOB OPENINGS
+              </button>
+            </div>
+          )}
+
           {/* ── Stat Cards ── */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             {statCards.map((card) => {
@@ -1076,32 +1102,8 @@ export default function HRRecruitmentPage() {
 
             {/* Data panel header row */}
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col lg:flex-row justify-between items-center gap-4 bg-slate-50/50">
-              {/* Pill-style main tabs */}
-              <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full lg:w-auto">
-                <button
-                  onClick={() => { setActiveTab("candidates"); setActiveForm(null); setSearchQuery(""); if (activeForm === "add-candidate") setNewCandidate(EMPTY_CANDIDATE); }}
-                  className={`flex-1 lg:px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                    activeTab === "candidates"
-                      ? "bg-white shadow-sm text-[#2563EB]"
-                      : "text-slate-400 hover:text-slate-600"
-                  }`}
-                >
-                  CANDIDATES TRACKING
-                </button>
-                <button
-                  onClick={() => { setActiveTab("jobs"); setActiveForm(null); setSearchQuery(""); if (activeForm === "add-job") setNewJob(EMPTY_JOB); }}
-                  className={`flex-1 lg:px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                    activeTab === "jobs"
-                      ? "bg-white shadow-sm text-[#2563EB]"
-                      : "text-slate-400 hover:text-slate-600"
-                  }`}
-                >
-                  JOB OPENINGS
-                </button>
-              </div>
-
               {!activeForm && (
-                <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto">
+                <div className="flex flex-col md:flex-row gap-3 w-full lg:w-revert-rule">
                   <div className="relative flex-1 min-w-[180px]">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
@@ -1122,7 +1124,7 @@ export default function HRRecruitmentPage() {
                   ) : (
                     <button
                       onClick={() => setActiveForm("add-job")}
-                      className="px-6 py-3 bg-slate-900 text-white rounded-2xl font-semibold text-xs flex items-center justify-center gap-2 hover:bg-black transition-all shadow-md"
+                      className="px-6 py-3 bg-[#2563EB] text-white rounded-2xl font-semibold text-xs flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-md shadow-blue-100"
                     >
                       <Plus size={16} strokeWidth={3} /> PUBLISH JOB
                     </button>

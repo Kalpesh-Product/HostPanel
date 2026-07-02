@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import PageFrame from "@/components/Pages/PageFrame";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -290,80 +291,91 @@ export default function SystemAccessManagementPage() {
   }
 
   return (
-    <div className="w-full">
-      <div className="mb-6 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-[#0F172A]">System Access Management</h1>
-          <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mt-1">
-            <ShieldCheck className="w-3.5 h-3.5 inline mr-1" />
-            Software access, role gating, and expiry tracking
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => openModal()}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-wider hover:bg-slate-800 transition-colors shadow-sm"
-        >
-          <Key className="w-4 h-4" />
-          Provision Access
-        </button>
-      </div>
+    <PageFrame>
+      <div className="flex flex-col gap-4">
 
-      {error ? (
-        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 flex items-center gap-2 text-sm font-bold text-red-700">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-          {error}
+        {/* ── Header ── */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-3">
+          <div>
+            <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4" />
+              System Access Management
+            </h2>
+            <p className="text-xs font-medium text-slate-500 mt-1">
+              Software access, role gating, and expiry tracking
+            </p>
+          </div>
         </div>
-      ) : null}
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        <div className="rounded-3xl bg-white border border-slate-100 p-5 shadow-sm">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Software Assets</p>
-          <p className="mt-2 text-3xl font-black text-slate-900">{softwareAssets.length}</p>
-        </div>
-        <div className="rounded-3xl bg-white border border-slate-100 p-5 shadow-sm">
-          <p className="text-[10px] font-black uppercase tracking-widest text-green-500">Assigned</p>
-          <p className="mt-2 text-3xl font-black text-green-600">{assignedCount}</p>
-        </div>
-        <div className="rounded-3xl bg-white border border-slate-100 p-5 shadow-sm">
-          <p className="text-[10px] font-black uppercase tracking-widest text-amber-500">Expiring Soon</p>
-          <p className="mt-2 text-3xl font-black text-amber-600">{expiringSoonCount}</p>
-        </div>
-        <div className="rounded-3xl bg-gradient-to-br from-slate-900 to-slate-800 p-5 shadow-lg text-white">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Expired</p>
-          <p className="mt-2 text-3xl font-black">{expiredCount}</p>
-        </div>
-      </div>
+        {error ? (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 flex items-center gap-2 text-sm font-bold text-red-700">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            {error}
+          </div>
+        ) : null}
 
-      <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/60 flex flex-col xl:flex-row xl:items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search software, owner, department..."
-                className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-slate-900 shadow-sm"
-              />
+        {/* ── Stat Cards ── */}
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-3 shrink-0">
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Software Assets</p>
+              <p className="text-lg font-black text-slate-900">{softwareAssets.length}</p>
             </div>
+            <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0">
+              <Package2 size={16} />
+            </div>
+          </div>
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-green-500">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Assigned</p>
+              <p className="text-lg font-black text-slate-900">{assignedCount}</p>
+            </div>
+            <div className="p-2 rounded-2xl bg-green-50 text-green-600 shrink-0">
+              <CheckCircle2 size={16} />
+            </div>
+          </div>
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Expiring Soon</p>
+              <p className="text-lg font-black text-slate-900">{expiringSoonCount}</p>
+            </div>
+            <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0">
+              <Clock size={16} />
+            </div>
+          </div>
+          <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-rose-500">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Expired</p>
+              <p className="text-lg font-black text-slate-900">{expiredCount}</p>
+            </div>
+            <div className="p-2 rounded-2xl bg-rose-50 text-rose-600 shrink-0">
+              <AlertTriangle size={16} />
+            </div>
+          </div>
+        </div>
+
+      {/* ── Data Panel ── */}
+      <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+
+        {/* Panel header */}
+        <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
+          <div className="flex items-center gap-3 flex-wrap">
             <select
-              className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+              className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
               value={departmentFilter}
               onChange={(e) => setDepartmentFilter(e.target.value)}
             >
               {departmentOptions.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
             <select
-              className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+              className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
             >
               {roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
             <select
-              className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+              className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -374,19 +386,31 @@ export default function SystemAccessManagementPage() {
             </select>
           </div>
 
-          <div className="flex items-center gap-3 text-xs font-black uppercase tracking-widest text-slate-400">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2">
-              <ShieldCheck size={13} /> {expiredCount} expired
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-2">
-              <Clock size={13} /> {expiringSoonCount} expiring soon
-            </span>
+          <div className="flex items-center gap-3 w-full xl:w-auto">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+              <input
+                type="text"
+                placeholder="Search software, owner, department..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => openModal()}
+              className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
+            >
+              <Key className="w-4 h-4" />
+              Provision Access
+            </button>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto flex-1">
           <table className="w-full text-left">
-            <thead className="bg-white border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
               <tr>
                 <th className="px-5 py-4">Software Asset</th>
                 <th className="px-5 py-4">Owning Dept</th>
@@ -479,7 +503,7 @@ export default function SystemAccessManagementPage() {
           </table>
         </div>
 
-        <div className="px-5 py-3 border-t border-slate-100 text-[10px] font-bold text-slate-400">
+        <div className="px-5 py-3 border-t border-slate-100/60 text-[10px] font-bold text-slate-400 bg-slate-50/30">
           Showing {displayedAssets.length} of {softwareAssets.length} software assets
         </div>
       </div>
@@ -493,7 +517,7 @@ export default function SystemAccessManagementPage() {
           >
             <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={() => !isSaving && setIsModalOpen(false)} />
             <motion.div
-              className="relative w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl max-h-[90vh] flex flex-col"
+              className="relative w-full max-w-4xl overflow-hidden rounded-[2.5rem] border border-white/70 bg-white shadow-2xl max-h-[90vh] flex flex-col"
               initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
@@ -510,7 +534,7 @@ export default function SystemAccessManagementPage() {
                 <button
                   type="button"
                   onClick={() => !isSaving && setIsModalOpen(false)}
-                  className="w-10 h-10 rounded-full border border-slate-200 bg-white text-slate-500 hover:text-slate-900 flex items-center justify-center flex-shrink-0"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100"
                 >
                   <X size={18} />
                 </button>
@@ -524,7 +548,7 @@ export default function SystemAccessManagementPage() {
                       required
                       value={assignmentForm.assetId}
                       onChange={(e) => setAssignmentForm((f) => ({ ...f, assetId: e.target.value }))}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-slate-900 focus:bg-white"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     >
                       <option value="">Select a software asset</option>
                       {selectableAssets.map((a) => {
@@ -540,7 +564,7 @@ export default function SystemAccessManagementPage() {
                       required
                       value={assignmentForm.targetDepartment}
                       onChange={(e) => setAssignmentForm((f) => ({ ...f, targetDepartment: e.target.value, targetEmployeeId: "" }))}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-slate-900 focus:bg-white"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                     >
                       <option value="">Select department</option>
                       {departmentOptions.filter((d) => d !== "All Departments").map((d) => (
@@ -576,9 +600,9 @@ export default function SystemAccessManagementPage() {
                         required
                         value={assignmentForm.targetRole}
                         onChange={(e) => setAssignmentForm((f) => ({ ...f, targetRole: e.target.value }))}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-slate-900 focus:bg-white"
-                      >
-                        {roleOptions.filter((r) => r !== "All Roles").map((r) => <option key={r} value={r}>{r}</option>)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    >
+                      {roleOptions.filter((r) => r !== "All Roles").map((r) => <option key={r} value={r}>{r}</option>)}
                       </select>
                     </div>
                   ) : null}
@@ -590,9 +614,9 @@ export default function SystemAccessManagementPage() {
                         required
                         value={assignmentForm.targetEmployeeId}
                         onChange={(e) => setAssignmentForm((f) => ({ ...f, targetEmployeeId: e.target.value }))}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-slate-900 focus:bg-white"
-                      >
-                        <option value="">Select employee</option>
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="">Select employee</option>
                         {selectableEmployees.map((e) => (
                           <option key={e.value} value={e.value}>{e.label} · {e.role}</option>
                         ))}
@@ -607,7 +631,7 @@ export default function SystemAccessManagementPage() {
                       onChange={(e) => setAssignmentForm((f) => ({ ...f, notes: e.target.value }))}
                       rows={3}
                       placeholder="Provisioning note, ticket reference, or expiry context"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-slate-900 focus:bg-white resize-none"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none"
                     />
                   </div>
                 </div>
@@ -645,11 +669,11 @@ export default function SystemAccessManagementPage() {
 
                   <div className="flex gap-3 pt-2">
                     <button type="button" disabled={isSaving} onClick={() => setIsModalOpen(false)}
-                      className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black text-slate-600 hover:text-slate-900">
+                      className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-bold text-slate-700 shadow-sm">
                       Cancel
                     </button>
                     <button type="submit" disabled={isSaving || !assignmentForm.assetId || !assignmentForm.targetDepartment || (assignmentForm.targetAudience === "employee" && !assignmentForm.targetEmployeeId) || (assignmentForm.targetAudience === "role" && !assignmentForm.targetRole)}
-                      className="inline-flex items-center justify-center gap-1.5 flex-1 rounded-xl bg-slate-900 px-4 py-3 text-xs font-black text-white shadow-sm disabled:bg-slate-300">
+                      className="inline-flex items-center justify-center gap-1.5 flex-1 rounded-2xl bg-blue-600 py-4 font-black text-white shadow-sm disabled:bg-slate-300">
                       {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                       {isSaving ? "Saving..." : "Confirm Access"}
                     </button>
@@ -660,6 +684,7 @@ export default function SystemAccessManagementPage() {
           </motion.div>
         ) : null}
       </AnimatePresence>
-    </div>
+      </div>
+    </PageFrame>
   );
 }

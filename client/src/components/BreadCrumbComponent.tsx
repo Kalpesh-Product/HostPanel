@@ -553,6 +553,14 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/finance/accounting",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Finance Department", path: "/module-sections/department-accesses/finance-department" },
+      { label: "Accounting" },
+    ],
+  },
+  {
     pattern: "/dashboard/tenant",
     crumbs: [
       { label: SECTION_LABELS.tenantPortal },

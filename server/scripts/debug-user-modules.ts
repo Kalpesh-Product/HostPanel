@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Department from "../models/Department.js";
 import HostUser from "../models/HostUser.js";
+import { Role } from "../models/Role.js";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -15,6 +16,7 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 async function debugUserModules() {
   try {
     await mongoose.connect(process.env.DB_URL);
+    void Role;
     console.log("Connected to MongoDB\n");
 
     // Get the email from command line argument

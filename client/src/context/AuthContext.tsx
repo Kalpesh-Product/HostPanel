@@ -27,9 +27,15 @@ interface AuthContextProviderProps {
 }
 
 export default function AuthContextProvider({ children }: AuthContextProviderProps) {
+  // sessionStorage only — it is tab-scoped, unlike localStorage which is shared
+  // across every tab/window for this origin. Persisting the cached user there
+  // let one tab's logged-in user (e.g. the founder) leak into a different tab
+  // that expects its own fresh login (e.g. a department manager), causing the
+  // wrong role's sidebar/modules to render. Mirrors the tab-isolation intent
+  // already enforced for auth tokens via hasAuthTabSession().
   const getStoredUser = (): AuthUser => {
     try {
-      const raw = sessionStorage.getItem("hostpanel_auth_user") || localStorage.getItem("hostpanel_auth_user");
+      const raw = sessionStorage.getItem("hostpanel_auth_user");
       return raw ? (JSON.parse(raw) as AuthUser) : null;
     } catch {
       return null;
@@ -44,10 +50,8 @@ export default function AuthContextProvider({ children }: AuthContextProviderPro
   useEffect(() => {
     if (auth?.user) {
       sessionStorage.setItem("hostpanel_auth_user", JSON.stringify(auth.user));
-      localStorage.setItem("hostpanel_auth_user", JSON.stringify(auth.user));
     } else {
       sessionStorage.removeItem("hostpanel_auth_user");
-      localStorage.removeItem("hostpanel_auth_user");
     }
   }, [auth?.user]);
 

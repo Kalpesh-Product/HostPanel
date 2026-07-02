@@ -596,7 +596,7 @@ export default function HRLeaveRequestsProcessingPage() {
         <div className="flex flex-col gap-4">
 
           {/* ── Header (DESIGN.md §3) ── */}
-          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Leave Request Processing
@@ -619,7 +619,7 @@ export default function HRLeaveRequestsProcessingPage() {
               <button
                 key={tab.key}
                 onClick={() => { setActiveTab(tab.key); setStatusFilter("all"); setSearchQuery(""); }}
-                className={`flex-1 min-w-[120px] rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+                className={`flex-1 min-w-[120px] rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
                   activeTab === tab.key
                     ? "bg-[#2563EB] text-white shadow-sm"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
