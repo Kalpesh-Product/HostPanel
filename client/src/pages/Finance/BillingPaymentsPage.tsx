@@ -913,21 +913,19 @@ export function BillingPaymentsPage() {
                 </select>
               </div>
               <button
-                type="button"
-                onClick={() => handleExportActiveReport('PDF')}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
-                title={`Export ${activeReportLabel} as PDF`}
-              >
-                <FileDown size={16} className="text-red-500" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleExportActiveReport('Excel')}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-gray-200 bg-[#2563EB] text-white shadow-sm transition hover:bg-blue-700"
-                title={`Export ${activeReportLabel} as Excel`}
-              >
-                <FileSpreadsheet size={16} />
-              </button>
+                                type="button"
+                                // onClick={handleExportPDF}
+                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                <FileDown size={16} className="text-red-500"/>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
+                              </button>
+                              <button
+                                type="button"
+                                // onClick={handleExportExcel}
+                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                <FileSpreadsheet size={16} className="text-emerald-500"/>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
+                              </button>
             </div>
           </div>
 

@@ -4,7 +4,7 @@ import { getWorkspaceMembers } from '@/services/auth';
 import { createAsset, getAssets, updateAsset, getDepartments } from '@/services/assets';
 import {
   Search, ChevronDown, X, Eye, ShieldCheck,
-  CheckCircle2, Wrench, Box, ArrowRightLeft, MapPin, Building2,
+  CheckCircle2, Wrench, Box, ArrowRightLeft, MapPin, Building2,FileSpreadsheet,FileDown,
   Filter, Plus, Monitor, Server, Cloud, Briefcase, User, Package,
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
@@ -470,6 +470,24 @@ function AssetsSkeleton() {
                     : 'Founder View: Track all company hardware, software licenses, infrastructure, and equipment globally.'}
                 </p>
               </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                              <button
+                                type="button"
+                                // onClick={handleExportPDF}
+                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                <FileDown size={16} className="text-red-500"/>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
+                              </button>
+                              <button
+                                type="button"
+                                // onClick={handleExportExcel}
+                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                <FileSpreadsheet size={16} className="text-emerald-500"/>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
+                              </button>
+                              
+                            </div>
+              
             </div>
 
             {errorMessage ? (

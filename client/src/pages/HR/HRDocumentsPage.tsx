@@ -246,6 +246,27 @@ export default function HRDocumentsPage(): React.ReactElement {
             </div>
           )}
 
+          {/* ═══ MAIN PILL TABS ═══ */}
+<div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+  {([
+    { key: "active" as const, label: "Active Employees" },
+    { key: "inactive" as const, label: "Inactive Employees" },
+  ]).map((tab) => (
+    <button
+      key={tab.key}
+      onClick={() => { setActiveTab(tab.key); setSearchQuery(""); }}
+      className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+        activeTab === tab.key
+          ? "bg-[#2563EB] text-white shadow-sm"
+          : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+      }`}
+    >
+      {tab.label}
+    </button>
+  ))}
+</div>
+
+
           {/* ═══ STAT CARDS (3-col) ═══ */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 shrink-0">
             {statCards.map((card) => {
@@ -276,7 +297,7 @@ export default function HRDocumentsPage(): React.ReactElement {
             {/* Header Row: Inner Tabs + Filter + Search */}
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
               {/* Left: Inner tabs */}
-              <div className="flex bg-slate-100/50 p-1 rounded-xl w-full xl:w-auto relative border border-slate-200/50 overflow-x-auto">
+              {/* <div className="flex bg-slate-100/50 p-1 rounded-xl w-full xl:w-auto relative border border-slate-200/50 overflow-x-auto">
                 {([
                   { key: "active" as const, label: "Active Employees", count: summary.activeEmployees },
                   { key: "inactive" as const, label: "Inactive Employees", count: summary.inactiveEmployees },
@@ -297,20 +318,11 @@ export default function HRDocumentsPage(): React.ReactElement {
                     }`}>{tab.count}</span>
                   </button>
                 ))}
-              </div>
+              </div> */}
 
               {/* Right: Filter + Search */}
-              <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-                <select
-                  value={departmentFilter}
-                  onChange={(e) => setDepartmentFilter(e.target.value)}
-                  className="pl-3 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer shadow-sm min-w-[100px]"
-                >
-                  {departmentOptions.map((dept) => (
-                    <option key={dept} value={dept}>{dept}</option>
-                  ))}
-                </select>
-
+              <div className="flex items-center gap-3 w-full xl:w-revert-rule flex-wrap sm:flex-nowrap">
+                
                 <div className="relative flex-1 min-w-[180px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input
@@ -321,6 +333,17 @@ export default function HRDocumentsPage(): React.ReactElement {
                     className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                   />
                 </div>
+                <select
+                  value={departmentFilter}
+                  onChange={(e) => setDepartmentFilter(e.target.value)}
+                  className="pl-3 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer shadow-sm min-w-[100px]"
+                >
+                  {departmentOptions.map((dept) => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
+
+                
               </div>
             </div>
 

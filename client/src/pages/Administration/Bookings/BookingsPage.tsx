@@ -1717,29 +1717,26 @@ export default function BookingsPage() {
                 <button
                   type="button"
                   onClick={() => setViewingCalendar(true)}
-                  title="Master Calendar"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                  className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-blue-50 hover:border-blue-200 text-slate-500 transition-all active:scale-95 shadow-sm"
                 >
                   <CalendarDays size={16} />
+                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-blue-500 text-white px-1.5 py-0.5 rounded">CALENDAR</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleExportBookingsReport('PDF')}
-                  disabled={Boolean(isExportingReport)}
-                  title="Export PDF"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <FileDown size={15} className="text-red-500" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleExportBookingsReport('Excel')}
-                  disabled={Boolean(isExportingReport)}
-                  title="Export Excel"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-[#2563EB] text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <FileSpreadsheet size={15} />
-                </button>
+                 <button
+                                type="button"
+                                // onClick={handleExportPDF}
+                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                <FileDown size={16} className="text-red-500"/>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
+                              </button>
+                              <button
+                                type="button"
+                                // onClick={handleExportExcel}
+                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                <FileSpreadsheet size={16} className="text-emerald-500"/>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
+                              </button>
+
               </div>
             </div>
 

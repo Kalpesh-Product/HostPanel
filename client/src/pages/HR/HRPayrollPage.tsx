@@ -933,11 +933,13 @@ export default function HRPayrollPage() {
           )}
 
           {/* ── Main Tabs (pill-style, before stat cards) ── */}
-          <div className="mb-3 flex bg-slate-100 p-1.5 rounded-2xl w-full">
+          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             <button
               onClick={() => { setActiveTab("master"); setSearchQuery(""); }}
               className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
-                activeTab === "master" ? "bg-white shadow-sm text-[#2563EB]" : "text-slate-400 hover:text-slate-600"
+                activeTab === "master" 
+                ? "bg-[#2563EB] text-white shadow-sm"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
               PAYROLL MASTER
@@ -945,7 +947,7 @@ export default function HRPayrollPage() {
             <button
               onClick={() => { setActiveTab("history"); setSearchQuery(""); }}
               className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
-                activeTab === "history" ? "bg-white shadow-sm text-[#2563EB]" : "text-slate-400 hover:text-slate-600"
+                activeTab === "history" ? "bg-[#2563EB] text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
               PAYROLL HISTORY

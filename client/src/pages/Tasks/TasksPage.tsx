@@ -2092,7 +2092,7 @@ export function TasksPage() {
                 <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0"></div>
                 <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
                   <div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] flex items-center gap-2">
+                    <h2 className="text-xl sm:text-2xl font-pmedium text-primary flex items-center gap-2">
                       <div className="bg-blue-50 text-[#2563EB] p-2 rounded-xl">
                         <Plus size={20} strokeWidth={2.5} />
                       </div>

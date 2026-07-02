@@ -2775,32 +2775,27 @@ export default function TenantCompaniesPage() {
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <button
-                type="button"
-                onClick={() => handleExportCompaniesReport('PDF')}
-                disabled={Boolean(isExportingReport)}
-                title="Export PDF"
-                className="px-4 py-2.5 bg-white text-[#0F172A] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <FileDown size={14} className="text-red-500" /> {isExportingReport === 'PDF' ? 'Exporting...' : ''}
-              </button>
+                              type="button"
+                              onClick={handleBulkUploadClick}
+                              className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-slate-100 hover:border-slate-500 text-slate-500 transition-all active:scale-95 shadow-sm"
+                            >
+                              <UploadCloud size={13} /> 
+                              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-500 text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
+                            </button>
               <button
-                type="button"
-                onClick={() => handleExportCompaniesReport('Excel')}
-                disabled={Boolean(isExportingReport)}
-                title="Export Excel"
-                className="px-4 py-2.5 bg-[#ffffff] text-[#1fd628] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <FileSpreadsheet size={14} /> {isExportingReport === 'Excel' ? 'Exporting...' : ''}
-              </button>
-              <button
-                type="button"
-                onClick={handleBulkUploadClick}
-                title="Bulk Upload"
-                className="px-4 py-2.5 bg-white text-[#0F172A] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5"
-              >
-                <UploadCloud size={14} />
-              </button>
-
+                                type="button"
+                                // onClick={handleExportPDF}
+                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                <FileDown size={16} className="text-red-500"/>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
+                              </button>
+                              <button
+                                type="button"
+                                // onClick={handleExportExcel}
+                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                <FileSpreadsheet size={16} className="text-emerald-500"/>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
+                              </button>
             </div>
           </div>
           <input ref={bulkUploadInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleBulkFileSelected} className="hidden" />

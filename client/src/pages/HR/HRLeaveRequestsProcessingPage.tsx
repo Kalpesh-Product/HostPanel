@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import {
   Search, Check, X, Eye, CheckCircle2, XCircle,
   CalendarClock, Calendar, UserCheck, Clock, ShieldAlert,
-  AlertCircle, FileText, FileSpreadsheet, Building, Users,
+  AlertCircle, FileText, FileSpreadsheet, FileDown, Building, Users,
   Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -605,6 +605,23 @@ export default function HRLeaveRequestsProcessingPage() {
                 Review, approve or reject employee leave requests efficiently.
               </p>
             </div>
+            <div className="flex items-center gap-2 flex-wrap">
+                              <button
+                                type="button"
+                                // onClick={handleExportPDF}
+                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                <FileDown size={16} className="text-red-500"/>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
+                              </button>
+                              <button
+                                type="button"
+                                // onClick={handleExportExcel}
+                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                <FileSpreadsheet size={16} className="text-emerald-500"/>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">Excel</span>
+                              </button>
+                              
+                            </div>
           </div>
 
           {errorMessage && (
@@ -735,12 +752,7 @@ export default function HRLeaveRequestsProcessingPage() {
                     className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                   />
                 </div>
-                <button onClick={() => handleExportReport("PDF")} disabled={Boolean(isExportingReport)} className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap disabled:opacity-50">
-                  <FileText size={13} strokeWidth={2.5} /> {isExportingReport === "PDF" ? "..." : "PDF"}
-                </button>
-                <button onClick={() => handleExportReport("Excel")} disabled={Boolean(isExportingReport)} className="bg-emerald-500 text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-emerald-600 active:scale-95 transition-all whitespace-nowrap disabled:opacity-50">
-                  <FileSpreadsheet size={13} strokeWidth={2.5} /> {isExportingReport === "Excel" ? "..." : "Excel"}
-                </button>
+                
               </div>
             </div>
 
