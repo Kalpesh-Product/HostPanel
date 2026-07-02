@@ -557,7 +557,7 @@ export function InventoryPage() {
             <motion.div
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
-              className="bg-white border-radius-50px rounded-t-6x2 sm:rounded-4xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              className="bg-white rounded-t-4xl sm:rounded-4xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
             >
               <div className="p-5 sm:p-8 bg-blue-50 border-b border-blue-100 flex justify-between items-start">
                 <div>
