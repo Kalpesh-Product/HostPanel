@@ -552,28 +552,29 @@ export function InventoryPage() {
         {isAddStockOpen && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm"
+            className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm"
           >
             <motion.div
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
-              className="bg-white rounded-t-4xl sm:rounded-4xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              className="bg-white/95 backdrop-blur-xl w-full max-w-lg h-[92vh] sm:h-auto sm:max-h-[90vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col"
             >
-              <div className="p-5 sm:p-8 bg-blue-50 border-b border-blue-100 flex justify-between items-start">
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0" />
+              <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-center shrink-0">
                 <div>
                   <h2 className="text-xl sm:text-2xl font-pmedium flex items-center gap-2 text-primary">
                      Add Inventory
                   </h2>
-                  <p className="text-[10px] sm:text-[11px] font-bold text-blue-700 uppercase tracking-widest mt-1.5">
+                  <p className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-widest mt-2">
                     Create stock directly in any department
                   </p>
                 </div>
-                <button onClick={() => setIsAddStockOpen(false)} className="p-2 bg-white rounded-full border border-blue-100 hover:bg-blue-50 transition-colors">
-                  <X size={18} className="text-blue-900" />
+                <button onClick={() => setIsAddStockOpen(false)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm">
+                  <X size={18} strokeWidth={2.5} />
                 </button>
               </div>
 
-              <div className="p-5 sm:p-8 overflow-y-auto space-y-4">
+              <div className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-1 space-y-4 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Item Name</label>
                   <input
@@ -643,16 +644,16 @@ export function InventoryPage() {
                 </div>
               </div>
 
-              <div className="p-5 sm:p-8 bg-slate-50 border-t border-slate-100 flex gap-3 shrink-0">
-                <button onClick={() => setIsAddStockOpen(false)} className="flex-1 py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-600 hover:bg-slate-50 shadow-sm transition-colors text-[12px]">
-                  CANCEL
+              <div className="p-4 sm:p-6 border-t border-slate-100 bg-white shrink-0 flex gap-3">
+                <button onClick={() => setIsAddStockOpen(false)} className="flex-1 py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">
+                  Cancel
                 </button>
                 <button
                   onClick={handleCreateStock}
                   disabled={isTransferring || !addStockData.name || !addStockData.quantity || !addStockData.department}
-                  className="flex-1 py-3.5 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-black shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:shadow-none transition-all text-[12px] uppercase tracking-wider"
+                  className="flex-1 py-3.5 bg-[#2563EB] text-white rounded-xl font-bold shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {isTransferring ? 'SAVING...' : 'CREATE INVENTORY'}
+                  {isTransferring ? 'Saving...' : 'Create Inventory'}
                 </button>
               </div>
             </motion.div>
@@ -663,26 +664,27 @@ export function InventoryPage() {
         {isTransferStockOpen && activeInventoryItem && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm"
+            className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm"
           >
             <motion.div
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
-              className="bg-white rounded-t-4xl sm:rounded-4xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              className="bg-white/95 backdrop-blur-xl w-full max-w-lg h-[75vh] sm:h-auto sm:max-h-[90vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col"
             >
-              <div className="p-5 sm:p-8 bg-slate-900 flex justify-between items-start text-white shrink-0">
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0" />
+              <div className="p-5 sm:p-6 bg-indigo-50/50 border-b border-indigo-100 flex justify-between items-center shrink-0">
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-black flex items-center gap-2">
-                    <ArrowRightLeft size={22} className="text-blue-400" /> Reallocate Stock
+                  <h2 className="text-xl sm:text-2xl font-pmedium text-indigo-900 flex items-center gap-2">
+                    <ArrowRightLeft size={22} className="text-indigo-600" /> Reallocate Stock
                   </h2>
-                  <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">From: {activeInventoryItem.department}</p>
+                  <p className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-widest mt-2">From: {activeInventoryItem.department}</p>
                 </div>
-                <button onClick={() => setIsTransferStockOpen(false)} className="p-2 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors">
-                  <X size={18} />
+                <button onClick={() => setIsTransferStockOpen(false)} className="w-10 h-10 bg-white hover:bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-all">
+                  <X size={18} strokeWidth={2.5} />
                 </button>
               </div>
 
-              <div className="p-5 sm:p-8 overflow-y-auto space-y-6">
+              <div className="p-5 sm:p-6 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden space-y-6">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Target Department</label>
                   <div className="relative">
@@ -722,16 +724,16 @@ export function InventoryPage() {
                 </div>
               </div>
 
-              <div className="p-5 sm:p-8 bg-slate-50 border-t border-slate-100 flex gap-3 shrink-0">
-                <button onClick={() => setIsTransferStockOpen(false)} className="flex-1 py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-600 hover:bg-slate-50 shadow-sm transition-colors text-[12px]">
-                  CANCEL
+              <div className="p-4 sm:p-6 border-t border-slate-100 bg-white shrink-0 flex gap-3">
+                <button onClick={() => setIsTransferStockOpen(false)} className="flex-1 py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">
+                  Cancel
                 </button>
                 <button
                   onClick={handleTransferStock}
                   disabled={isTransferring || !transferData.targetDepartment || !transferData.quantity || parseInt(transferData.quantity) > activeInventoryItem.availableQuantity || parseInt(transferData.quantity) <= 0}
-                  className="flex-1 py-3.5 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-black shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:shadow-none transition-all text-[12px] uppercase tracking-wider"
+                  className="flex-1 py-3.5 bg-indigo-600 text-white rounded-xl font-bold shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:bg-indigo-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {isTransferring ? 'TRANSFERRING...' : 'CONFIRM TRANSFER'}
+                  {isTransferring ? 'Transferring...' : 'Confirm Transfer'}
                 </button>
               </div>
             </motion.div>
@@ -742,28 +744,29 @@ export function InventoryPage() {
         {viewingItem && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm"
+            className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm"
           >
             <motion.div
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
-              className="bg-white rounded-t-4xl sm:rounded-4xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] sm:max-h-[85vh]"
+              className="bg-white/95 backdrop-blur-xl w-full max-w-xl h-[85vh] sm:h-auto sm:max-h-[90vh] rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col"
             >
-              <div className="p-5 sm:p-8 border-b border-slate-100 flex justify-between items-start bg-slate-50/80 shrink-0">
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0" />
+              <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-start shrink-0">
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-black text-[#0F172A]">{viewingItem.name}</h2>
+                  <h2 className="text-xl sm:text-2xl font-pmedium text-[#0F172A] leading-tight pr-8">{viewingItem.name}</h2>
                   <div className="flex items-center gap-2 mt-2">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-white border border-slate-200 px-2.5 py-1 rounded shadow-sm">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-50 border border-slate-200 px-2.5 py-1 rounded shadow-sm">
                       Dept: {viewingItem.department}
                     </span>
                   </div>
                 </div>
-                <button onClick={() => setViewingItem(null)} className="p-2 bg-white border border-slate-200 rounded-full text-slate-400 hover:text-slate-800 shadow-sm transition-colors">
-                  <X size={18} />
+                <button onClick={() => setViewingItem(null)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 shadow-sm transition-all absolute top-5 sm:top-6 md:top-8 right-5 sm:right-6 md:right-8">
+                  <X size={18} strokeWidth={2.5} />
                 </button>
               </div>
 
-              <div className="p-5 sm:p-8 overflow-y-auto space-y-6 bg-white min-h-[200px]">
+              <div className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-1 space-y-6 [&::-webkit-scrollbar]:hidden bg-slate-50/30 min-h-[200px]">
                 <h3 className="text-[11px] font-black text-[#2563EB] uppercase tracking-widest flex items-center gap-2 pb-3 border-b border-slate-100">
                   <History size={15} /> Department Ledger Audit
                 </h3>
