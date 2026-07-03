@@ -1327,7 +1327,7 @@ export default function AccessGrantsPage() {
               <button
                 key={role}
                 onClick={() => setSelectedRole(role)}
-                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
                   selectedRole === role
                     ? 'bg-[#2563EB] text-white shadow-sm'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'

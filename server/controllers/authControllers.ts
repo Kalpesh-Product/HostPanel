@@ -6,6 +6,7 @@ import Company from "../models/Company.js";
 import Otp from "../models/Otp.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
 import Workspace from "../models/Workspace.js";
+import EmployeeProfile from "../models/EmployeeProfile.js";
 import { sendMail } from "../config/mailer.js";
 import crypto from "crypto";
 import { TenantCompany } from "../models/TenantCompany.js";
@@ -14,6 +15,7 @@ import {
   resolveAccessibleWorkspaceMemberships,
   resolveActiveWorkspaceMembership,
 } from "../utils/resolveMembership.js";
+import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
 
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[\d\W]).+$/;
 
@@ -1079,6 +1081,51 @@ export const verifyRegisterOtpAndComplete = async (req, res, next) => {
     user.inviteStatus = "registered";
     user.registeredAt = new Date();
     await user.save();
+
+    if (decoded?.inviteType === "workspace-employee" && decoded?.workspaceId) {
+      const workspace = await Workspace.findById(decoded.workspaceId).lean().exec();
+      if (workspace?._id) {
+        const profile = await EmployeeProfile.findOne({
+          workspaceId: workspace._id,
+          email: normalizeInviteEmail(email),
+        }).lean().exec();
+
+        if (profile) {
+          const profileRole = profile.workspaceRole || null;
+          const profileDepartments = Array.isArray(profile.departments) ? profile.departments.filter(Boolean) : [];
+          await WorkspaceMember.findOneAndUpdate(
+            { workspace: workspace._id, user: user._id },
+            {
+              $set: {
+                workspace: workspace._id,
+                user: user._id,
+                role: profileRole,
+                departments: profileDepartments,
+                status: "active",
+                isPrimary: true,
+                isActive: true,
+              },
+            },
+            { upsert: true, new: true, setDefaultsOnInsert: true },
+          ).exec();
+        }
+      }
+    }
+
+    const linkedMemberships = await WorkspaceMember.find({ user: user._id })
+      .populate("role")
+      .populate("departments")
+      .exec();
+    for (const membership of linkedMemberships) {
+      const membershipWorkspace = await Workspace.findById(membership.workspace).lean().exec();
+      if (!membershipWorkspace) continue;
+      await ensureEmployeeProfileForMember({
+        workspace: membershipWorkspace,
+        member: membership,
+        user,
+      });
+    }
+
     await Otp.updateOne({ _id: otpRecord._id }, { $set: { isUsed: true } });
 
     return res.status(200).json({

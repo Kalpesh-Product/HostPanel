@@ -587,7 +587,7 @@ function HousekeepingPageInner() {
           <div className="flex flex-col gap-4">
 
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="mb-3 flex items-center justify-between">
             <div>
               <h1 className="text-title font-pmedium text-primary uppercase">Housekeeping</h1>
               <p className="text-xs font-medium text-slate-500 mt-1">

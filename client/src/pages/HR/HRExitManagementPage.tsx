@@ -487,7 +487,7 @@ export function HRExitManagementPage() {
         <div className="flex flex-col gap-4">
 
           {/* ── Header ── */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-3">
+          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Exit Management

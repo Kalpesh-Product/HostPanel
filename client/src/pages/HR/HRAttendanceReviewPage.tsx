@@ -615,7 +615,7 @@ export default function HRAttendanceReviewPage() {
         <div className="flex flex-col gap-4">
 
           {/* ── Header ── */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Attendance Review
@@ -627,7 +627,7 @@ export default function HRAttendanceReviewPage() {
           </div>
 
           {/* ── Main Tabs (pill-style) ── */}
-          <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {MAIN_TABS.map((tab) => (
               <button
                 key={tab.key}

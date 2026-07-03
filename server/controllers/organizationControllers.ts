@@ -15,6 +15,7 @@ import {
   ORGANIZATION_PERMISSION_KEYS,
 } from "../config/organizationPermissionMap.js";
 import { resolveMembershipByWorkspace } from "../utils/resolveMembership.js";
+import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
 
 const DEFAULT_DEPARTMENTS = [
   { name: "HR", description: "People operations and hiring", isActive: true },
@@ -657,6 +658,11 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
       await HostUser.findByIdAndUpdate(member.user, { refreshToken: "" }).exec();
     }
 
+    await ensureEmployeeProfileForMember({
+      workspace,
+      member,
+    });
+
     return res.status(200).json({ message: "Member status updated successfully." });
   } catch (error) {
     next(error);
@@ -783,7 +789,7 @@ export const inviteOrganizationMember = async (req, res, next) => {
 
     const isExistingRegisteredUser = !isFreshInviteAccount && !!targetUser.password;
 
-    await WorkspaceMember.findOneAndUpdate(
+    const workspaceMember = await WorkspaceMember.findOneAndUpdate(
       { workspace: workspace._id, user: targetUser._id },
       {
         $set: {
@@ -796,6 +802,12 @@ export const inviteOrganizationMember = async (req, res, next) => {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
+
+    await ensureEmployeeProfileForMember({
+      workspace,
+      member: workspaceMember,
+      user: targetUser,
+    });
 
     if (!isExistingRegisteredUser) {
       targetUser.inviteStatus = "invite_sent";
@@ -1029,6 +1041,11 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
     }
     await member.save();
 
+    await ensureEmployeeProfileForMember({
+      workspace,
+      member,
+    });
+
     return res.status(200).json({ message: "Member role updated successfully." });
   } catch (error) {
     next(error);
@@ -1166,7 +1183,7 @@ export const transferOrganizationMember = async (req, res, next) => {
       }
     }
 
-    await WorkspaceMember.findOneAndUpdate(
+    const transferredMembership = await WorkspaceMember.findOneAndUpdate(
       { workspace: targetWorkspace._id, user: member.user },
       {
         $set: {
@@ -1188,6 +1205,12 @@ export const transferOrganizationMember = async (req, res, next) => {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
+
+    await ensureEmployeeProfileForMember({
+      workspace: targetWorkspace,
+      member: transferredMembership,
+      user: await HostUser.findById(member.user).exec(),
+    });
 
     member.isActive = false;
     member.status = "disabled";
@@ -1221,7 +1244,7 @@ export const linkOrganizationMember = async (req, res, next) => {
     });
     if (!targetWorkspace) return res.status(404).json({ message: "Target workspace not found." });
 
-    await WorkspaceMember.findOneAndUpdate(
+    const linkedMembership = await WorkspaceMember.findOneAndUpdate(
       { workspace: targetWorkspace._id, user: member.user },
       {
         $set: {
@@ -1234,6 +1257,12 @@ export const linkOrganizationMember = async (req, res, next) => {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
+
+    await ensureEmployeeProfileForMember({
+      workspace: targetWorkspace,
+      member: linkedMembership,
+      user: await HostUser.findById(member.user).exec(),
+    });
 
     return res.status(200).json({ message: "Workspace access added successfully." });
   } catch (error) {
@@ -1291,20 +1320,30 @@ export const transferOrganizationOwnership = async (req, res, next) => {
     if (previousOwner) {
       previousOwner.role = "super_admin";
       await previousOwner.save();
-      await WorkspaceMember.findOneAndUpdate(
+      const previousOwnerMembership = await WorkspaceMember.findOneAndUpdate(
         { workspace: workspace._id, user: previousOwner._id },
         { $set: { role: superAdminRole._id, isActive: true, status: "joined" } },
         { upsert: true, new: true, setDefaultsOnInsert: true },
       );
+      await ensureEmployeeProfileForMember({
+        workspace,
+        member: previousOwnerMembership,
+        user: previousOwner,
+      });
     }
 
     nextOwner.role = "owner";
     await nextOwner.save();
-    await WorkspaceMember.findOneAndUpdate(
+    const nextOwnerMembership = await WorkspaceMember.findOneAndUpdate(
       { workspace: workspace._id, user: nextOwner._id },
       { $set: { role: ownerRole._id, isActive: true, status: "joined" } },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
+    await ensureEmployeeProfileForMember({
+      workspace,
+      member: nextOwnerMembership,
+      user: nextOwner,
+    });
 
     return res.status(200).json({ message: "Founder access transferred successfully." });
   } catch (error) {
