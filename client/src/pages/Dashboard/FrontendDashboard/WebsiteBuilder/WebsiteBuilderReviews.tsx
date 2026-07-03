@@ -6,14 +6,9 @@ import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { format, isValid } from "date-fns";
-import axios from "axios";
 import PageFrame from "../../../../components/Pages/PageFrame";
 import useAuth from "../../../../hooks/useAuth";
-
-const nomadsAxios = axios.create({
-  baseURL: "https://wononomadsbe.vercel.app",
-  timeout: 10_000,
-});
+import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 
 const STATUSES = ["pending", "approved", "rejected"];
 const REVIEW_CACHE_KEY = "wbr_review_cache";
@@ -44,6 +39,7 @@ export default function WebsiteBuilderReviews() {
   const selectedCompany = useSelector((state) => state.company.selectedCompany);
   const { auth } = useAuth();
   const queryClient = useQueryClient();
+  const axiosPrivate = useAxiosPrivate();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [stageFilter, setStageFilter] = useState("all");
@@ -53,13 +49,14 @@ export default function WebsiteBuilderReviews() {
   const companyId = (selectedCompany?.companyId ?? auth?.user?.companyId ?? "").trim();
   const workspaceId = (selectedCompany?.workspaceId ?? auth?.user?.primaryWorkspace ?? auth?.user?.workspaceId ?? "").trim();
 
-  const queryParam = companyId ? { companyId } : workspaceId ? { workspaceId } : null;
-
   const { data: rawData, isPending, isError } = useQuery({
     queryKey: ["websiteReviews", companyId, workspaceId],
-    enabled: queryParam !== null,
+    enabled: !!(companyId || workspaceId),
     queryFn: async () => {
-      const res = await nomadsAxios.get("/api/review/", { params: queryParam });
+      const params = {};
+      if (companyId) params.companyId = companyId;
+      if (workspaceId) params.workspaceId = workspaceId;
+      const res = await axiosPrivate.get("/api/review", { params });
       const raw = res.data?.reviews ?? res.data?.data?.reviews ?? res.data?.data ?? res.data;
       return Array.isArray(raw) ? raw : [];
     },
@@ -80,7 +77,7 @@ export default function WebsiteBuilderReviews() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ reviewId, status }) => {
-      const res = await nomadsAxios.patch(`/api/review/website-review/${reviewId}`, { status });
+      const res = await axiosPrivate.patch(`/api/review/${reviewId}`, { status });
       return res.data;
     },
     onSuccess: (_data, { status, reviewId }) => {
@@ -164,7 +161,7 @@ export default function WebsiteBuilderReviews() {
     [reviews, selectedReviewId],
   );
 
-  if (queryParam === null) {
+  if (!companyId && !workspaceId) {
     return (
       <div className="p-2 lg:p-2.5">
         <PageFrame>
