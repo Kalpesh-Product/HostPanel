@@ -1194,28 +1194,112 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
             </div>
           </div>
         ) : (
-          (mappedSections.length > 0
-            ? (() => {
-              const hasKeyApps = mappedSections.some(s => s.key === "key-apps");
-              const hasDeptAccess = mappedSections.some(s => s.key === "department-accesses");
-              const sections = mappedSections.map(s => {
-                if (s.key === "key-apps") {
-                  return { ...s, items: [...s.items, ...keyAppsItems.filter(k => k.route && !k.disabled && !s.items.some(ex => ex.id === k.id))] };
+          (() => {
+            const rawSections = mappedSections.length > 0
+              ? (() => {
+                const hasKeyApps = mappedSections.some(s => s.key === "key-apps");
+                const hasDeptAccess = mappedSections.some(s => s.key === "department-accesses");
+                const sections = mappedSections.map(s => {
+                  if (s.key === "key-apps") {
+                    return { ...s, items: [...s.items, ...keyAppsItems.filter(k => k.route && !s.items.some(ex => ex.id === k.id))] };
+                  }
+                  if (s.key === "department-accesses") {
+                    return { ...s, items: [...s.items, ...departmentItems.filter(d => d.route || (d.children?.length && !s.items.some(ex => ex.id === d.id)))] };
+                  }
+                  return s;
+                });
+                if (!hasKeyApps) sections.push({ key: "key-apps", title: "Key Apps", items: keyAppsItems });
+                if (!hasDeptAccess) sections.push({ key: "department-accesses", title: "Department Accesses", items: departmentItems });
+                return sections;
+              })()
+              : [
+                { key: "company-settings", title: "Company Settings", items: companySettingsItems },
+                { key: "key-apps", title: "Key Apps", items: keyAppsItems },
+                { key: "department-accesses", title: "Department Accesses", items: departmentItems },
+              ];
+
+            // Recursively splits a node tree into its locked and unlocked halves,
+            // preserving group nesting (a group keeps the same expand/collapse
+            // shape on both sides, just with only its locked/unlocked children).
+            const splitLockedTree = (nodes: NavNode[]): { locked: NavNode[]; unlocked: NavNode[] } => {
+              const locked: NavNode[] = [];
+              const unlocked: NavNode[] = [];
+
+              for (const node of nodes) {
+                if (node.children?.length) {
+                  const child = splitLockedTree(node.children);
+
+                  // group node itself should appear in locked/unlocked only if it has locked/unlocked children
+                  if (child.locked.length > 0) {
+                    locked.push({ ...node, children: child.locked, defaultOpen: true });
+                  }
+                  if (child.unlocked.length > 0) {
+                    unlocked.push({ ...node, children: child.unlocked });
+                  }
+                } else if (node.disabled) {
+                  locked.push(node);
+                } else {
+                  unlocked.push(node);
                 }
+              }
+
+              return { locked, unlocked };
+            };
+
+            // New rule:
+            // - "Add-ons" should render ONLY the locked tree nodes.
+            // - "Department Accesses" (outside Add-ons) should render ONLY unlocked tree nodes.
+            // This prevents duplicate modules (locked items appearing in both places).
+
+            const { locked: lockedDepartmentItems, unlocked: unlockedDepartmentItems } = (() => {
+              const deptSection = rawSections.find((s) => s.key === "department-accesses");
+              if (!deptSection) return { locked: [] as NavNode[], unlocked: [] as NavNode[] };
+              return splitLockedTree(deptSection.items);
+            })();
+
+            const cleanedSections = rawSections
+              .map((s) => {
                 if (s.key === "department-accesses") {
-                  return { ...s, items: [...s.items, ...departmentItems.filter(d => d.route || (d.children?.length && !s.items.some(ex => ex.id === d.id)))] };
+                  // keep only unlocked in normal department tree
+                  return unlockedDepartmentItems.length > 0
+                    ? { ...s, items: unlockedDepartmentItems }
+                    : null;
                 }
+
+                if (s.key === "add-ons") {
+                  // replace add-ons with locked department tree (preserve department structure)
+                  return lockedDepartmentItems.length > 0
+                    ? { ...s, items: lockedDepartmentItems }
+                    : null;
+                }
+
+                // all other sections stay as-is
                 return s;
-              });
-              if (!hasKeyApps) sections.push({ key: "key-apps", title: "Key Apps", items: keyAppsItems });
-              if (!hasDeptAccess) sections.push({ key: "department-accesses", title: "Department Accesses", items: departmentItems });
-              return sections;
-            })()
-            : [
-              { key: "company-settings", title: "Company Settings", items: companySettingsItems },
-              { key: "key-apps", title: "Key Apps", items: keyAppsItems },
-              { key: "department-accesses", title: "Department Accesses", items: departmentItems },
-            ]).map((section) => (
+              })
+              .filter(Boolean) as Array<{ key: string; title: string; items: NavNode[] }>;
+
+            // if department has locked items but there is no existing add-ons section, create it
+            if (
+              lockedDepartmentItems.length > 0 &&
+              !cleanedSections.some((s) => s.key === "add-ons")
+            ) {
+              cleanedSections.push({ key: "add-ons", title: "Add-ons", items: lockedDepartmentItems });
+            }
+
+            // Re-order so Add-ons appears last (after Key Apps + Departments + other modules)
+            // while keeping the locked/unlocked split logic intact.
+            const reordered = [...cleanedSections].sort((a, b) => {
+              const aIsAddons = a.key === "add-ons";
+              const bIsAddons = b.key === "add-ons";
+              if (aIsAddons && !bIsAddons) return 1;
+              if (!aIsAddons && bIsAddons) return -1;
+              return 0;
+            });
+
+            return reordered;
+          })().map((section) => (
+
+
               <div key={section.key}>
                 {!collapsed ? (
                   <>

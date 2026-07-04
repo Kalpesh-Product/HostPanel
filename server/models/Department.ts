@@ -6,6 +6,7 @@ export interface IDepartment extends Document {
     workspaceId: mongoose.Types.ObjectId;
     managerUser?: mongoose.Types.ObjectId | null;
     moduleIds: string[];
+    managerOnlyModuleIds: string[];
     isActive: boolean;
     createdAt?: Date;
     updatedAt?: Date;
@@ -36,6 +37,13 @@ const departmentSchema = new Schema<IDepartment>(
             default: null,
         },
         moduleIds: {
+            type: [String],
+            default: [],
+        },
+        // Subset of moduleIds that only manager-band-and-above members of this
+        // department get by default (e.g. payroll approval within HR). Everyone
+        // else assigned to the department defaults to moduleIds minus this set.
+        managerOnlyModuleIds: {
             type: [String],
             default: [],
         },

@@ -197,6 +197,13 @@ export const EXTRA_COMMON_MODULE_IDS = [
   "reports",
 ];
 
+export const KEY_APPS_IDS = [
+  "visitor-management",
+  "website-builder",
+  "wono-nomad",
+  "website-leads",
+]
+
 export const getAllModuleIds = (): string[] => {
   const ids = new Set<string>();
   for (const section of MODULE_GROUPS) {
