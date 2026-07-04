@@ -2,9 +2,6 @@
 import mongoose from "mongoose";
 import { Inventory } from "../models/Inventory.js";
 
-// NOTE:
-// This is a minimal backend implementation to expose CRUD-like Inventory APIs.
-// Full UnitFlow behavior (workspace-member policies, ledger transfer rules) can be added later.
 
 function getUserId(userId) {
   return userId || null;

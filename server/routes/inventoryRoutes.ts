@@ -11,7 +11,6 @@ import {
 
 const router = express.Router();
 
-// inventoryId routes follow the UnitFlow-like naming used in the controller
 router.get("/", listInventory);
 router.post("/", createInventory);
 router.patch("/:inventoryId", updateInventory);
