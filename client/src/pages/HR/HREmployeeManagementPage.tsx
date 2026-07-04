@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import {
   Users, Search, UserPlus, Shield, Mail, Phone, Building, Briefcase,
@@ -14,14 +14,14 @@ import { toast } from "sonner";
 import PageFrame from "@/components/Pages/PageFrame";
 import { HREmployeeManagementSkeleton } from "@/components/ui/Skeleton";
 import { canAccessEmployeeModule, getStoredUser, normalizeUserRole } from "@/lib/auth-session";
-import { getDepartmentModules, getRoleModules } from "@/lib/owner-access";
+import { getAllDepartmentModules, getRoleModules } from "@/lib/owner-access";
 import { axiosPrivate } from "@/utils/axios";
 import {
   createEmployeeRecord, getEmployeeManagementOverview,
-  toggleEmployeeStatus as toggleEmployeeStatusRequest,
   updateEmployeeRecord as updateEmployeeRecordRequest,
   updateEmployeeAccessRequest,
 } from "@/services/hr";
+import { getRecruitmentOverview } from "@/services/recruitment";
 import { createReport } from "@/services/reports";
 import { downloadReportFile } from "@/utils/report-download";
 import { getCountries, getStates, getCities } from "@/utils/locationApi";
@@ -76,6 +76,7 @@ interface AccessFormState { role: string; departments: string[]; selectedModules
 interface JobTitleOption {
   jobCode: string; title: string; department: string; employmentType: string;
   remainingVacancies: number; internshipDurationMonths?: number; isPaid?: boolean;
+  designation?: string; label?: string;
 }
 
 interface BankBranchOption { bankName: string; branchName: string; ifscCode: string; }
@@ -90,6 +91,26 @@ interface EmployeeSummaryCard {
 }
 
 interface RequiredField { field: string; notes: string; }
+
+interface EmployeeAddPrefillData {
+  name?: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+  jobCode?: string;
+  jobTitle?: string;
+  designation?: string;
+  joinDate?: string;
+  joiningDate?: string;
+  department?: string;
+  departments?: string[];
+}
+
+interface EmployeeManagementRouteState {
+  openAddModal?: boolean;
+  prefillData?: EmployeeAddPrefillData;
+}
 
 /* ───────────────────────────── Constants ───────────────────────────── */
 
@@ -302,6 +323,7 @@ function normalizeEmployeeStatusKey(value: string = ""): string {
   if (v in EMPLOYEE_STATUS_LABELS) return v;
   if (v === "joined" || v === "onboarded") return "active";
   if (v === "left" || v === "resigned" || v === "fired") return "terminated";
+  if (v === "disabled") return "inactive";
   return "pending";
 }
 
@@ -391,7 +413,7 @@ function mapEmployeeToUi(employee: Record<string, unknown> = {}): Employee {
 }
 
 function getRoleCoreSectionsForEmployeeAccess(role: string = "", departments: string[] = []): Array<{ key: string; title: string; modules: Array<{ key: string; toggleId: string; label: string }> }> {
-  const allModuleKeys = getDepartmentModules();
+  const allModuleKeys = getAllDepartmentModules();
   const matchedDepts = departments.length > 0 ? departments : ["General"];
 
   if (role === "Founder" || role === "Super Admin") {
@@ -399,8 +421,8 @@ function getRoleCoreSectionsForEmployeeAccess(role: string = "", departments: st
       {
         key: "all-access", title: "Full Workspace Access",
         modules: allModuleKeys
-          .filter((m: { key: string; label: string }) => m && m.key)
-          .map((m: { key: string; label: string }) => ({ key: m.key, toggleId: `core_${m.key}`, label: m.label || m.key })),
+          .filter((m: { id: string; label: string }) => m && m.id)
+          .map((m: { id: string; label: string }) => ({ key: m.id, toggleId: `core_${m.id}`, label: m.label || m.id })),
       },
     ];
   }
@@ -408,24 +430,23 @@ function getRoleCoreSectionsForEmployeeAccess(role: string = "", departments: st
   const roleModules = getRoleModules(role);
   const roleModuleKeys = new Set(
     (Array.isArray(roleModules) ? roleModules : [])
-      .map((m: string | Record<string, unknown>) => (typeof m === "string" ? m : m?.key || m?.moduleKey || ""))
+      .map((m: string | Record<string, unknown>) => (typeof m === "string" ? m : (m as Record<string, string>)?.id || ""))
       .filter(Boolean),
   );
 
   const grouped: Record<string, { key: string; title: string; modules: Array<{ key: string; toggleId: string; label: string }> }> = {};
 
-  allModuleKeys.forEach((mod: { key: string; label: string }) => {
-    if (!mod || !mod.key) return;
-    const dept = matchedDepts.find((d) => String(mod.key).toLowerCase().includes(d.toLowerCase())) || "General";
+  allModuleKeys.forEach((mod: { id: string; label: string }) => {
+    if (!mod || !mod.id) return;
+    const dept = matchedDepts.find((d) => String(mod.id).toLowerCase().includes(d.toLowerCase())) || "General";
     if (!grouped[dept]) {
       const deptName = dept.charAt(0).toUpperCase() + dept.slice(1);
       grouped[dept] = { key: dept, title: `${deptName} Modules`, modules: [] };
     }
-    const isRoleModule = roleModuleKeys.has(mod.key) || roleModuleKeys.has(`module:${mod.key}`);
     grouped[dept].modules.push({
-      key: mod.key,
-      toggleId: `core_${mod.key}`,
-      label: mod.label || mod.key,
+      key: mod.id,
+      toggleId: `core_${mod.id}`,
+      label: mod.label || mod.id,
     });
   });
 
@@ -568,13 +589,13 @@ function DepartmentCheckboxDropdown({
 export default function HREmployeeManagementPage(): React.ReactElement {
   const isMountedRef = useRef(true);
   const navigate = useNavigate();
+  const location = useLocation();
   const [currentUser, setCurrentUser] = useState<Record<string, unknown> | null>(() => getStoredUser());
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [transferredEmployees, setTransferredEmployees] = useState<Employee[]>([]);
   const [availableDepartments, setAvailableDepartments] = useState<string[]>(DEFAULT_DEPARTMENT_OPTIONS);
-  const [jobTitleOptions, setJobTitleOptions] = useState<JobTitleOption[]>([]);
   const [bankNameOptions, setBankNameOptions] = useState<string[]>(() => mergeBankNameOptions());
   const [bankBranchOptions, setBankBranchOptions] = useState<BankBranchOption[]>(() => mergeBankBranchOptions());
   const [countryOptions, setCountryOptions] = useState<string[]>([]);
@@ -659,7 +680,6 @@ export default function HREmployeeManagementPage(): React.ReactElement {
           .filter(Boolean);
         setAvailableDepartments(filterValidDepartments([...DEFAULT_DEPARTMENT_OPTIONS, ...nextDepts]));
       }
-      setJobTitleOptions((overview.jobTitleOptions as JobTitleOption[]) || []);
       setBankNameOptions(mergeBankNameOptions((overview.bankNameOptions as string[]) || []));
       setBankBranchOptions(mergeBankBranchOptions((overview.bankBranchOptions as BankBranchOption[]) || []));
       if (!silent) setErrorMessage("");
@@ -772,12 +792,13 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     let isActive = true;
     const loadRecruitmentOpenings = async () => {
       try {
-        const response = await axiosPrivate.get("/api/recruitment/overview");
-        const overview = (response?.data?.data || response?.data || {}) as Record<string, unknown>;
+        const response = await getRecruitmentOverview();
+        const overview = (response || {}) as Record<string, unknown>;
         const openings = Array.isArray(overview.jobOpenings) ? overview.jobOpenings : [];
         const mapped = openings.map((opening: Record<string, unknown>) => ({
           jobCode: String(opening.jobCode || ""),
           title: String(opening.title || opening.position || ""),
+          designation: String(opening.designation || opening.title || opening.position || ""),
           department: String(opening.department || ""),
           employmentType: String(opening.employmentType || opening.employmentTypeLabel || "full-time"),
           remainingVacancies: Number(opening.remainingVacancies || opening.vacancies || 0),
@@ -787,15 +808,6 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
         if (isActive) {
           setRecruitmentJobOpenings(mapped);
-          setJobTitleOptions((prev) => {
-            const merged = new Map<string, JobTitleOption>();
-            [...prev, ...mapped].forEach((item) => {
-              const key = String(item.jobCode || item.title || "").trim();
-              if (!key) return;
-              merged.set(key, item);
-            });
-            return Array.from(merged.values());
-          });
         }
       } catch {
         if (isActive) setRecruitmentJobOpenings([]);
@@ -807,6 +819,41 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       isActive = false;
     };
   }, []);
+
+  useEffect(() => {
+    const routeState = (location.state || {}) as EmployeeManagementRouteState;
+    const prefill = routeState.prefillData;
+
+    if (!routeState.openAddModal && !prefill) {
+      return;
+    }
+
+    if (prefill) {
+      const nextDepartments = Array.isArray(prefill.departments)
+        ? prefill.departments.map((department) => String(department || "")).filter(Boolean)
+        : String(prefill.department || "").trim()
+          ? [String(prefill.department || "").trim()]
+          : [];
+
+      setAddForm((prev) => ({
+        ...prev,
+        fullName: String(prefill.fullName || prefill.name || prev.fullName || ""),
+        email: String(prefill.email || prev.email || ""),
+        phone: String(prefill.phone || prev.phone || ""),
+        role: String(prefill.role || prev.role || "Employee"),
+        jobCode: String(prefill.jobCode || prev.jobCode || ""),
+        jobTitle: String(prefill.jobTitle || prefill.designation || prev.jobTitle || ""),
+        joiningDate: String(prefill.joiningDate || prefill.joinDate || prev.joiningDate || ""),
+        departments: nextDepartments.length > 0 ? filterValidDepartments(nextDepartments) : prev.departments,
+      }));
+    }
+
+    if (routeState.openAddModal) {
+      setIsAddModalOpen(true);
+    }
+
+    void navigate(location.pathname + location.search, { replace: true, state: null });
+  }, [location.pathname, location.search, location.state, navigate]);
 
   useEffect(() => {
     const departments = filterValidDepartments(availableDepartments);
@@ -1377,14 +1424,13 @@ export default function HREmployeeManagementPage(): React.ReactElement {
         accessModules: accessForm.selectedModules,
         accessFeatures: [],
       });
-      if (response?.success) {
+      if (response) {
         setManagingAccessFor(null);
         loadEmployees({ silent: true });
-      } else {
-        toast.error(response?.message || "Failed to update access");
       }
     } catch (error: unknown) {
-      toast.error((error as Error)?.message || "Failed to update access");
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      toast.error(err?.response?.data?.message || err?.message || "Failed to update access");
     } finally {
       setIsSavingAccess(false);
     }
@@ -1447,22 +1493,14 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       toast.error("This employee is not linked to a workspace member yet.");
       return false;
     }
-    const defaultAccessModules = enabled
-      ? getRoleCoreSectionsForEmployeeAccess(employee.role || "Employee", employee.departments || [])
-          .flatMap((section) => section.modules.map((mod) => mod.key))
-      : [];
     try {
-      const response = await updateEmployeeAccessRequest(targetMemberId, {
-        accessModules: defaultAccessModules,
-        accessFeatures: [],
+      await axiosPrivate.patch(`/api/organization/members/${targetMemberId}/status`, {
+        action: enabled ? "enable" : "disable",
       });
-      if (response?.success) {
-        return true;
-      }
-      toast.error(response?.message || "Failed to update access");
-      return false;
+      return true;
     } catch (error: unknown) {
-      toast.error((error as Error)?.message || "Failed to update access");
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      toast.error(err?.response?.data?.message || err?.message || "Failed to update access");
       return false;
     }
   };
@@ -1487,10 +1525,10 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   };
 
   const getJobTitleSuggestions = (selectedDepartments: string[] = []): JobTitleOption[] => {
-    if (!Array.isArray(jobTitleOptions) || jobTitleOptions.length === 0) return [];
+    if (!Array.isArray(recruitmentJobOpenings) || recruitmentJobOpenings.length === 0) return [];
     const normalizedDepts = selectedDepartments.map((d) => String(d || "").trim()).filter(Boolean);
-    if (normalizedDepts.length === 0) return jobTitleOptions;
-    return jobTitleOptions.filter((o) => {
+    if (normalizedDepts.length === 0) return recruitmentJobOpenings;
+    return recruitmentJobOpenings.filter((o) => {
       const optDept = String(o?.department || "").trim();
       return !optDept || normalizedDepts.includes(optDept);
     });
@@ -1498,17 +1536,17 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
   const inviteJobTitleSuggestions = useMemo(
     () => getJobTitleSuggestions(inviteForm.departments),
-    [jobTitleOptions, inviteForm.departments],
+    [recruitmentJobOpenings, inviteForm.departments],
   );
 
   const addFormJobTitleSuggestions = useMemo(
     () => getJobTitleSuggestions(addForm.departments),
-    [jobTitleOptions, addForm.departments],
+    [recruitmentJobOpenings, addForm.departments],
   );
 
   const editJobTitleSuggestions = useMemo(
     () => getJobTitleSuggestions(editForm.departments),
-    [jobTitleOptions, editForm.departments],
+    [recruitmentJobOpenings, editForm.departments],
   );
 
   useEffect(() => {
@@ -1522,11 +1560,12 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     const currentOption = inviteJobTitleSuggestions.find((o) => o.jobCode === inviteForm.jobCode);
     if (!currentOption) return;
     setInviteForm((prev) => {
-      if (prev.jobCode === currentOption.jobCode && prev.jobTitle === currentOption.title) return prev;
+      const nextTitle = currentOption.designation || currentOption.title;
+      if (prev.jobCode === currentOption.jobCode && prev.jobTitle === nextTitle) return prev;
       const intMode = ["intern", "trainee"].includes(String(currentOption.employmentType || "").toLowerCase());
       return {
         ...prev, jobCode: currentOption.jobCode || "",
-        jobTitle: currentOption.title || "",
+        jobTitle: nextTitle || "",
         employmentType: currentOption.employmentType || prev.employmentType,
         internshipDurationMonths: intMode ? String(currentOption.internshipDurationMonths || prev.internshipDurationMonths || "6") : prev.internshipDurationMonths,
         internshipIsUnpaid: intMode ? currentOption.isPaid === false : false,
@@ -1547,11 +1586,12 @@ export default function HREmployeeManagementPage(): React.ReactElement {
     const currentOption = editJobTitleSuggestions.find((o) => o.jobCode === editForm.jobCode);
     if (!currentOption) return;
     setEditForm((prev) => {
-      if (prev.jobCode === currentOption.jobCode && prev.jobTitle === currentOption.title) return prev;
+      const nextTitle = currentOption.designation || currentOption.title;
+      if (prev.jobCode === currentOption.jobCode && prev.jobTitle === nextTitle) return prev;
       const intMode = ["intern", "trainee"].includes(String(currentOption.employmentType || "").toLowerCase());
       return {
         ...prev, jobCode: currentOption.jobCode || "",
-        jobTitle: currentOption.title || "",
+        jobTitle: nextTitle || "",
         employmentType: currentOption.employmentType || prev.employmentType,
         internshipDurationMonths: intMode ? String(currentOption.internshipDurationMonths || prev.internshipDurationMonths || "6") : prev.internshipDurationMonths,
         internshipIsUnpaid: intMode ? currentOption.isPaid === false : false,
@@ -1598,6 +1638,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
       emergencyContactName: form.emergencyContactName,
       emergencyContactPhone: form.emergencyContactPhone,
       jobTitle: form.jobTitle, jobCode: form.jobCode,
+      designation: form.jobTitle,
       departments,
       departmentNames: departments,
       workspaceRole: mapRoleLabelToValue(form.role),
@@ -1628,19 +1669,24 @@ export default function HREmployeeManagementPage(): React.ReactElement {
   };
 
   const getStatusBadge = (status: string) => {
-    const info = getStatusInfo(status);
-    return (
-      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${info.color}`}>
-        {status === "active" && <UserCheck size={12} />}
-        {status === "inactive" && <UserX size={12} />}
-        {status === "terminated" && <Ban size={12} />}
-        {status === "pending" && <Clock size={12} />}
-        {status === "invite_sent" && <Mail size={12} />}
-        {status === "registered" && <UserCheck size={12} />}
-        {status === "probation" && <AlertCircle size={12} />}
-        {info.label}
-      </span>
-    );
+    switch (status) {
+      case 'active':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50"><UserCheck size={12}/>Joined</span>;
+      case 'inactive':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-rose-600 bg-rose-50"><Ban size={12}/>Disabled</span>;
+      case 'terminated':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-rose-600 bg-rose-50"><Ban size={12}/>Terminated</span>;
+      case 'pending':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50"><Clock size={12}/>Pending</span>;
+      case 'invite_sent':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50"><Mail size={12}/>Invite Sent</span>;
+      case 'registered':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50"><UserCheck size={12}/>Registered</span>;
+      case 'probation':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-purple-600 bg-purple-50"><AlertCircle size={12}/>Probation</span>;
+      default:
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-100">{status || 'Unknown'}</span>;
+    }
   };
 
   const employeeViewRows = useMemo(
@@ -2335,45 +2381,104 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                               </td>
                               <td className="px-5 py-4">
                                 {(() => {
-                                  const isAccessLockedByStatus = ["invite_sent", "registered"].includes(emp.statusKey);
+                                  const statusKey = emp.statusKey;
+
+                                  if (statusKey === "invite_sent") {
+                                    return (
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50">
+                                        <Clock size={12} /> Access Pending
+                                      </span>
+                                    );
+                                  }
+
+                                  if (statusKey === "registered") {
+                                    return (
+                                      <div className="flex flex-col items-start gap-1">
+                                        <label className="inline-flex items-center gap-2 cursor-not-allowed select-none">
+                                          <input type="checkbox" checked={true} disabled={true} className="sr-only peer" />
+                                          <span className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors bg-blue-500 opacity-60">
+                                            <span className="absolute left-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow translate-x-5" />
+                                          </span>
+                                        </label>
+                                        <span className="text-[10px] font-bold text-blue-600">Access Pending</span>
+                                      </div>
+                                    );
+                                  }
+
                                   const currentUserId = String(currentUser?.id || currentUser?._id || "").trim();
                                   const currentUserEmail = String(currentUser?.email || "").trim().toLowerCase();
                                   const isCurrentLoggedInEmployee =
                                     Boolean(currentUserId && String(emp.userId || "").trim() === currentUserId) ||
                                     Boolean(currentUserEmail && String(emp.email || "").trim().toLowerCase() === currentUserEmail);
                                   const accessTargetId = String(emp.linkedWorkspaceMemberId || "").trim();
-                                  const isAccessEnabled = accessToggleOverrides[emp.id] ?? ["active", "probation"].includes(emp.statusKey);
+
+                                  if (!accessTargetId && !isCurrentLoggedInEmployee) {
+                                    return (
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50">
+                                        <Lock size={12} /> Not Linked
+                                      </span>
+                                    );
+                                  }
+
+                                  if (statusKey === "pending") {
+                                    return (
+                                      <div className="flex flex-col items-start gap-1">
+                                        <label className="inline-flex items-center gap-2 cursor-not-allowed select-none">
+                                          <input type="checkbox" checked={false} disabled={true} className="sr-only peer" />
+                                          <span className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors bg-amber-400 opacity-60">
+                                            <span className="absolute left-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow translate-x-0" />
+                                          </span>
+                                        </label>
+                                        <span className="text-[10px] font-bold text-amber-600">Access Pending</span>
+                                      </div>
+                                    );
+                                  }
+
+                                  const isSelfLocked = isCurrentLoggedInEmployee;
+                                  const isOrgActive = statusKey === "active" || statusKey === "probation";
+                                  const hasModules = Array.isArray(emp.permissions?.modules) && emp.permissions.modules.length > 0;
+                                  const storedAccessEnabled = isOrgActive ? (hasModules || true) : false;
+                                  const isAccessEnabled = accessToggleOverrides[emp.id] ?? storedAccessEnabled;
                                   const isAccessSaving = accessTogglePendingEmployeeId === emp.id;
-                                  const trackClass = isAccessLockedByStatus
-                                    ? "bg-amber-400"
+
+                                  const isToggleLocked = isSelfLocked;
+                                  const trackClass = isSelfLocked
+                                    ? "bg-slate-300"
                                     : isAccessEnabled
                                       ? "bg-emerald-500"
                                       : "bg-rose-500";
+                                  let labelText = isSelfLocked ? "Self Protected" : isAccessEnabled ? "Access On" : "Access Off";
+                                  let labelColor = isSelfLocked ? "text-slate-500" : isAccessEnabled ? "text-emerald-600" : "text-rose-600";
                                   return (
-                                    <label className={`inline-flex items-center gap-2 ${isAccessLockedByStatus || isAccessSaving || isCurrentLoggedInEmployee || !accessTargetId ? "cursor-not-allowed" : "cursor-pointer"} select-none`}>
-                                      <input
-                                        type="checkbox"
-                                        checked={isAccessEnabled}
-                                        disabled={isAccessLockedByStatus || isAccessSaving || isCurrentLoggedInEmployee || !accessTargetId}
-                                        onChange={async (e) => {
-                                          const nextEnabled = e.target.checked;
-                                          setAccessToggleOverrides((prev) => ({ ...prev, [emp.id]: nextEnabled }));
-                                          setAccessTogglePendingEmployeeId(emp.id);
-                                          const ok = await updateEmployeeAccessState(emp, nextEnabled);
-                                          if (!ok) {
-                                            setAccessToggleOverrides((prev) => ({ ...prev, [emp.id]: !nextEnabled }));
-                                          }
-                                          await loadEmployees({ silent: true });
-                                          setAccessTogglePendingEmployeeId("");
-                                        }}
-                                        className="sr-only peer"
-                                      />
-                                      <span className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${trackClass} ${isAccessSaving ? "opacity-80" : ""}`}>
-                                        <span className={`absolute left-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow transition-transform ${isAccessEnabled ? "translate-x-5" : "translate-x-0"}`}>
-                                          {isAccessSaving ? <Loader2 size={10} className="animate-spin text-slate-400" /> : null}
+                                    <div className="flex flex-col items-start gap-1">
+                                      <label className={`inline-flex items-center gap-2 ${isToggleLocked || isAccessSaving ? "cursor-not-allowed" : "cursor-pointer"} select-none`}>
+                                        <input
+                                          type="checkbox"
+                                          checked={isAccessEnabled}
+                                          disabled={isToggleLocked || isAccessSaving}
+                                          onChange={async (e) => {
+                                            const nextEnabled = e.target.checked;
+                                            setAccessToggleOverrides((prev) => ({ ...prev, [emp.id]: nextEnabled }));
+                                            setAccessTogglePendingEmployeeId(emp.id);
+                                            const ok = await updateEmployeeAccessState(emp, nextEnabled);
+                                            if (ok) {
+                                              toast.success(nextEnabled ? "Access enabled" : "Access disabled");
+                                            } else {
+                                              setAccessToggleOverrides((prev) => ({ ...prev, [emp.id]: !nextEnabled }));
+                                            }
+                                            await loadEmployees({ silent: true });
+                                            setAccessTogglePendingEmployeeId("");
+                                          }}
+                                          className="sr-only peer"
+                                        />
+                                        <span className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${trackClass} ${isAccessSaving ? "opacity-80" : ""}`}>
+                                          <span className={`absolute left-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow transition-transform ${isAccessEnabled ? "translate-x-5" : "translate-x-0"}`}>
+                                            {isAccessSaving ? <Loader2 size={10} className="animate-spin text-slate-400" /> : null}
+                                          </span>
                                         </span>
-                                      </span>
-                                    </label>
+                                      </label>
+                                      <span className={`text-[10px] font-bold ${labelColor}`}>{labelText}</span>
+                                    </div>
                                   );
                                 })()}
                               </td>
@@ -2673,7 +2778,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                         setEditForm((p) => ({
                           ...p,
                           jobCode: e.target.value,
-                          jobTitle: selected?.title || p.jobTitle,
+                          jobTitle: selected?.designation || selected?.title || p.jobTitle,
                           employmentType: selected?.employmentType || p.employmentType,
                         }));
                       }}
@@ -2682,7 +2787,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       <option value="">Select from recruitment</option>
                       {editJobTitleSuggestions.map((job) => (
                         <option key={job.jobCode || job.title} value={job.jobCode}>
-                          {job.title} {job.jobCode ? `(${job.jobCode})` : ""} {job.department ? `- ${job.department}` : ""}
+                          {(job.designation || job.title)} {job.jobCode ? `(${job.jobCode})` : ""} {job.department ? `- ${job.department}` : ""}
                         </option>
                       ))}
                     </select>
@@ -3039,7 +3144,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                         const selected = addFormJobTitleSuggestions.find((o) => o.jobCode === e.target.value) || null;
                         handleAddFieldChange("jobCode", e.target.value);
                         if (selected) {
-                          handleAddFieldChange("jobTitle", selected.title);
+                          handleAddFieldChange("jobTitle", selected.designation || selected.title);
                           handleAddFieldChange("employmentType", selected.employmentType || addForm.employmentType);
                         }
                       }}
@@ -3048,7 +3153,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       <option value="">Select from recruitment</option>
                       {addFormJobTitleSuggestions.map((job) => (
                         <option key={job.jobCode || job.title} value={job.jobCode}>
-                          {job.title} {job.jobCode ? `(${job.jobCode})` : ""} {job.department ? `- ${job.department}` : ""}
+                          {(job.designation || job.title)} {job.jobCode ? `(${job.jobCode})` : ""} {job.department ? `- ${job.department}` : ""}
                         </option>
                       ))}
                     </select>

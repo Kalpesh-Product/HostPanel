@@ -269,6 +269,28 @@ export function HRRecruitmentSkeleton() {
   );
 }
 
+export function HRDocumentsSkeleton() {
+  return (
+    <div className="animate-pulse space-y-6 p-6">
+      <div className="flex items-center gap-4">
+        <div className="h-12 w-12 rounded-2xl bg-gray-200" />
+        <div className="space-y-2">
+          <div className="h-5 w-48 rounded-full bg-gray-200" />
+          <div className="h-4 w-64 rounded-full bg-gray-100" />
+        </div>
+      </div>
+      <div className="h-10 rounded-2xl bg-gray-100 w-96" />
+      <div className="grid grid-cols-3 gap-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="h-24 rounded-3xl bg-gray-100" />
+        ))}
+      </div>
+      <div className="h-12 rounded-3xl bg-gray-100" />
+      <div className="h-96 rounded-[2.5rem] bg-gray-100" />
+    </div>
+  );
+}
+
 export function HRPayrollSkeleton() {
   return (
     <div className="animate-pulse space-y-6 p-6">
@@ -286,6 +308,27 @@ export function HRPayrollSkeleton() {
         ))}
       </div>
       <div className="h-12 rounded-3xl bg-gray-100" />
+      <div className="h-96 rounded-[2.5rem] bg-gray-100" />
+    </div>
+  );
+}
+
+export function OrganizationSkeleton() {
+  return (
+    <div className="animate-pulse space-y-6 p-6">
+      <div className="flex items-center gap-4">
+        <div className="h-12 w-12 rounded-2xl bg-gray-200" />
+        <div className="space-y-2">
+          <div className="h-5 w-48 rounded-full bg-gray-200" />
+          <div className="h-4 w-64 rounded-full bg-gray-100" />
+        </div>
+      </div>
+      <div className="grid grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-24 rounded-[2rem] bg-gray-100" />
+        ))}
+      </div>
+      <div className="h-10 rounded-2xl bg-gray-100 w-80" />
       <div className="h-96 rounded-[2.5rem] bg-gray-100" />
     </div>
   );

@@ -15,6 +15,9 @@ import {
   UserCheck,
   UserCog,
   Crown,
+  Clock,
+  UserX,
+  Mail,
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
 import useAxiosPrivate from '../../hooks/useAxiosPrivate';
@@ -43,6 +46,7 @@ interface MappedMember {
   userId: string | null;
   name: string;
   email: string;
+  employeeId: string;
   rawRole: string;
   role: string;
   roleGroup: string;
@@ -360,6 +364,23 @@ function getInitials(name = '') {
     .toUpperCase();
 }
 
+function getStatusBadge(status: string) {
+  switch ((status || '').toLowerCase()) {
+    case 'joined':
+      return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50"><UserCheck size={12}/>Active</span>;
+    case 'accepted':
+      return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50"><UserCheck size={12}/>Accepted</span>;
+    case 'pending':
+      return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50"><Clock size={12}/>Pending</span>;
+    case 'invited':
+      return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50"><Mail size={12}/>Invited</span>;
+    case 'disabled':
+      return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-50"><UserX size={12}/>Disabled</span>;
+    default:
+      return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-100">{status || 'Unknown'}</span>;
+  }
+}
+
 function getDepartmentLabel(member: { departmentNames?: string[]; departments?: string[] } = {}) {
   const departments = Array.isArray(member.departmentNames) && member.departmentNames.length > 0
     ? member.departmentNames
@@ -380,6 +401,7 @@ function mapOverviewMember(member: Record<string, unknown> = {}): MappedMember {
     userId: (member.userId as string) || null,
     name: String(member.name || member.fullName || 'Unknown'),
     email: String(member.email || ''),
+    employeeId: String(member.employeeId || ''),
     rawRole: String(member.role || 'employee'),
     role: getRoleLabel(String(member.role || '')),
     roleGroup: getRoleGroup(String(member.role || '')),
@@ -597,6 +619,7 @@ export default function AccessGrantsPage() {
         !normalizedSearch ||
         user.name.toLowerCase().includes(normalizedSearch) ||
         user.email.toLowerCase().includes(normalizedSearch) ||
+        user.employeeId.toLowerCase().includes(normalizedSearch) ||
         user.department.toLowerCase().includes(normalizedSearch) ||
         user.role.toLowerCase().includes(normalizedSearch);
 
@@ -1441,10 +1464,12 @@ export default function AccessGrantsPage() {
               <table className="w-full text-left">
                 <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
-                    <th className="px-5 py-4">Platform User</th>
-                    <th className="px-5 py-4">Access Role</th>
-                    <th className="px-5 py-4">Department</th>
-                    <th className="px-5 py-4">Status</th>
+                    <th className="px-5 py-4 text-left">Employee ID</th>
+                    <th className="px-5 py-4 text-left">Platform User</th>
+                    <th className="px-5 py-4 text-left">Email</th>
+                    <th className="px-5 py-4 text-left">Access Role</th>
+                    <th className="px-5 py-4 text-left">Department</th>
+                    <th className="px-5 py-4 text-center">Status</th>
                     <th className="px-5 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -1473,17 +1498,20 @@ export default function AccessGrantsPage() {
                       return (
                         <tr key={user.id} className="hover:bg-slate-50/50 transition-colors group">
                           <td className="px-5 py-4">
+                            <span className="font-bold text-slate-800 text-[12px]">{user.employeeId || '—'}</span>
+                          </td>
+                          <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
-                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-[10px] shadow-sm shrink-0 ${
-                                user.roleGroup === 'Founder' ? 'bg-[#111827]' : 'bg-gradient-to-br from-[#2563EB] to-blue-700'
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-bold shadow-sm shrink-0 ${
+                                user.roleGroup === 'Founder' ? 'bg-[#111827] text-white' : 'bg-[#2563EB] text-white'
                               }`}>
                                 {getInitials(user.name)}
                               </div>
-                              <div className="min-w-0">
-                                <div className="font-bold text-[11px] text-slate-900 truncate">{user.name}</div>
-                                <div className="text-[10px] font-medium text-slate-500 truncate">{user.email}</div>
-                              </div>
+                              <span className="font-semibold text-slate-800 text-[12px]">{user.name}</span>
                             </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="text-[11px] font-medium text-slate-500">{user.email}</span>
                           </td>
                           <td className="px-5 py-4">{getRoleBadge(user.roleGroup)}</td>
                           <td className="px-5 py-4">
@@ -1493,16 +1521,8 @@ export default function AccessGrantsPage() {
                               ))}
                             </div>
                           </td>
-                          <td className="px-5 py-4">
-                            <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.14em] w-max ${
-                              user.status === 'joined' ? 'bg-emerald-100 text-emerald-700' :
-                              user.status === 'disabled' ? 'bg-slate-200 text-slate-700' :
-                              user.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                              user.status === 'invited' ? 'bg-violet-100 text-violet-700' :
-                              'bg-slate-100 text-slate-600'
-                            }`}>
-                              {user.status === 'joined' ? 'Active' : user.status}
-                            </span>
+                          <td className="px-5 py-4 text-center">
+                            {getStatusBadge(user.status)}
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-end gap-2">
@@ -1541,7 +1561,7 @@ export default function AccessGrantsPage() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={5} className="text-center py-20 text-slate-400 font-semibold">
+                      <td colSpan={7} className="text-center py-20 text-slate-400 font-semibold">
                         No members found.
                       </td>
                     </tr>

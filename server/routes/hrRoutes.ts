@@ -8,6 +8,7 @@ import {
   toggleEmployeeStatus,
   updateEmployeeRecord,
 } from "../controllers/hrControllers.js";
+import recruitmentRoutes from "./recruitmentRoutes.js";
 import upload from "../config/multerConfig.js";
 
 const router = Router();
@@ -27,5 +28,6 @@ router.post(
 router.post("/employees", createEmployeeRecord);
 router.patch("/employees/:employeeId", updateEmployeeRecord);
 router.patch("/employees/:employeeId/toggle-status", toggleEmployeeStatus);
+router.use("/recruitment", recruitmentRoutes);
 
 export default router;

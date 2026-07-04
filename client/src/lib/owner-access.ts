@@ -54,6 +54,8 @@ export const getDepartmentLabel = (key = "") =>
 
 export const getSharedSectionModules = (_section: string, _departmentKey: string) => SHARED_MODULES;
 export const getDepartmentModules = (departmentKey: string) => CORE_MODULES[departmentKey] || [];
+export const getAllDepartmentModules = () =>
+  OWNER_DEPARTMENT_CATALOG.flatMap((dept) => CORE_MODULES[dept.key] || []);
 export const getRoleModules = (roleKey = "") => {
   const normalized = String(roleKey || "").trim().toLowerCase();
   if (normalized === "super-admin" || normalized === "super_admin") {

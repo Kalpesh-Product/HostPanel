@@ -66,7 +66,7 @@ const toId = (value: any) => {
   return String(value);
 };
 
-const getCurrentWorkspace = async (userId: string) => {
+export const getCurrentWorkspace = async (userId: string) => {
   const user = await HostUser.findById(userId).lean().exec();
   if (!user) return { user: null, workspace: null, membership: null };
 
@@ -245,6 +245,7 @@ const resolveProfileStatus = ({
   if (member?.isActive === false || memberStatus === "disabled") return "inactive";
   if (inviteStatus === "registered") return "registered";
   if (inviteStatus === "joined") return "joined";
+  if (memberStatus === "joined") return "joined";
   if (memberStatus === "invited" || inviteStatus === "invite_sent") return "invite_sent";
   if (currentStatus && !["pending", "invite_sent"].includes(currentStatus)) return currentStatus;
   return "active";
@@ -494,7 +495,11 @@ const ensureEmployeeProfileForMember = async ({
     nationalIdNumber: String(profile?.nationalIdNumber || ""),
     taxId: String(profile?.taxId || ""),
     providentFundNumber: String(profile?.providentFundNumber || ""),
-    accessModules: Array.isArray(profile?.accessModules) ? profile.accessModules : [],
+    accessModules: member?.grantedModules !== undefined && Array.isArray(member.grantedModules)
+      ? member.grantedModules
+      : Array.isArray(profile?.accessModules)
+        ? profile.accessModules
+        : [],
     accessFeatures: Array.isArray(profile?.accessFeatures) ? profile.accessFeatures : [],
     documents: Array.isArray(profile?.documents) ? profile.documents : [],
     notes: String(profile?.notes || ""),
@@ -843,7 +848,6 @@ const toggleEmployeeProfileStatus = async (workspace: any, employeeId: string) =
 };
 
 export {
-  getCurrentWorkspace,
   ensureEmployeeProfileForMember,
   ensureEmployeeProfilesForWorkspace,
   buildOverviewPayload,

@@ -34,6 +34,7 @@ export interface IRecruitmentCandidate extends Document {
     fullName: string;
     email: string;
     phone?: string;
+    department?: string;
     departmentId?: mongoose.Types.ObjectId | null;
     jobCode?: string;
     positionApplied: string;
@@ -134,6 +135,7 @@ const recruitmentCandidateSchema = new Schema<IRecruitmentCandidate>(
             index: true,
         },
         phone: { type: String, trim: true, default: "" },
+        department: { type: String, trim: true, default: "", index: true },
         departmentId: { type: Schema.Types.ObjectId, ref: "Department", default: null, index: true },
         jobCode: { type: String, trim: true, uppercase: true, default: "", index: true },
         positionApplied: { type: String, trim: true, required: true, maxlength: 140, index: true },

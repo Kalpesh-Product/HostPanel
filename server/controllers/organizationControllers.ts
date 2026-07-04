@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import HostUser from "../models/HostUser.js";
 import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
+import EmployeeProfile from "../models/EmployeeProfile.js";
 import Department from "../models/Department.js";
 import { Role } from "../models/Role.js";
 import ActingManager from "../models/ActingManager.js";
@@ -292,6 +293,7 @@ export const getOrganizationOverview = async (req, res, next) => {
           userId: toId(selfMember.user?._id),
           name: selfMember.user?.name || "",
           email: selfMember.user?.email || "",
+          employeeId: "",
           role: toRoleLabel(selfMember.role),
           status: resolveMemberStatus(selfMember.isActive !== false, selfMember.user?.inviteStatus),
           departmentNames: Array.isArray(selfMember.departments)
@@ -390,11 +392,25 @@ export const getOrganizationOverview = async (req, res, next) => {
       .lean()
       .exec();
 
+    // Bulk lookup employee profiles for employeeId
+    const memberIds = members.map((m) => m._id).filter(Boolean);
+    const employeeProfiles = await EmployeeProfile.find({
+      linkedWorkspaceMemberId: { $in: memberIds },
+      workspaceId: workspace._id,
+    })
+      .select("employeeId linkedWorkspaceMemberId")
+      .lean()
+      .exec();
+    const employeeIdByMemberId = new Map(
+      employeeProfiles.map((ep) => [String(ep.linkedWorkspaceMemberId), ep.employeeId]),
+    );
+
     const teamMembers = members.map((member) => ({
       id: toId(member._id),
       userId: toId(member.user?._id),
       name: member.user?.name || "",
       email: member.user?.email || "",
+      employeeId: employeeIdByMemberId.get(String(member._id)) || "",
       role: toRoleLabel(member.role),
       status: resolveMemberStatus(member.isActive !== false, member.user?.inviteStatus),
       departmentNames: Array.isArray(member.departments)
@@ -651,8 +667,26 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
       return res.status(404).json({ message: "Member not found." });
     }
 
-    member.isActive = !member.isActive;
+    const action = String(req.body?.action || "").trim().toLowerCase();
+    if (action === "enable") {
+      member.isActive = true;
+    } else if (action === "disable") {
+      member.isActive = false;
+    } else {
+      member.isActive = !member.isActive;
+    }
     member.status = member.isActive ? "joined" : "disabled";
+
+    if (member.isActive && (!Array.isArray(member.grantedModules) || member.grantedModules.length === 0)) {
+      const linkedProfile = await EmployeeProfile.findOne({
+        linkedWorkspaceMemberId: member._id,
+        workspaceId: workspace._id,
+      }).select("accessModules").lean().exec();
+      if (linkedProfile && Array.isArray(linkedProfile.accessModules) && linkedProfile.accessModules.length > 0) {
+        member.grantedModules = linkedProfile.accessModules;
+      }
+    }
+
     await member.save();
     if (member.isActive === false) {
       await HostUser.findByIdAndUpdate(member.user, { refreshToken: "" }).exec();
@@ -663,7 +697,10 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
       member,
     });
 
-    return res.status(200).json({ message: "Member status updated successfully." });
+    return res.status(200).json({
+      message: "Member status updated successfully.",
+      data: { isActive: member.isActive, status: member.status },
+    });
   } catch (error) {
     next(error);
   }
@@ -1064,11 +1101,27 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
       });
     }
 
-    const member = await WorkspaceMember.findOne({
-      _id: req.params.memberId,
+    const memberLookupId = String(req.params.memberId || "").trim();
+    let member = await WorkspaceMember.findOne({
+      _id: memberLookupId,
       workspace: workspace._id,
-      isActive: true,
     });
+
+    if (!member) {
+      const linkedProfile = await EmployeeProfile.findOne({
+        workspaceId: workspace._id,
+        $or: [{ _id: memberLookupId }, { employeeId: memberLookupId }],
+      }).lean().exec();
+
+      const linkedMemberId = String(linkedProfile?.linkedWorkspaceMemberId || "").trim();
+      if (linkedMemberId) {
+        member = await WorkspaceMember.findOne({
+          _id: linkedMemberId,
+          workspace: workspace._id,
+        });
+      }
+    }
+
     if (!member) return res.status(404).json({ message: "Member not found." });
 
     const normalizeKey = (value = "") =>
@@ -1130,7 +1183,37 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
       return allowedModuleKeys.has(normalizeKey(moduleId));
     });
 
+    member.isActive = member.grantedModules.length > 0;
+    member.status = member.isActive ? "joined" : "disabled";
+
     await member.save();
+
+    const profileStatus = member.isActive
+      ? member.status === "invited" ? "invite_sent"
+        : member.status === "registered" ? "registered"
+          : member.status === "joined" ? "joined"
+            : "active"
+      : "inactive";
+    await EmployeeProfile.updateOne(
+      {
+        workspaceId: workspace._id,
+        $or: [
+          { linkedWorkspaceMemberId: member._id },
+          { linkedUserId: member.user },
+        ],
+      },
+      {
+        $set: {
+          accessModules: member.grantedModules,
+          accessFeatures: [],
+          linkedWorkspaceMemberId: member._id,
+          linkedUserId: member.user,
+          status: profileStatus,
+          isActive: member.isActive,
+        },
+      },
+      { upsert: false },
+    ).exec();
 
     return res.status(200).json({
       message: "Member access updated successfully.",

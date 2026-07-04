@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Building, Calendar, CheckCircle2, Download, Eye, FileText,
-  FolderClosed, Search, ShieldCheck, Users, X, XCircle,
+  FolderClosed, Mail, Search, ShieldCheck, Users, X, XCircle,
 } from "lucide-react";
 import { getEmployeeDocumentsVault } from "@/services/hr";
 import PageFrame from "@/components/Pages/PageFrame";
+import { HRDocumentsSkeleton } from "@/components/ui/Skeleton";
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
@@ -15,7 +16,7 @@ interface VaultDocument {
 }
 
 interface VaultEmployee {
-  id: string; employeeNumber: string; name: string; fullName: string;
+  id: string; employeeNumber: string; name: string; fullName: string; email: string;
   department: string; departments: string[]; role: string;
   status: string; statusKey: string;
   documents: VaultDocument[]; documentCount: number;
@@ -30,11 +31,17 @@ interface SummaryData {
 
 function getStatusBadge(status: string = "") {
   const base = "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border";
-  const v = status.toLowerCase();
-  if (v === "active" || v === "active ") {
-    return <span className={`${base} bg-emerald-50 text-emerald-700 border-emerald-200`}><CheckCircle2 size={12} /> Active</span>;
+  const v = status.toLowerCase().trim();
+  switch (v) {
+    case "active":
+      return <span className={`${base} bg-emerald-50 text-emerald-700 border-emerald-200`}><CheckCircle2 size={12} /> Active</span>;
+    case "inactive":
+      return <span className={`${base} bg-rose-50 text-rose-600 border-rose-200`}><XCircle size={12} /> Inactive</span>;
+    case "terminated":
+      return <span className={`${base} bg-rose-50 text-rose-600 border-rose-200`}><XCircle size={12} /> Terminated</span>;
+    default:
+      return <span className={`${base} bg-slate-100 text-slate-600 border-slate-200`}>{status || "Unknown"}</span>;
   }
-  return <span className={`${base} bg-slate-100 text-slate-600 border-slate-200`}><XCircle size={12} /> Inactive</span>;
 }
 
 function formatDocumentType(type: string = "", name: string = ""): string {
@@ -54,7 +61,7 @@ function formatDocumentDate(value: string | null | undefined): string {
 }
 
 function getEmployeeInitials(name: string = ""): string {
-  return name.split(" ").filter(Boolean).map((p) => p[0]).join("").substring(0, 2).toUpperCase() || "HR";
+  return (name || "?").charAt(0).toUpperCase();
 }
 
 function openDocumentUrl(url: string) {
@@ -95,6 +102,7 @@ function normalizeEmployee(employee: Record<string, unknown> = {}): VaultEmploye
     employeeNumber: String(employee.employeeId || employee.id || employee._id || ""),
     name: String(employee.name || employee.fullName || "Unnamed Employee"),
     fullName: String(employee.fullName || employee.name || ""),
+    email: String(employee.email || employee.workEmail || ""),
     department: String(employee.department || "Pending"),
     departments: (Array.isArray(employee.departments) ? employee.departments : []).map(String).filter(Boolean),
     role: String(employee.role || employee.rawRole || "Employee"),
@@ -116,6 +124,7 @@ function groupDocumentsIntoEmployees(documents: Record<string, unknown>[] = []):
       employeeNumber: employeeId || groupKey,
       name: employeeName || "Employee",
       fullName: employeeName || "Employee",
+      email: String(doc.employeeEmail || ""),
       role: String(doc.employeeRole || "Employee"),
       department: String(doc.employeeDepartment || "Pending"),
       departments: doc.employeeDepartment ? [String(doc.employeeDepartment)] : [],
@@ -179,12 +188,11 @@ export default function HRDocumentsPage(): React.ReactElement {
 
         setDocumentRecords(employees);
         setDepartmentOptions(departments);
-        const totalDocs = Number(payload.summary?.totalDocuments ?? employees.reduce((sum, e) => sum + e.documentCount, 0));
         setSummary({
-          totalEmployees: Number(payload.summary?.totalEmployees ?? employees.length),
-          activeEmployees: Number(payload.summary?.activeEmployees ?? employees.filter((e) => e.statusKey === "active").length),
-          inactiveEmployees: Number(payload.summary?.inactiveEmployees ?? employees.filter((e) => ["inactive", "terminated"].includes(e.statusKey)).length),
-          totalDocuments: totalDocs,
+          totalEmployees: employees.length,
+          activeEmployees: employees.filter((e) => e.statusKey === "active").length,
+          inactiveEmployees: employees.filter((e) => ["inactive", "terminated"].includes(e.statusKey)).length,
+          totalDocuments: employees.reduce((sum, e) => sum + e.documentCount, 0),
         });
         setErrorMessage("");
       } catch (error: unknown) {
@@ -217,14 +225,23 @@ export default function HRDocumentsPage(): React.ReactElement {
     });
   }, [documentRecords, activeTab, departmentFilter, searchQuery]);
 
+  const cardValues = useMemo(() => ({
+    totalDocuments: documentRecords.reduce((sum, e) => sum + e.documentCount, 0),
+    activeEmployees: documentRecords.filter((e) => e.statusKey === "active").length,
+    inactiveEmployees: documentRecords.filter((e) => ["inactive", "terminated"].includes(e.statusKey)).length,
+  }), [documentRecords]);
+
   const statCards = [
-    { label: "Total Vault Files", value: summary.totalDocuments, icon: FolderClosed, toneClass: "bg-blue-50 text-blue-600", accentClass: "" },
-    { label: "Active Employee Folders", value: summary.activeEmployees, icon: CheckCircle2, toneClass: "bg-emerald-50 text-emerald-600", accentClass: "border-l-4 border-l-emerald-500" },
-    { label: "Inactive / Ex-Employees", value: summary.inactiveEmployees, icon: XCircle, toneClass: "bg-slate-100 text-slate-500", accentClass: "border-l-4 border-l-slate-400" },
+    { label: "Total Vault Files", value: cardValues.totalDocuments, icon: FolderClosed, toneClass: "bg-blue-50 text-blue-600", accentClass: "" },
+    { label: "Active Employee Folders", value: cardValues.activeEmployees, icon: CheckCircle2, toneClass: "bg-emerald-50 text-emerald-600", accentClass: "border-l-4 border-l-emerald-500" },
+    { label: "Inactive / Ex-Employees", value: cardValues.inactiveEmployees, icon: XCircle, toneClass: "bg-slate-100 text-slate-500", accentClass: "border-l-4 border-l-slate-400" },
   ];
 
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+      {isLoading ? (
+        <HRDocumentsSkeleton />
+      ) : (
       <PageFrame>
         <div className="flex flex-col gap-4">
 
@@ -255,7 +272,7 @@ export default function HRDocumentsPage(): React.ReactElement {
     <button
       key={tab.key}
       onClick={() => { setActiveTab(tab.key); setSearchQuery(""); }}
-      className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+      className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
         activeTab === tab.key
           ? "bg-[#2563EB] text-white shadow-sm"
           : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -352,6 +369,7 @@ export default function HRDocumentsPage(): React.ReactElement {
               <table className="w-full border-collapse">
                 <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
+                    <th className="px-5 py-4 text-left">Emp ID</th>
                     <th className="px-5 py-4 text-left">Employee Info</th>
                     <th className="px-5 py-4 text-left">Department</th>
                     <th className="px-5 py-4 text-left">Uploaded Documents</th>
@@ -360,10 +378,10 @@ export default function HRDocumentsPage(): React.ReactElement {
                 </thead>
                 <tbody className="divide-y divide-slate-100/60">
                   {isLoading ? (
-                    Array.from({ length: 6 }).map((_, i) => <TableRowSkeleton key={i} columns={4} />)
+                    Array.from({ length: 6 }).map((_, i) => <TableRowSkeleton key={i} columns={5} />)
                   ) : displayedRecords.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="text-center py-20 text-slate-400 font-semibold">
+                      <td colSpan={5} className="text-center py-20 text-slate-400 font-semibold">
                         <FileText size={32} className="mx-auto text-slate-300 mb-3" />
                         No records found in this section.
                       </td>
@@ -372,26 +390,25 @@ export default function HRDocumentsPage(): React.ReactElement {
                     displayedRecords.map((record) => (
                       <tr key={record.id || record.name} className="hover:bg-slate-50/50 transition-colors group">
                         <td className="px-5 py-4">
+                          <span className="font-bold text-slate-800 text-[12px]">{record.employeeNumber || record.id}</span>
+                        </td>
+                        <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-bold shadow-sm shrink-0 border text-white ${
-                              record.statusKey === "active"
-                                ? "bg-[#2563EB] border-blue-800"
-                                : "bg-slate-400 border-slate-500"
-                            }`}>
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-bold shadow-sm shrink-0 border bg-[#2563EB] text-white border-blue-800">
                               {getEmployeeInitials(record.name)}
                             </div>
                             <div>
                               <p className="font-semibold text-slate-800 text-[12px]">{record.name}</p>
-                              <p className="text-[9px] font-medium text-slate-400 uppercase tracking-wider mt-0.5">
-                                {record.employeeNumber || record.id} &bull; {record.role}
-                              </p>
+                              {record.email && (
+                                <p className="text-[9px] font-medium text-slate-400 flex items-center gap-1 mt-0.5">
+                                  <Mail size={9} /> {record.email}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </td>
                         <td className="px-5 py-4">
-                          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600">
-                            <Building size={13} className="text-slate-400" /> {record.department}
-                          </span>
+                          <span className="font-semibold text-slate-700 text-[11px]">{record.department}</span>
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex flex-wrap gap-1.5">
@@ -432,6 +449,7 @@ export default function HRDocumentsPage(): React.ReactElement {
 
         </div>
       </PageFrame>
+      )}
 
       {/* ═══════════════════════════════════════════════════════
            MODAL: Employee Document Folder
@@ -446,7 +464,7 @@ export default function HRDocumentsPage(): React.ReactElement {
                   {getEmployeeInitials(viewingDocsFor.name)}
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-white">{viewingDocsFor.name}&apos;s Documents</h2>
+                  <h2 className="text-xl font-pmedium text-white">{viewingDocsFor.name}&apos;s Documents</h2>
                   <div className="flex items-center gap-3 mt-1 text-[10px] font-medium text-slate-400 uppercase tracking-wider">
                     <span>{viewingDocsFor.employeeNumber || viewingDocsFor.id}</span>
                     <span>&bull;</span>
@@ -466,10 +484,7 @@ export default function HRDocumentsPage(): React.ReactElement {
             </div>
 
             {/* Info bar */}
-            <div className="bg-blue-50 px-6 md:px-8 py-3 border-b border-blue-100 flex items-center gap-2 shrink-0">
-              <ShieldCheck size={16} className="text-[#2563EB]" />
-              <span className="text-[11px] font-medium text-blue-900">View-only mode. Documents are stored in Cloudinary and linked from the employee profile.</span>
-            </div>
+            
 
             {/* Document list */}
             <div className="p-6 md:p-8 overflow-y-auto flex-1 bg-white">
