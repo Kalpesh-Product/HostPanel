@@ -87,6 +87,7 @@ import ForgotPassword from "../pages/LoginPage/ForgotPassword";
 import ResetPassword from "../pages/LoginPage/ResetPassword";
 import RegisterPage from "../pages/LoginPage/RegisterPage";
 import RegisterOtpVerification from "../pages/LoginPage/RegisterOtpVerification";
+import StaffViewPage from "../pages/StaffView/StaffViewPage";
 import FounderWorkspaceSelectionPage from "../pages/LoginPage/FounderWorkspaceSelectionPage";
 import CompanyReviews from "../pages/Dashboard/FrontendDashboard/CompanyReviews";
 import WonoNomad from "../pages/Dashboard/FrontendDashboard/WonoNomad";
@@ -225,6 +226,10 @@ export const routes = createBrowserRouter([
   {
     path: "/signup/:token/verify",
     element: <RegisterOtpVerification />,
+  },
+  {
+    path: "/staff-view/:token",
+    element: <StaffViewPage />,
   },
   {
     path: "/website-preview",

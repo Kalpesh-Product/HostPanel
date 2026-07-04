@@ -22,6 +22,7 @@ const supportTicketSchema = new mongoose.Schema(
     ticketId: { type: String, trim: true },
     title: { type: String, trim: true, required: true },
     description: { type: String, trim: true, default: "" },
+    pageUrl: { type: String, trim: true, default: "" },
     status: {
       type: String,
       enum: ["Open", "Accepted", "In Progress", "Resolved", "Closed", "Pending", "Escalated", "Rejected"],

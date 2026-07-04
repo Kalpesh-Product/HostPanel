@@ -28,6 +28,7 @@ const verifyJwt = (req, res, next) => {
       return res.sendStatus(403);
     }
     try {
+      req.isImpersonated = Boolean(decoded?.impersonation);
       const userId = decoded?.userInfo?._id;
 
       // Only fetch the fields we need to check — isActive and hasCompletedWorkspaceSetup.

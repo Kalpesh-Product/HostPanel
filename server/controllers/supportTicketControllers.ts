@@ -39,6 +39,7 @@ const mapTicket = (ticket: any, sr: number) => ({
   ticketId: ticket?.ticketId || ticket?.ticketID || "",
   title: ticket?.title || ticket?.ticket || ticket?.ticketTitle || "",
   description: ticket?.description || "",
+  pageUrl: ticket?.pageUrl || "",
   status: normalizeStatus(ticket?.status),
   requestedAt: ticket?.requestedAt || ticket?.createdAt || null,
   requestedByName: userToName(ticket?.requestedBy) || ticket?.requestedByName || "",
@@ -89,7 +90,7 @@ export const getSupportTickets = async (req, res, next) => {
 
 export const createSupportTicket = async (req, res, next) => {
   try {
-    const { title, description } = req.body;
+    const { title, description, pageUrl } = req.body;
     if (!title?.trim() || !description?.trim()) {
       return res.status(400).json({ message: "Title and description are required." });
     }
@@ -140,6 +141,7 @@ export const createSupportTicket = async (req, res, next) => {
       ticketId: buildTicketId(),
       title: String(title).trim(),
       description: String(description).trim(),
+      pageUrl: String(pageUrl || "").trim(),
       status: "Open",
       requestedBy: req.user || null,
       user: req.user || null,

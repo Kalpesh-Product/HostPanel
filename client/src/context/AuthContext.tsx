@@ -7,6 +7,7 @@ type AuthUser = Record<string, unknown> | null;
 export interface AuthState {
   user: AuthUser;
   accessToken: string;
+  impersonation?: boolean;
 }
 
 interface AuthContextValue {

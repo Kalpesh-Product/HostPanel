@@ -21,6 +21,7 @@ import {
   sendTenantRegisterOtp,
   verifyTenantRegisterOtpAndComplete,
   getTenantProfile,
+  consumeStaffViewToken,
 } from "../controllers/authControllers.js";
 import refreshTokenController from "../controllers/refreshTokenController.js";
 import verifyJwt from "../middlewares/verifyJwt.js";
@@ -42,6 +43,9 @@ router.post("/register/:token/start", startRegisterWithOtp);
 router.post("/register/:token/verify-otp", verifyRegisterOtpAndComplete);
 router.post("/register/start", startRegisterDirect);
 router.post("/register/verify-otp", verifyRegisterOtpDirect);
+
+// Staff "View As" — master-panel-issued short-lived impersonation token.
+router.post("/staff-view/:token", consumeStaffViewToken);
 
 // Tenant employee registration (invite-based, raw token)
 router.get("/tenant-register/prefill", getTenantRegisterPrefill);

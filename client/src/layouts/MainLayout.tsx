@@ -76,6 +76,11 @@ const MainLayout = () => {
 
   return (
     <div className="w-full flex flex-col justify-between h-screen overflow-y-auto">
+      {auth?.impersonation ? (
+        <div className="w-full bg-amber-500 text-white text-xs sm:text-sm font-semibold text-center py-1.5 px-3">
+          Viewing as {auth?.user?.companyName || "this company"} — read-only staff view
+        </div>
+      ) : null}
       <header className="flex w-full shadow-md items-center px-4">
         {isMobile && (
           <IconButton onClick={() => setMobileOpen(true)} edge="start">

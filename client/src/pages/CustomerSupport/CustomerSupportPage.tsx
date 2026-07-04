@@ -29,6 +29,7 @@ type SupportTicket = {
   role: string;
   department: string | null;
   workspaceName: string;
+  pageUrl: string;
   image: { id: string; url: string };
   resolutionMessage: string;
   resolutionAttachment: { id: string; url: string };
@@ -81,6 +82,7 @@ export default function CustomerSupportPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [pageUrl, setPageUrl] = useState("");
   const [followUpDescription, setFollowUpDescription] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
 
@@ -114,6 +116,7 @@ export default function CustomerSupportPage() {
   const resetCreateForm = () => {
     setTitle("");
     setDescription("");
+    setPageUrl("");
     setImageFile(null);
   };
 
@@ -126,6 +129,7 @@ export default function CustomerSupportPage() {
       const formData = new FormData();
       formData.append("title", title.trim());
       formData.append("description", description.trim());
+      if (pageUrl.trim()) formData.append("pageUrl", pageUrl.trim());
       if (imageFile) formData.append("image", imageFile);
 
       await axios.post(SUPPORT_TICKETS_API, formData, {
@@ -378,6 +382,23 @@ export default function CustomerSupportPage() {
 
               <div>
                 <label
+                  htmlFor="issue-page-url"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Page URL (Optional)
+                </label>
+                <input
+                  id="issue-page-url"
+                  type="text"
+                  value={pageUrl}
+                  onChange={(event) => setPageUrl(event.target.value)}
+                  placeholder="Paste the page link where you saw the issue"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#1E3D73]/20 focus:border-[#1E3D73]"
+                />
+              </div>
+
+              <div>
+                <label
                   htmlFor="issue-image"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
@@ -462,6 +483,13 @@ export default function CustomerSupportPage() {
                 <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">Issue Description / Follow Up</div>
                 <div className="text-sm text-gray-800 whitespace-pre-wrap max-h-20 overflow-y-auto pr-1">{selectedTicket.description || "-"}</div>
               </div>
+
+              {selectedTicket.pageUrl ? (
+                <div className="bg-[#F8FAFC] border border-[#E7EEF5] rounded-lg p-2.5">
+                  <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">Page URL</div>
+                  <div className="text-sm text-gray-800 break-all">{selectedTicket.pageUrl}</div>
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="bg-[#F8FAFC] border border-[#E7EEF5] rounded-lg p-2.5">

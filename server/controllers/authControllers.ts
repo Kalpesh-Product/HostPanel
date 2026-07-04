@@ -1630,3 +1630,67 @@ export const getFounderSignupPrefill = getRegisterPrefill;
 export const sendFounderSignupOtp = startRegisterWithOtp;
 export const completeFounderSignup = verifyRegisterOtpAndComplete;
 
+// Consumes a one-time "staff view" token minted by master panel (signed with
+// a distinct STAFF_VIEW_TOKEN_SECRET, never the invite secret) and logs the
+// browser in as the target host user for a short, read-only session — used
+// when support staff click "View As" on a support ticket to see exactly what
+// that user sees. Deliberately mirrors login()'s response shape but skips
+// issuing/persisting a refresh token or cookie: this must never touch the
+// real user's own HostUser.refreshToken, since that would silently sign them
+// out of their own active session.
+export const consumeStaffViewToken = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.STAFF_VIEW_TOKEN_SECRET);
+    } catch {
+      return res.status(401).json({ message: "Staff view link is invalid or expired." });
+    }
+
+    if (decoded?.purpose !== "staff-view" || !decoded?.hostUserId) {
+      return res.status(401).json({ message: "Staff view link is invalid or expired." });
+    }
+
+    const user = await HostUser.findById(decoded.hostUserId).lean().exec();
+    if (!user) return res.status(404).json({ message: "Host user not found." });
+    if (user?.isActive === false) {
+      return res.status(403).json({ message: "This account is disabled." });
+    }
+
+    delete user.password;
+    delete user.refreshToken;
+
+    const activeMembership = await resolveActiveWorkspaceMembership(user);
+    const [company, workspaceCount, accessibleWorkspaces] = await Promise.all([
+      resolveCompanyForActiveWorkspace(user, activeMembership),
+      WorkspaceMember.countDocuments({ user: user._id, isActive: true }),
+      getAccessibleWorkspaces(user._id),
+    ]);
+
+    const accessToken = jwt.sign(
+      {
+        userInfo: { ...user, hasCompletedWorkspaceSetup: Boolean(user?.hasCompletedWorkspaceSetup) },
+        impersonation: true,
+      },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: process.env.STAFF_VIEW_SESSION_EXPIRY || "20m" },
+    );
+
+    return res.status(200).json({
+      user: buildAuthUserPayload(
+        user,
+        company,
+        workspaceCount,
+        activeMembership,
+        accessibleWorkspaces,
+        Boolean(user?.hasCompletedWorkspaceSetup),
+      ),
+      accessToken,
+      impersonation: true,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
