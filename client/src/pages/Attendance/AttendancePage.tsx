@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, type FormEvent } from 'react';
+import { useState, useMemo, useEffect, useRef, type FormEvent } from 'react';
 import {
   Search, Eye, X, Calendar, Clock, CheckCircle2, XCircle, AlertCircle,
   MapPin, Camera, User, Building2, ChevronDown, Coffee, LogIn, LogOut,
@@ -198,20 +198,12 @@ const getCurrentLocation = (): Promise<{ lat: number; lng: number } | null> => {
   });
 };
 
-const captureSelfie = (): Promise<string | null> => {
-  return new Promise((resolve) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.capture = 'user';
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return resolve(null);
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target?.result as string);
-      reader.readAsDataURL(file);
-    };
-    input.click();
+const blobToDataUrl = (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Failed to read captured image.'));
+    reader.readAsDataURL(blob);
   });
 };
 
@@ -268,7 +260,7 @@ export function AttendancePage() {
   const isSuperAdminProfile = membershipRole === 'super-admin';
   const isAdminProfile = canAccessAdminDashboard(currentUser) || membershipRole === 'admin' || membershipRole === 'admin-manager';
 
-  const currentUserDepartments = [
+  const currentUserDepartments: any[] = [
     ...(Array.isArray(currentUser?.workspaceMembership?.departments) ? currentUser.workspaceMembership.departments : []),
     currentUser?.workspaceMembership?.department,
     currentUser?.department,
@@ -277,12 +269,12 @@ export function AttendancePage() {
     actingContext?.departmentName,
   ].filter(Boolean);
 
-  const assignedDepartmentNames = useMemo(
-    () => Array.from(new Set(currentUserDepartments.map(extractDepartmentLabel).filter(Boolean))),
+  const assignedDepartmentNames = useMemo<string[]>(
+    () => Array.from(new Set(currentUserDepartments.map((department: any) => extractDepartmentLabel(department)).filter(Boolean))) as string[],
     [currentUserDepartments],
   );
 
-  const assignedDepartmentKeys = useMemo(
+  const assignedDepartmentKeys = useMemo<Set<string>>(
     () => new Set(assignedDepartmentNames.map((d: string) => normalizeRole(d)).filter(Boolean)),
     [assignedDepartmentNames],
   );
@@ -295,13 +287,20 @@ export function AttendancePage() {
   /* ── Clock State ── */
   const [clockStatus, setClockStatus] = useState<'checked_out' | 'checked_in' | 'on_break'>('checked_out');
   const [clockTime, setClockTime] = useState<Date | null>(null);
+  const [todayDate, setTodayDate] = useState(() => getLocalDateString());
+  const [captureOpenedAt, setCaptureOpenedAt] = useState<Date | null>(null);
   const [isClockLoading, setIsClockLoading] = useState(false);
   const [showClockModal, setShowClockModal] = useState(false);
   const [clockMode, setClockMode] = useState<'in' | 'out'>('in');
   const [capturedSelfie, setCapturedSelfie] = useState<string | null>(null);
+  const [capturedSelfieBlob, setCapturedSelfieBlob] = useState<Blob | null>(null);
   const [capturedLocation, setCapturedLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [clockErrorMessage, setClockErrorMessage] = useState('');
+  const [cameraStreamActive, setCameraStreamActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   /* ── Data State ── */
   const [activeTab, setActiveTab] = useState('my-attendance');
@@ -332,8 +331,26 @@ export function AttendancePage() {
 
   const [isSavingDecision, setIsSavingDecision] = useState(false);
 
-  const todayDate = useMemo(() => getLocalDateString(), []);
-  const todayKey = useMemo(() => getLocalDateString(), []);
+  const todayKey = todayDate;
+
+  useEffect(() => {
+    return () => {
+      if (cameraStreamActive && videoRef.current?.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [cameraStreamActive]);
+
+  useEffect(() => {
+    if (showClockModal) return;
+    if (videoRef.current?.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    setCameraStreamActive(false);
+  }, [showClockModal]);
 
   /* ── Derived ── */
   const monthDates = useMemo(() => getMonthDateRange(selectedMonth), [selectedMonth]);
@@ -363,7 +380,23 @@ export function AttendancePage() {
     };
   }, [teamRecords]);
 
-  const allDepartments = useMemo(() => {
+  const todayRecord = useMemo(() => {
+    const records = activeTab === 'my-attendance' ? myRecords : allRecords;
+    return records.find((record) => record.date === todayDate) || null;
+  }, [activeTab, myRecords, allRecords, todayDate]);
+
+  const isTodayCompleted = Boolean(todayRecord?.checkOut);
+  const isTodayInProgress = Boolean(todayRecord?.checkIn && !todayRecord?.checkOut);
+  const todayAttendanceLabel = isTodayCompleted ? 'Completed' : isTodayInProgress ? 'In Progress' : 'Not Started';
+
+  const todayBreakMinutes = useMemo(() => {
+    if (!todayRecord || !Array.isArray(todayRecord.breaks)) return 0;
+    return todayRecord.breaks.reduce((sum, breakEntry) => sum + (Number(breakEntry?.duration) || 0), 0);
+  }, [todayRecord]);
+
+  const visibleMyRecords = useMemo(() => myRecords.slice(0, 10), [myRecords]);
+
+  const allDepartments = useMemo<string[]>(() => {
     if (assignedDepartmentNames.length > 0) return assignedDepartmentNames;
     return ['HR', 'Administration', 'Sales', 'IT', 'Tech', 'Finance', 'Maintenance'];
   }, [assignedDepartmentNames]);
@@ -399,19 +432,76 @@ export function AttendancePage() {
     return () => { mounted = false; };
   }, [selectedMonth]);
 
+  useEffect(() => {
+    const syncTodayDate = () => setTodayDate(getLocalDateString());
+    syncTodayDate();
+
+    let timeoutId = window.setTimeout(() => {
+      syncTodayDate();
+    }, 1000);
+
+    const scheduleNextMidnight = () => {
+      const now = new Date();
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1, 0);
+      timeoutId = window.setTimeout(() => {
+        syncTodayDate();
+        scheduleNextMidnight();
+      }, Math.max(1000, nextMidnight.getTime() - now.getTime()));
+    };
+
+    window.clearTimeout(timeoutId);
+    scheduleNextMidnight();
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  useEffect(() => {
+    if (isTodayCompleted) {
+      setClockStatus('checked_out');
+      return;
+    }
+    if (isTodayInProgress) {
+      setClockStatus((current) => (current === 'on_break' ? current : 'checked_in'));
+      return;
+    }
+    setClockStatus('checked_out');
+  }, [isTodayCompleted, isTodayInProgress, todayDate]);
+
   /* ── Clock Handlers ── */
   const handleClockAction = async (mode: 'in' | 'out') => {
     setClockMode(mode);
     setShowClockModal(true);
+    setCaptureOpenedAt(new Date());
     setCapturedSelfie(null);
+    setCapturedSelfieBlob(null);
     setCapturedLocation(null);
     setClockErrorMessage('');
+    setCameraReady(false);
 
     setIsCapturing(true);
     try {
-      const [selfie, location] = await Promise.all([captureSelfie(), getCurrentLocation()]);
-      setCapturedSelfie(selfie);
-      setCapturedLocation(location);
+      const [location, stream] = await Promise.all([
+        getCurrentLocation(),
+        navigator.mediaDevices?.getUserMedia
+          ? navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: 'user',
+            },
+            audio: false,
+          })
+          : Promise.reject(new Error('Camera access is not available on this device.')),
+      ]);
+
+      if (location) {
+        setCapturedLocation(location);
+      } else {
+        setClockErrorMessage('Location access is required. You can still capture the selfie and try proceed.');
+      }
+      setCameraStreamActive(true);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => undefined);
+      }
+      setCameraReady(true);
     } catch {
       setClockErrorMessage('Failed to capture selfie or location. Please try again.');
     } finally {
@@ -419,15 +509,67 @@ export function AttendancePage() {
     }
   };
 
+  const handleCaptureSelfie = async () => {
+    if (!videoRef.current || !canvasRef.current) {
+      setClockErrorMessage('Camera is not ready.');
+      return;
+    }
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth || 720;
+    canvas.height = video.videoHeight || 1280;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      setClockErrorMessage('Unable to capture selfie.');
+      return;
+    }
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const selfieBlob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.92);
+    });
+
+    if (!selfieBlob) {
+      setClockErrorMessage('Unable to capture selfie.');
+      return;
+    }
+
+    const dataUrl = await blobToDataUrl(selfieBlob);
+    setCapturedSelfieBlob(selfieBlob);
+    setCapturedSelfie(dataUrl);
+  };
+
   const handleSubmitClock = async () => {
     setIsClockLoading(true);
     setClockErrorMessage('');
     try {
       const formData = new FormData();
-      if (capturedSelfie) {
-        const blob = await fetch(capturedSelfie).then((r) => r.blob());
-        formData.append('selfie', blob, 'selfie.jpg');
-      }
+      const selfieBlob = capturedSelfieBlob || await (async () => {
+        if (!videoRef.current || !canvasRef.current) {
+          throw new Error('Camera is not ready.');
+        }
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        canvas.width = video.videoWidth || 720;
+        canvas.height = video.videoHeight || 1280;
+        const context = canvas.getContext('2d');
+        if (!context) {
+          throw new Error('Unable to capture selfie.');
+        }
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise<Blob | null>((resolve) => {
+          canvas.toBlob((blobValue) => resolve(blobValue), 'image/jpeg', 0.92);
+        });
+        if (!blob) {
+          throw new Error('Unable to capture selfie.');
+        }
+        const dataUrl = await blobToDataUrl(blob);
+        setCapturedSelfieBlob(blob);
+        setCapturedSelfie(dataUrl);
+        return blob;
+      })();
+      formData.append('selfie', selfieBlob, 'selfie.jpg');
       if (capturedLocation) {
         formData.append('latitude', String(capturedLocation.lat));
         formData.append('longitude', String(capturedLocation.lng));
@@ -443,7 +585,14 @@ export function AttendancePage() {
         setClockStatus('checked_out');
       }
       setClockTime(new Date());
+      setCaptureOpenedAt(null);
       setShowClockModal(false);
+      if (videoRef.current?.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => track.stop());
+        videoRef.current.srcObject = null;
+      }
+      setCameraStreamActive(false);
     } catch (err: any) {
       setClockErrorMessage(err?.message || 'Failed to record attendance.');
     } finally {
@@ -644,7 +793,7 @@ export function AttendancePage() {
               </div>
               <div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Status</p>
-                <p className="text-lg font-black text-slate-900 capitalize">{clockStatus.replace(/_/g, ' ')}</p>
+                <p className="text-lg font-black text-slate-900 capitalize">{todayAttendanceLabel}</p>
                 {clockTime && <p className="text-xs font-semibold text-slate-500 mt-0.5">Last action: {clockTime?.toLocaleTimeString()}</p>}
               </div>
             </div>
@@ -652,17 +801,17 @@ export function AttendancePage() {
               {clockStatus === 'checked_out' && (
                 <button
                   onClick={() => handleClockAction('in')}
-                  disabled={isClockLoading || isCapturing}
+                  disabled={isClockLoading || isCapturing || isTodayCompleted}
                   className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-xs uppercase hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
                 >
-                  {isCapturing ? <><Camera size={14} className="animate-pulse" /> Capturing...</> : isClockLoading ? <><RefreshCw size={14} className="animate-spin" /> Processing...</> : <><LogIn size={14} /> Clock In</>}
+                {isCapturing ? <><Camera size={14} className="animate-pulse" /> Opening camera...</> : isClockLoading ? <><RefreshCw size={14} className="animate-spin" /> Processing...</> : <><LogIn size={14} /> Clock In</>}
                 </button>
               )}
               {clockStatus === 'checked_in' && (
                 <>
                   <button
                     onClick={handleStartBreak}
-                    disabled={isClockLoading}
+                    disabled={isClockLoading || isTodayCompleted}
                     className="px-4 py-2.5 bg-amber-100 text-amber-700 rounded-xl font-bold text-xs uppercase hover:bg-amber-200 transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     {isClockLoading ? <RefreshCw size={14} className="animate-spin" /> : <Coffee size={14} />}
@@ -670,7 +819,7 @@ export function AttendancePage() {
                   </button>
                   <button
                     onClick={() => handleClockAction('out')}
-                    disabled={isClockLoading || isCapturing}
+                    disabled={isClockLoading || isCapturing || isTodayCompleted}
                     className="px-4 py-2.5 bg-rose-100 text-rose-700 rounded-xl font-bold text-xs uppercase hover:bg-rose-200 transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     {isCapturing ? <Camera size={14} className="animate-pulse" /> : isClockLoading ? <RefreshCw size={14} className="animate-spin" /> : <LogOut size={14} />}
@@ -681,7 +830,7 @@ export function AttendancePage() {
               {clockStatus === 'on_break' && (
                 <button
                   onClick={handleEndBreak}
-                  disabled={isClockLoading}
+                  disabled={isClockLoading || isTodayCompleted}
                   className="px-4 py-2.5 bg-emerald-100 text-emerald-700 rounded-xl font-bold text-xs uppercase hover:bg-emerald-200 transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   {isClockLoading ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
@@ -730,52 +879,108 @@ export function AttendancePage() {
             })}
           </div>
 
-          {/* MONTH SELECTOR */}
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[140px]"
-              >
-                {monthOptions().map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2563EB] pointer-events-none" size={11} />
+          {activeTab === 'my-attendance' && (isTodayInProgress || isTodayCompleted) && (
+            <div className="grid gap-3 lg:grid-cols-[1.15fr_0.85fr] mb-3">
+              {isTodayCompleted ? (
+                <div className="rounded-[1.5rem] border border-slate-100 bg-white p-4 shadow-sm lg:col-span-2">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Day Summary</p>
+                      <h3 className="mt-1 text-base font-black text-slate-900">Checkout completed</h3>
+                    </div>
+                    <div className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-emerald-700">
+                      {todayAttendanceLabel}
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Check In</p>
+                      <p className="mt-1 text-sm font-black text-slate-900">{todayRecord?.checkIn ? getTimeDisplay(todayRecord.checkIn) : '--'}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Check Out</p>
+                      <p className="mt-1 text-sm font-black text-slate-900">{todayRecord?.checkOut ? getTimeDisplay(todayRecord.checkOut) : '--'}</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Working Hours</p>
+                      <p className="mt-1 text-sm font-black text-slate-900">{formatDuration(todayRecord?.totalHours || todayRecord?.workingHours ? Number(todayRecord?.totalHours || todayRecord?.workingHours) : undefined)}</p>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-[11px] font-semibold text-emerald-700">
+                    Attendance is locked for today. The summary will reset after midnight.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-[1.5rem] border border-slate-100 bg-white p-4 shadow-sm lg:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Timeline</p>
+                      <h3 className="mt-1 text-base font-black text-slate-900">Today actions</h3>
+                    </div>
+                    <Clock size={18} className="text-slate-400" />
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                      <span className="text-sm font-semibold text-slate-600">Check In</span>
+                      <span className="text-sm font-black text-slate-900">{todayRecord?.checkIn ? getTimeDisplay(todayRecord.checkIn) : '--'}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                      <span className="text-sm font-semibold text-slate-600">Break Time</span>
+                      <span className="text-sm font-black text-slate-900">{todayBreakMinutes}m</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            {activeTab === 'my-attendance' && (
-              <button
-                onClick={() => handleViewMonth(selectedMonth)}
-                className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors flex items-center gap-1.5"
-              >
-                <Calendar size={13} /> View Month
-              </button>
-            )}
-          </div>
+          )}
 
           {/* DATA PANEL */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
 
             {/* Toolbar */}
-            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-              {(activeTab === 'team-attendance' || activeTab === 'corrections') && (
-                <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-                  {subTabs.map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => setSubTab(status)}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${subTab === status ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'}`}
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col gap-3 sm:gap-4 bg-slate-50/50">
+              <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative">
+                    <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
+                    <select
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(e.target.value)}
+                      className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[140px]"
                     >
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                      {monthOptions().map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2563EB] pointer-events-none" size={11} />
+                  </div>
+                  {activeTab === 'my-attendance' && (
+                    <button
+                      onClick={() => handleViewMonth(selectedMonth)}
+                      className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors flex items-center gap-1.5"
+                    >
+                      <Calendar size={13} /> View Month
                     </button>
-                  ))}
+                  )}
+                  
                 </div>
-              )}
-              {(activeTab === 'my-attendance' || activeTab === 'team-attendance') && (
+
                 <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                  {activeTab !== 'my-attendance' && (
+                    <div className="relative">
+                      <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
+                      <select
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[140px]"
+                      >
+                        {monthOptions().map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2563EB] pointer-events-none" size={11} />
+                    </div>
+                  )}
                   <div className="relative flex-1 min-w-[180px]">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
@@ -797,6 +1002,21 @@ export function AttendancePage() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {(activeTab === 'team-attendance' || activeTab === 'corrections') && (
+                <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                  {subTabs.map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => setSubTab(status)}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${subTab === status ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'}`}
+                    >
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 
@@ -817,14 +1037,14 @@ export function AttendancePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
-                    {myRecords.length === 0 ? (
+                    {visibleMyRecords.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="text-center py-16 text-slate-400 font-semibold">
                           No attendance records found for this month.
                         </td>
                       </tr>
                     ) : (
-                      myRecords.map((record, idx) => (
+                      visibleMyRecords.map((record, idx) => (
                         <tr key={record.recordId || record.id || idx} className="hover:bg-slate-50/50 transition-colors group">
                           <td className="px-5 py-4 font-bold text-slate-900">{record.date || '--'}</td>
                           <td className="px-5 py-4 font-semibold text-slate-700">{getTimeDisplay(record.checkIn)}</td>
@@ -979,61 +1199,90 @@ export function AttendancePage() {
             className="fixed inset-0 bg-[#0F172A]/80 backdrop-blur-md flex items-center justify-center z-[100] p-4"
             onClick={() => !isClockLoading && setShowClockModal(false)}
           >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+            className="bg-white rounded-[1.75rem] w-full max-w-[420px] shadow-2xl overflow-hidden max-h-[calc(100vh-1.5rem)] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+              <div>
                 <h2 className="text-lg font-pmedium text-primary flex items-center gap-2">
-                  {clockMode === 'in' ? <LogIn size={18} className="text-[#2563EB]" /> : <LogOut size={18} className="text-rose-500" />}
-                  Clock {clockMode === 'in' ? 'In' : 'Out'}
+                  <Camera size={18} className="text-[#2563EB]" />
+                  Capture Selfie
                 </h2>
-                <button onClick={() => setShowClockModal(false)} className="p-2 bg-white rounded-full shadow-sm hover:scale-110 transition-transform"><X size={18} /></button>
-              </div>
-              <div className="p-6 space-y-4">
-                {clockErrorMessage && (
-                  <div className="bg-red-50 text-red-600 px-4 py-3 rounded-xl text-xs font-semibold border border-red-200">{clockErrorMessage}</div>
-                )}
-                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Verification</p>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-xl ${capturedSelfie ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600 animate-pulse'}`}>
-                        <Camera size={18} />
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-slate-700">Selfie Capture</p>
-                        <p className="text-[10px] text-slate-500">{capturedSelfie ? 'Captured successfully' : 'Capturing...'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-xl ${capturedLocation ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600 animate-pulse'}`}>
-                        <MapPin size={18} />
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-slate-700">Location</p>
-                        <p className="text-[10px] text-slate-500">
-                          {capturedLocation ? `${capturedLocation.lat.toFixed(4)}, ${capturedLocation.lng.toFixed(4)}` : 'Detecting...'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-xs text-slate-500 text-center">
-                  Date: <span className="font-bold">{todayDate}</span> &middot; Time: <span className="font-bold">{new Date().toLocaleTimeString()}</span>
+                <p className="mt-1 text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
+                  {clockMode === 'in' ? 'Check In' : 'Check Out'} verification
                 </p>
               </div>
-              <div className="p-6 border-t border-slate-100 bg-slate-50">
+              <button onClick={() => setShowClockModal(false)} className="p-2 bg-white rounded-full shadow-sm hover:scale-110 transition-transform">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-5">
+              <div className="overflow-hidden rounded-[1.75rem] border border-slate-200 bg-slate-950 shadow-inner">
+                <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-300">Selfie Preview</p>
+                  <div className="text-[10px] font-bold text-slate-400">
+                    {cameraReady ? "Ready to capture" : isCapturing ? "Requesting access..." : "Waiting for access"}
+                  </div>
+                </div>
+                <div className="p-2.5">
+                  <div className="relative min-h-[380px] overflow-hidden rounded-[1.35rem] bg-black">
+                    {capturedSelfie ? (
+                      <img src={capturedSelfie} alt="Captured selfie" className="absolute inset-0 h-full w-full object-cover object-center" />
+                    ) : (
+                      <video ref={videoRef} className="absolute inset-0 h-full w-full object-cover object-center" playsInline muted autoPlay />
+                    )}
+                    {!cameraReady && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80">
+                        <div className="text-center">
+                          <Camera size={28} className="mx-auto text-slate-400" />
+                          <p className="mt-3 text-xs font-semibold text-slate-300">Camera preview will appear here</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date</p>
+                  <p className="mt-1 text-xs font-bold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleDateString() : new Date().toLocaleDateString()}</p>
+                </div>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Time</p>
+                  <p className="mt-1 text-xs font-bold text-slate-700">{captureOpenedAt ? captureOpenedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                </div>
+              </div>
+              <canvas ref={canvasRef} className="hidden" />
+            </div>
+
+            <div className="shrink-0 border-t border-slate-100 bg-slate-50 px-5 py-4">
+              <div className="grid grid-cols-2 gap-3">
                 <button
-                  onClick={handleSubmitClock}
-                  disabled={isClockLoading || !capturedSelfie || !capturedLocation}
-                  className="w-full py-3 bg-[#2563EB] text-white rounded-xl font-bold text-xs uppercase hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                  type="button"
+                  onClick={() => setShowClockModal(false)}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-xs font-bold uppercase text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
                 >
-                  {isClockLoading ? <><RefreshCw size={14} className="animate-spin" /> Processing...</> : <><Check size={14} /> Confirm Clock {clockMode === 'in' ? 'In' : 'Out'}</>}
+                  <X size={14} />
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={capturedSelfie ? handleSubmitClock : handleCaptureSelfie}
+                  disabled={isClockLoading || !cameraReady || !capturedLocation}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-3 text-xs font-bold uppercase text-white shadow-sm transition-colors hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isClockLoading
+                    ? <><RefreshCw size={14} className="animate-spin" /> Processing...</>
+                    : capturedSelfie
+                      ? <><Check size={14} /> Proceed</>
+                      : <><Camera size={14} /> Capture</>}
                 </button>
               </div>
-            </motion.div>
+            </div>
+          </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

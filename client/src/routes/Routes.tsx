@@ -55,6 +55,7 @@ import DepartmentTaskReports from "../pages/Tasks/TaskReports/DepartmentTaskRepo
 import HREmployeeManagementPage from "../pages/HR/HREmployeeManagementPage";
 import HRDocumentsPage from "../pages/HR/HRDocumentsPage";
 import HRAttendanceReviewPage from "../pages/HR/HRAttendanceReviewPage";
+import HREmployeeAttendanceDetailPage from "../pages/HR/HREmployeeAttendanceDetailPage";
 import HRLeaveRequestsProcessingPage from "../pages/HR/HRLeaveRequestsProcessingPage";
 import HRRecruitmentPage from "../pages/HR/HRRecruitmentPage";
 import HRPayrollPage from "../pages/HR/HRPayrollPage";
@@ -1092,6 +1093,10 @@ export const routes = createBrowserRouter([
                       {
                         path: "attendance-review",
                         element: <HRAttendanceReviewPage />,
+                      },
+                      {
+                        path: "attendance-review/:userId",
+                        element: <HREmployeeAttendanceDetailPage />,
                       },
                       {
                         path: "leave-request-processing",
