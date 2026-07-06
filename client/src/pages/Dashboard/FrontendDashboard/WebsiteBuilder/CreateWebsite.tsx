@@ -539,7 +539,7 @@ const CreateWebsite = () => {
   const isEditMode = location.pathname.includes("/edit-website");
   // The :website route param (e.g. "biznest") is the deterministic searchKey for the
   // website being edited. We use it to load the correct website on the edit route
-  // WITHOUT depending on async company identity resolution â€” this is what stops the
+  // WITHOUT depending on async company identity resolution â€" this is what stops the
   // create-website <-> edit-website redirect ping-pong (the component remounts on each
   // route change, resetting all the useRef guards, so we cannot rely on those alone).
   const { website: websiteRouteParam } = useParams();
@@ -862,7 +862,7 @@ const CreateWebsite = () => {
       // hostCompanyIdentity resolves asynchronously and triggers a second (or third)
       // reset() call, which is what causes the visible flicker.
       if (hasHydratedFromDbRef.current) return;
-      // Block concurrent in-flight calls â€” dep changes can fire this effect again
+      // Block concurrent in-flight calls â€" dep changes can fire this effect again
       // before the first async run has finished and set hasHydratedFromDbRef.
       if (isCheckingWebsiteInFlightRef.current) return;
       isCheckingWebsiteInFlightRef.current = true;
@@ -1086,7 +1086,7 @@ const CreateWebsite = () => {
 
               // No product pages configured (existing/older templates): derive one
               // product page per existing product so they show in the home "Our Products"
-              // section and as product pages â€” using each product's own image as the cover.
+              // section and as product pages â€" using each product's own image as the cover.
               const sourceProducts =
                 Array.isArray(found?.products) && found.products.length
                   ? found.products
@@ -1155,7 +1155,7 @@ const CreateWebsite = () => {
                 ? draftData.aboutPageImageCards.map((item: any, index: number) => ({
                     title: String(item?.title || "").trim(),
                     description: String(item?.description || "").trim(),
-                    // Always pull the persisted image from found â€” draftData only stores text,
+                    // Always pull the persisted image from found â€" draftData only stores text,
                     // never the uploaded image binary/URL, so images are lost on revisit without this.
                     image:
                       Array.isArray(found?.aboutPageImageCards) && found.aboutPageImageCards[index]
@@ -1258,7 +1258,7 @@ const CreateWebsite = () => {
           setHasRestoredDraft(Boolean(found?.draftData));
           // Baseline the autosave snapshot from the ACTUAL form state (getValues) using the
           // same builder the autosave uses. Previously this was built from the raw draftData
-          // object, which has a different shape than the form values â€” so the snapshots never
+          // object, which has a different shape than the form values â€" so the snapshots never
           // matched and the autosave fired immediately on load, overwriting good text fields
           // with whatever was in the form mid-hydration. Building from getValues() makes the
           // first autosave comparison match, so it won't fire until the user actually edits.
@@ -1316,7 +1316,7 @@ const CreateWebsite = () => {
           setHasExistingWebsite(false);
           // Do NOT redirect back to create-website here. This component is mounted under
           // two different routes (create-website and edit-website/:website), so navigating
-          // between them remounts it and resets every useRef guard â€” which made this
+          // between them remounts it and resets every useRef guard â€" which made this
           // redirect fire again and again, ping-ponging with the create->edit redirect.
           // If we're on the edit route, stay put; the form simply shows empty fields when
           // no matching website was found.
@@ -2391,20 +2391,13 @@ const CreateWebsite = () => {
                       size="small"
                       label="Select / Add Page"
                       value={selectedProductPageOption}
-                      onChange={(event) =>
-                        setSelectedProductPageOption(event.target.value)
-                      }
+                      onChange={(event) => setSelectedProductPageOption(event.target.value)}
                       sx={{ minWidth: 180 }}
                     >
                       {availableProductPageOptions.map((option) => (
-                        <MenuItem
-                          key={option}
-                          value={option}
-                        >
+                        <MenuItem key={option} value={option}>
                           {(values?.productDropdownPages || []).some(
-                            (item) =>
-                              String(item?.slug || "").trim().toLowerCase() ===
-                              toSlug(option),
+                            (item) => String(item?.slug || "").trim().toLowerCase() === toSlug(option),
                           )
                             ? `${option} (Page added)`
                             : option}
@@ -2419,8 +2412,7 @@ const CreateWebsite = () => {
                         if (!optionName) return;
                         const optionSlug = toSlug(optionName);
                         const existingIndex = (values?.productDropdownPages || []).findIndex(
-                          (item) =>
-                            String(item?.slug || "").trim().toLowerCase() === optionSlug,
+                          (item) => String(item?.slug || "").trim().toLowerCase() === optionSlug,
                         );
                         if (existingIndex >= 0) {
                           removeProductPageItem(existingIndex);
@@ -2456,15 +2448,48 @@ const CreateWebsite = () => {
                         setActiveProductPageTab(productPageFields.length);
                       }}
                     >
-                      {isSelectedProductPageAdded
-                        ? "- Remove Product Page"
-                        : "+ Add Product Page"}
+                      {isSelectedProductPageAdded ? "- Remove Product Page" : "+ Add Product Page"}
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700"
+                      onClick={() => {
+                        const newPageNumber = (values?.productDropdownPages || []).length + 1;
+                        const newName = `Product ${newPageNumber}`;
+                        const newSlug = toSlug(newName);
+                        appendProductPageItem({
+                          name: newName,
+                          slug: newSlug,
+                          enabled: true,
+                          heroHeading: newName,
+                          heroSubHeading: "",
+                          heroMode: "single",
+                          heroImage: null,
+                          heroButtonText: "View More",
+                          heroImages: [],
+                          homeCardHeading: newName,
+                          homeCardSubText: "",
+                          homeCardImage: null,
+                          leadEnabled: true,
+                          leadFormLabel: "View More / Get Details",
+                          faqs: [],
+                          inclusions: [
+                            "workspace","living-space","air-condition","fast-internet","cafe-dining","receptionist",
+                            "meeting-rooms","training-rooms","it-support","tea-coffee","assist","community",
+                            "on-demand","maintenance","generator","pickup-drop","car-bike-bus","housekeeping",
+                            "swimming-pool","television","gas","laundry","secure","personalised",
+                            "electricity","ups","events","furnished-office","cafeteria","high-speed-internet","assistance",
+                          ].map((k) => ({ key: k, enabled: false })),
+                        });
+                        setActiveProductPageTab(productPageFields.length);
+                      }}
+                    >
+                      + Add New Product Page
                     </button>
                   </div>
                 </div>
                 <p className="mb-3 border-b border-slate-200 pb-2 text-xs text-slate-500">
-                  Use the selector above to add/remove product pages. Page templates below are
-                  kept separate for cleaner editing.
+                  Use the selector to add preset pages, or click New Page to create a custom one.
                 </p>
                 {productPageFields.length > 0 ? (
                   <>
@@ -2830,7 +2855,7 @@ const CreateWebsite = () => {
                           })()}
                         </div>
 
-                        {/* FAQ is now global â€” edit from the Home/Products section */}
+                        {/* FAQ is now global — edit from the Home/Products section */}
                         <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                           <div className="flex items-center justify-between py-2 border-b border-slate-200 mb-2">
                             <span className="text-sm font-semibold text-slate-700">FAQ (Frequently Asked Questions)</span>
@@ -3780,7 +3805,7 @@ const CreateWebsite = () => {
             </div>
             )}
 
-            {/* Home Inclusions â€” toggle amenities shown below Our Products on home page */}
+            {/* Home Inclusions â€" toggle amenities shown below Our Products on home page */}
             {productPageFields.length > 0 ? (
             <div className="col-span-2 mt-4 rounded-lg border border-slate-200 bg-white p-3">
               <div className="flex items-center justify-between mb-3">
@@ -3833,7 +3858,7 @@ const CreateWebsite = () => {
             </div>
             ) : null}
 
-            {/* Global FAQ â€” shown on all product pages and product detail pages */}
+            {/* Global FAQ â€" shown on all product pages and product detail pages */}
             {productPageFields.length > 0 ? (
             <div className="col-span-2 mt-4 rounded-lg border border-slate-200 bg-white p-3">
               <div className="flex items-center justify-between mb-3">

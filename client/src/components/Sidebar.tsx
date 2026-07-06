@@ -228,9 +228,9 @@ const departmentModules: NavNode[] = [
     icon: Wallet,
     defaultOpen: false,
     children: [
-      { id: "finance-budget", label: "Finance & Budget", icon: Wallet, disabled: true },
-      { id: "billing-payments", label: "Billing & Payments", icon: Receipt, disabled: true },
-      { id: "accounting", label: "Accounting", icon: Calculator, disabled: true },
+      { id: "finance-budget", label: "Finance & Budget", icon: Wallet, route: "/finance/expenses-budget", disabled: false },
+      { id: "billing-payments", label: "Billing & Payments", icon: Receipt, route: "/finance/billing-payments", disabled: false },
+      { id: "accounting", label: "Accounting", icon: Calculator, route: "/finance/accounting", disabled: false },
     ],
   },
   {
@@ -302,6 +302,9 @@ const ROUTE_BY_ID: Record<string, string> = {
   inventory: "/extra-common-modules/inventory",
   "department-inventory": "/extra-common-modules/department-inventory",
   "finance-management": "/extra-common-modules/finance-management",
+  "finance-budget": "/finance/expenses-budget",
+  "billing-payments": "/finance/billing-payments",
+  accounting: "/finance/accounting",
   reports: "/extra-common-modules/reports",
   tasks: "/extra-common-modules/tasks",
   "leave-requests": "/leave-requests",
@@ -626,9 +629,9 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
           : [];
         setRoleAccessContext({
           role: String(
+            me?.role ||
             (auth.user as { workspaceMembership?: { role?: string }; role?: string } | null)?.workspaceMembership?.role ||
             (auth.user as { workspaceMembership?: { role?: string }; role?: string } | null)?.role ||
-            me?.role ||
             "",
           ),
           departments: Array.isArray(me?.departmentNames) ? me.departmentNames : [],

@@ -3186,7 +3186,7 @@ export default function VisitorsManagementPage() {
             disabled={!visitorAccess.tabs.daily}
             title={!visitorAccess.tabs.daily ? 'You do not have permission for Daily Visitors.' : undefined}
             onClick={() => setActiveTab('daily')}
-            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
               activeTab === 'daily' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
             } ${!visitorAccess.tabs.daily ? 'cursor-not-allowed opacity-60' : ''}`}
           >
@@ -3201,7 +3201,7 @@ export default function VisitorsManagementPage() {
             disabled={!visitorAccess.tabs.history}
             title={!visitorAccess.tabs.history ? 'You do not have permission for Visitor History.' : undefined}
             onClick={() => setActiveTab('history')}
-            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
               activeTab === 'history' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
             } ${!visitorAccess.tabs.history ? 'cursor-not-allowed opacity-60' : ''}`}
           >
@@ -3212,7 +3212,7 @@ export default function VisitorsManagementPage() {
             disabled={!visitorAccess.tabs.bookings}
             title={!visitorAccess.tabs.bookings ? 'You do not have permission for Bookings.' : undefined}
             onClick={() => setActiveTab('bookings')}
-            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
               activeTab === 'bookings' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
             } ${!visitorAccess.tabs.bookings ? 'text-slate-300 cursor-not-allowed' : ''}`}
           >
@@ -3223,7 +3223,7 @@ export default function VisitorsManagementPage() {
             disabled={!visitorAccess.tabs.clients}
             title={!visitorAccess.tabs.clients ? 'You do not have permission for Clients.' : undefined}
             onClick={() => setActiveTab('clients')}
-            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
               activeTab === 'clients' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
             } ${!visitorAccess.tabs.clients ? 'text-slate-300 cursor-not-allowed' : ''}`}
           >
@@ -4319,7 +4319,7 @@ export default function VisitorsManagementPage() {
                                   key={mode}
                                   type="button"
                                   onClick={() => setForm((prev) => ({ ...prev, clientBookingMode: mode, clientId: mode === 'new' ? '' : prev.clientId }))}
-                                  className={`rounded-xl px-3 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${form.clientBookingMode === mode ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                                  className={`rounded-xl px-3 py-3 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${form.clientBookingMode === mode ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
                                 >
                                   {label}
                                 </button>
@@ -4690,14 +4690,14 @@ export default function VisitorsManagementPage() {
                                 <button
                                   type="button"
                                   onClick={() => setForm((prev) => ({ ...prev, discountType: 'amount' }))}
-                                  className={`rounded-lg border px-2 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${form.discountType === 'amount' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300'}`}
+                                  className={`rounded-lg border px-2 py-1.5 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${form.discountType === 'amount' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300'}`}
                                 >
                                   Amount
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setForm((prev) => ({ ...prev, discountType: 'percent' }))}
-                                  className={`rounded-lg border px-2 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${form.discountType === 'percent' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300'}`}
+                                  className={`rounded-lg border px-2 py-1.5 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${form.discountType === 'percent' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300'}`}
                                 >
                                   Percent
                                 </button>
@@ -4773,7 +4773,7 @@ export default function VisitorsManagementPage() {
                                   key={mode}
                                   type="button"
                                   onClick={() => setForm({ ...form, paymentMode: mode, transactionId: mode === 'GPay (UPI)' ? form.transactionId : '', paymentProofFile: mode === 'GPay (UPI)' ? form.paymentProofFile : null })}
-                                  className={`rounded-xl border px-3 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${form.paymentMode === mode ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-200' : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300'}`}
+                                  className={`rounded-xl border px-3 py-3 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${form.paymentMode === mode ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-200' : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300'}`}
                                 >
                                   {mode}
                                 </button>

@@ -101,20 +101,9 @@ interface StaffFormState {
   email: string;
 }
 
-interface CardProps {
-  label: string;
-  value: number;
-  icon: React.ReactNode;
-  color: 'amber' | 'red' | 'blue' | 'green';
-}
-
 interface TabButtonProps {
   active: boolean;
   onClick: () => void;
-  children: React.ReactNode;
-}
-
-interface FieldLabelProps {
   children: React.ReactNode;
 }
 
@@ -595,43 +584,15 @@ function HousekeepingPageInner() {
     <AppShell>
       <div className="p-2 lg:p-2.5">
         <PageFrame>
+          <div className="flex flex-col gap-4">
+
           {/* Header */}
-          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="mb-3 flex items-center justify-between">
             <div>
               <h1 className="text-title font-pmedium text-primary uppercase">Housekeeping</h1>
               <p className="text-xs font-medium text-slate-500 mt-1">
                 Core Module - Administration Manager
               </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={() => setIsStaffListOpen(true)}
-                className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm inline-flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest transition-all hover:border-blue-200 hover:text-blue-600"
-              >
-                <Eye size={16} />
-                Show Staff
-              </button>
-              <button
-                onClick={() => { setStaffForm(staffFormState()); setIsStaffModalOpen(true); }}
-                className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm inline-flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest transition-all hover:border-blue-200 hover:text-blue-600"
-              >
-                <Users size={16} />
-                Add Staff
-              </button>
-              <button
-                onClick={() => { setBulkUploadMessage(''); setBulkUploadFile(null); setIsBulkUploadModalOpen(true); }}
-                className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm inline-flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest transition-all hover:border-emerald-200 hover:text-emerald-600"
-              >
-                <Upload size={16} />
-                Bulk Upload
-              </button>
-              <button
-                onClick={() => { setEditingTask(null); setTaskForm(taskFormState()); setIsTaskModalOpen(true); }}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-xs font-black uppercase tracking-widest text-white shadow-sm transition-all hover:bg-blue-700"
-              >
-                <Plus size={16} />
-                Add Scheduled Task
-              </button>
             </div>
           </div>
 
@@ -665,36 +626,66 @@ function HousekeepingPageInner() {
           {errorMessage ? <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{errorMessage}</div> : null}
           {bulkUploadMessage ? <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">{bulkUploadMessage}</div> : null}
 
-          {/* Stats Cards */}
-          <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <Card label="Scheduled (Pending)" value={summary.pendingTasks} icon={<ClipboardList size={24} />} color="amber" />
-            <Card label="Booking Triggers" value={summary.bookingTriggers} icon={<Zap size={24} />} color="red" />
-            <Card label="In Progress" value={summary.activeTasks} icon={<Clock size={24} />} color="blue" />
-            <Card label="Completed Today" value={summary.completedToday} icon={<Sparkles size={24} />} color="green" />
+          {/* ── Pill Tabs (DESIGN.md: pill-style with blue active bg) ── */}
+          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            {[
+              { key: 'scheduled', label: 'Daily Scheduled Tasks' },
+              { key: 'auto', label: 'Booking-Based Tasks', badge: 'AUTO' },
+              { key: 'history', label: 'Task History' },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                   activeTab === tab.key
+                     ? 'bg-[#2563EB] text-white shadow-sm'
+                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                 }`}
+               >
+                 {tab.label}
+                 {tab.badge ? (
+                   <span className="flex items-center gap-1 rounded-md bg-red-100 px-1.5 py-0.5 text-red-600 text-[9px] font-pbold font-bold uppercase tracking-widest">
+                    <Zap size={9} />{tab.badge}
+                  </span>
+                ) : null}
+              </button>
+            ))}
           </div>
 
-          {/* Tabs */}
-          <div className="overflow-hidden rounded-[36px] border border-slate-200 bg-white shadow-sm">
-            <div className="flex flex-col gap-4 border-b border-slate-100 bg-slate-50/50 p-5 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex w-full overflow-x-auto rounded-2xl bg-slate-100 p-1.5 xl:w-auto">
-                <TabButton active={activeTab === 'scheduled'} onClick={() => setActiveTab('scheduled')}>
-                  Daily Scheduled Tasks
-                </TabButton>
-                <TabButton active={activeTab === 'auto'} onClick={() => setActiveTab('auto')}>
-                  Booking-Based Tasks{' '}
-                  <span className="flex items-center gap-1 rounded-md bg-red-100 px-1.5 py-0.5 text-red-600">
-                    <Zap size={10} />AUTO
-                  </span>
-                </TabButton>
-                <TabButton active={activeTab === 'history'} onClick={() => setActiveTab('history')}>
-                  Task History
-                </TabButton>
-              </div>
+          {/* ── Stat Cards (DESIGN.md: border-l-4 accent per card) ── */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+            {[
+              { key: 'pending', label: 'Scheduled (Pending)', value: String(summary.pendingTasks), icon: ClipboardList },
+              { key: 'bookingTriggers', label: 'Booking Triggers', value: String(summary.bookingTriggers), icon: Zap },
+              { key: 'active', label: 'In Progress', value: String(summary.activeTasks), icon: Clock },
+              { key: 'completed', label: 'Completed Today', value: String(summary.completedToday), icon: Sparkles },
+            ].map((card, idx) => {
+              const Icon = card.icon;
+              const borderColors = ['', 'border-l-4 border-l-amber-500', 'border-l-4 border-l-red-500', 'border-l-4 border-l-blue-500', 'border-l-4 border-l-emerald-500'];
+              const iconClasses = ['bg-slate-50 text-slate-600', 'bg-amber-50 text-amber-600', 'bg-red-50 text-red-600', 'bg-blue-50 text-blue-600', 'bg-emerald-50 text-emerald-600'];
+              return (
+                <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                  </div>
+                  <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
+                    <Icon size={16} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
 
-              <div className="flex w-full flex-wrap items-center gap-3 xl:w-auto">
+          {/* ── Data Panel ── */}
+          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+            {/* ── Panel Header ── */}
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
+              <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
                 {activeTab === 'scheduled' ? (
                   <select
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none sm:w-auto"
+                    className="w-full sm:w-44 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
                     value={statusFilter}
                     onChange={(event) => setStatusFilter(event.target.value)}
                   >
@@ -708,25 +699,54 @@ function HousekeepingPageInner() {
 
                 {activeTab === 'history' ? (
                   <>
-                    <select className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={historyMonth} onChange={(event) => setHistoryMonth(event.target.value)}>
+                    <select className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer" value={historyMonth} onChange={(event) => setHistoryMonth(event.target.value)}>
                       {MONTHS.map((m) => <option key={m}>{m}</option>)}
                     </select>
-                    <select className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-900 outline-none" value={historyYear} onChange={(event) => setHistoryYear(event.target.value)}>
+                    <select className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer" value={historyYear} onChange={(event) => setHistoryYear(event.target.value)}>
                       {YEARS.map((y) => <option key={y}>{y}</option>)}
                     </select>
                   </>
                 ) : null}
-
-                <div className="relative w-full sm:w-56">
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative min-w-[200px]">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                   <input
                     type="text"
                     placeholder="Search task or area..."
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm font-bold text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                   />
                 </div>
+                <button
+                  onClick={() => setIsStaffListOpen(true)}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 whitespace-nowrap"
+                >
+                  <Eye size={16} />
+                  Show Staff
+                </button>
+                <button
+                  onClick={() => { setStaffForm(staffFormState()); setIsStaffModalOpen(true); }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 whitespace-nowrap"
+                >
+                  <Users size={16} />
+                  Add Staff
+                </button>
+                <button
+                  onClick={() => { setBulkUploadMessage(''); setBulkUploadFile(null); setIsBulkUploadModalOpen(true); }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 whitespace-nowrap"
+                >
+                  <Upload size={16} />
+                  Bulk Upload
+                </button>
+                <button
+                  onClick={() => { setEditingTask(null); setTaskForm(taskFormState()); setIsTaskModalOpen(true); }}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
+                >
+                  <Plus size={13} strokeWidth={3} />
+                  Add Scheduled Task
+                </button>
               </div>
             </div>
 
@@ -747,6 +767,7 @@ function HousekeepingPageInner() {
             {!isLoading && activeTab === 'history' ? (
               <HistoryTable tasks={historyTasks} month={historyMonth} year={historyYear} />
             ) : null}
+          </div>
           </div>
         </PageFrame>
 
@@ -1009,85 +1030,54 @@ function HousekeepingPageInner() {
 
 // -- Sub-components ---------------------------------------------------------
 
-function Card({ label, value, icon, color }: CardProps) {
-  const colorMap: Record<string, string> = {
-    amber: 'border-l-amber-500 text-amber-600 bg-amber-50',
-    red: 'border-l-red-500 text-red-600 bg-red-50',
-    blue: 'border-l-blue-500 text-blue-600 bg-blue-50',
-    green: 'border-l-green-500 text-green-600 bg-green-50',
-  };
-  return (
-    <div className={`bg-white p-2.5 rounded-[2rem] border border-slate-100 shadow-sm ${colorMap[color]}`}>
-      <p className="text-xs font-medium text-slate-500">{label}</p>
-      <p className="mt-1 text-title font-pmedium text-primary uppercase">{value}</p>
-    </div>
-  );
-}
-
-function TabButton({ active, onClick, children }: TabButtonProps) {
-  const baseClasses = 'flex-1 whitespace-nowrap rounded-xl px-6 py-2.5 text-[11px] font-black transition-all flex items-center justify-center gap-2';
-  return (
-    <button
-      onClick={onClick}
-      className={active ? `${baseClasses} bg-blue-600 text-white` : `${baseClasses} bg-slate-100 text-slate-600 hover:bg-slate-200`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function FieldLabel({ children }: FieldLabelProps) {
-  return <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">{children}</label>;
-}
-
 function TasksTable({ tasks, onEdit, onCancel, emptyText }: TasksTableProps) {
   return (
-    <div className="overflow-x-auto flex-1">
-      <table className="w-full text-left">
-        <thead className="bg-white text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100">
+    <div className="flex-1">
+      <table className="w-full text-left table-auto">
+        <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
           <tr>
-            <th className="px-3.5 py-2 text-left whitespace-nowrap">Task Name & ID</th>
-            <th className="px-3.5 py-2 text-left whitespace-nowrap">Area / Zone</th>
-            <th className="px-3.5 py-2 text-left whitespace-nowrap">Floor / Wing</th>
-            <th className="px-3.5 py-2 text-left whitespace-nowrap">Assigned To</th>
-            <th className="px-3.5 py-2 text-left whitespace-nowrap">Start Time</th>
-            <th className="px-3.5 py-2 text-center whitespace-nowrap">Status</th>
-            <th className="px-3.5 py-2 text-center whitespace-nowrap">Actions</th>
+            <th className="px-3 py-4 text-left whitespace-nowrap">Task Name & ID</th>
+            <th className="px-3 py-4 text-left whitespace-nowrap">Area / Zone</th>
+            <th className="px-3 py-4 text-left whitespace-nowrap">Floor / Wing</th>
+            <th className="px-3 py-4 text-left whitespace-nowrap">Assigned To</th>
+            <th className="px-3 py-4 text-left whitespace-nowrap">Start Time</th>
+            <th className="px-3 py-4 text-center whitespace-nowrap">Status</th>
+            <th className="px-3 py-4 text-center whitespace-nowrap w-28">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-slate-100/60">
           {tasks.map((task) => (
-            <tr key={task.id} className="transition-colors hover:bg-slate-50/70">
-              <td className="px-3.5 py-2 align-middle">
-                <div className="text-[13px] font-black tracking-tight text-slate-900">{task.taskName}</div>
-                <div className="mt-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">{task.taskCode}</div>
+            <tr key={task.id} className="transition-colors hover:bg-blue-50/30">
+              <td className="px-3 py-4 align-middle">
+                <div className="text-xs font-black tracking-tight text-slate-900">{task.taskName}</div>
+                <div className="mt-0.5 text-[9px] font-bold uppercase tracking-widest text-slate-400">{task.taskCode}</div>
               </td>
-              <td className="px-3.5 py-2 align-middle text-sm font-bold text-slate-700">{task.area || 'General'}</td>
-              <td className="px-3.5 py-2 align-middle text-sm font-bold text-slate-700">
+              <td className="px-3 py-4 align-middle text-xs font-bold text-slate-700">{task.area || 'General'}</td>
+              <td className="px-3 py-4 align-middle text-xs font-bold text-slate-700">
                 {task.floor || 'Any'}
                 {task.wing ? ` / ${task.wing}` : ''}
               </td>
-              <td className="px-3.5 py-2 align-middle">
-                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider">
+              <td className="px-3 py-4 align-middle">
+                <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-600">
                   <User size={12} /> {task.assignedTo}
                 </span>
               </td>
-              <td className="px-3.5 py-2 align-middle">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-slate-600">
+              <td className="px-3 py-4 align-middle">
+                <span className="inline-flex items-center gap-1.5 text-xs font-black text-slate-600">
                   <Clock size={12} /> {task.startTaskTime ? formatTime12h(task.startTaskTime) : task.timeSlotLabel ? formatTime12h(task.timeSlotLabel) : 'Anytime'}
                 </span>
               </td>
-              <td className="px-3.5 py-2 align-middle text-center">
+              <td className="px-3 py-4 align-middle text-center">
                 <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.22em] ${statusBadge(task.status)}`}>
                   {task.status}
                 </span>
               </td>
-              <td className="px-3.5 py-2 align-middle">
-                <div className="flex items-center justify-center gap-1.5">
-                  <button onClick={() => onEdit(task)} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider transition-all hover:border-amber-200 hover:text-amber-600 hover:bg-amber-50" title="Edit Task">
+              <td className="px-3 py-4 align-middle">
+                <div className="flex items-center justify-center gap-1">
+                  <button onClick={() => onEdit(task)} className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white p-1.5 text-slate-500 shadow-sm transition hover:border-amber-200 hover:bg-amber-50 hover:text-amber-600" title="Edit Task">
                     <Edit size={13} />
                   </button>
-                  <button onClick={() => onCancel(task)} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider transition-all hover:border-red-200 hover:text-red-600 hover:bg-red-50" title="Cancel Task">
+                  <button onClick={() => onCancel(task)} className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white p-1.5 text-slate-500 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600" title="Cancel Task">
                     <Trash2 size={13} />
                   </button>
                 </div>
@@ -1096,7 +1086,7 @@ function TasksTable({ tasks, onEdit, onCancel, emptyText }: TasksTableProps) {
           ))}
           {tasks.length === 0 ? (
             <tr>
-              <td colSpan={7} className="px-3.5 py-20 text-center">
+              <td colSpan={7} className="px-3 py-20 text-center">
                 <ShieldAlert size={32} className="mx-auto text-slate-300 mb-3" />
                 <p className="text-sm font-black uppercase tracking-widest text-slate-500">{emptyText}</p>
               </td>
@@ -1167,38 +1157,38 @@ function AutoTasks({ tasks, onAssign, onDone }: AutoTasksProps) {
 
 function HistoryTable({ tasks, month, year }: HistoryTableProps) {
   return (
-    <div className="overflow-x-auto flex-1">
-      <table className="w-full text-left">
-        <thead className="bg-white text-[10px] font-bold text-slate-400 uppercase tracking-[0.14em] border-b border-slate-100">
+    <div className="flex-1">
+      <table className="w-full text-left table-auto">
+        <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
           <tr>
-            <th className="px-3.5 py-2 text-left whitespace-nowrap">Date</th>
-            <th className="px-3.5 py-2 text-left whitespace-nowrap">Task Name & Details</th>
-            <th className="px-3.5 py-2 text-left whitespace-nowrap">Area / Location</th>
-            <th className="px-3.5 py-2 text-left whitespace-nowrap">Completed By</th>
-            <th className="px-3.5 py-2 text-left whitespace-nowrap">Completion Time</th>
-            <th className="px-3.5 py-2 text-center whitespace-nowrap">Status</th>
+            <th className="px-3 py-4 text-left whitespace-nowrap">Date</th>
+            <th className="px-3 py-4 text-left whitespace-nowrap">Task Name & Details</th>
+            <th className="px-3 py-4 text-left whitespace-nowrap">Area / Location</th>
+            <th className="px-3 py-4 text-left whitespace-nowrap">Completed By</th>
+            <th className="px-3 py-4 text-left whitespace-nowrap">Completion Time</th>
+            <th className="px-3 py-4 text-center whitespace-nowrap">Status</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-slate-100/60">
           {tasks.map((task) => (
-            <tr key={task.id} className="transition-colors hover:bg-slate-50/70">
-              <td className="px-3.5 py-2 align-middle">
-                <div className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
-                  <CalendarDays size={14} className="text-slate-400" />
+            <tr key={task.id} className="transition-colors hover:bg-blue-50/30">
+              <td className="px-3 py-4 align-middle">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
+                  <CalendarDays size={14} className="text-slate-400 shrink-0" />
                   {task.completedAtLabel || task.dueAtLabel || task.bookingDateLabel || 'Today'}
                 </div>
-                <div className="ml-5 mt-0.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">{task.taskCode}</div>
+                <div className="ml-5 mt-0.5 text-[9px] font-bold uppercase tracking-widest text-slate-400">{task.taskCode}</div>
               </td>
-              <td className="px-3.5 py-2 align-middle text-sm font-bold text-slate-800">{task.taskName}</td>
-              <td className="px-3.5 py-2 align-middle text-sm font-medium text-slate-600">{task.area || task.roomName || 'General'}</td>
-              <td className="px-3.5 py-2 align-middle">
-                <span className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
-                  <User size={14} className="text-slate-400" /> {task.completedBy || task.assignedTo || 'Admin'}
+              <td className="px-3 py-4 align-middle text-xs font-bold text-slate-800">{task.taskName}</td>
+              <td className="px-3 py-4 align-middle text-xs font-medium text-slate-600">{task.area || task.roomName || 'General'}</td>
+              <td className="px-3 py-4 align-middle">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
+                  <User size={14} className="text-slate-400 shrink-0" /> {task.completedBy || task.assignedTo || 'Admin'}
                 </span>
               </td>
-              <td className="px-3.5 py-2 align-middle text-xs font-black text-blue-600">{task.completedAt ? formatTime12h(task.completedAt) : 'Verbal'}</td>
-              <td className="px-3.5 py-2 align-middle text-center">
-                <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.22em] text-green-600">
+              <td className="px-3 py-4 align-middle text-xs font-black text-blue-600">{task.completedAt ? formatTime12h(task.completedAt) : 'Verbal'}</td>
+              <td className="px-3 py-4 align-middle text-center">
+                <span className="inline-flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.22em] text-green-600 whitespace-nowrap">
                   <Check size={12} /> Done
                 </span>
               </td>
@@ -1206,7 +1196,7 @@ function HistoryTable({ tasks, month, year }: HistoryTableProps) {
           ))}
           {tasks.length === 0 ? (
             <tr>
-              <td colSpan={6} className="px-3.5 py-20 text-center">
+              <td colSpan={6} className="px-3 py-20 text-center">
                 <p className="text-sm font-black uppercase tracking-widest text-slate-500">No historical data found for {month} {year}.</p>
               </td>
             </tr>

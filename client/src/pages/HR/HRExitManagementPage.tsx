@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   Archive,
   Calendar,
+  FileDown,
   Check,
   CheckCircle2,
   CheckSquare,
@@ -486,7 +487,7 @@ export function HRExitManagementPage() {
         <div className="flex flex-col gap-4">
 
           {/* ── Header ── */}
-          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-3">
+          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Exit Management
@@ -496,33 +497,24 @@ export function HRExitManagementPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
-                onClick={() => handleExportReport("PDF")}
-                disabled={Boolean(isExportingReport)}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-[#2563EB] hover:text-[#2563EB] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <FileText size={14} /> Export PDF
+                // onClick={handleExportPDF}
+                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                <FileDown size={16} className="text-red-500"/>
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
               </button>
               <button
                 type="button"
-                onClick={() => handleExportReport("Excel")}
-                disabled={Boolean(isExportingReport)}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <FileSpreadsheet size={14} /> Export Excel
+                // onClick={handleExportExcel}
+                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                <FileSpreadsheet size={16} className="text-emerald-500"/>
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
               </button>
-              <button
-                type="button"
-                onClick={refreshData}
-                disabled={isRefreshing}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-[#2563EB] hover:text-[#2563EB] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} /> Refresh
-              </button>
+              
             </div>
           </div>
 
           {/* ── Main Tabs (pill-style, before stat cards) ── */}
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl w-full">
+          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {[
               { key: "requests", label: `REQUESTS (${pendingCount})` },
               { key: "notice", label: `ACTIVE NOTICE (${activeNoticeCount})` },
@@ -532,10 +524,10 @@ export function HRExitManagementPage() {
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                className={`flex-1 px-8 py-2.5 rounded-xl text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
                   activeTab === tab.key
-                    ? "bg-white shadow-sm text-[#2563EB]"
-                    : "text-slate-400 hover:text-slate-600"
+                    ? "bg-[#2563EB] text-white shadow-sm"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
                 }`}
               >
                 {tab.label}
@@ -545,7 +537,7 @@ export function HRExitManagementPage() {
 
           {/* ── Stat Cards ── */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3 shrink-0">
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
               <div className="min-w-0">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pending Requests</p>
                 <p className="text-[15px] font-black text-slate-900">{pendingCount}</p>
@@ -554,7 +546,7 @@ export function HRExitManagementPage() {
                 <AlertTriangle size={16} />
               </div>
             </div>
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
               <div className="min-w-0">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Active Notice Periods</p>
                 <p className="text-[15px] font-black text-slate-900">{activeNoticeCount}</p>
@@ -563,7 +555,7 @@ export function HRExitManagementPage() {
                 <Clock size={16} />
               </div>
             </div>
-            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
+            <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
               <div className="min-w-0">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Completed Exits</p>
                 <p className="text-[15px] font-black text-slate-900">{completedCount}</p>

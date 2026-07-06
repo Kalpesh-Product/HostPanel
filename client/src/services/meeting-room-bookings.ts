@@ -20,8 +20,12 @@ export const getMeetingRoomById = async (id: string) => {
 // ======================
 // BOOKINGS
 // ======================
-export const getMeetingRoomBookings = async (workspaceId: string) => {
-  const response = await axiosPrivate.get(`${BASE}/bookings/workspace/${workspaceId}`);
+export const getMeetingRoomBookings = async (workspaceIdOrParams?: string | Record<string, any>) => {
+  if (typeof workspaceIdOrParams === 'string') {
+    const response = await axiosPrivate.get(`${BASE}/bookings/workspace/${workspaceIdOrParams}`);
+    return unwrap(response);
+  }
+  const response = await axiosPrivate.get("/api/meeting-rooms/bookings", { params: workspaceIdOrParams });
   return unwrap(response);
 };
 
@@ -88,4 +92,22 @@ export const createExternalClient = async (payload: {
 export const sendExternalBookingConfirmationEmail = async (bookingId: string) => {
   const response = await axiosPrivate.post(`${BASE}/bookings/${bookingId}/send-confirmation`);
   return response?.data;
+};
+
+// ======================
+// INVOICES (for Finance module)
+// ======================
+export const generateMeetingRoomInvoice = async (bookingId: string) => {
+  const response = await axiosPrivate.post(`/api/meeting-rooms/bookings/${bookingId}/generate-invoice`);
+  return unwrap(response);
+};
+
+export const resetMeetingRoomInvoice = async (bookingId: string) => {
+  const response = await axiosPrivate.post(`/api/meeting-rooms/bookings/${bookingId}/reset-invoice`);
+  return unwrap(response);
+};
+
+export const sendMeetingRoomInvoice = async (bookingId: string) => {
+  const response = await axiosPrivate.post(`/api/meeting-rooms/bookings/${bookingId}/send-invoice`);
+  return unwrap(response);
 };

@@ -3,13 +3,14 @@ import { toast } from 'sonner';
 import {
   Building2, Plus, Trash2, X, Users, UserPlus, ArrowLeft,
   Mail, Calendar, Briefcase, Shield, Send, DollarSign, Wrench,
-  CheckCircle2, Search, Crown, CheckSquare, 
-  Power, AlertCircle, Lock
+  CheckCircle2, Search, Crown, CheckSquare,
+  Power, AlertCircle, Lock, Clock, UserCheck, UserX, Ban, Loader2
 } from 'lucide-react';
 import { Switch } from '@mui/material';
 import useAuth from '../../hooks/useAuth';
 import useAxiosPrivate from '../../hooks/useAxiosPrivate';
 import PageFrame from '../../components/Pages/PageFrame';
+import { OrganizationSkeleton } from '../../components/ui/Skeleton';
 import {
   assignOrganizationActingManager,
   assignOrganizationDepartmentManager,
@@ -39,9 +40,11 @@ import {
 } from '../../lib/owner-access';
 import { getWorkspaceCount } from '../../utils/workspacePlanAccess';
 
+// sessionStorage only — see client/src/lib/auth-session.ts for why localStorage
+// (shared across tabs) must not be used as a fallback for the cached user.
 const getStoredUser = () => {
   try {
-    const raw = localStorage.getItem("hostpanel_auth_user");
+    const raw = sessionStorage.getItem("hostpanel_auth_user");
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -50,7 +53,7 @@ const getStoredUser = () => {
 
 const updateStoredUser = (user) => {
   try {
-    localStorage.setItem("hostpanel_auth_user", JSON.stringify(user || null));
+    sessionStorage.setItem("hostpanel_auth_user", JSON.stringify(user || null));
     window.dispatchEvent(new Event("auth:updated"));
   } catch {
     // noop
@@ -236,6 +239,7 @@ export function OrganizationPage() {
   const [isSavingDepartments, setIsSavingDepartments] = useState(false);
   const [isSendingInvite, setIsSendingInvite] = useState(false);
   const [isAddingEmployee, setIsAddingEmployee] = useState(false);
+  const [accessTogglePendingMemberId, setAccessTogglePendingMemberId] = useState('');
 
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -770,16 +774,22 @@ export function OrganizationPage() {
     }
   };
 
-  const toggleMemberStatus = (id) => {
+  const toggleMemberStatus = async (id, nextEnabled?: boolean) => {
     if (!canToggleAccessByAccess) {
       toast.error('You do not have access to toggle user status.');
       return;
     }
-    toggleOrganizationMemberStatus(axiosPrivate, id)
-      .then(() => loadOrganization(selectedDepartment?.id || null))
-      .catch((error) => {
-        console.error("Failed to update member status", error);
-      });
+    setAccessTogglePendingMemberId(id);
+    try {
+      await toggleOrganizationMemberStatus(axiosPrivate, id);
+      toast.success(nextEnabled ? 'Access enabled' : 'Access disabled');
+      await loadOrganization(selectedDepartment?.id || null);
+    } catch (error) {
+      console.error("Failed to update member status", error);
+      toast.error('Failed to update access.');
+    } finally {
+      setAccessTogglePendingMemberId('');
+    }
   };
 
   const handleRoleChange = (member: TeamMember, nextRole: string) => {
@@ -924,17 +934,19 @@ export function OrganizationPage() {
   const getStatusBadge = (status) => {
     switch ((status || '').toLowerCase()) {
       case 'joined':
-        return <span className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 w-max">Joined</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50"><UserCheck size={12}/>Joined</span>;
       case 'accepted':
-        return <span className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-blue-100 text-blue-700 w-max">Accepted</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50"><UserCheck size={12}/>Accepted</span>;
+      case 'registered':
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50"><UserCheck size={12}/>Registered</span>;
       case 'pending':
-        return <span className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 w-max">Pending</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50"><Clock size={12}/>Pending</span>;
       case 'invited':
-        return <span className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-violet-100 text-violet-700 w-max">Invited</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50"><Mail size={12}/>Invited</span>;
       case 'disabled':
-        return <span className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-slate-200 text-slate-700 w-max">Disabled</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-rose-600 bg-rose-50"><Ban size={12}/>Disabled</span>;
       default:
-        return <span className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 w-max">{status || 'Unknown'}</span>;
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-100">{status || 'Unknown'}</span>;
     }
   };
 
@@ -999,9 +1011,7 @@ export function OrganizationPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="p-6 lg:p-8">Loading organization...</div>
-    );
+    return <OrganizationSkeleton />;
   }
 
   return (
@@ -1020,14 +1030,14 @@ export function OrganizationPage() {
 
         {/* 2. MAIN TABS (pill-style matching DESIGN.md) */}
         <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-          <button onClick={() => setActiveTab('users')} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'users' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+          <button onClick={() => setActiveTab('users')} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${activeTab === 'users' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
             <Shield size={16} className="inline mr-1"/> PLATFORM USERS
           </button>
           <button
             title={!canAccessDepartmentsTab ? 'You do not have access to departments.' : ''}
             disabled={!canAccessDepartmentsTab}
             onClick={() => { setActiveTab('departments'); setView('list'); }}
-            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+            className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
               !canAccessDepartmentsTab
                 ? 'text-slate-300 cursor-not-allowed'
                 : activeTab === 'departments'
@@ -1099,13 +1109,13 @@ export function OrganizationPage() {
       {activeTab === 'users' && (
         <>
         <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-          {/* DATA PANEL HEADER ROW: inner tabs (left) + search/filter/action (right) */}
+          {/* DATA PANEL HEADER ROW: heading (left) + search/filter/action (right) */}
           <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-            <div className="flex bg-slate-100/50 p-1 rounded-xl w-full xl:w-auto relative border border-slate-200/50 overflow-x-auto">
-              <button className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 whitespace-nowrap text-[#0F172A]">
-                <div className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />
-                Platform Users
-              </button>
+            <div>
+              <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">Platform Users</h2>
+              <p className="text-xs font-medium text-slate-500 mt-1">
+                Manage platform users, their roles, department assignments, and access permissions.
+              </p>
             </div>
 
             <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
@@ -1149,7 +1159,7 @@ export function OrganizationPage() {
 
           {/* STATUS SUB-TABS (pill filters) */}
           <div className="px-3 sm:px-4 lg:px-5 py-2 border-b border-slate-100/40 bg-white flex items-center gap-1.5 overflow-x-auto">
-            {['all', 'pending', 'accepted', 'joined', 'invited', 'disabled'].map((status) => (
+            {['all', 'pending', 'accepted', 'registered', 'joined', 'invited', 'disabled'].map((status) => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
@@ -1169,11 +1179,13 @@ export function OrganizationPage() {
           <table className="w-full text-left">
             <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
               <tr>
-                <th className="px-5 py-4">Platform User</th>
-                <th className="px-5 py-4">Access Role</th>
-                <th className="px-5 py-4">Department</th>
-                <th className="px-5 py-4">Status</th>
-                <th className="px-5 py-4 text-right">Access</th>
+                <th className="px-5 py-4 text-left">Employee ID</th>
+                <th className="px-5 py-4 text-left">Platform User</th>
+                <th className="px-5 py-4 text-left">Email</th>
+                <th className="px-5 py-4 text-left">Access Role</th>
+                <th className="px-5 py-4 text-left">Department</th>
+                <th className="px-5 py-4 text-center">Status</th>
+                <th className="px-5 py-4 text-left">Access</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100/60">
@@ -1193,20 +1205,18 @@ export function OrganizationPage() {
                   return (
                   <tr key={member.id} className={`hover:bg-slate-50/50 transition-colors group ${normalizedRole === 'owner' ? 'bg-slate-50/50' : member.status === 'disabled' ? 'bg-slate-50/50 opacity-75' : ''}`}>
                     <td className="px-5 py-4">
+                      <span className="font-bold text-slate-800 text-[12px]">{member.employeeId || '—'}</span>
+                    </td>
+                    <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-[10px] shadow-sm ${normalizedRole === 'owner' ? 'bg-[#111827]' : 'bg-gradient-to-br from-[#2563EB] to-blue-700'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-bold shadow-sm shrink-0 ${normalizedRole === 'owner' ? 'bg-[#111827] text-white' : 'bg-[#2563EB] text-white'}`}>
                           {getInitials(member.name)}
                         </div>
-                        <div>
-                          <div className="font-bold text-[11px] text-slate-900">{member.name}</div>
-                          <div className="text-[10px] font-medium text-slate-500">{member.email}</div>
-                          {member.employeeId && (
-                            <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-0.5">
-                              {member.employeeId}
-                            </div>
-                          )}
-                        </div>
+                        <span className="font-semibold text-slate-800 text-[12px]">{member.name}</span>
                       </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className="text-[11px] font-medium text-slate-500">{member.email}</span>
                     </td>
                     <td className="px-5 py-4">{getRoleBadge(member.role)}</td>
                     <td className="px-5 py-4">
@@ -1216,61 +1226,101 @@ export function OrganizationPage() {
                         ))}
                       </div>
                     </td>
-                    <td className="px-5 py-4">
+                    <td className="px-5 py-4 text-center">
                       {getStatusBadge(member.status)}
                     </td>
                     <td className="px-5 py-4">
-                      <div className="flex flex-col items-end justify-center gap-1.5">
-                        {(() => {
-                          const isSelf = member.userId && String(member.userId) === currentUserId;
-                          const isProtectedSelf = isSelf && normalizeRoleValue(member.role) === 'super-admin';
-                          const canToggleAccess =
-                            canToggleAccessByAccess &&
-                            !isProtectedSelf &&
-                            member.role !== 'owner' &&
-                            ['joined', 'disabled'].includes(member.status ?? '');
+                      {(() => {
+                        const memberStatus = member.status ?? '';
+                        const isOwner = member.role === 'owner';
+                        const isSelf = member.userId && String(member.userId) === currentUserId;
+                        const isProtectedSelf = isSelf && normalizeRoleValue(member.role) === 'super-admin';
 
+                        if (memberStatus === 'invited' || memberStatus === 'invite_sent') {
                           return (
-                        <div
-                          onClick={() => canToggleAccess && toggleMemberStatus(member.id)}
-                          className={`w-11 h-6 rounded-full flex items-center p-0.5 transition-all duration-300 ${member.role === 'owner' || isProtectedSelf ? 'bg-slate-200 cursor-not-allowed' : member.status === 'joined' ? 'bg-emerald-500 cursor-pointer shadow-inner' : member.status === 'disabled' ? 'bg-red-500 cursor-pointer shadow-inner' : 'bg-amber-200 cursor-not-allowed'}`}
-                          title={member.role === 'owner' ? 'Founder access' : isProtectedSelf ? 'Super admin access cannot be disabled' : member.status === 'joined' ? 'Disable access' : member.status === 'disabled' ? 'Enable access' : 'Pending Invite'}
-                        >
-                          <div className={`bg-white w-4.5 h-4.5 rounded-full shadow-sm transition-all duration-300 flex items-center justify-center ${member.role === 'owner' || isProtectedSelf ? 'translate-x-0' : member.status === 'joined' ? 'translate-x-5' : 'translate-x-0'}`}>
-                            {member.role === 'owner' || isProtectedSelf ? <Crown size={10} className="text-slate-500"/> : member.status === 'joined' ? <CheckCircle2 size={10} className="text-emerald-500"/> : member.status === 'disabled' ? <Power size={10} className="text-red-500"/> : null}
-                          </div>
-                        </div>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50">
+                              <Clock size={12} /> Access Pending
+                            </span>
                           );
-                        })()}
-                        <span className={`text-[10px] font-bold ${(member.role === 'owner' || (member.userId && String(member.userId) === currentUserId && normalizeRoleValue(member.role) === 'super-admin')) ? 'text-slate-500' : member.status === 'joined' ? 'text-emerald-600' : member.status === 'disabled' ? 'text-red-600' : 'text-amber-500'}`}>
-                          {member.role === 'owner'
-                            ? 'Founder'
-                            : (member.userId && String(member.userId) === currentUserId && normalizeRoleValue(member.role) === 'super-admin')
-                              ? 'Self Protected'
-                              : member.status === 'joined'
-                                ? 'Access On'
-                                : member.status === 'disabled'
-                                  ? 'Access Off'
-                                  : 'Invite Sent'}
-                        </span>
-                        {/* {canChangeRoleByAccess && member.role !== 'owner' ? (
-                          <select
-                            value={normalizeRoleValue(member.role)}
-                            onChange={(e) => handleRoleChange(member, e.target.value)}
-                            className="mt-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700"
-                          >
-                            <option value="employee">Employee</option>
-                            <option value="manager">Manager</option>
-                            <option value="admin">Admin</option>
-                            <option value="super_admin">Super Admin</option>
-                          </select>
-                        ) : null} */}
-                      </div>
+                        }
+
+                        if (memberStatus === 'pending') {
+                          return (
+                            <div className="flex flex-col items-start gap-1">
+                              <label className="inline-flex items-center gap-2 cursor-not-allowed select-none">
+                                <input type="checkbox" checked={false} disabled={true} className="sr-only peer" />
+                                <span className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors bg-amber-400 opacity-60">
+                                  <span className="absolute left-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow translate-x-0" />
+                                </span>
+                              </label>
+                              <span className="text-[10px] font-bold text-amber-600">Access Pending</span>
+                            </div>
+                          );
+                        }
+
+                        if (memberStatus === 'accepted' || memberStatus === 'registered') {
+                          return (
+                            <div className="flex flex-col items-start gap-1">
+                              <label className="inline-flex items-center gap-2 cursor-not-allowed select-none">
+                                <input type="checkbox" checked={true} disabled={true} className="sr-only peer" />
+                                <span className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors bg-blue-500 opacity-60">
+                                  <span className="absolute left-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow translate-x-5" />
+                                </span>
+                              </label>
+                              <span className="text-[10px] font-bold text-blue-600">Access Pending</span>
+                            </div>
+                          );
+                        }
+
+                        const isAccessEnabled = memberStatus === 'joined';
+                        const canToggle =
+                          canToggleAccessByAccess &&
+                          !isProtectedSelf &&
+                          !isOwner &&
+                          ['joined', 'disabled'].includes(memberStatus);
+                        const isToggleLocked = !canToggle;
+                        const toggleColor = isToggleLocked
+                          ? 'bg-slate-300'
+                          : isAccessEnabled
+                            ? 'bg-emerald-500'
+                            : 'bg-rose-500';
+
+                        if (isOwner) {
+                          return <span className="text-[10px] font-bold text-slate-400">Founder</span>;
+                        }
+
+                        const isAccessSaving = accessTogglePendingMemberId === member.id;
+                        return (
+                          <div className="flex flex-col items-start gap-1">
+                            <label className={`inline-flex items-center gap-2 ${isToggleLocked || isAccessSaving ? 'cursor-not-allowed' : 'cursor-pointer'} select-none`}>
+                              <input
+                                type="checkbox"
+                                checked={isAccessEnabled}
+                                disabled={isToggleLocked || isAccessSaving}
+                                onChange={() => canToggle && !isAccessSaving && toggleMemberStatus(member.id, !isAccessEnabled)}
+                                className="sr-only peer"
+                              />
+                              <span className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${toggleColor} ${isToggleLocked ? 'opacity-60' : ''} ${isAccessSaving ? 'opacity-80' : ''}`}>
+                                <span className={`absolute left-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow transition-transform ${isAccessEnabled ? 'translate-x-5' : 'translate-x-0'}`}>
+                                  {isAccessSaving ? <Loader2 size={10} className="animate-spin text-slate-400" /> : null}
+                                </span>
+                              </span>
+                            </label>
+                            <span className={`text-[10px] font-bold ${isToggleLocked ? 'text-slate-500' : isAccessEnabled ? 'text-emerald-600' : 'text-rose-600'}`}>
+                              {isProtectedSelf
+                                ? 'Self Protected'
+                                : isAccessEnabled
+                                  ? 'Access On'
+                                  : 'Access Off'}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </td>
                   </tr>
                 )})}
                 {filteredTeamMembers.length === 0 && (
-                  <tr><td colSpan={5} className="text-center py-20 text-slate-400 font-semibold"><Shield size={32} className="mx-auto mb-3 opacity-50"/>No platform users found.</td></tr>
+                  <tr><td colSpan={7} className="text-center py-20 text-slate-400 font-semibold"><Shield size={32} className="mx-auto mb-3 opacity-50"/>No platform users found.</td></tr>
                 )}
               </tbody>
             </table>

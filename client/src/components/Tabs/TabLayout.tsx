@@ -1,5 +1,4 @@
 import { useEffect, useMemo } from "react";
-import { Tabs } from "@mui/material";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import useIsMobile from "../../hooks/useIsMobile";
 import useAuth from "../../hooks/useAuth";
@@ -27,7 +26,6 @@ const TabLayout = ({
   defaultTabPath,
   hideTabsCondition = () => false,
   hideTabsOnPaths = [],
-  scrollable,
   lockUnauthorizedTabs = false,
 }: TabLayoutProps) => {
   const location = useLocation();
@@ -63,9 +61,6 @@ const TabLayout = ({
     }
   }, [location.pathname, navigate, basePath, defaultTabPath, filteredTabs]);
 
-  const activeTab = filteredTabs.findIndex((tab) =>
-    location.pathname.includes(tab.path),
-  );
   const tabPercent = filteredTabs.length > 0 ? 100 / filteredTabs.length : 100;
 
   const showTabs =
@@ -75,39 +70,14 @@ const TabLayout = ({
   return (
     <div className="p-4">
       {showTabs && (
-        <Tabs
-          value={activeTab}
-          variant={scrollable || isMobile ? "scrollable" : "fullWidth"}
-          scrollButtons={isMobile ? "auto" : false}
-          TabIndicatorProps={{ style: { display: "none" } }}
-          sx={{
-            backgroundColor: "white",
-            borderRadius: 2,
-            border: "1px solid #d1d5db",
-            overflowX: isMobile ? "auto" : "hidden",
-            "& .MuiTab-root": {
-              textTransform: "none",
-              fontWeight: "medium",
-              padding: "12px 16px",
-              borderRight: "0.1px solid #d1d5db",
-              minWidth: isMobile ? "fit-content" : "auto",
-            },
-            "& .Mui-selected": {
-              backgroundColor: "#1E3D73",
-              color: "white",
-            },
-          }}
-        >
+        <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
           {filteredTabs.map((tab, index) =>
             tab.locked ? (
               <span
                 key={`${tab.path}-${index}`}
-                className="border-r-[1px] border-borderGray inline-flex items-center justify-center gap-1 text-slate-400 bg-slate-50 cursor-not-allowed"
-                title="You don’t have permission for this tab."
+                className="flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all inline-flex items-center justify-center gap-1 text-slate-400 bg-slate-50 cursor-not-allowed"
+                title="You don't have permission for this tab."
                 style={{
-                  textAlign: "center",
-                  padding: "12px 16px",
-                  display: "block",
                   minWidth: isMobile ? "70%" : `${tabPercent}%`,
                 }}
               >
@@ -117,23 +87,24 @@ const TabLayout = ({
             ) : (
               <NavLink
                 key={`${tab.path}-${index}`}
-                className="border-r-[1px] border-borderGray"
                 to={`${basePath}/${tab.path}`}
                 style={({ isActive }) => ({
                   textDecoration: "none",
-                  color: isActive ? "white" : "#1E3D73",
-                  textAlign: "center",
-                  padding: "12px 16px",
-                  display: "block",
-                  backgroundColor: isActive ? "#1E3D73" : "white",
                   minWidth: isMobile ? "70%" : `${tabPercent}%`,
                 })}
+                className={({ isActive }) =>
+                  `flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all text-center ${
+                    isActive
+                      ? "bg-[#2563EB] text-white shadow-sm"
+                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                  }`
+                }
               >
                 {tab.label}
               </NavLink>
             ),
           )}
-        </Tabs>
+        </div>
       )}
 
       <div className="py-4">

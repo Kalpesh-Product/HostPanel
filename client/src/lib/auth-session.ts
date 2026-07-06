@@ -1,6 +1,10 @@
 export const getStoredUser = (): any => {
   try {
-    const raw = sessionStorage.getItem("hostpanel_auth_user") || localStorage.getItem("hostpanel_auth_user") || localStorage.getItem("user");
+    // sessionStorage only — it is tab-scoped. localStorage is shared across every
+    // tab/window for this origin, so falling back to it lets one tab's logged-in
+    // user (e.g. the founder) leak into a different tab expecting its own fresh
+    // login (e.g. a department manager), producing the wrong role's UI.
+    const raw = sessionStorage.getItem("hostpanel_auth_user");
     if (raw) {
       // Handle potential wrapped structures from AuthState vs plain User object
       const parsed = JSON.parse(raw);

@@ -1,19 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  BadgeCheck, CheckCircle2, Eye, Search, Sparkles, Star, Target, X,
+  AlertTriangle, BadgeCheck, CheckCircle2, Eye, Search, Sparkles, Star, Target, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { format, isValid } from "date-fns";
-import axios from "axios";
 import PageFrame from "../../../../components/Pages/PageFrame";
 import useAuth from "../../../../hooks/useAuth";
-
-const nomadsAxios = axios.create({
-  baseURL: "https://wononomadsbe.vercel.app",
-  timeout: 10_000,
-});
+import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
 
 const STATUSES = ["pending", "approved", "rejected"];
 const REVIEW_CACHE_KEY = "wbr_review_cache";
@@ -44,21 +39,24 @@ export default function WebsiteBuilderReviews() {
   const selectedCompany = useSelector((state) => state.company.selectedCompany);
   const { auth } = useAuth();
   const queryClient = useQueryClient();
+  const axiosPrivate = useAxiosPrivate();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [stageFilter, setStageFilter] = useState("all");
   const [selectedReviewId, setSelectedReviewId] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const companyId = (selectedCompany?.companyId ?? auth?.user?.companyId ?? "").trim();
   const workspaceId = (selectedCompany?.workspaceId ?? auth?.user?.primaryWorkspace ?? auth?.user?.workspaceId ?? "").trim();
 
-  const queryParam = companyId ? { companyId } : workspaceId ? { workspaceId } : null;
-
   const { data: rawData, isPending, isError } = useQuery({
     queryKey: ["websiteReviews", companyId, workspaceId],
-    enabled: queryParam !== null,
+    enabled: !!(companyId || workspaceId),
     queryFn: async () => {
-      const res = await nomadsAxios.get("/api/review/", { params: queryParam });
+      const params = {};
+      if (companyId) params.companyId = companyId;
+      if (workspaceId) params.workspaceId = workspaceId;
+      const res = await axiosPrivate.get("/api/review", { params });
       const raw = res.data?.reviews ?? res.data?.data?.reviews ?? res.data?.data ?? res.data;
       return Array.isArray(raw) ? raw : [];
     },
@@ -79,7 +77,7 @@ export default function WebsiteBuilderReviews() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ reviewId, status }) => {
-      const res = await nomadsAxios.patch(`/api/review/website-review/${reviewId}`, { status });
+      const res = await axiosPrivate.patch(`/api/review/${reviewId}`, { status });
       return res.data;
     },
     onSuccess: (_data, { status, reviewId }) => {
@@ -125,7 +123,14 @@ export default function WebsiteBuilderReviews() {
   }, [rawData, localCache]);
 
   const handleStatusChange = (reviewId, newStatus) => {
-    updateMutation.mutate({ reviewId, status: newStatus });
+    setConfirmAction({ reviewId, status: newStatus });
+  };
+
+  const confirmStatusChange = () => {
+    if (!confirmAction) return;
+    updateMutation.mutate({ reviewId: confirmAction.reviewId, status: confirmAction.status });
+    setConfirmAction(null);
+    setSelectedReviewId(null);
   };
 
   const reviewStats = useMemo(() => {
@@ -156,7 +161,7 @@ export default function WebsiteBuilderReviews() {
     [reviews, selectedReviewId],
   );
 
-  if (queryParam === null) {
+  if (!companyId && !workspaceId) {
     return (
       <div className="p-2 lg:p-2.5">
         <PageFrame>
@@ -414,10 +419,10 @@ export default function WebsiteBuilderReviews() {
                 <div className="border-t border-slate-100 bg-slate-50 px-5 py-3 flex items-center justify-end gap-2 shrink-0">
                   {(selectedReview.status || "pending") === "pending" && (
                     <>
-                      <button type="button" onClick={() => { handleStatusChange(selectedReview._id, "approved"); setSelectedReviewId(null); }}
+                      <button type="button" onClick={() => handleStatusChange(selectedReview._id, "approved")}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-emerald-700"
                       ><CheckCircle2 size={12} /> Approve</button>
-                      <button type="button" onClick={() => { handleStatusChange(selectedReview._id, "rejected"); setSelectedReviewId(null); }}
+                      <button type="button" onClick={() => handleStatusChange(selectedReview._id, "rejected")}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-rose-700"
                       ><X size={12} /> Reject</button>
                     </>
@@ -427,6 +432,39 @@ export default function WebsiteBuilderReviews() {
                   )}
                 </div>
 
+              </div>
+            </div>
+          )}
+
+          {/* CONFIRMATION MODAL */}
+          {confirmAction && (
+            <div className="fixed inset-0 z-[9999] overflow-hidden bg-[#0F172A]/60 backdrop-blur-md p-3 sm:p-4 flex items-center justify-center">
+              <div className="absolute inset-0 bg-[#0F172A]/60 backdrop-blur-sm" onClick={() => setConfirmAction(null)} />
+              <div className="relative z-10 flex flex-col w-full max-w-[420px] overflow-hidden rounded-[2rem] border border-white/80 bg-white shadow-2xl p-6 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 mb-4">
+                  <AlertTriangle size={28} className="text-amber-500" />
+                </div>
+                <h3 className="text-base font-black text-slate-900 mb-2">
+                  {confirmAction.status === "approved" ? "Approve Review?" : "Reject Review?"}
+                </h3>
+                <p className="text-[13px] font-medium text-slate-500 leading-relaxed mb-6">
+                  {confirmAction.status === "approved"
+                    ? "Once approved, the review will be visible on your hosted website. This action cannot be undone."
+                    : "Once rejected, the review will never be displayed on your website. This action cannot be undone."
+                  }
+                </p>
+                <div className="flex items-center gap-2.5">
+                  <button type="button" onClick={() => setConfirmAction(null)}
+                    className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[11px] font-bold uppercase tracking-widest text-slate-600 transition hover:bg-slate-50"
+                  >Cancel</button>
+                  <button type="button" onClick={confirmStatusChange}
+                    className={`flex-1 rounded-xl px-4 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white transition ${
+                      confirmAction.status === "approved"
+                        ? "bg-emerald-600 hover:bg-emerald-700"
+                        : "bg-rose-600 hover:bg-rose-700"
+                    }`}
+                  >Yes, {confirmAction.status === "approved" ? "Approve" : "Reject"}</button>
+                </div>
               </div>
             </div>
           )}

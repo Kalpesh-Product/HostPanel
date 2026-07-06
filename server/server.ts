@@ -33,6 +33,7 @@ import resourceRoutes from "./routes/resourceRoutes.js";
 import plansPricingRoutes from "./routes/plansPricing.routes.js";
 import tenantCompanyRoutes from "./routes/tenant-company.routes.js";
 import calendarRoutes from "./routes/calendarRoutes.js";
+import hrRoutes from "./routes/hrRoutes.js";
 import { seedSystemRoles } from "./config/seedRoles.js";
 import inventoryRoutes from "./routes/inventoryRoutes.js";
 import maintenanceRoutes from "./routes/maintenanceRoutes.js";

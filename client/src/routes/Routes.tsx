@@ -59,6 +59,9 @@ import HRLeaveRequestsProcessingPage from "../pages/HR/HRLeaveRequestsProcessing
 import HRRecruitmentPage from "../pages/HR/HRRecruitmentPage";
 import HRPayrollPage from "../pages/HR/HRPayrollPage";
 import HRExitManagementPage from "../pages/HR/HRExitManagementPage";
+import { ExpensesBudgetPage } from "../pages/Finance/ExpensesBudgetPage";
+import { BillingPaymentsPage } from "../pages/Finance/BillingPaymentsPage";
+import AccountingPage from "../pages/Finance/AccountingPage";
 import VendorTable from "../components/Pages/VendorTable";
 import AssetsHome from "../pages/Assets/AssetsHome";
 import ManageAssetsHome from "../pages/Assets/ManageAssetsHome";
@@ -1105,6 +1108,24 @@ export const routes = createBrowserRouter([
                       {
                         path: "exit-management",
                         element: <HRExitManagementPage />,
+                      },
+                    ],
+                  },
+                  {
+                    path: "finance",
+                    element: <Outlet />,
+                    children: [
+                      {
+                        path: "expenses-budget",
+                        element: <ExpensesBudgetPage />,
+                      },
+                      {
+                        path: "billing-payments",
+                        element: <BillingPaymentsPage />,
+                      },
+                      {
+                        path: "accounting",
+                        element: <AccountingPage />,
                       },
                     ],
                   },

@@ -244,9 +244,17 @@ const buildLocalReviewQuery = ({
   const query = {};
   const normalizedStatus = sanitizeValue(status).toLowerCase();
   if (normalizedStatus) query.status = normalizedStatus;
-  if (sanitizeValue(workspaceId)) query.workspaceId = sanitizeValue(workspaceId);
-  else if (sanitizeValue(companyId)) query.companyId = sanitizeValue(companyId);
-  else if (sanitizeValue(searchKey)) query.searchKey = sanitizeValue(searchKey).toLowerCase();
+  const validWorkspaceId = sanitizeValue(workspaceId);
+  const validCompanyId = sanitizeValue(companyId);
+  if (validWorkspaceId) {
+    query.workspaceId = validWorkspaceId;
+  }
+  if (validCompanyId) {
+    query.companyId = validCompanyId;
+  }
+  if (sanitizeValue(searchKey)) {
+    query.searchKey = sanitizeValue(searchKey).toLowerCase();
+  }
   return query;
 };
 
@@ -421,11 +429,25 @@ export const getApprovedWebsiteReviews = async (req, res, next) => {
           companyId,
           companyType: sanitizeValue(req.query?.companyType),
           status: "approved",
+          ...(workspaceId ? { workspaceId } : {}),
         },
       });
       remoteReviews = parseReviewList(response);
     } catch (error) {
       remoteReviews = [];
+    }
+
+    if (remoteReviews.length > 0) {
+      if (workspaceId) {
+        remoteReviews = remoteReviews.filter((r) => {
+          const rWorkspaceId = sanitizeValue(r.workspaceId);
+          return rWorkspaceId === workspaceId;
+        });
+      } else {
+        remoteReviews = remoteReviews.filter((r) => {
+          return !sanitizeValue(r.workspaceId);
+        });
+      }
     }
 
     const localReviews = await WebsiteReview.find(
@@ -521,19 +543,9 @@ export const updateReviewStatus = async (req, res, next) => {
     let response;
 
     try {
-      const response = await axios.post(
-        `https://wononomadsbe.vercel.app/api/reviews/${reviewId}`,
-        data,
-      );
-
-      // response = await axios.patch(
-      //   `http://localhost:3000/api/review/${reviewId}`,
-      //   data,
-      // );
-
       response = await requestReviewApi({
         method: "patch",
-        url: `/api/review/${reviewId}`,
+        url: `/api/review/website-review/${reviewId}`,
         data,
       });
 
@@ -565,7 +577,9 @@ export const getReviewsByCompany = async (req, res, next) => {
     const { companyType = "", status = "" } = req.query;
     const companyId = await resolveCanonicalCompanyId(req);
     const template = await resolveTemplateFromRequest(req);
-    const workspaceId = sanitizeValue(req.query?.workspaceId || template?.workspaceId);
+    const workspaceId = sanitizeValue(
+      req.workspaceMembership?.workspace || req.query?.workspaceId || template?.workspaceId,
+    );
     const searchKey = sanitizeValue(req.query?.searchKey || template?.searchKey).toLowerCase();
 
     if (!companyId) {
@@ -580,7 +594,8 @@ export const getReviewsByCompany = async (req, res, next) => {
         params: {
           companyId,
           companyType,
-          status,
+          ...(status ? { status } : {}),
+          ...(workspaceId ? { workspaceId } : {}),
         },
       });
 
@@ -646,6 +661,19 @@ export const getReviewsByCompany = async (req, res, next) => {
       }));
     } catch (err) {
       enrichedRemoteReviews = [];
+    }
+
+    if (enrichedRemoteReviews.length > 0) {
+      if (workspaceId) {
+        enrichedRemoteReviews = enrichedRemoteReviews.filter((r) => {
+          const rWorkspaceId = sanitizeValue(r.workspaceId);
+          return rWorkspaceId === workspaceId;
+        });
+      } else {
+        enrichedRemoteReviews = enrichedRemoteReviews.filter((r) => {
+          return !sanitizeValue(r.workspaceId);
+        });
+      }
     }
 
     const localReviews = await WebsiteReview.find(

@@ -13,6 +13,7 @@ import {
   EXTRA_COMMON_MODULE_IDS,
   getAllModuleIds,
 } from "../config/workspaceModuleCatalog.js";
+import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
 
 const _getRoleName = (role: any) => {
   if (!role) return "";
@@ -212,6 +213,12 @@ export const completeWorkspaceSetup = async (req, res, next) => {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
+
+    await ensureEmployeeProfileForMember({
+      workspace,
+      member: workspaceMembership,
+      user,
+    });
 
     user.name = user.name || normalizedBrandName || normalizedBusinessName;
     if (!user.primaryWorkspace || !isAdditionalWorkspaceMode) {

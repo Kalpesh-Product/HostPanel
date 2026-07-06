@@ -28,11 +28,15 @@ export interface IEmployeeProfile extends Document {
     linkedUserId?: mongoose.Types.ObjectId | null;
     linkedWorkspaceMemberId?: mongoose.Types.ObjectId | null;
     employeeId: string;
+    employeeSequence?: number;
     fullName: string;
     email: string;
     phone?: string;
     dateOfBirth?: Date | null;
     currentAddress?: string;
+    country?: string;
+    state?: string;
+    city?: string;
     emergencyContactName?: string;
     emergencyContactPhone?: string;
     jobTitle?: string;
@@ -142,6 +146,11 @@ const employeeProfileSchema = new Schema<IEmployeeProfile>(
             required: true,
             index: true,
         },
+        employeeSequence: {
+            type: Number,
+            default: 0,
+            index: true,
+        },
         fullName: {
             type: String,
             trim: true,
@@ -166,6 +175,21 @@ const employeeProfileSchema = new Schema<IEmployeeProfile>(
             default: null,
         },
         currentAddress: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+        country: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+        state: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+        city: {
             type: String,
             trim: true,
             default: "",
@@ -306,6 +330,7 @@ const employeeProfileSchema = new Schema<IEmployeeProfile>(
 
 employeeProfileSchema.index({ workspaceId: 1, email: 1 }, { unique: true });
 employeeProfileSchema.index({ workspaceId: 1, employeeId: 1 }, { unique: true });
+employeeProfileSchema.index({ workspaceId: 1, employeeSequence: 1 }, { unique: true, sparse: true });
 employeeProfileSchema.index({ workspaceId: 1, fullName: 1 });
 
 export const EmployeeProfile = (mongoose.models.EmployeeProfile as mongoose.Model<IEmployeeProfile>) ||

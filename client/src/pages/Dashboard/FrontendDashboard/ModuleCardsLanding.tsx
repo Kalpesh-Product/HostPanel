@@ -404,11 +404,11 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
           : [];
         setRoleAccessContext({
           role: String(
-            (auth.user as { workspaceMembership?: { role?: string }; role?: string } | null)
-              ?.workspaceMembership?.role ||
+            me?.role ||
+              (auth.user as { workspaceMembership?: { role?: string }; role?: string } | null)
+                ?.workspaceMembership?.role ||
               (auth.user as { workspaceMembership?: { role?: string }; role?: string } | null)
                 ?.role ||
-              me?.role ||
               "",
           ),
           grantedModules: memberGranted,

@@ -1506,34 +1506,37 @@ export default function PricingPackagesPage() {
             <p className="text-xs font-medium text-slate-500 mt-1">Manage resources, pricing, credits, and membership packages.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              title="Export PDF"
-              onClick={() => handleExportPackagesReport('PDF')}
-              disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'}
-              className="px-4 py-2.5 bg-white text-[#e01313] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <FileDown size={15} />
-            </button>
-            <button
-              type="button"
-              title="Export Excel"
-              onClick={() => handleExportPackagesReport('Excel')}
-              disabled={isExportingReport === 'PDF' || isExportingReport === 'Excel'}
-              className="px-4 py-2.5 bg-[#ffffff] text-[#1fd628] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <FileSpreadsheet size={15} />
-            </button>
+            
             {activeTab === 'resource' ? (
               <>
                 <input ref={bulkUploadInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleBulkFileSelected} />
 
-                <button title="Bulk Upload" onClick={() => { setBulkUploadSummary(null); setBulkUploadFileName(''); setErrorMessage(''); setIsBulkUploadOpen(true); }} className="flex items-center justify-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-[10px] font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:border-slate-300">
-                  <UploadCloud size={16} />
-                </button>
+                <button
+                                              type="button"
+                                              // onClick={handleBulkUploadClick}
+                                              className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-slate-100 hover:border-slate-500 text-slate-500 transition-all active:scale-95 shadow-sm"
+                                            >
+                                              <UploadCloud size={13} /> 
+                                              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-slate-500 text-white px-1.5 py-0.5 rounded">BULK UPLOAD</span>
+                                            </button>
 
               </>
             ) : null}
+            <button
+                                type="button"
+                                // onClick={handleExportPDF}
+                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                <FileDown size={16} className="text-red-500"/>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
+                              </button>
+                              <button
+                                type="button"
+                                // onClick={handleExportExcel}
+                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                <FileSpreadsheet size={16} className="text-emerald-500"/>
+                                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
+                              </button>
+            
           </div>
         </div>
 

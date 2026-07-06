@@ -50,7 +50,9 @@ const Header = ({
 }: HeaderProps) => {
   const getStoredUser = () => {
     try {
-      const raw = localStorage.getItem("hostpanel_auth_user");
+      // sessionStorage only — see auth-session.ts for why localStorage (shared
+      // across tabs) must not be used as a fallback for the cached user.
+      const raw = sessionStorage.getItem("hostpanel_auth_user");
       return raw ? JSON.parse(raw) : null;
     } catch {
       return null;

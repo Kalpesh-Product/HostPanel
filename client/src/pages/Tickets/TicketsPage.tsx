@@ -1908,60 +1908,60 @@ export function TicketsPage() {
             ) : null}
 
             {/* 2. MAIN TABS (pill-style matching meetings page) */}
-            <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               {isAdminTicketProfile ? (
                 <>
-                  <button onClick={() => { setActiveTab('assigned_dept_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'assigned_dept_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('assigned_dept_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'assigned_dept_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Assigned Dept {tickets.filter(t => isAdminDepartmentQueueTicket(t) && t.status === 'Open').length > 0 && (
                       <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-bold leading-none ml-1">{tickets.filter(t => isAdminDepartmentQueueTicket(t) && t.status === 'Open').length}</span>
                     )}
                   </button>
-                  <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned
                   </button>
-                  <button onClick={() => { setActiveTab('my_assigned_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_assigned_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_assigned_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_assigned_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Raised
                   </button>
                 </>
               ) : isDepartmentManagerProfile ? (
                 <>
-                  <button onClick={() => { setActiveTab('department_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'department_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('department_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'department_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Department
                   </button>
-                  <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned {tickets.filter(t => isDepartmentMyTicket(t) && t.status === 'Open').length > 0 && (
                       <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-bold leading-none ml-1">{tickets.filter(t => isDepartmentMyTicket(t) && t.status === 'Open').length}</span>
                     )}
                   </button>
-                  <button onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Raised
                   </button>
                 </>
               ) : isEmployeeTicketProfile ? (
                 <>
-                  <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('department_tasks'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'department_tasks' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Department {tickets.filter(t => isEmployeeDepartmentTaskTicket(t) && t.status === 'Open').length > 0 && (
                       <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-bold leading-none ml-1">{tickets.filter(t => isEmployeeDepartmentTaskTicket(t) && t.status === 'Open').length}</span>
                     )}
                   </button>
-                  <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned
                   </button>
-                  <button onClick={() => { setActiveTab('my_raised_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_raised_tickets'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised_tickets' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Raised
                   </button>
                 </>
               ) : (
                 <>
-                  <button onClick={() => { setActiveTab('all'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'all' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('all'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'all' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     Company
                   </button>
-                  <button onClick={() => { setActiveTab('my_received'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_received' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_received'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_received' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Assigned {tickets.filter(t => isMyReceivedTicket(t) && t.status === 'Open').length > 0 && (
                       <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[9px] border border-red-100 shadow-sm font-bold leading-none ml-1">{tickets.filter(t => isMyReceivedTicket(t) && t.status === 'Open').length}</span>
                     )}
                   </button>
-                  <button onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
+                  <button onClick={() => { setActiveTab('my_raised'); setStatusFilter('All'); }} className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === 'my_raised' ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
                     My Raised
                   </button>
                 </>

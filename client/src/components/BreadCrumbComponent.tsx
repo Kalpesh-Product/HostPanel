@@ -537,6 +537,30 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/finance/expenses-budget",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Finance Department", path: "/module-sections/department-accesses/finance-department" },
+      { label: "Expenses & Budget" },
+    ],
+  },
+  {
+    pattern: "/finance/billing-payments",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Finance Department", path: "/module-sections/department-accesses/finance-department" },
+      { label: "Billing & Payments" },
+    ],
+  },
+  {
+    pattern: "/finance/accounting",
+    crumbs: [
+      { label: SECTION_LABELS.departmentAccesses, path: "/module-sections/department-accesses" },
+      { label: "Finance Department", path: "/module-sections/department-accesses/finance-department" },
+      { label: "Accounting" },
+    ],
+  },
+  {
     pattern: "/dashboard/tenant",
     crumbs: [
       { label: SECTION_LABELS.tenantPortal },
@@ -634,13 +658,23 @@ const BreadCrumbComponent = () => {
     );
   });
 
+  const modeParam = searchParams.get("mode");
   queryParamEntries.forEach(([key, value], index) => {
+    if (key === "mode") return;
     breadcrumbsToRender.push(
       <Typography key={`param-${index}-${key}`} color="text.primary">
         {value}
       </Typography>,
     );
   });
+
+  if (modeParam === "add") {
+    breadcrumbsToRender.push(
+      <Typography key="mode-add" color="text.primary">
+        Add Employee
+      </Typography>,
+    );
+  }
 
   return (
     <div className="rounded-t-md">

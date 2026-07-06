@@ -21,6 +21,7 @@ import {
   updateRepairLog,
   getRepairLogOptions,
 } from "../../services/repair-logs";
+import PageFrame from "../../components/Pages/PageFrame";
 
 const IT_ISSUE_TYPES = ["Hardware", "Software", "Network", "Peripheral", "Infrastructure", "Security", "Other"];
 
@@ -32,7 +33,7 @@ function formatDate(dateStr?: string) {
 }
 
 function getStatusBadge(status?: string) {
-  const base = "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest";
+  const base = "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-pbold font-bold uppercase tracking-widest";
   switch (status) {
     case "Open":
       return <span className={`${base} bg-amber-50 text-amber-700`}><AlertCircle className="w-3 h-3" />Open</span>;
@@ -213,77 +214,54 @@ export default function ITRepairLogsPage() {
 
   if (loading) {
     return (
-      <div className="w-full animate-pulse">
-        <div className="h-8 w-64 bg-slate-200 rounded-lg mb-2" />
-        <div className="h-4 w-96 bg-slate-100 rounded mb-6" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-24 bg-slate-100 rounded-2xl" />)}
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-4">
-          {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-14 bg-slate-50 rounded-lg mb-2" />)}
-        </div>
+      <div className="p-2 lg:p-2.5 animate-pulse">
+        <PageFrame>
+          <div className="flex flex-col gap-4">
+            <div className="h-7 w-64 bg-slate-100 rounded-xl" />
+            <div className="h-4 w-96 bg-slate-100 rounded-xl" />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
+              {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-24 bg-slate-100 rounded-[2rem]" />)}
+            </div>
+            <div className="rounded-2xl border border-slate-100 bg-white/80 overflow-hidden">
+              <div className="h-10 bg-slate-50/50 rounded-xl m-4" />
+              {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-14 bg-slate-50/50 rounded-lg mx-4 mb-2" />)}
+            </div>
+          </div>
+        </PageFrame>
       </div>
     );
   }
 
   return (
-    <div className="w-full">
-      <div className="mb-6 flex flex-col lg:flex-row lg:items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-black text-[#0F172A]">IT Repair Logs</h1>
-          <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mt-1">
-            <Monitor className="w-3.5 h-3.5 inline mr-1" />
-            Track network, device, and system repairs for IT
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={handleOpenCreate}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-wider hover:bg-slate-800 transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Log IT Repair
-        </button>
-      </div>
+    <div className="p-2 lg:p-2.5">
+      <PageFrame>
+        <div className="flex flex-col gap-4">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-title font-pmedium text-primary uppercase">IT Repair Logs</h1>
+              <p className="text-xs font-medium text-slate-500 mt-1">Track network, device, and system repairs for IT</p>
+            </div>
+          </div>
 
-      {error ? (
-        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 flex items-center gap-2 text-sm font-bold text-red-700">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          {error}
-        </div>
-      ) : null}
+          {error ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 flex items-center gap-2 text-sm font-bold text-red-700">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              {error}
+            </div>
+          ) : null}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-          <p className="text-2xl font-black">{stats.total}</p>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-1">Total Logs</p>
-        </div>
-        <div className="rounded-2xl border border-amber-100 bg-white p-5 shadow-sm">
-          <p className="text-2xl font-black text-amber-600">{stats.open}</p>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 mt-1">Open</p>
-        </div>
-        <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-          <p className="text-2xl font-black text-blue-600">{stats.active}</p>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600 mt-1">In Progress</p>
-        </div>
-        <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-          <p className="text-2xl font-black text-emerald-600">{stats.done}</p>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mt-1">Resolved / Closed</p>
-        </div>
-      </div>
-
-      <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="flex gap-2">
+          {/* Pill Tabs */}
+          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {(["active", "my-work", "history"] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
                 onClick={() => setActiveTab(tab)}
-                className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-wider transition-colors ${
+                className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                   activeTab === tab
-                    ? "bg-slate-900 text-white shadow-sm"
-                    : "bg-slate-50 text-slate-500 hover:bg-slate-100"
+                    ? "bg-[#2563EB] text-white shadow-sm"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
                 }`}
               >
                 {tab === "active" ? "Active Logs" : tab === "my-work" ? "My Work" : "History"}
@@ -291,87 +269,130 @@ export default function ITRepairLogsPage() {
             ))}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-            <select
-              className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option>All Statuses</option>
-              <option>Open</option>
-              <option>In Progress</option>
-              <option>Resolved</option>
-              <option>Closed</option>
-            </select>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search logs..."
-                className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-400"
-              />
+          {/* Stat Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
+            {[
+              { key: 'total', label: 'Total Logs', value: String(stats.total), icon: Monitor },
+              { key: 'open', label: 'Open', value: String(stats.open), icon: AlertCircle },
+              { key: 'active', label: 'In Progress', value: String(stats.active), icon: Clock3 },
+              { key: 'done', label: 'Resolved / Closed', value: String(stats.done), icon: CheckCircle2 },
+            ].map((card, idx) => {
+              const Icon = card.icon;
+              const borderColors = ['', 'border-l-4 border-l-amber-500', 'border-l-4 border-l-blue-500', 'border-l-4 border-l-emerald-500'];
+              const iconClasses = ['bg-slate-50 text-slate-600', 'bg-amber-50 text-amber-600', 'bg-blue-50 text-blue-600', 'bg-emerald-50 text-emerald-600'];
+              return (
+                <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                  </div>
+                  <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
+                    <Icon size={16} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Data Panel */}
+          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+            {/* Panel Header */}
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <select
+                  className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option>All Statuses</option>
+                  <option>Open</option>
+                  <option>In Progress</option>
+                  <option>Resolved</option>
+                  <option>Closed</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-3 w-full xl:w-auto">
+                
+                <div className="relative flex-1 xl:w-60">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search logs..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenCreate}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
+                >
+                  <Plus className="w-4 h-4" />
+                  Log IT Repair
+                </button>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full table-auto text-left">
+                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <tr>
+                    <th className="px-3 py-4 whitespace-nowrap">Log & Asset</th>
+                    <th className="px-3 py-4 whitespace-nowrap">Issue Type</th>
+                    <th className="px-3 py-4 whitespace-nowrap">Assigned To</th>
+                    <th className="px-3 py-4 whitespace-nowrap">Status</th>
+                    <th className="px-3 py-4 whitespace-nowrap">Created</th>
+                    <th className="px-3 py-4 whitespace-nowrap text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100/60">
+                  {filteredLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-3 py-16 text-center text-sm font-semibold text-slate-400">No repair logs found.</td>
+                    </tr>
+                  ) : (
+                    filteredLogs.map((log) => (
+                      <tr key={log._id || log.repairLogCode} className="hover:bg-blue-50/30 transition-all">
+                        <td className="px-3 py-4">
+                          <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-0.5">{log.repairLogCode || "--"}</p>
+                          <p className="font-bold text-slate-900 text-sm">{log.assetName || "--"}</p>
+                        </td>
+                        <td className="px-3 py-4">
+                          <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-bold text-slate-700">
+                            {log.issueType || "--"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-4">
+                          <p className="text-xs font-bold text-slate-800">{log.assignedTo || "Unassigned"}</p>
+                        </td>
+                        <td className="px-3 py-4">{getStatusBadge(log.status)}</td>
+                        <td className="px-3 py-4">
+                          <p className="text-xs font-bold text-slate-500">{formatDate(log.createdAt)}</p>
+                        </td>
+                        <td className="px-3 py-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => viewLog(log)}
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors"
+                          >
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="px-3 py-3 border-t border-slate-100/60 text-[10px] font-bold text-slate-400">
+              Showing {filteredLogs.length} of {logs.length} logs
             </div>
           </div>
         </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="border-b border-slate-100 bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400">
-              <tr>
-                <th className="px-6 py-4">Log & Asset</th>
-                <th className="px-6 py-4">Issue Type</th>
-                <th className="px-6 py-4">Assigned To</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Created</th>
-                <th className="px-6 py-4 text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filteredLogs.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="text-center py-16 text-slate-400 font-bold">No repair logs found.</td>
-                </tr>
-              ) : (
-                filteredLogs.map((log) => (
-                  <tr key={log._id || log.repairLogCode} className="hover:bg-blue-50/30 transition-all">
-                    <td className="px-6 py-4">
-                      <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-0.5">{log.repairLogCode || "--"}</p>
-                      <p className="font-bold text-slate-900 text-sm">{log.assetName || "--"}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-bold text-slate-700">
-                        {log.issueType || "--"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-xs font-bold text-slate-800">{log.assignedTo || "Unassigned"}</p>
-                    </td>
-                    <td className="px-6 py-4">{getStatusBadge(log.status)}</td>
-                    <td className="px-6 py-4">
-                      <p className="text-xs font-bold text-slate-500">{formatDate(log.createdAt)}</p>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <button
-                        type="button"
-                        onClick={() => viewLog(log)}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors"
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="px-6 py-3 border-t border-slate-100 text-[10px] font-bold text-slate-400">
-          Showing {filteredLogs.length} of {logs.length} logs
-        </div>
-      </div>
+      </PageFrame>
 
       {/* ─── View Detail Modal ───────────────────────────────────────────── */}
       <AnimatePresence>
@@ -383,16 +404,19 @@ export default function ITRepairLogsPage() {
           >
             <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => { setSelectedSchedule(null); setSelectedLog(null); }} />
             <motion.div
-              className="relative w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden"
+              className="relative w-full sm:max-w-lg bg-white rounded-[2.5rem] shadow-2xl max-h-[85vh] flex flex-col overflow-hidden border border-white/70"
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
             >
-              <div className="flex items-center justify-between px-6 py-4 bg-slate-900 text-white flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  <span className="text-xs font-black uppercase tracking-widest">{selectedSchedule.repairLogCode || "Log Detail"}</span>
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-6 py-5 shrink-0">
+                <div>
+                  <h2 className="flex items-center gap-2 text-xl font-pmedium text-primary tracking-tight">
+                    <FileText size={20} />
+                    {selectedSchedule.repairLogCode || "Log Detail"}
+                  </h2>
+                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">IT Repair Log Detail</p>
                 </div>
-                <button type="button" onClick={() => { setSelectedSchedule(null); setSelectedLog(null); }} className="p-1 rounded-lg hover:bg-white/10 transition-colors">
+                <button type="button" onClick={() => { setSelectedSchedule(null); setSelectedLog(null); }} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -461,7 +485,7 @@ export default function ITRepairLogsPage() {
                     type="button"
                     onClick={() => handleStatusUpdate(selectedSchedule, nextAction(selectedSchedule.status)!.next)}
                     disabled={isUpdating}
-                    className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-slate-800 disabled:opacity-50 transition-colors shadow-sm"
+                    className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-sm"
                   >
                     {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
                     {isUpdating ? "Updating..." : nextAction(selectedSchedule.status)!.label}
@@ -483,16 +507,19 @@ export default function ITRepairLogsPage() {
           >
             <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
             <motion.div
-              className="relative w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden"
+              className="relative w-full sm:max-w-lg bg-white rounded-[2.5rem] shadow-2xl max-h-[85vh] flex flex-col overflow-hidden border border-white/70"
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
             >
-              <div className="flex items-center justify-between px-6 py-4 bg-slate-900 text-white flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  <Plus className="w-4 h-4" />
-                  <span className="text-xs font-black uppercase tracking-widest">Log IT Repair</span>
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-6 py-5 shrink-0">
+                <div>
+                  <h2 className="flex items-center gap-2 text-xl font-pmedium text-primary tracking-tight">
+                    <Monitor size={20} />
+                    Log IT Repair
+                  </h2>
+                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Track network, device, and system repairs</p>
                 </div>
-                <button type="button" onClick={() => setShowCreate(false)} className="p-1 rounded-lg hover:bg-white/10 transition-colors">
+                <button type="button" onClick={() => setShowCreate(false)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -576,8 +603,8 @@ export default function ITRepairLogsPage() {
                   </div>
 
                   <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-                    <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2.5 text-xs font-black uppercase tracking-wider text-slate-600 hover:text-slate-900 transition-colors">Cancel</button>
-                    <button type="submit" disabled={isSaving} className="inline-flex items-center gap-1.5 px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-slate-800 disabled:opacity-50 transition-colors shadow-sm">
+                    <button type="button" onClick={() => setShowCreate(false)} className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 text-xs uppercase tracking-wider">Cancel</button>
+                    <button type="submit" disabled={isSaving} className="inline-flex items-center gap-1.5 px-6 py-3 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm transition-colors">
                       {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                       {isSaving ? "Creating..." : "Create Log"}
                     </button>

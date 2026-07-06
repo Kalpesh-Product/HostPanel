@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import HostUser from "../models/HostUser.js";
 import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
+import EmployeeProfile from "../models/EmployeeProfile.js";
 import Department from "../models/Department.js";
 import { Role } from "../models/Role.js";
 import ActingManager from "../models/ActingManager.js";
@@ -20,6 +21,7 @@ import {
   ORGANIZATION_PERMISSION_KEYS,
 } from "../config/organizationPermissionMap.js";
 import { resolveMembershipByWorkspace } from "../utils/resolveMembership.js";
+import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
 
 const DEFAULT_DEPARTMENTS = [
   { name: "HR", description: "People operations and hiring", isActive: true },
@@ -421,6 +423,7 @@ export const getOrganizationOverview = async (req, res, next) => {
           userId: toId(selfMember.user?._id),
           name: selfMember.user?.name || "",
           email: selfMember.user?.email || "",
+          employeeId: "",
           role: toRoleLabel(selfMember.role),
           status: resolveMemberStatus(selfMember.isActive !== false, selfMember.user?.inviteStatus),
           departmentNames: Array.isArray(selfMember.departments)
@@ -546,6 +549,7 @@ export const getOrganizationOverview = async (req, res, next) => {
       userId: toId(member.user?._id),
       name: member.user?.name || "",
       email: member.user?.email || "",
+      employeeId: employeeIdByMemberId.get(String(member._id)) || "",
       role: toRoleLabel(member.role),
       status: resolveMemberStatus(member.isActive !== false, member.user?.inviteStatus),
       departmentNames: Array.isArray(member.departments)
@@ -858,14 +862,40 @@ export const toggleOrganizationMemberStatus = async (req, res, next) => {
       return res.status(404).json({ message: "Member not found." });
     }
 
-    member.isActive = !member.isActive;
+    const action = String(req.body?.action || "").trim().toLowerCase();
+    if (action === "enable") {
+      member.isActive = true;
+    } else if (action === "disable") {
+      member.isActive = false;
+    } else {
+      member.isActive = !member.isActive;
+    }
     member.status = member.isActive ? "joined" : "disabled";
+
+    if (member.isActive && (!Array.isArray(member.grantedModules) || member.grantedModules.length === 0)) {
+      const linkedProfile = await EmployeeProfile.findOne({
+        linkedWorkspaceMemberId: member._id,
+        workspaceId: workspace._id,
+      }).select("accessModules").lean().exec();
+      if (linkedProfile && Array.isArray(linkedProfile.accessModules) && linkedProfile.accessModules.length > 0) {
+        member.grantedModules = linkedProfile.accessModules;
+      }
+    }
+
     await member.save();
     if (member.isActive === false) {
       await HostUser.findByIdAndUpdate(member.user, { refreshToken: "" }).exec();
     }
 
-    return res.status(200).json({ message: "Member status updated successfully." });
+    await ensureEmployeeProfileForMember({
+      workspace,
+      member,
+    });
+
+    return res.status(200).json({
+      message: "Member status updated successfully.",
+      data: { isActive: member.isActive, status: member.status },
+    });
   } catch (error) {
     next(error);
   }
@@ -1080,6 +1110,12 @@ export const inviteOrganizationMember = async (req, res, next) => {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
+
+    await ensureEmployeeProfileForMember({
+      workspace,
+      member: workspaceMember,
+      user: targetUser,
+    });
 
     if (!isExistingRegisteredUser) {
       targetUser.inviteStatus = "invite_sent";
@@ -1335,6 +1371,11 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
 
     await member.save();
 
+    await ensureEmployeeProfileForMember({
+      workspace,
+      member,
+    });
+
     return res.status(200).json({ message: "Member role updated successfully." });
   } catch (error) {
     next(error);
@@ -1355,8 +1396,9 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
       });
     }
 
-    const member = await WorkspaceMember.findOne({
-      _id: req.params.memberId,
+    const memberLookupId = String(req.params.memberId || "").trim();
+    let member = await WorkspaceMember.findOne({
+      _id: memberLookupId,
       workspace: workspace._id,
       isActive: true,
     }).populate("departments");
@@ -1492,6 +1534,33 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
 
     await member.save();
 
+    const profileStatus = member.isActive
+      ? member.status === "invited" ? "invite_sent"
+        : member.status === "registered" ? "registered"
+          : member.status === "joined" ? "joined"
+            : "active"
+      : "inactive";
+    await EmployeeProfile.updateOne(
+      {
+        workspaceId: workspace._id,
+        $or: [
+          { linkedWorkspaceMemberId: member._id },
+          { linkedUserId: member.user },
+        ],
+      },
+      {
+        $set: {
+          accessModules: member.grantedModules,
+          accessFeatures: [],
+          linkedWorkspaceMemberId: member._id,
+          linkedUserId: member.user,
+          status: profileStatus,
+          isActive: member.isActive,
+        },
+      },
+      { upsert: false },
+    ).exec();
+
     return res.status(200).json({
       message: "Member access updated successfully.",
       data: { memberId: toId(member._id), grantedModules: member.grantedModules },
@@ -1543,7 +1612,7 @@ export const transferOrganizationMember = async (req, res, next) => {
       }
     }
 
-    await WorkspaceMember.findOneAndUpdate(
+    const transferredMembership = await WorkspaceMember.findOneAndUpdate(
       { workspace: targetWorkspace._id, user: member.user },
       {
         $set: {
@@ -1565,6 +1634,12 @@ export const transferOrganizationMember = async (req, res, next) => {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
+
+    await ensureEmployeeProfileForMember({
+      workspace: targetWorkspace,
+      member: transferredMembership,
+      user: await HostUser.findById(member.user).exec(),
+    });
 
     member.isActive = false;
     member.status = "disabled";
@@ -1598,7 +1673,7 @@ export const linkOrganizationMember = async (req, res, next) => {
     });
     if (!targetWorkspace) return res.status(404).json({ message: "Target workspace not found." });
 
-    await WorkspaceMember.findOneAndUpdate(
+    const linkedMembership = await WorkspaceMember.findOneAndUpdate(
       { workspace: targetWorkspace._id, user: member.user },
       {
         $set: {
@@ -1611,6 +1686,12 @@ export const linkOrganizationMember = async (req, res, next) => {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
+
+    await ensureEmployeeProfileForMember({
+      workspace: targetWorkspace,
+      member: linkedMembership,
+      user: await HostUser.findById(member.user).exec(),
+    });
 
     return res.status(200).json({ message: "Workspace access added successfully." });
   } catch (error) {
@@ -1668,20 +1749,30 @@ export const transferOrganizationOwnership = async (req, res, next) => {
     if (previousOwner) {
       previousOwner.role = "super_admin";
       await previousOwner.save();
-      await WorkspaceMember.findOneAndUpdate(
+      const previousOwnerMembership = await WorkspaceMember.findOneAndUpdate(
         { workspace: workspace._id, user: previousOwner._id },
         { $set: { role: superAdminRole._id, isActive: true, status: "joined" } },
         { upsert: true, new: true, setDefaultsOnInsert: true },
       );
+      await ensureEmployeeProfileForMember({
+        workspace,
+        member: previousOwnerMembership,
+        user: previousOwner,
+      });
     }
 
     nextOwner.role = "owner";
     await nextOwner.save();
-    await WorkspaceMember.findOneAndUpdate(
+    const nextOwnerMembership = await WorkspaceMember.findOneAndUpdate(
       { workspace: workspace._id, user: nextOwner._id },
       { $set: { role: ownerRole._id, isActive: true, status: "joined" } },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
+    await ensureEmployeeProfileForMember({
+      workspace,
+      member: nextOwnerMembership,
+      user: nextOwner,
+    });
 
     return res.status(200).json({ message: "Founder access transferred successfully." });
   } catch (error) {

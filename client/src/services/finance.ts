@@ -48,3 +48,48 @@ export const getMyPayslips = async () => {
   const response = await axiosPrivate.get("/api/finance/payroll/my-payslips");
   return unwrap(response);
 };
+
+export const getTenantBillingSnapshot = async (params?: Record<string, any>) => {
+  const response = await axiosPrivate.get("/api/finance/tenant-billing", { params });
+  return unwrap(response);
+};
+
+export const markTenantSecurityDepositPaid = async (recordId: string, payload: Record<string, any>) => {
+  const response = await axiosPrivate.post("/api/finance/tenant-billing/mark-deposit-paid", { recordId, ...payload });
+  return unwrap(response);
+};
+
+export const generateTenantSecurityDepositInvoice = async (recordId: string) => {
+  const response = await axiosPrivate.post("/api/finance/tenant-billing/generate-deposit-invoice", { recordId });
+  return unwrap(response);
+};
+
+export const sendTenantSecurityDepositInvoice = async (recordId: string) => {
+  const response = await axiosPrivate.post("/api/finance/tenant-billing/send-deposit-invoice", { recordId });
+  return unwrap(response);
+};
+
+export const resetTenantSecurityDepositInvoice = async (recordId: string) => {
+  const response = await axiosPrivate.post("/api/finance/tenant-billing/reset-deposit-invoice", { recordId });
+  return unwrap(response);
+};
+
+export const getPayrollSnapshot = async (params?: Record<string, any>) => {
+  const response = await axiosPrivate.get("/api/finance/payroll/snapshot", { params });
+  return unwrap(response);
+};
+
+export const processPayrollPayment = async (cycleId: string, profileId: string, payload: Record<string, any>) => {
+  const response = await axiosPrivate.post("/api/finance/payroll/process-payment", { cycleId, profileId, ...payload });
+  return unwrap(response);
+};
+
+export const generatePayrollPayslip = async (cycleId: string, profileId: string) => {
+  const response = await axiosPrivate.post("/api/finance/payroll/generate-payslip", { cycleId, profileId });
+  return unwrap(response);
+};
+
+export const sendPayrollPayslip = async (payslipId: string) => {
+  const response = await axiosPrivate.post("/api/finance/payroll/send-payslip", { payslipId });
+  return unwrap(response);
+};

@@ -19,6 +19,7 @@ import {
   completeMaintenanceSchedule,
   getMaintenanceOptions,
 } from "../../services/maintenance";
+import PageFrame from "../../components/Pages/PageFrame";
 
 type MaintenanceSchedule = {
   _id?: string;
@@ -73,7 +74,7 @@ const STATUSES = ["Scheduled", "Due Soon", "Overdue", "Completed"] as const;
 function getStatusBadge(status?: string) {
   const s = status || "Scheduled";
   const base =
-    "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest";
+    "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-pbold font-bold uppercase tracking-widest";
 
   if (s === "Scheduled") {
     return (
@@ -298,84 +299,56 @@ export default function AMCMaintenanceSchedulerPage() {
 
   if (loading) {
     return (
-      <div className="w-full animate-pulse">
-        <div className="h-8 w-64 bg-slate-200 rounded-lg mb-2" />
-        <div className="h-4 w-96 bg-slate-100 rounded mb-6" />
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-24 bg-slate-100 rounded-2xl" />
-          ))}
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-4">
-          <div className="h-10 bg-slate-50 rounded-xl mb-4" />
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-16 bg-slate-50 rounded-lg mb-2" />
-          ))}
-        </div>
+      <div className="p-2 lg:p-2.5 animate-pulse">
+        <PageFrame>
+          <div className="flex flex-col gap-4">
+            <div className="h-7 w-64 bg-slate-100 rounded-xl" />
+            <div className="h-4 w-96 bg-slate-100 rounded-xl" />
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-24 bg-slate-100 rounded-[2rem]" />
+              ))}
+            </div>
+            <div className="rounded-2xl border border-slate-100 bg-white/80 overflow-hidden">
+              <div className="h-10 bg-slate-50/50 rounded-xl m-4" />
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-16 bg-slate-50/50 rounded-lg mx-4 mb-2" />
+              ))}
+            </div>
+          </div>
+        </PageFrame>
       </div>
     );
   }
 
   return (
-    <div className="w-full">
-      <div className="mb-6 flex flex-col lg:flex-row lg:items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-black text-[#0F172A]">AMC Maintenance Scheduler</h1>
-          <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mt-1">
-            <Wrench className="w-3.5 h-3.5 inline mr-1" />
-            Preventive Servicing & Alerts
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={handleOpenCreate}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-wider hover:bg-slate-800 transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Add AMC Schedule
-        </button>
-      </div>
+    <div className="p-2 lg:p-2.5">
+      <PageFrame>
+        <div className="flex flex-col gap-4">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-title font-pmedium text-primary uppercase">AMC Maintenance Scheduler</h1>
+              <p className="text-xs font-medium text-slate-500 mt-1">Preventive Servicing & Alerts</p>
+            </div>
+          </div>
 
-      {error ? (
-        <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 flex items-center gap-2 text-sm font-bold text-red-700">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          {error}
-        </div>
-      ) : null}
+          {error ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 flex items-center gap-2 text-sm font-bold text-red-700">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              {error}
+            </div>
+          ) : null}
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-          <p className="text-2xl font-black">{stats.total}</p>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-1">Total Active AMCs</p>
-        </div>
-        <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-          <p className="text-2xl font-black text-emerald-600">{stats.healthy}</p>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mt-1">Healthy / Scheduled</p>
-        </div>
-        <div className="rounded-2xl border border-amber-100 bg-white p-5 shadow-sm">
-          <p className="text-2xl font-black text-amber-600">{stats.dueSoon}</p>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 mt-1">Due Soon</p>
-        </div>
-        <div className="rounded-2xl border border-red-100 bg-white p-5 shadow-sm">
-          <p className="text-2xl font-black text-red-600">{stats.overdue}</p>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-red-600 mt-1">Overdue</p>
-        </div>
-        <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-          <p className="text-2xl font-black text-blue-600">{stats.completed}</p>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600 mt-1">Completed</p>
-        </div>
-      </div>
-
-      <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="flex gap-2">
+          {/* Pill Tabs */}
+          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             <button
               type="button"
               onClick={() => setActiveTab("schedules")}
-              className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-wider transition-colors ${
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                 activeTab === "schedules"
-                  ? "bg-slate-900 text-white shadow-sm"
-                  : "bg-slate-50 text-slate-500 hover:bg-slate-100"
+                  ? "bg-[#2563EB] text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
               Master AMC Schedule
@@ -383,132 +356,176 @@ export default function AMCMaintenanceSchedulerPage() {
             <button
               type="button"
               onClick={() => setActiveTab("alerts")}
-              className={`rounded-full px-4 py-2 text-xs font-black uppercase tracking-wider transition-colors ${
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
                 activeTab === "alerts"
-                  ? "bg-amber-500 text-white shadow-sm"
-                  : "bg-slate-50 text-slate-500 hover:bg-slate-100"
+                  ? "bg-[#2563EB] text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
               Upcoming Alerts
               {stats.dueSoon + stats.overdue > 0 ? (
-                <span className="ml-2 bg-red-500 text-white px-2 py-0.5 rounded-full text-[9px] font-black">
+                <span className="ml-2 bg-red-500 text-white px-2 py-0.5 rounded-full text-[9px] font-pbold font-bold">
                   {stats.dueSoon + stats.overdue}
                 </span>
               ) : null}
             </button>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-            <select
-              className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
-              value={deptFilter}
-              onChange={(e) => setDeptFilter(e.target.value)}
-            >
-              {availableDepartments.map((d) => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </select>
-            <select
-              className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              {availableStatuses.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search asset, code, technician..."
-                className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-slate-900 outline-none shadow-sm placeholder:text-slate-400"
-              />
+          {/* Stat Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3 shrink-0">
+            {[
+              { key: 'total', label: 'Total Active AMCs', value: String(stats.total), icon: Wrench },
+              { key: 'healthy', label: 'Healthy / Scheduled', value: String(stats.healthy), icon: CheckCircle2 },
+              { key: 'dueSoon', label: 'Due Soon', value: String(stats.dueSoon), icon: Clock3 },
+              { key: 'overdue', label: 'Overdue', value: String(stats.overdue), icon: AlertCircle },
+              { key: 'completed', label: 'Completed', value: String(stats.completed), icon: CheckCircle2 },
+            ].map((card, idx) => {
+              const Icon = card.icon;
+              const borderColors = ['', 'border-l-4 border-l-emerald-500', 'border-l-4 border-l-amber-500', 'border-l-4 border-l-red-500', 'border-l-4 border-l-blue-500'];
+              const iconClasses = ['bg-slate-50 text-slate-600', 'bg-emerald-50 text-emerald-600', 'bg-amber-50 text-amber-600', 'bg-red-50 text-red-600', 'bg-blue-50 text-blue-600'];
+              return (
+                <div key={card.key} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md ${borderColors[idx] || ''}`}>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                    <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                  </div>
+                  <div className={`p-2 rounded-2xl ${iconClasses[idx] || 'bg-slate-50 text-slate-600'} shrink-0`}>
+                    <Icon size={16} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Data Panel */}
+          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+            {/* Panel Header */}
+            <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
+              <div className="flex flex-wrap items-center gap-3">
+                <select
+                  className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
+                  value={deptFilter}
+                  onChange={(e) => setDeptFilter(e.target.value)}
+                >
+                  {availableDepartments.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+                <select
+                  className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  {availableStatuses.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-3 w-full xl:w-auto">
+                
+                <div className="relative flex-1 xl:w-60">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search asset, code, technician..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenCreate}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add AMC Schedule
+                </button>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full table-auto text-left">
+                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <tr>
+                    <th className="px-3 py-4 whitespace-nowrap">Schedule Code & Asset</th>
+                    <th className="px-3 py-4 whitespace-nowrap">Maintenance Type</th>
+                    <th className="px-3 py-4 whitespace-nowrap">Frequency</th>
+                    <th className="px-3 py-4 whitespace-nowrap">Technician</th>
+                    <th className="px-3 py-4 whitespace-nowrap">Last Serviced</th>
+                    <th className="px-3 py-4 whitespace-nowrap">Next Service Due</th>
+                    <th className="px-3 py-4 whitespace-nowrap text-center">Status</th>
+                    <th className="px-3 py-4 whitespace-nowrap text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100/60">
+                  {filteredSchedules.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-3 py-16 text-center text-sm font-semibold text-slate-400">
+                        No schedules found.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredSchedules.map((s) => {
+                      const id = getScheduleId(s);
+                      const st = s.currentStatus || s.status || "Scheduled";
+                      return (
+                        <tr key={id || s.scheduleCode || s.assetCode} className="hover:bg-blue-50/30 transition-all">
+                          <td className="px-3 py-4">
+                            <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-0.5">
+                              {s.scheduleCode || id}
+                            </p>
+                            <p className="font-bold text-slate-900 text-sm">{s.assetName || "--"}</p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase mt-0.5 tracking-widest">
+                              {s.department || "--"}
+                            </p>
+                          </td>
+                          <td className="px-3 py-4">
+                            <p className="text-xs font-bold text-slate-800">{s.maintenanceType || s.type || "--"}</p>
+                            <p className="text-[9px] text-slate-500 mt-0.5">{s.assetCategory || ""}</p>
+                          </td>
+                          <td className="px-3 py-4">{getFrequencyBadge(s.frequency)}</td>
+                          <td className="px-3 py-4">
+                            <p className="text-xs font-bold text-slate-800">{s.technician || "--"}</p>
+                          </td>
+                          <td className="px-3 py-4">
+                            <p className="text-xs font-bold text-slate-600">{formatDateDisplay(s.lastServiceDate)}</p>
+                          </td>
+                          <td className="px-3 py-4">
+                            <p className={`text-sm font-black flex items-center gap-1.5 ${
+                              st === "Overdue" ? "text-red-600" : st === "Due Soon" ? "text-amber-600" : "text-slate-900"
+                            }`}>
+                              <Calendar className={`w-3.5 h-3.5 ${
+                                st === "Overdue" ? "text-red-500" : st === "Due Soon" ? "text-amber-500" : "text-slate-400"
+                              }`} />
+                              {formatDateDisplay(s.nextServiceDate)}
+                            </p>
+                          </td>
+                          <td className="px-3 py-4 text-center">{getStatusBadge(st)}</td>
+                          <td className="px-3 py-4 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleSelectSchedule(s)}
+                              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                            >
+                              View
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="px-3 py-3 border-t border-slate-100/60 text-[10px] font-bold text-slate-400">
+              Showing {filteredSchedules.length} of {schedules.length} schedules
             </div>
           </div>
         </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="border-b border-slate-100 bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400">
-              <tr>
-                <th className="px-6 py-4">Schedule Code & Asset</th>
-                <th className="px-6 py-4">Maintenance Type</th>
-                <th className="px-6 py-4">Frequency</th>
-                <th className="px-6 py-4">Technician</th>
-                <th className="px-6 py-4">Last Serviced</th>
-                <th className="px-6 py-4">Next Service Due</th>
-                <th className="px-6 py-4 text-center">Status</th>
-                <th className="px-6 py-4 text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filteredSchedules.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="text-center py-16 text-slate-400 font-bold">
-                    No schedules found.
-                  </td>
-                </tr>
-              ) : (
-                filteredSchedules.map((s) => {
-                  const id = getScheduleId(s);
-                  const st = s.currentStatus || s.status || "Scheduled";
-                  return (
-                    <tr key={id || s.scheduleCode || s.assetCode} className="hover:bg-blue-50/30 transition-all">
-                      <td className="px-6 py-4">
-                        <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-0.5">
-                          {s.scheduleCode || id}
-                        </p>
-                        <p className="font-bold text-slate-900 text-sm">{s.assetName || "--"}</p>
-                        <p className="text-[9px] font-bold text-slate-500 uppercase mt-0.5 tracking-widest">
-                          {s.department || "--"}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-xs font-bold text-slate-800">{s.maintenanceType || s.type || "--"}</p>
-                        <p className="text-[9px] text-slate-500 mt-0.5">{s.assetCategory || ""}</p>
-                      </td>
-                      <td className="px-6 py-4">{getFrequencyBadge(s.frequency)}</td>
-                      <td className="px-6 py-4">
-                        <p className="text-xs font-bold text-slate-800">{s.technician || "--"}</p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className="text-xs font-bold text-slate-600">{formatDateDisplay(s.lastServiceDate)}</p>
-                      </td>
-                      <td className="px-6 py-4">
-                        <p className={`text-sm font-black flex items-center gap-1.5 ${
-                          st === "Overdue" ? "text-red-600" : st === "Due Soon" ? "text-amber-600" : "text-slate-900"
-                        }`}>
-                          <Calendar className={`w-3.5 h-3.5 ${
-                            st === "Overdue" ? "text-red-500" : st === "Due Soon" ? "text-amber-500" : "text-slate-400"
-                          }`} />
-                          {formatDateDisplay(s.nextServiceDate)}
-                        </p>
-                      </td>
-                      <td className="px-6 py-4 text-center">{getStatusBadge(st)}</td>
-                      <td className="px-6 py-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleSelectSchedule(s)}
-                          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
-                        >
-                          View
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="px-6 py-3 border-t border-slate-100 text-[10px] font-bold text-slate-400">
-          Showing {filteredSchedules.length} of {schedules.length} schedules
-        </div>
-      </div>
+      </PageFrame>
 
       {/* ─── View Detail Modal ───────────────────────────────────────────── */}
       <AnimatePresence>
@@ -660,18 +677,23 @@ export default function AMCMaintenanceSchedulerPage() {
               onClick={handleCloseCreate}
             />
             <motion.div
-              className="relative w-full sm:max-w-2xl bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col overflow-hidden"
+              className="relative w-full sm:max-w-2xl bg-white rounded-[2.5rem] shadow-2xl max-h-[85vh] flex flex-col overflow-hidden border border-white/70"
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
             >
-              <div className="flex items-center justify-between px-6 py-4 bg-slate-900 text-white flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  <Plus className="w-4 h-4" />
-                  <span className="text-xs font-black uppercase tracking-widest">Add AMC Schedule</span>
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-6 py-5 shrink-0">
+                <div>
+                  <h2 className="flex items-center gap-2 text-xl font-pmedium text-primary tracking-tight">
+                    <Calendar size={20} />
+                    Add AMC Schedule
+                  </h2>
+                  <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    Create a preventive servicing schedule for an asset
+                  </p>
                 </div>
-                <button type="button" onClick={handleCloseCreate} className="p-1 rounded-lg hover:bg-white/10 transition-colors">
+                <button type="button" onClick={handleCloseCreate} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -827,14 +849,14 @@ export default function AMCMaintenanceSchedulerPage() {
                     <button
                       type="button"
                       onClick={handleCloseCreate}
-                      className="px-4 py-2.5 text-xs font-black uppercase tracking-wider text-slate-600 hover:text-slate-900 transition-colors"
+                      className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 text-xs uppercase tracking-wider"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={isSaving}
-                      className="inline-flex items-center gap-1.5 px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-slate-800 disabled:opacity-50 transition-colors shadow-sm"
+                      className="inline-flex items-center gap-1.5 px-6 py-3 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm transition-colors"
                     >
                       {isSaving ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
