@@ -723,7 +723,7 @@ export function LeaveRequestsPage() {
 
             {/* 2. MAIN TABS (Pill-Style Navigation) — above cards per DESIGN.md */}
             {mainTabs.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+              <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
                 {mainTabs.map((tab) => (
                   <button
                     key={tab.id}

@@ -17,6 +17,7 @@ import YearlyGraph from "../../components/graphs/YearlyGraph";
 import { PERMISSIONS } from "../../constants/permissions";
 import useAuth from "../../hooks/useAuth";
 import { configYearlyGrpah, filterPermissions } from "../../utils/accessConfig";
+import PageFrame from "../../components/Pages/PageFrame";
 
 const TasksDashboard = () => {
   const axios = useAxiosPrivate();
@@ -846,16 +847,33 @@ const TasksDashboard = () => {
     },
   ];
   return (
-    <div>
-      <div className="flex flex-col p-4 gap-4">
-        {meetingsWidgets.map((widget, index) => (
-          <div>
-            <WidgetSection key={index} layout={widget.layout} padding>
-              {widget?.widgets}
-            </WidgetSection>
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+      <PageFrame>
+        <div className="flex flex-col gap-4">
+
+          {/* 1. HEADER */}
+          <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+            <div>
+              <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+                Tasks Dashboard
+              </h2>
+              <p className="text-xs font-medium text-slate-500 mt-1">
+                Monitor task progress, track assignments, and manage department workloads.
+              </p>
+            </div>
           </div>
-        ))}
-      </div>
+
+          {/* 2. WIDGETS */}
+          {meetingsWidgets.map((widget, index) => (
+            <div key={index}>
+              <WidgetSection layout={widget.layout} padding>
+                {widget?.widgets}
+              </WidgetSection>
+            </div>
+          ))}
+
+        </div>
+      </PageFrame>
     </div>
   );
 };
