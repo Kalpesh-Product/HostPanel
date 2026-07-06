@@ -36,7 +36,7 @@ const Access = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4">
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px] flex flex-col gap-4">
       <PageFrame>
         <div className="h-[35rem] overflow-hidden">
           <img src={hierarchy} alt="hierarchy" className="h-full w-full object-contain" />

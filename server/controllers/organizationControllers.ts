@@ -468,6 +468,20 @@ export const getOrganizationOverview = async (req, res, next) => {
       .lean()
       .exec();
 
+    const employeeProfiles = await EmployeeProfile.find({
+      workspaceId: workspace._id,
+      linkedWorkspaceMemberId: { $in: members.map((m) => m._id) },
+    })
+      .select("linkedWorkspaceMemberId employeeId")
+      .lean()
+      .exec();
+
+    const employeeIdByMemberId = new Map(
+      employeeProfiles
+        .filter((ep) => ep.linkedWorkspaceMemberId)
+        .map((ep) => [String(ep.linkedWorkspaceMemberId), ep.employeeId]),
+    );
+
     // A department manager (not owner/super_admin/admin) only manages their
     // own department(s) — scope the visible departments/members down to that,
     // instead of the whole company, even though hasOrganizationAccess() above
