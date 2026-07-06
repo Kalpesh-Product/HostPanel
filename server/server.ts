@@ -103,6 +103,7 @@ app.use("/api/housekeeping", verifyJwt, blockWriteIfImpersonating, housekeepingR
 app.use("/api/maintenance", verifyJwt, blockWriteIfImpersonating, maintenanceRoutes);
 app.use("/api/tasks", verifyJwt, blockWriteIfImpersonating, taskRoutes);
 app.use("/api/finance", verifyJwt, blockWriteIfImpersonating, financeRoutes);
+app.use("/api/hr", verifyJwt, blockWriteIfImpersonating, hrRoutes);
 app.use("/api/it", verifyJwt, blockWriteIfImpersonating, itRoutes);
 app.use("/api/meeting-rooms", verifyJwt, blockWriteIfImpersonating, meetingRoomRoutes);
 app.use("/api/calendar", verifyJwt, blockWriteIfImpersonating, calendarRoutes);
