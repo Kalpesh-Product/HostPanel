@@ -204,6 +204,31 @@ export const KEY_APPS_IDS = [
   "website-leads",
 ]
 
+// Maps a Department document's `name` (as seeded by DEFAULT_DEPARTMENTS in
+// organizationControllers.ts) to its corresponding "Department Accesses"
+// group in the sidebar, so a department's default moduleIds always match
+// exactly what the sidebar groups under that department's name — single
+// source of truth, no duplicated id lists to drift out of sync.
+const DEPARTMENT_NAME_TO_GROUP_ID: Record<string, string> = {
+  hr: "hr-department",
+  administration: "administration-department",
+  sales: "sales-department",
+  finance: "finance-department",
+  maintenance: "maintenance-department",
+  technology: "tech-department",
+  it: "it-department",
+};
+
+export const getDefaultDepartmentModuleIds = (departmentName = ""): string[] => {
+  const key = String(departmentName || "").trim().toLowerCase();
+  const groupId = DEPARTMENT_NAME_TO_GROUP_ID[key];
+  if (!groupId) return [];
+
+  const deptSection = MODULE_GROUPS.find((section) => section.sectionId === "department-accesses");
+  const group = (deptSection?.items || []).find((item) => item.id === groupId);
+  return Array.isArray(group?.tabs) ? group.tabs.map((tab) => String(tab?.id || "")).filter(Boolean) : [];
+};
+
 export const getAllModuleIds = (): string[] => {
   const ids = new Set<string>();
   for (const section of MODULE_GROUPS) {

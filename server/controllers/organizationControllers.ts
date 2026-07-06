@@ -13,7 +13,7 @@ import {
   buildWorkspaceModuleCatalog,
   COMMON_MODULE_IDS,
   EXTRA_COMMON_MODULE_IDS,
-  KEY_APPS_IDS,
+  getDefaultDepartmentModuleIds,
 } from "../config/workspaceModuleCatalog.js";
 import {
   ORGANIZATION_MEMBER_GRANT_ALIASES,
@@ -37,36 +37,44 @@ const toId = (value) => String(value || "");
 // Assets, Inventory, Finance Management, Reports, etc.) are meant to be
 // visible to every member regardless of role/department — granted to
 // everyone by default, on top of whatever department/role defaults apply.
-const BASELINE_MODULE_IDS = [...COMMON_MODULE_IDS, ...EXTRA_COMMON_MODULE_IDS, ...KEY_APPS_IDS];
+const BASELINE_MODULE_IDS = [...COMMON_MODULE_IDS, ...EXTRA_COMMON_MODULE_IDS];
 
-// Role bands that get a department's manager-only modules by default, in
-// addition to its regular moduleIds. Everyone else assigned to the
-// department defaults to moduleIds minus managerOnlyModuleIds.
+// Role bands that get a department's full moduleIds by default. Plain
+// employees get none of the department's modules automatically — a manager
+// (or founder/super admin) must explicitly hand-pick which of the
+// department's modules to grant a given employee, via updateOrganizationMemberAccess.
 const ROLE_BANDS_WITH_MANAGER_ACCESS = new Set(["owner", "super_admin", "admin", "manager"]);
+
+// A department manager needs these org-module grants by default, or
+// hasOrganizationAccess() blocks them from the Users tab / invite action even
+// though computeDepartmentDefaultModuleIds() already gives them their
+// department's full module set.
+const MANAGER_DEFAULT_ORG_GRANT_IDS = [
+  ORGANIZATION_PERMISSION_KEYS.tabs.users,
+  ORGANIZATION_PERMISSION_KEYS.actions.inviteMember,
+];
 
 // Computes the default module-id set a member should be granted purely from
 // their department assignment(s) + role band. This is a *default*, applied
 // additively to grantedModules — it never removes modules a founder/super
 // admin has explicitly granted by hand via updateOrganizationMemberAccess.
+// Plain employees always get [] here — department modules belong to the
+// manager (and founder/super admin/admin) by default; an employee only gets
+// specific department modules when a manager explicitly hands them over.
 const computeDepartmentDefaultModuleIds = async (departmentIds = [], roleBand = "employee") => {
+  if (!ROLE_BANDS_WITH_MANAGER_ACCESS.has(roleBand)) return [];
+
   const ids = (Array.isArray(departmentIds) ? departmentIds : []).filter(Boolean);
   if (!ids.length) return [];
 
   const departments = await Department.find({ _id: { $in: ids } })
-    .select("moduleIds managerOnlyModuleIds")
+    .select("moduleIds")
     .lean();
 
-  const includeManagerOnly = ROLE_BANDS_WITH_MANAGER_ACCESS.has(roleBand);
   const result = new Set();
   for (const dept of departments) {
     const moduleIds = Array.isArray(dept?.moduleIds) ? dept.moduleIds : [];
-    const managerOnlyIds = new Set(
-      Array.isArray(dept?.managerOnlyModuleIds) ? dept.managerOnlyModuleIds : [],
-    );
-    for (const id of moduleIds) {
-      if (!includeManagerOnly && managerOnlyIds.has(id)) continue;
-      result.add(id);
-    }
+    for (const id of moduleIds) result.add(id);
   }
   return Array.from(result);
 };
@@ -115,6 +123,37 @@ const getRoleBand = (role = "") => {
   if (normalized === "admin" || normalized === "admin_manager") return "admin";
   if (normalized === "manager") return "manager";
   return "employee";
+};
+
+// Re-applies baseline + this department's full (manager-band) module set +
+// the org-invite grant to whoever currently manages this department —
+// department.managerUser, plus any member whose role band is "manager" and
+// who is assigned to this department (covers promotions done via role change
+// rather than the "assign manager" action). Additive only. Shared by both
+// saveOrganizationDepartment (manual edits) and ensureWorkspaceDepartments
+// (auto-backfill of default departments' moduleIds).
+const reapplyDepartmentManagerGrants = async (workspaceId, department) => {
+  const managerCandidateIds = new Set(
+    [department?.managerUser].filter(Boolean).map((id) => String(id)),
+  );
+  const members = await WorkspaceMember.find({
+    workspace: workspaceId,
+    departments: department._id,
+  })
+    .populate("role")
+    .exec();
+  const managerDefaultIds = await computeDepartmentDefaultModuleIds([department._id], "manager");
+  for (const member of members) {
+    if (getRoleBand(member.role) !== "manager" && !managerCandidateIds.has(String(member.user))) {
+      continue;
+    }
+    member.grantedModules = mergeGrantedModules(member.grantedModules, [
+      ...BASELINE_MODULE_IDS,
+      ...managerDefaultIds,
+      ...MANAGER_DEFAULT_ORG_GRANT_IDS,
+    ]);
+    await member.save();
+  }
 };
 
 const canManageDepartmentsByRole = (role = "") => getRoleBand(role) === "owner";
@@ -173,6 +212,14 @@ const hasOrganizationAccess = ({
 const isBasicPlan = (workspace: any) =>
   String(workspace?.selectedPlan || "basic").trim().toLowerCase() === "basic";
 
+const isProfessionalPlan = (workspace: any) =>
+  String(workspace?.selectedPlan || "basic").trim().toLowerCase() === "professional";
+
+// Professional plan caps a workspace at 5 active users total, founder
+// included — matches the Nomads pricing page's "Up to 5 Users" copy for
+// Professional. Custom plan has no such cap.
+const PROFESSIONAL_PLAN_MAX_USERS = 5;
+
 const buildLinkedWorkspaceOptions = async (workspace) => {
   if (!workspace?.owner) return [];
   const workspaces = await Workspace.find({
@@ -229,6 +276,7 @@ const ensureWorkspaceDepartments = async (workspace) => {
         description: d.description,
         workspaceId: workspace._id,
         isActive: true,
+        moduleIds: getDefaultDepartmentModuleIds(d.name),
       }));
       try {
         await Department.insertMany(toCreate, { ordered: false });
@@ -240,6 +288,27 @@ const ensureWorkspaceDepartments = async (workspace) => {
         if (!isDupKey) throw err;
       }
     }
+
+    // Self-healing backfill: any default-named department that predates this
+    // default-module mapping (or was otherwise left unconfigured) gets its
+    // sidebar-matching moduleIds filled in once, and its current manager (if
+    // any) re-granted accordingly — additive only.
+    const defaultModuleIdsByName = new Map(
+      DEFAULT_DEPARTMENTS.map((d) => [d.name.trim().toLowerCase(), d.name]),
+    );
+    const needsBackfill = existingDepts.filter(
+      (d) =>
+        defaultModuleIdsByName.has(d.name.trim().toLowerCase()) &&
+        (!Array.isArray(d.moduleIds) || d.moduleIds.length === 0),
+    );
+    for (const dept of needsBackfill) {
+      const defaultIds = getDefaultDepartmentModuleIds(dept.name);
+      if (!defaultIds.length) continue;
+      dept.moduleIds = defaultIds;
+      await dept.save();
+      await reapplyDepartmentManagerGrants(workspace._id, dept);
+    }
+
     return Department.find({ workspaceId: workspace._id });
   }
 
@@ -248,6 +317,7 @@ const ensureWorkspaceDepartments = async (workspace) => {
     description: d.description,
     workspaceId: workspace._id,
     isActive: true,
+    moduleIds: getDefaultDepartmentModuleIds(d.name),
   }));
   try {
     await Department.insertMany(toCreate, { ordered: false });
@@ -312,13 +382,15 @@ export const getOrganizationOverview = async (req, res, next) => {
       user: req.user,
       isActive: true,
     })
-      .select("role grantedModules")
+      .select("role grantedModules departments")
       .populate("role")
       .lean()
       .exec();
     if (!actorMembership) {
       return res.status(403).json({ message: "You do not have workspace access." });
     }
+
+    const actorRoleBand = getRoleBand(actorMembership.role);
 
     const hasFullAccess = hasOrganizationAccess({
       workspace,
@@ -393,7 +465,29 @@ export const getOrganizationOverview = async (req, res, next) => {
       .lean()
       .exec();
 
-    const departments = activeDepartments.map((department) => {
+    // A department manager (not owner/super_admin/admin) only manages their
+    // own department(s) — scope the visible departments/members down to that,
+    // instead of the whole company, even though hasOrganizationAccess() above
+    // already lets them past the Users tab gate.
+    let visibleDepartments = activeDepartments;
+    let visibleMembers = members;
+    if (actorRoleBand === "manager") {
+      const actorDepartmentIds = new Set(
+        (Array.isArray(actorMembership.departments) ? actorMembership.departments : []).map((d) =>
+          toId(d?._id || d),
+        ),
+      );
+      visibleDepartments = activeDepartments.filter((department) =>
+        actorDepartmentIds.has(toId(department._id)),
+      );
+      visibleMembers = members.filter((member) =>
+        (Array.isArray(member.departments) ? member.departments : []).some((dept: any) =>
+          actorDepartmentIds.has(toId(dept?._id || dept)),
+        ),
+      );
+    }
+
+    const departments = visibleDepartments.map((department) => {
       const departmentMembers = members.filter((member) =>
         (Array.isArray(member.departments) ? member.departments : []).some(
           (dept: any) => toId(dept?._id || dept) === toId(department._id),
@@ -447,7 +541,7 @@ export const getOrganizationOverview = async (req, res, next) => {
       .lean()
       .exec();
 
-    const teamMembers = members.map((member) => ({
+    const teamMembers = visibleMembers.map((member) => ({
       id: toId(member._id),
       userId: toId(member.user?._id),
       name: member.user?.name || "",
@@ -558,11 +652,6 @@ export const saveOrganizationDepartment = async (req, res, next) => {
     const moduleIds = Array.isArray(req.body?.moduleIds)
       ? req.body.moduleIds.map((item) => String(item || "").trim()).filter(Boolean)
       : [];
-    const managerOnlyModuleIds = Array.isArray(req.body?.managerOnlyModuleIds)
-      ? req.body.managerOnlyModuleIds
-        .map((item) => String(item || "").trim())
-        .filter((item) => item && moduleIds.includes(item))
-      : [];
     const managerUserId = String(req.body?.managerUserId || "").trim();
     const adminUserIds = Array.isArray(req.body?.adminUserIds)
       ? req.body.adminUserIds.map((item) => String(item || "").trim()).filter(Boolean)
@@ -584,7 +673,6 @@ export const saveOrganizationDepartment = async (req, res, next) => {
       existing.description = description;
       existing.isActive = isActive;
       existing.moduleIds = moduleIds;
-      existing.managerOnlyModuleIds = managerOnlyModuleIds;
       existing.managerUser = managerUserId || null;
       await existing.save();
 
@@ -600,12 +688,13 @@ export const saveOrganizationDepartment = async (req, res, next) => {
         await WorkspaceMember.updateMany({ workspace: workspace._id, user: { $in: toRemove } }, { $pull: { departments: existing._id } });
       }
 
-      // Re-apply default module grants additively for the current roster of
-      // admin/employee members every save, so editing moduleIds/managerOnlyModuleIds
-      // also refreshes existing members' defaults. This never removes a
-      // manual grant/add-on — only adds.
+      // Re-apply default module grants additively for the current admin
+      // roster every save, so editing moduleIds also refreshes existing
+      // members' defaults. This never removes a manual grant/add-on — only
+      // adds. Employees are intentionally excluded:
+      // department modules belong to the manager/admin by default; an
+      // employee only gets specific ones via updateOrganizationMemberAccess.
       const adminDefaultIds = await computeDepartmentDefaultModuleIds([existing._id], "admin");
-      const employeeDefaultIds = await computeDepartmentDefaultModuleIds([existing._id], "employee");
       if (adminUserIds.length > 0) {
         await Promise.all(
           adminUserIds.map(async (uid) => {
@@ -616,16 +705,13 @@ export const saveOrganizationDepartment = async (req, res, next) => {
           }),
         );
       }
-      if (employeeUserIds.length > 0) {
-        await Promise.all(
-          employeeUserIds.map(async (uid) => {
-            const member = await WorkspaceMember.findOne({ workspace: workspace._id, user: uid });
-            if (!member) return;
-            member.grantedModules = mergeGrantedModules(member.grantedModules, employeeDefaultIds);
-            await member.save();
-          }),
-        );
-      }
+
+      // Also re-apply to this department's manager(s) — a manager is tracked
+      // separately from adminUserIds/employeeUserIds (via department.managerUser
+      // and/or role band "manager"), so without this a manager assigned before
+      // moduleIds were configured would never see the update after the founder
+      // later fills in the department's module list.
+      await reapplyDepartmentManagerGrants(workspace._id, existing);
     } else {
       const created = await Department.create({
         name,
@@ -633,7 +719,6 @@ export const saveOrganizationDepartment = async (req, res, next) => {
         workspaceId: workspace._id,
         isActive,
         moduleIds,
-        managerOnlyModuleIds,
         managerUser: managerUserId || null,
       });
 
@@ -643,23 +728,12 @@ export const saveOrganizationDepartment = async (req, res, next) => {
       }
 
       const adminDefaultIds = await computeDepartmentDefaultModuleIds([created._id], "admin");
-      const employeeDefaultIds = await computeDepartmentDefaultModuleIds([created._id], "employee");
       if (adminUserIds.length > 0) {
         await Promise.all(
           adminUserIds.map(async (uid) => {
             const member = await WorkspaceMember.findOne({ workspace: workspace._id, user: uid });
             if (!member) return;
             member.grantedModules = mergeGrantedModules(member.grantedModules, adminDefaultIds);
-            await member.save();
-          }),
-        );
-      }
-      if (employeeUserIds.length > 0) {
-        await Promise.all(
-          employeeUserIds.map(async (uid) => {
-            const member = await WorkspaceMember.findOne({ workspace: workspace._id, user: uid });
-            if (!member) return;
-            member.grantedModules = mergeGrantedModules(member.grantedModules, employeeDefaultIds);
             await member.save();
           }),
         );
@@ -730,6 +804,25 @@ export const assignOrganizationDepartmentManager = async (req, res, next) => {
     if (!membership.departments.some((d) => String(d) === String(department._id))) {
       membership.departments.push(department._id);
     }
+
+    // Grant baseline (common + extra-common + key apps) modules, this
+    // department's full module set (including manager-only modules), and the
+    // org-invite grant needed to add department members — additive only,
+    // never strips a manual grant/add-on already on the member. Previously
+    // this endpoint saved the role/department change but never touched
+    // grantedModules at all, leaving a freshly assigned manager with no
+    // visible modules.
+    const managerDepartmentIds = membership.departments.map((d) => d?._id || d);
+    const managerDepartmentDefaultIds = await computeDepartmentDefaultModuleIds(
+      managerDepartmentIds,
+      "manager",
+    );
+    membership.grantedModules = mergeGrantedModules(membership.grantedModules, [
+      ...BASELINE_MODULE_IDS,
+      ...managerDepartmentDefaultIds,
+      ...MANAGER_DEFAULT_ORG_GRANT_IDS,
+    ]);
+
     await membership.save();
 
     return res.status(200).json({ message: "Department manager assigned successfully." });
@@ -787,7 +880,7 @@ export const inviteOrganizationMember = async (req, res, next) => {
     const actorMembership = await resolveMembershipByWorkspace(
       workspace._id,
       req.user,
-      "role grantedModules",
+      "role grantedModules departments",
     );
     if (!actorMembership) {
       return res.status(403).json({ message: "You do not have workspace access." });
@@ -802,15 +895,36 @@ export const inviteOrganizationMember = async (req, res, next) => {
       return res.status(403).json({ message: "You do not have permission to invite members." });
     }
 
+    const actorRoleBand = getRoleBand(actorMembership.role);
+
     const name = String(req.body?.fullName || req.body?.name || "").trim();
     const email = String(req.body?.email || "").trim().toLowerCase();
     const role = String(req.body?.role || "member").trim().toLowerCase();
-    const departments = Array.isArray(req.body?.departments)
+    let departments = Array.isArray(req.body?.departments)
       ? req.body.departments.map((d) => String(d || "").trim()).filter(Boolean)
       : [];
 
     if (!name || !email) {
       return res.status(400).json({ message: "Name and email are required." });
+    }
+
+    // A department manager may only add employee-level members, and only into
+    // their own department(s) — never another department, and never a
+    // manager/admin/super_admin. Owner/super_admin/admin inviters are
+    // unrestricted (governed by hasOrganizationAccess above instead).
+    if (actorRoleBand === "manager") {
+      if (getRoleBand(role) !== "employee") {
+        return res.status(403).json({
+          message: "Managers can only add employee-level members.",
+        });
+      }
+      const actorDepartmentIds = (
+        Array.isArray(actorMembership.departments) ? actorMembership.departments : []
+      ).map((d) => String(d?._id || d));
+      if (!actorDepartmentIds.length) {
+        return res.status(403).json({ message: "You are not assigned to a department yet." });
+      }
+      departments = actorDepartmentIds;
     }
 
     if (isBasicPlan(workspace)) {
@@ -898,6 +1012,31 @@ export const inviteOrganizationMember = async (req, res, next) => {
 
     const isExistingRegisteredUser = !isFreshInviteAccount && !!targetUser.password;
 
+    if (isProfessionalPlan(workspace)) {
+      const alreadyActiveMember = await WorkspaceMember.findOne({
+        workspace: workspace._id,
+        user: targetUser._id,
+        isActive: true,
+      })
+        .select("_id")
+        .lean();
+
+      // Only count this invite against the cap if it's actually adding a new
+      // active member — re-inviting/updating someone already active doesn't
+      // grow headcount.
+      if (!alreadyActiveMember) {
+        const activeMemberCount = await WorkspaceMember.countDocuments({
+          workspace: workspace._id,
+          isActive: true,
+        });
+        if (activeMemberCount >= PROFESSIONAL_PLAN_MAX_USERS) {
+          return res.status(400).json({
+            message: `Professional plan limit reached. Maximum ${PROFESSIONAL_PLAN_MAX_USERS} users allowed (including the founder) — upgrade to Custom for more.`,
+          });
+        }
+      }
+    }
+
     // Default module grants: derived from department assignment + role band,
     // applied additively (never overwrites an existing manual grant/add-on).
     // Super admin is treated as a trusted co-owner — defaults to every module
@@ -911,6 +1050,9 @@ export const inviteOrganizationMember = async (req, res, next) => {
       inviteRoleBand === "super_admin"
         ? (Array.isArray(workspace?.enabledModuleIds) ? workspace.enabledModuleIds : [])
         : [];
+    // A newly invited department manager also needs the org-invite grant so
+    // they can in turn add their own department's employees.
+    const managerOrgGrantIds = inviteRoleBand === "manager" ? MANAGER_DEFAULT_ORG_GRANT_IDS : [];
     const existingMemberForGrants = await WorkspaceMember.findOne({
       workspace: workspace._id,
       user: targetUser._id,
@@ -921,6 +1063,7 @@ export const inviteOrganizationMember = async (req, res, next) => {
       ...BASELINE_MODULE_IDS,
       ...departmentDefaultIds,
       ...superAdminDefaultIds,
+      ...managerOrgGrantIds,
     ]);
 
     await WorkspaceMember.findOneAndUpdate(
@@ -1180,10 +1323,14 @@ export const updateOrganizationMemberRole = async (req, res, next) => {
       nextRoleBand === "super_admin"
         ? (Array.isArray(workspace?.enabledModuleIds) ? workspace.enabledModuleIds : [])
         : [];
+    // A member promoted to department manager also needs the org-invite grant
+    // so they can in turn add their own department's employees.
+    const managerOrgGrantIds = nextRoleBand === "manager" ? MANAGER_DEFAULT_ORG_GRANT_IDS : [];
     member.grantedModules = mergeGrantedModules(member.grantedModules, [
       ...BASELINE_MODULE_IDS,
       ...departmentDefaultIds,
       ...superAdminDefaultIds,
+      ...managerOrgGrantIds,
     ]);
 
     await member.save();
@@ -1217,9 +1364,9 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
 
     // Managers may only manage employee-level access, only for members who
     // share at least one department with them, and only for that shared
-    // department's employee-eligible modules (moduleIds minus
-    // managerOnlyModuleIds). Everything outside that scope is left untouched
-    // below. Owner/super_admin remain unrestricted (managerControllableIds stays null).
+    // department's modules (the same full set the manager themselves holds).
+    // Everything outside that scope is left untouched below. Owner/super_admin
+    // remain unrestricted (managerControllableIds stays null).
     let managerControllableIds = null;
     if (isManagerActor) {
       const targetRoleBand = getRoleBand(member.role);
@@ -1252,19 +1399,16 @@ export const updateOrganizationMemberAccess = async (req, res, next) => {
         });
       }
 
+      // A manager can delegate any module their shared department has —
+      // exactly what the manager themselves holds via computeDepartmentDefaultModuleIds,
+      // never more (they can't grant modules from a department they don't manage).
       const sharedDepartments = await Department.find({ _id: { $in: sharedDepartmentIds } })
-        .select("moduleIds managerOnlyModuleIds")
+        .select("moduleIds")
         .lean();
       const controllable = new Set<string>();
       for (const dept of sharedDepartments) {
         const moduleIds = Array.isArray(dept?.moduleIds) ? dept.moduleIds : [];
-        const managerOnlyIds = new Set(
-          Array.isArray(dept?.managerOnlyModuleIds) ? dept.managerOnlyModuleIds : [],
-        );
-        for (const id of moduleIds) {
-          if (managerOnlyIds.has(id)) continue;
-          controllable.add(id);
-        }
+        for (const id of moduleIds) controllable.add(id);
       }
       managerControllableIds = controllable;
     }

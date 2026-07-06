@@ -1989,6 +1989,7 @@ export function OrganizationPage() {
                   }
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                 >
+                   <option value="employee">Department Employee</option>
                    <option value="manager">Department Manager</option>
                    <option value="admin">Department Admin</option>
                    <option value="super-admin" disabled={!canInviteSuperAdmin}>Super Admin</option>
@@ -2007,7 +2008,7 @@ export function OrganizationPage() {
                     <span className="text-[#2563EB] bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">{teamMemberFormData.departments.length} Selected</span>
                   </label>
                     <p className="text-[11px] text-slate-500 -mt-1">
-                      Department managers stay attached to one department. Department admins may cover multiple departments.
+                      Department managers stay attached to one department. Department admins and employees may cover multiple departments.
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                     {departments.map((dept) => {

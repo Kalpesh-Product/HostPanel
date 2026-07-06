@@ -1248,8 +1248,12 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
 
             // New rule:
             // - "Add-ons" should render ONLY the locked tree nodes.
-            // - "Department Accesses" (outside Add-ons) should render ONLY unlocked tree nodes.
-            // This prevents duplicate modules (locked items appearing in both places).
+            // - "Key Apps" / "Department Accesses" (outside Add-ons) should render ONLY
+            //   unlocked tree nodes.
+            // This prevents duplicate modules (locked items appearing in both places),
+            // while Add-ons mirrors the exact same dropdown shape as outside — a "Key
+            // Apps" group plus one group per department, just showing each group's
+            // locked children instead of its unlocked ones.
 
             const { locked: lockedDepartmentItems, unlocked: unlockedDepartmentItems } = (() => {
               const deptSection = rawSections.find((s) => s.key === "department-accesses");
@@ -1257,8 +1261,41 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
               return splitLockedTree(deptSection.items);
             })();
 
+            const { locked: lockedKeyAppsItems, unlocked: unlockedKeyAppsItems } = (() => {
+              const keyAppsSection = rawSections.find((s) => s.key === "key-apps");
+              if (!keyAppsSection) return { locked: [] as NavNode[], unlocked: [] as NavNode[] };
+              return splitLockedTree(keyAppsSection.items);
+            })();
+
+            // Key Apps has no group wrapper outside Add-ons (its items sit directly
+            // under the "Key Apps" section header) — wrap its locked leaves in a
+            // synthetic "Key Apps" group node so it shows as its own dropdown inside
+            // Add-ons too, exactly like a locked department does.
+            const lockedKeyAppsGroup: NavNode[] =
+              lockedKeyAppsItems.length > 0
+                ? [{ id: "key-apps", label: "Key Apps", icon: Boxes, defaultOpen: true, children: lockedKeyAppsItems }]
+                : [];
+
+            // Wrap all locked department dropdowns under a single "Department" group
+            // inside Add-ons (outside Add-ons each department sits directly under the
+            // "Department Accesses" section header — Add-ons uses its own "Department"
+            // sub-dropdown instead, one level deeper).
+            const lockedDepartmentGroup: NavNode[] =
+              lockedDepartmentItems.length > 0
+                ? [{ id: "department-accesses", label: "Department", icon: Building, defaultOpen: true, children: lockedDepartmentItems }]
+                : [];
+
+            const addonsItems = [...lockedKeyAppsGroup, ...lockedDepartmentGroup];
+
             const cleanedSections = rawSections
               .map((s) => {
+                if (s.key === "key-apps") {
+                  // keep only unlocked apps in the normal Key Apps section
+                  return unlockedKeyAppsItems.length > 0
+                    ? { ...s, items: unlockedKeyAppsItems }
+                    : null;
+                }
+
                 if (s.key === "department-accesses") {
                   // keep only unlocked in normal department tree
                   return unlockedDepartmentItems.length > 0
@@ -1267,9 +1304,9 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
                 }
 
                 if (s.key === "add-ons") {
-                  // replace add-ons with locked department tree (preserve department structure)
-                  return lockedDepartmentItems.length > 0
-                    ? { ...s, items: lockedDepartmentItems }
+                  // replace add-ons with locked Key Apps + department trees (preserve their group structure)
+                  return addonsItems.length > 0
+                    ? { ...s, items: addonsItems }
                     : null;
                 }
 
@@ -1278,12 +1315,12 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
               })
               .filter(Boolean) as Array<{ key: string; title: string; items: NavNode[] }>;
 
-            // if department has locked items but there is no existing add-ons section, create it
+            // if Key Apps/departments have locked items but there is no existing add-ons section, create it
             if (
-              lockedDepartmentItems.length > 0 &&
+              addonsItems.length > 0 &&
               !cleanedSections.some((s) => s.key === "add-ons")
             ) {
-              cleanedSections.push({ key: "add-ons", title: "Add-ons", items: lockedDepartmentItems });
+              cleanedSections.push({ key: "add-ons", title: "Add-ons", items: addonsItems });
             }
 
             // Re-order so Add-ons appears last (after Key Apps + Departments + other modules)
