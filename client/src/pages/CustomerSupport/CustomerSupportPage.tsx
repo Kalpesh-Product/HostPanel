@@ -426,6 +426,19 @@ export default function CustomerSupportPage() {
               </div>
 
               <div className="space-y-1.5">
+                <label htmlFor="issue-page-url" className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Page URL (Optional)</label>
+                <input
+                  id="issue-page-url"
+                  type="text"
+                  value={pageUrl}
+                  onChange={(event) => setPageUrl(event.target.value)}
+                  placeholder="e.g. /extra-common-modules/assets"
+                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none shadow-sm transition-all placeholder:text-slate-400"
+                />
+                <p className="text-[10px] text-slate-400 font-medium">Paste the page you were on when the issue happened, so our team can see exactly what you saw.</p>
+              </div>
+
+              <div className="space-y-1.5">
                 <label htmlFor="issue-image" className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Image Upload (Optional)</label>
                 <label
                   htmlFor="issue-image"
