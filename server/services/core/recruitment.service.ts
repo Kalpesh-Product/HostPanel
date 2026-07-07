@@ -31,6 +31,16 @@ function normalizeText(value = "") {
   return String(value || "").trim();
 }
 
+function normalizeJsonText(value = "") {
+  if (typeof value === "string") return value.trim();
+  if (value === undefined || value === null) return "";
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "";
+  }
+}
+
 function normalizeEmail(value = "") {
   return normalizeText(value).toLowerCase();
 }
@@ -133,12 +143,14 @@ function buildCandidateView(candidate: any) {
       sourceNotes: candidate.sourceNotes || "",
       contactMethod: candidate.contactMethod || "",
       notes: candidate.notes || "",
+      customFields: candidate.customFields || "",
     },
     resumeMeta: candidate.resume || null,
     sourceReference: candidate.sourceReference || "",
     sourceNotes: candidate.sourceNotes || "",
     currentCompany: candidate.currentCompany || "",
     notes: candidate.notes || "",
+    customFields: candidate.customFields || "",
     timeline: Array.isArray(candidate.statusHistory) ? candidate.statusHistory : [],
     emailHistory: Array.isArray(candidate.emailHistory) ? candidate.emailHistory : [],
     createdAt: candidate.createdAt || null,
@@ -214,6 +226,7 @@ function buildCandidateMutationPayload(input: Record<string, any> = {}) {
     certifications: normalizeText(input.certifications),
     coverLetter: normalizeText(input.coverLetter),
     notes: normalizeText(input.notes),
+    customFields: normalizeJsonText(input.customFields),
     status: normalizeStatus(input.status),
   };
 }
@@ -286,6 +299,10 @@ function parseCsvText(csvText: string) {
     paid: "isPaid",
     internshipdurationmonths: "internshipDurationMonths",
     description: "description",
+    aboutthejob: "aboutTheJob",
+    keyresponsibilities: "keyResponsibilities",
+    requirements: "requirements",
+    softskills: "softSkills",
     notes: "description",
     isactive: "isActive",
     active: "isActive",
@@ -339,6 +356,10 @@ function buildRecruitmentJobOpeningPayload(input: Record<string, any> = {}) {
     isPaid: input.isPaid !== undefined ? normalizeBulkBoolean(input.isPaid, !isInternship) : !isInternship,
     internshipDurationMonths: Math.max(0, normalizeBulkNumber(input.internshipDurationMonths, isInternship ? 6 : 0)),
     description: normalizeText(input.description),
+    aboutTheJob: normalizeText(input.aboutTheJob),
+    keyResponsibilities: normalizeText(input.keyResponsibilities),
+    requirements: normalizeText(input.requirements),
+    softSkills: normalizeText(input.softSkills),
     isActive: input.isActive !== undefined ? normalizeBulkBoolean(input.isActive, true) : true,
   };
 }
@@ -447,6 +468,7 @@ async function upsertCandidateFromPayload({
   candidate.certifications = payload.certifications;
   candidate.coverLetter = payload.coverLetter;
   candidate.notes = payload.notes;
+  candidate.customFields = payload.customFields;
 
   const statusChanged = normalizeStatus(candidate.status) !== payload.status;
   candidate.status = payload.status;

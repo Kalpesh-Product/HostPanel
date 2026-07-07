@@ -55,6 +55,7 @@ export interface IRecruitmentCandidate extends Document {
     certifications?: string;
     coverLetter?: string;
     notes?: string;
+    customFields?: string;
     status: string;
     statusReason?: string;
     appliedAt: Date;
@@ -156,6 +157,7 @@ const recruitmentCandidateSchema = new Schema<IRecruitmentCandidate>(
         certifications: { type: String, trim: true, default: "" },
         coverLetter: { type: String, trim: true, default: "" },
         notes: { type: String, trim: true, default: "" },
+        customFields: { type: String, trim: true, default: "" },
         status: { type: String, trim: true, default: "Applied", index: true },
         statusReason: { type: String, trim: true, default: "" },
         appliedAt: { type: Date, default: Date.now, index: true },

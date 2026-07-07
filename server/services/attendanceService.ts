@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { uploadFileToS3 } from "../config/s3config.js";
 import Attendance from "../models/Attendance.js";
 import Department from "../models/Department.js";
+import EmployeeProfile from "../models/EmployeeProfile.js";
 import HostUser from "../models/HostUser.js";
 import Workspace from "../models/Workspace.js";
 import WorkspaceMember from "../models/WorkspaceMember.js";
@@ -567,12 +568,17 @@ const formatRecordForFrontend = async (record, membership = null) => {
     checkOutAt: effectiveCheckOut,
   });
 
+  const employeeRole = membership
+    ? getRoleName(membership?.role || "")
+    : (plain?.roleLabel || "");
+
   return {
     recordId: toId(plain?._id),
     id: toId(plain?._id),
     userId: toId(plain?.employeeUserId),
     employeeName: plain?.employeeName || "",
-    employeeId: plain?.employeeId || "",
+    employeeId: plain?.employeeId || (membership?.employeeId || ""),
+    employeeRole,
     department: plain?.department?.name || plain?.departmentLabel || departments[0] || "General",
     date: plain?.dateKey || toDateLabel(attendanceDate),
     checkIn: toTimeLabel(effectiveCheckIn),
@@ -667,6 +673,8 @@ const buildMonthlyRowsForMember = async (memberUserId, employeeName, departmentN
     .exec();
 
   const recordMap = buildAttendanceDateMap(records);
+  const employeeRole = visibleMembership ? getRoleName(visibleMembership?.role || "") : "";
+  const employeeIdFromMembership = visibleMembership?.employeeId || "";
   const rows = [];
   for (const dateKey of keys) {
     const existing = recordMap.get(dateKey);
@@ -685,7 +693,8 @@ const buildMonthlyRowsForMember = async (memberUserId, employeeName, departmentN
       id: `absent-${memberUserId}-${dateKey}`,
       userId: toId(memberUserId),
       employeeName: employeeName || "",
-      employeeId: "",
+      employeeId: employeeIdFromMembership,
+      employeeRole,
       department: departmentName || "General",
       date: dateKey,
       checkIn: "",
@@ -1106,25 +1115,70 @@ export async function getTeamAttendanceSnapshot(userId, query = {}) {
     ).values(),
   );
 
+  const memberIds = uniqueVisibleMembers
+    .filter((m) => toId(m?._id))
+    .map((m) => toId(m._id));
+  const employeeProfiles = await EmployeeProfile.find({
+    workspaceId: workspace._id,
+    linkedWorkspaceMemberId: { $in: memberIds },
+  })
+    .select("employeeId linkedWorkspaceMemberId linkedUserId")
+    .lean()
+    .exec();
+  const employeeIdByMemberId = new Map(
+    employeeProfiles
+      .filter((ep) => ep.linkedWorkspaceMemberId)
+      .map((ep) => [toId(ep.linkedWorkspaceMemberId), ep.employeeId || ""]),
+  );
+  const employeeIdByUserId = new Map(
+    employeeProfiles
+      .filter((ep) => ep.linkedUserId)
+      .map((ep) => [toId(ep.linkedUserId), ep.employeeId || ""]),
+  );
+
   const rows = [];
   for (const member of uniqueVisibleMembers) {
     const memberDepartmentName = Array.isArray(member?.departments) && member.departments[0]
       ? String(member.departments[0]?.name || "General")
       : "General";
+    const empId = employeeIdByMemberId.get(toId(member._id)) || employeeIdByUserId.get(toId(member.user?._id)) || "";
     const monthlyRows = await buildMonthlyRowsForMember(
       member.user._id,
       member.user.name || member.user.email || "Unknown",
       memberDepartmentName,
       query.month,
       workspace._id,
-      member,
+      { ...member, employeeId: empId },
     );
     rows.push(...monthlyRows);
   }
 
+  const corrections = rows
+    .filter((row) => row.correction)
+    .map((row) => ({
+      id: row.correction?.requestedAt,
+      correctionId: row.recordId || row.id,
+      userId: row.userId,
+      employeeName: row.employeeName || "",
+      employeeId: row.employeeId || "",
+      employeeRole: row.employeeRole || "",
+      department: row.department || "",
+      date: row.date || "",
+      type: "correction",
+      reason: row.correction?.reason || "",
+      status: row.correction?.status || "pending",
+      originalCheckIn: row.correction?.originalCheckIn || row.checkIn,
+      originalCheckOut: row.correction?.originalCheckOut || row.checkOut,
+      requestedCheckIn: row.correction?.requestedCheckIn || row.checkIn,
+      requestedCheckOut: row.correction?.requestedCheckOut || row.checkOut,
+      actionedBy: row.correction?.actionedBy || "",
+      rejectionReason: row.correction?.rejectionReason || "",
+    }));
+
   return {
     records: rows,
     allRecords: rows,
+    corrections,
     stats: buildStats(rows),
     month: keys[0]?.slice(0, 7) || "",
     totalEmployees: uniqueVisibleMembers.length,
@@ -1173,11 +1227,23 @@ export async function getEmployeeAttendanceHistory(userId, targetUserId, query =
 
   const targetDepartments = await getDepartmentNamesForMembership(targetMembership);
 
+  const employeeProfileRecord = await EmployeeProfile.findOne({
+    workspaceId: workspace._id,
+    $or: [
+      { linkedWorkspaceMemberId: targetMembership?._id },
+      { linkedUserId: targetUserId },
+    ],
+  })
+    .select("employeeId")
+    .lean()
+    .exec();
+  const resolvedEmployeeId = employeeProfileRecord?.employeeId || "";
+
   return {
     employee: {
       userId: toId(targetUserId),
       fullName: targetUser?.name || targetUser?.email || "",
-      employeeId: targetMembership?.employeeId || "",
+      employeeId: resolvedEmployeeId,
       role: getRoleName(targetMembership?.role || ""),
       department: targetDepartments.length > 0 ? targetDepartments.join(" / ") : "General",
       departments: targetDepartments,

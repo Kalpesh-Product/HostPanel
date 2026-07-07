@@ -362,6 +362,19 @@ const templateSchema = new mongoose.Schema(
     partnerPageHeading: { type: String, default: "" },
     partnerPageContent: { type: String, default: "" },
     partnerFormTitle: { type: String, default: "" },
+    // Careers page
+    careersPageHeading: { type: String, default: "" },
+    careersPageIntro: { type: String, default: "" },
+    careersHeroImage: {
+      id: { type: String },
+      url: { type: String },
+    },
+    careersHeroButtonText: { type: String, default: "" },
+    careersClosingHeading: { type: String, default: "" },
+    careersClosingText: { type: String, default: "" },
+    careersApplyButtonText: { type: String, default: "" },
+    careersApplyButtonLink: { type: String, default: "" },
+    careersFormFields: { type: String, default: "[]" },
     // Founders section (about page)
     founders: {
       type: [

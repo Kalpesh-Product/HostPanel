@@ -102,6 +102,14 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/dashboard/website-builder/dynamic/careers",
+    crumbs: [
+      { label: "Dashboard", path: "/dashboard" },
+      { label: "Website Builder", path: "/dashboard/website-builder" },
+      { label: "Careers" },
+    ],
+  },
+  {
     pattern: "/dashboard",
     crumbs: [
       { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
@@ -210,6 +218,14 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
       { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
       { label: "Website Builder", path: "/company-settings/website-builder" },
       { label: "Website Reviews" },
+    ],
+  },
+  {
+    pattern: "/company-settings/website-builder/dynamic/careers",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
+      { label: "Careers" },
     ],
   },
   {

@@ -640,7 +640,7 @@ export default function HRPayrollPage() {
     ...(
       Array.isArray(payrollData.filters?.departments) && payrollData.filters.departments.length > 0
         ? payrollData.filters.departments
-        : ["HR", "Sales & CRM", "Finance", "Administration", "Tech", "IT", "Maintenance"]
+        : ["HR", "Sales", "Finance", "Administration", "Tech", "IT", "Maintenance"]
     ),
   ];
 

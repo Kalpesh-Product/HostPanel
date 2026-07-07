@@ -1092,6 +1092,7 @@ export default function HRAttendanceReviewPage() {
                       <th className="px-5 py-4 text-left">Emp ID</th>
                       <th className="px-5 py-4 text-left">Employee</th>
                       <th className="px-5 py-4 text-left">Department</th>
+                      <th className="px-5 py-4 text-left">Role</th>
                       <th className="px-5 py-4 text-left">Date</th>
                       <th className="px-5 py-4 text-left">Check In</th>
                       <th className="px-5 py-4 text-left">Check Out</th>
@@ -1103,7 +1104,7 @@ export default function HRAttendanceReviewPage() {
                   <tbody className="divide-y divide-slate-100/60">
                     {filteredAttendance.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="text-center py-20 text-slate-400 font-semibold">
+                        <td colSpan={10} className="text-center py-20 text-slate-400 font-semibold">
                           No attendance records found.
                         </td>
                       </tr>
@@ -1125,6 +1126,7 @@ export default function HRAttendanceReviewPage() {
                             </div>
                           </td>
                           <td className="px-5 py-4 text-[11px] text-slate-600">{record.department || "--"}</td>
+                          <td className="px-5 py-4 text-[11px] text-slate-600">{record.employeeRole || "--"}</td>
                           <td className="px-5 py-4 text-[11px] font-semibold text-slate-700">{formatLongDate(record.date)}</td>
                           <td className="px-5 py-4">
                             <span className="text-[12px] font-semibold text-slate-800">

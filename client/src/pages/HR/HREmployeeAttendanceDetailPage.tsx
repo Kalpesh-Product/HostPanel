@@ -29,6 +29,7 @@ type AttendanceRecord = {
   userId?: string;
   employeeName?: string;
   employeeId?: string;
+  employeeRole?: string;
   department?: string;
   date?: string;
   checkIn?: string;
@@ -200,6 +201,7 @@ export default function HREmployeeAttendanceDetailPage() {
   const [employeeLabel, setEmployeeLabel] = useState(employeeName);
   const [employeeCode, setEmployeeCode] = useState(employeeId);
   const [employeeDept, setEmployeeDept] = useState(department);
+  const [employeeRole, setEmployeeRole] = useState("");
   const [employeeProfile, setEmployeeProfile] = useState<Record<string, any> | null>(null);
 
   useEffect(() => {
@@ -235,6 +237,10 @@ export default function HREmployeeAttendanceDetailPage() {
           setEmployeeLabel(profileEmployee.fullName || profileEmployee.name || employeeName);
           setEmployeeCode(profileEmployee.employeeId || profileEmployee.employeeNumber || employeeId);
           setEmployeeDept(profileEmployee.department || profileEmployee.departmentDisplay || department);
+          setEmployeeRole(profileEmployee.role || profileEmployee.workspaceRole?.name || profileEmployee.rawRole || "");
+        }
+        if (!profileEmployee && nextRecords.length > 0) {
+          setEmployeeRole(nextRecords[0]?.employeeRole || "");
         }
       })
       .catch(() => {
@@ -334,6 +340,12 @@ export default function HREmployeeAttendanceDetailPage() {
                       <Building2 size={13} />
                       {employeeDept}
                     </span>
+                    {employeeRole ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-blue-700">
+                        <User size={13} />
+                        {employeeRole}
+                      </span>
+                    ) : null}
                     <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-3 py-1">
                       <Calendar size={13} />
                       {monthLabel(month)}

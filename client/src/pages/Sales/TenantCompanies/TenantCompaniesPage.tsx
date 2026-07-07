@@ -1666,7 +1666,7 @@ export default function TenantCompaniesPage() {
     try {
       const response = await createReport({
         title: 'Sales Tenant Companies',
-        department: 'Sales & CRM',
+        department: 'Sales',
         category: 'Other',
         dataWindow: 'Custom',
         reportMonth: new Date().toISOString().slice(0, 7),
@@ -1708,7 +1708,7 @@ export default function TenantCompaniesPage() {
     try {
       const response = await createReport({
         title: `${company.companyName || 'Tenant Company'} Profile`,
-        department: 'Sales & CRM',
+        department: 'Sales',
         category: 'Other',
         dataWindow: 'Custom',
         reportMonth: new Date().toISOString().slice(0, 7),

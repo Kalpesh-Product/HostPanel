@@ -195,7 +195,7 @@ interface LedgerEntry {
 
 /* ───────────────────── Constants / Helpers ───────────────────── */
 
-const FALLBACK_DEPARTMENTS = ["HR", "Administration", "Finance", "Sales & CRM", "Tech", "IT", "Maintenance"];
+const FALLBACK_DEPARTMENTS = ["HR", "Administration", "Finance", "Sales", "Tech", "IT", "Maintenance"];
 
 function formatDateLabel(value?: string | Date | null): string {
   if (!value) return "-";

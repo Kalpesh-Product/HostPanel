@@ -826,6 +826,34 @@ export const saveTemplateDraft = async (req, res) => {
       template.partnerFormTitle = String(draftData.partnerFormTitle || "").trim();
     }
 
+    // Careers page
+    if (draftData?.careersPageHeading !== undefined) {
+      template.careersPageHeading = String(draftData.careersPageHeading || "").trim();
+    }
+    if (draftData?.careersPageIntro !== undefined) {
+      template.careersPageIntro = String(draftData.careersPageIntro || "").trim();
+    }
+    if (draftData?.careersHeroButtonText !== undefined) {
+      template.careersHeroButtonText = String(draftData.careersHeroButtonText || "").trim();
+    }
+    if (draftData?.careersClosingHeading !== undefined) {
+      template.careersClosingHeading = String(draftData.careersClosingHeading || "").trim();
+    }
+    if (draftData?.careersClosingText !== undefined) {
+      template.careersClosingText = String(draftData.careersClosingText || "").trim();
+    }
+    if (draftData?.careersApplyButtonText !== undefined) {
+      template.careersApplyButtonText = String(draftData.careersApplyButtonText || "").trim();
+    }
+    if (draftData?.careersApplyButtonLink !== undefined) {
+      template.careersApplyButtonLink = String(draftData.careersApplyButtonLink || "").trim();
+    }
+    if (draftData?.careersFormFields !== undefined) {
+      template.careersFormFields = typeof draftData.careersFormFields === "string"
+        ? String(draftData.careersFormFields || "[]").trim()
+        : JSON.stringify(Array.isArray(draftData.careersFormFields) ? draftData.careersFormFields : []);
+    }
+
     // Founders (text only — images handled via filesByField below)
     if (Array.isArray(draftData?.founders)) {
       template.founders = draftData.founders.map((f, index) => ({
@@ -866,6 +894,15 @@ export const saveTemplateDraft = async (req, res) => {
         1,
       );
       template.companyLogo = uploaded[0] || template.companyLogo;
+    }
+
+    if (filesByField.careersHeroImage?.[0]) {
+      const uploaded = await uploadImagesForDraft(
+        [filesByField.careersHeroImage[0]],
+        `${baseFolder}/careersHeroImage`,
+        1,
+      );
+      template.careersHeroImage = uploaded[0] || template.careersHeroImage;
     }
 
     if (filesByField.heroImages?.length) {
@@ -1467,6 +1504,16 @@ export const createTemplate = async (req, res, next) => {
         partnerPageHeading: String(req.body?.partnerPageHeading || "").trim(),
         partnerPageContent: String(req.body?.partnerPageContent || "").trim(),
         partnerFormTitle: String(req.body?.partnerFormTitle || "").trim(),
+        careersPageHeading: String(req.body?.careersPageHeading || "").trim(),
+        careersPageIntro: String(req.body?.careersPageIntro || "").trim(),
+        careersHeroButtonText: String(req.body?.careersHeroButtonText || "").trim(),
+        careersClosingHeading: String(req.body?.careersClosingHeading || "").trim(),
+        careersClosingText: String(req.body?.careersClosingText || "").trim(),
+        careersApplyButtonText: String(req.body?.careersApplyButtonText || "").trim(),
+        careersApplyButtonLink: String(req.body?.careersApplyButtonLink || "").trim(),
+        careersFormFields: Array.isArray(req.body?.careersFormFields)
+          ? JSON.stringify(req.body.careersFormFields)
+          : String(req.body?.careersFormFields || "[]").trim(),
         founders: (() => {
           try {
             const raw = typeof req.body?.founders === "string" ? JSON.parse(req.body.founders) : (Array.isArray(req.body?.founders) ? req.body.founders : []);
@@ -1547,6 +1594,16 @@ export const createTemplate = async (req, res, next) => {
         partnerPageHeading: String(req.body?.partnerPageHeading || "").trim(),
         partnerPageContent: String(req.body?.partnerPageContent || "").trim(),
         partnerFormTitle: String(req.body?.partnerFormTitle || "").trim(),
+        careersPageHeading: String(req.body?.careersPageHeading || "").trim(),
+        careersPageIntro: String(req.body?.careersPageIntro || "").trim(),
+        careersHeroButtonText: String(req.body?.careersHeroButtonText || "").trim(),
+        careersClosingHeading: String(req.body?.careersClosingHeading || "").trim(),
+        careersClosingText: String(req.body?.careersClosingText || "").trim(),
+        careersApplyButtonText: String(req.body?.careersApplyButtonText || "").trim(),
+        careersApplyButtonLink: String(req.body?.careersApplyButtonLink || "").trim(),
+        careersFormFields: Array.isArray(req.body?.careersFormFields)
+          ? JSON.stringify(req.body.careersFormFields)
+          : String(req.body?.careersFormFields || "[]").trim(),
         founders: (() => {
           try {
             const raw = typeof req.body?.founders === "string" ? JSON.parse(req.body.founders) : (Array.isArray(req.body?.founders) ? req.body.founders : []);
@@ -1745,6 +1802,15 @@ export const createTemplate = async (req, res, next) => {
         mimetype: "image/webp",
       });
       template.companyLogo = { id: data.id, url: data.url };
+    }
+
+    // careersHeroImage (single file)
+    if (filesByField.careersHeroImage && filesByField.careersHeroImage[0]) {
+      const uploaded = await uploadImages(
+        [filesByField.careersHeroImage[0]],
+        `${baseFolder}/careersHeroImage`,
+      );
+      template.careersHeroImage = uploaded[0] || template.careersHeroImage;
     }
 
     // heroImages
@@ -2643,6 +2709,40 @@ export const editTemplate = async (req, res, next) => {
         req.body?.partnerFormTitle !== undefined
           ? String(req.body.partnerFormTitle || "").trim()
           : template.partnerFormTitle,
+      careersPageHeading:
+        req.body?.careersPageHeading !== undefined
+          ? String(req.body.careersPageHeading || "").trim()
+          : template.careersPageHeading,
+      careersPageIntro:
+        req.body?.careersPageIntro !== undefined
+          ? String(req.body.careersPageIntro || "").trim()
+          : template.careersPageIntro,
+      careersHeroButtonText:
+        req.body?.careersHeroButtonText !== undefined
+          ? String(req.body.careersHeroButtonText || "").trim()
+          : template.careersHeroButtonText,
+      careersClosingHeading:
+        req.body?.careersClosingHeading !== undefined
+          ? String(req.body.careersClosingHeading || "").trim()
+          : template.careersClosingHeading,
+      careersClosingText:
+        req.body?.careersClosingText !== undefined
+          ? String(req.body.careersClosingText || "").trim()
+          : template.careersClosingText,
+      careersApplyButtonText:
+        req.body?.careersApplyButtonText !== undefined
+          ? String(req.body.careersApplyButtonText || "").trim()
+          : template.careersApplyButtonText,
+      careersApplyButtonLink:
+        req.body?.careersApplyButtonLink !== undefined
+          ? String(req.body.careersApplyButtonLink || "").trim()
+          : template.careersApplyButtonLink,
+      careersFormFields:
+        req.body?.careersFormFields !== undefined
+          ? Array.isArray(req.body.careersFormFields)
+            ? JSON.stringify(req.body.careersFormFields)
+            : String(req.body.careersFormFields || "[]").trim()
+          : template.careersFormFields,
       founders: (() => {
         if (req.body?.founders === undefined) return template.founders;
         try {
@@ -2701,6 +2801,21 @@ export const editTemplate = async (req, res, next) => {
         1,
       );
       template.companyLogo = uploaded[0];
+    }
+
+    // === CAREERS HERO IMAGE (limit 1) ===
+    if (filesByField.careersHeroImage?.length) {
+      if (filesByField.careersHeroImage.length > 1) {
+        throw new Error("Only one careers hero image is allowed.");
+      }
+      if (template.careersHeroImage?.url)
+        await deleteImagesFromS3([template.careersHeroImage]);
+      const uploaded = await uploadImages(
+        [filesByField.careersHeroImage[0]],
+        `${baseFolder}/careersHeroImage`,
+        1,
+      );
+      template.careersHeroImage = uploaded[0];
     }
 
     // === ðŸ–¼ HERO IMAGES (max 5 total) ===

@@ -77,6 +77,7 @@ import WebsitesLayout from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/
 import InActiveWebsites from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/InActiveWebsites";
 import WebsiteBuilderTypeActions from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsiteBuilderTypeActions";
 import WebsiteBuilderReviews from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsiteBuilderReviews";
+import WebsiteBuilderCareers from "../pages/Dashboard/FrontendDashboard/WebsiteBuilder/WebsiteBuilderCareers";
 import VerticalPicker from "../components/VerticalPicker";
 
 import Companies from "../pages/Dashboard/FrontendDashboard/Companies";
@@ -309,6 +310,7 @@ export const routes = createBrowserRouter([
                       { path: "dynamic/create-website", element: <CreateWebsite /> },
                       { path: "dynamic/leads", element: <CompanyLeads /> },
                       { path: "dynamic/reviews", element: <WebsiteBuilderReviews /> },
+                      { path: "dynamic/careers", element: <WebsiteBuilderCareers /> },
                       // Dynamic-only mode:
                       // { path: "static", element: <WebsiteBuilderTypeActions type="static" /> },
                       // { path: "static/select-vertical", element: <VerticalPickerRoute /> },
@@ -448,6 +450,7 @@ export const routes = createBrowserRouter([
                       { path: "dynamic/create-website", element: <CreateWebsite /> },
                       { path: "dynamic/leads", element: <CompanyLeads /> },
                       { path: "dynamic/reviews", element: <WebsiteBuilderReviews /> },
+                      { path: "dynamic/careers", element: <WebsiteBuilderCareers /> },
                       // Dynamic-only mode:
                       // { path: "static", element: <WebsiteBuilderTypeActions type="static" /> },
                       // { path: "static/select-vertical", element: <VerticalPickerRoute /> },
