@@ -415,8 +415,8 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
                 </div>
               </>
             )}
-            <Card icon={<SiGoogleadsense />} title="Leads" route={leadsRoute} />
-            <Card icon={<MdOutlineRateReview />} title="Reviews" route={reviewsRoute} />
+            <Card icon={<SiGoogleadsense />} title="Website Leads" route={leadsRoute} />
+            <Card icon={<MdOutlineRateReview />} title="Website Review" route={reviewsRoute} />
             <Card icon={<MdOutlineWorkHistory />} title="Careers" route={careersRoute} />
           </div>
         </div>

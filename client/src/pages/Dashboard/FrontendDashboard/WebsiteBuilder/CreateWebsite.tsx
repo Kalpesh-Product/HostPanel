@@ -805,7 +805,7 @@ const CreateWebsite = () => {
       pageNavItems: DEFAULT_PAGE_NAV_ITEMS.map((name) => ({
         name,
         slug: String(name).toLowerCase().replace(/\s+/g, "-"),
-        enabled: true,
+        enabled: String(name).toLowerCase().replace(/\s+/g, "-") === "home",
       })),
       productDropdownPages: [],
       aboutPageIntro: "",
@@ -927,6 +927,18 @@ const CreateWebsite = () => {
   );
   const careersPageNavIndex = pageNavItemsForVisibility.findIndex(
     (item: any) => String(item?.slug || "").trim().toLowerCase() === "careers",
+  );
+  const aboutPageNavIndex = pageNavItemsForVisibility.findIndex(
+    (item: any) => String(item?.slug || "").trim().toLowerCase() === "about-us",
+  );
+  const productsPageNavIndex = pageNavItemsForVisibility.findIndex(
+    (item: any) => String(item?.slug || "").trim().toLowerCase() === "products",
+  );
+  const galleryPageNavIndex = pageNavItemsForVisibility.findIndex(
+    (item: any) => String(item?.slug || "").trim().toLowerCase() === "gallery",
+  );
+  const contactPageNavIndex = pageNavItemsForVisibility.findIndex(
+    (item: any) => String(item?.slug || "").trim().toLowerCase() === "contact-us",
   );
   const CHAR_LIMITS = {
     heroTitle: 100,
@@ -1236,7 +1248,7 @@ const CreateWebsite = () => {
                   : DEFAULT_PAGE_NAV_ITEMS.map((name) => ({
                       name,
                       slug: String(name).toLowerCase().replace(/\s+/g, "-"),
-                      enabled: true,
+                      enabled: String(name).toLowerCase().replace(/\s+/g, "-") === "home",
                     })),
             productDropdownPages: (() => {
               const fromDraft =
@@ -2607,6 +2619,24 @@ const CreateWebsite = () => {
               <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3 min-w-0 overflow-hidden">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-slate-800">Products Page Tabs</p>
+                  {productsPageNavIndex >= 0 ? (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <Controller
+                        name={`pageNavItems.${productsPageNavIndex}.enabled`}
+                        control={control}
+                        render={({ field }) => (
+                          <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={field.value !== false}
+                              onChange={(event) => field.onChange(event.target.checked)}
+                            />
+                            Show Products page on website
+                          </label>
+                        )}
+                      />
+                    </div>
+                  ) : null}
                   <div className="flex flex-shrink-0 items-center gap-2 flex-wrap">
                     <TextField
                       select
@@ -3168,6 +3198,24 @@ const CreateWebsite = () => {
               .toLowerCase() === "about-us" ? (
               <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
                 <p className="text-sm font-semibold text-slate-800">About Page</p>
+                {aboutPageNavIndex >= 0 ? (
+                  <div className="mb-2 mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <Controller
+                      name={`pageNavItems.${aboutPageNavIndex}.enabled`}
+                      control={control}
+                      render={({ field }) => (
+                        <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={field.value !== false}
+                            onChange={(event) => field.onChange(event.target.checked)}
+                          />
+                          Show About Us page on website
+                        </label>
+                      )}
+                    />
+                  </div>
+                ) : null}
                 <div className="mt-3 grid grid-cols-1 gap-3">
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                     <Controller
@@ -3458,6 +3506,24 @@ const CreateWebsite = () => {
               .toLowerCase() === "gallery" ? (
               <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
                 <p className="text-sm font-semibold text-slate-800">Gallery Page</p>
+                {galleryPageNavIndex >= 0 ? (
+                  <div className="mb-2 mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <Controller
+                      name={`pageNavItems.${galleryPageNavIndex}.enabled`}
+                      control={control}
+                      render={({ field }) => (
+                        <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={field.value !== false}
+                            onChange={(event) => field.onChange(event.target.checked)}
+                          />
+                          Show Gallery page on website
+                        </label>
+                      )}
+                    />
+                  </div>
+                ) : null}
                 <div className="mt-3 grid grid-cols-1 gap-3">
                   <Controller
                     name="galleryPageHeading"
@@ -3506,7 +3572,7 @@ const CreateWebsite = () => {
               <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
                 <p className="text-sm font-semibold text-slate-800">Partner Page</p>
                 {partnerPageNavIndex >= 0 ? (
-                  <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div className="mb-2 mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                     <Controller
                       name={`pageNavItems.${partnerPageNavIndex}.enabled`}
                       control={control}
@@ -3764,6 +3830,24 @@ const CreateWebsite = () => {
               .toLowerCase() === "contact-us" ? (
               <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
                 <p className="text-sm font-semibold text-slate-800">Contact Page</p>
+                {contactPageNavIndex >= 0 ? (
+                  <div className="mb-2 mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <Controller
+                      name={`pageNavItems.${contactPageNavIndex}.enabled`}
+                      control={control}
+                      render={({ field }) => (
+                        <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={field.value !== false}
+                            onChange={(event) => field.onChange(event.target.checked)}
+                          />
+                          Show Contact Us page on website
+                        </label>
+                      )}
+                    />
+                  </div>
+                ) : null}
                 <div className="mt-3 grid grid-cols-1 gap-3">
                   <Controller
                     name="contactPageHeading"

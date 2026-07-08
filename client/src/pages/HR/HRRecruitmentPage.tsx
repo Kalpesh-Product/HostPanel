@@ -52,6 +52,7 @@ interface CandidateRaw {
     skills?: string;
     certifications?: string;
     coverLetter?: string;
+    customFields?: string;
   };
 }
 
@@ -143,7 +144,7 @@ interface NewJobForm {
 
 /* ───────────────────────────── Constants ───────────────────────────── */
 
-const DEPARTMENTS = ["HR", "Sales", "Finance", "Administration", "Tech", "IT", "Maintenance"];
+const DEPARTMENTS = ["HR", "Sales & CRM", "Finance", "Administration", "Tech", "IT", "Maintenance"];
 
 const STATUS_STYLE: Record<string, string> = {
   Applied: "bg-slate-100 text-slate-700 border-slate-200",
@@ -332,6 +333,32 @@ function CandidateDetailModal({
               </div>
             </div>
           </div>
+
+          {(() => {
+            let customFieldsParsed: Record<string, string> | null = null;
+            try {
+              const raw = fd.customFields;
+              if (raw && typeof raw === "string" && raw.trim().startsWith("{")) {
+                customFieldsParsed = JSON.parse(raw);
+              }
+            } catch {}
+            if (!customFieldsParsed || Object.keys(customFieldsParsed).length === 0) return null;
+            return (
+              <div>
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
+                  <FileText size={16} /> Custom Form Fields
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-8 bg-purple-50/30 p-5 rounded-2xl border border-purple-100">
+                  {Object.entries(customFieldsParsed).map(([key, val]) => (
+                    <div key={key}>
+                      <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1">{key.replace(/([A-Z])/g, " $1").replace(/_/g, " ")}</p>
+                      <p className="font-semibold text-slate-900">{String(val || "-")}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           <div>
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">

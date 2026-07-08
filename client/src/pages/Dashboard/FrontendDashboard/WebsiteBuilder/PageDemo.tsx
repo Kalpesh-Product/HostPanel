@@ -778,6 +778,50 @@ const PageDemo = () => {
     );
     return careersItem ? careersItem?.enabled !== false : true;
   }, [draft?.pageNavItems, draft?.navItems]);
+  const aboutPageEnabled = useMemo(() => {
+    const sourceNavItems = Array.isArray(draft?.pageNavItems)
+      ? draft.pageNavItems
+      : Array.isArray(draft?.navItems)
+        ? draft.navItems
+        : [];
+    const item = sourceNavItems.find(
+      (i: any) => normalizeSlug(i?.slug || i?.name || "") === "about-us",
+    );
+    return item ? item?.enabled !== false : true;
+  }, [draft?.pageNavItems, draft?.navItems]);
+  const productsPageEnabled = useMemo(() => {
+    const sourceNavItems = Array.isArray(draft?.pageNavItems)
+      ? draft.pageNavItems
+      : Array.isArray(draft?.navItems)
+        ? draft.navItems
+        : [];
+    const item = sourceNavItems.find(
+      (i: any) => normalizeSlug(i?.slug || i?.name || "") === "products",
+    );
+    return item ? item?.enabled !== false : true;
+  }, [draft?.pageNavItems, draft?.navItems]);
+  const galleryPageEnabled = useMemo(() => {
+    const sourceNavItems = Array.isArray(draft?.pageNavItems)
+      ? draft.pageNavItems
+      : Array.isArray(draft?.navItems)
+        ? draft.navItems
+        : [];
+    const item = sourceNavItems.find(
+      (i: any) => normalizeSlug(i?.slug || i?.name || "") === "gallery",
+    );
+    return item ? item?.enabled !== false : true;
+  }, [draft?.pageNavItems, draft?.navItems]);
+  const contactPageEnabled = useMemo(() => {
+    const sourceNavItems = Array.isArray(draft?.pageNavItems)
+      ? draft.pageNavItems
+      : Array.isArray(draft?.navItems)
+        ? draft.navItems
+        : [];
+    const item = sourceNavItems.find(
+      (i: any) => normalizeSlug(i?.slug || i?.name || "") === "contact-us",
+    );
+    return item ? item?.enabled !== false : true;
+  }, [draft?.pageNavItems, draft?.navItems]);
 
   const productPages = useMemo(
     () => {
@@ -1294,6 +1338,7 @@ const PageDemo = () => {
   };
 
   const goToProductPage = (slug: string) => {
+    if (!productsPageEnabled) return;
     setProductsMenuOpen(false);
     setMobileMenuOpen(false);
     setMobileProductsMenuOpen(false);
@@ -1825,73 +1870,77 @@ const PageDemo = () => {
           </section>
 
           {/* About summary section: compact intro pulled from about text fields. */}
-          <section id="about" className="bg-black px-4 py-12 text-white md:px-6 md:py-20">
-            <div className={`${CONTENT_WRAP} text-center`}>
-              <h2 className="text-[24px] font-semibold text-[#f7e53f] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[32px]">
-                About Our Vision
-              </h2>
-              <div className="mt-6 space-y-3 text-white md:mt-7 md:space-y-4">
-                {aboutIntroBlocks.length ? (
-                  aboutIntroBlocks.map((item: string, idx: number) => (
-                    <p
-                      key={`about-${idx}`}
-                      className="font-['Poppins',ui-sans-serif,system-ui,sans-serif] text-[14px] leading-[1.7] md:text-[20px] md:leading-[1.4]"
-                    >
-                      {item}
-                    </p>
-                  ))
-                ) : (
-                  <p></p>
-                )}
+          {aboutPageEnabled ? (
+            <section id="about" className="bg-black px-4 py-12 text-white md:px-6 md:py-20">
+              <div className={`${CONTENT_WRAP} text-center`}>
+                <h2 className="text-[24px] font-semibold text-[#f7e53f] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[32px]">
+                  About Our Vision
+                </h2>
+                <div className="mt-6 space-y-3 text-white md:mt-7 md:space-y-4">
+                  {aboutIntroBlocks.length ? (
+                    aboutIntroBlocks.map((item: string, idx: number) => (
+                      <p
+                        key={`about-${idx}`}
+                        className="font-['Poppins',ui-sans-serif,system-ui,sans-serif] text-[14px] leading-[1.7] md:text-[20px] md:leading-[1.4]"
+                      >
+                        {item}
+                      </p>
+                    ))
+                  ) : (
+                    <p></p>
+                  )}
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          ) : null}
 
           {/* Products section: home-page product cards that link into product detail routes. */}
-          <section id="products" className={SECTION_BLOCK}>
-            <div className={CONTENT_WRAP}>
-              <LinedHeading title="Our Products" />
-              <div className="mt-6 grid grid-cols-1 gap-6 md:mt-10 md:grid-cols-3 md:gap-7">
-                {productPages.map((item: any, idx: number) => (
-                  <article key={`product-${idx}`} className="flex flex-col overflow-hidden rounded-2xl shadow-md">
-                    {/* Image */}
-                    <div className="w-full overflow-hidden bg-slate-200">
-                      {item?.cardImage ? (
-                        <img
-                          src={item.cardImage}
-                          alt={item?.heading || item?.name}
-                          className="h-[200px] w-full object-cover md:h-[230px]"
-                        />
-                      ) : (
-                        <div className="h-[200px] w-full md:h-[230px]" />
-                      )}
-                    </div>
-
-                    {/* Dark card: name + description + explore button */}
-                    <div className="flex flex-1 flex-col items-center gap-3 bg-[#1a1a1a] px-5 py-5 text-center">
-                      <h3 className="text-[15px] font-semibold uppercase tracking-wide text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">
-                        {item?.heading || item?.name || "Product"}
-                      </h3>
-                      {(item?.homeCardSubText || item?.subText) ? (
-                        <p className="text-[12px] leading-relaxed text-white/75 font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[13px]">
-                          {item?.homeCardSubText || item?.subText}
-                        </p>
-                      ) : null}
-                      <div className="mt-auto pt-1">
-                        <button
-                          type="button"
-                          onClick={() => handleProductCardAction(item)}
-                          className="rounded-full border border-white/60 px-6 py-2 text-[11px] font-semibold uppercase tracking-widest text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
-                        >
-                          Explore
-                        </button>
+          {productsPageEnabled ? (
+            <section id="products" className={SECTION_BLOCK}>
+              <div className={CONTENT_WRAP}>
+                <LinedHeading title="Our Products" />
+                <div className="mt-6 grid grid-cols-1 gap-6 md:mt-10 md:grid-cols-3 md:gap-7">
+                  {productPages.map((item: any, idx: number) => (
+                    <article key={`product-${idx}`} className="flex flex-col overflow-hidden rounded-2xl shadow-md">
+                      {/* Image */}
+                      <div className="w-full overflow-hidden bg-slate-200">
+                        {item?.cardImage ? (
+                          <img
+                            src={item.cardImage}
+                            alt={item?.heading || item?.name}
+                            className="h-[200px] w-full object-cover md:h-[230px]"
+                          />
+                        ) : (
+                          <div className="h-[200px] w-full md:h-[230px]" />
+                        )}
                       </div>
-                    </div>
-                  </article>
-                ))}
+
+                      {/* Dark card: name + description + explore button */}
+                      <div className="flex flex-1 flex-col items-center gap-3 bg-[#1a1a1a] px-5 py-5 text-center">
+                        <h3 className="text-[15px] font-semibold uppercase tracking-wide text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">
+                          {item?.heading || item?.name || "Product"}
+                        </h3>
+                        {(item?.homeCardSubText || item?.subText) ? (
+                          <p className="text-[12px] leading-relaxed text-white/75 font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[13px]">
+                            {item?.homeCardSubText || item?.subText}
+                          </p>
+                        ) : null}
+                        <div className="mt-auto pt-1">
+                          <button
+                            type="button"
+                            onClick={() => handleProductCardAction(item)}
+                            className="rounded-full border border-white/60 px-6 py-2 text-[11px] font-semibold uppercase tracking-widest text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
+                          >
+                            Explore
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          ) : null}
 
           {/* Inclusions section: home-page amenities grid */}
           {Array.isArray(draft?.inclusions) && draft.inclusions.length > 0 ? (
@@ -1899,36 +1948,38 @@ const PageDemo = () => {
           ) : null}
 
           {/* Gallery preview section: first six images on home, full gallery on the gallery page. */}
-          <section id="gallery" className={SECTION_BLOCK}>
-            <div className={CONTENT_WRAP}>
-              <LinedHeading title={draft?.galleryTitle || "Gallery"} />
-              <div className="mt-6 grid grid-cols-1 gap-[8px] sm:grid-cols-2 md:mt-10 md:grid-cols-3">
-                {homeGalleryItems.map((item: string, idx: number) => (
+          {galleryPageEnabled ? (
+            <section id="gallery" className={SECTION_BLOCK}>
+              <div className={CONTENT_WRAP}>
+                <LinedHeading title={draft?.galleryTitle || "Gallery"} />
+                <div className="mt-6 grid grid-cols-1 gap-[8px] sm:grid-cols-2 md:mt-10 md:grid-cols-3">
+                  {homeGalleryItems.map((item: string, idx: number) => (
+                    <button
+                      key={`gallery-${idx}`}
+                      type="button"
+                      onClick={() => openGalleryViewer(idx)}
+                      className="overflow-hidden rounded-lg bg-slate-100 text-left"
+                    >
+                      <img
+                        src={item}
+                        alt={`Gallery ${idx + 1}`}
+                        className="h-[190px] w-full object-cover transition duration-300 hover:scale-[1.02] md:h-[256px]"
+                      />
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-6 flex justify-center md:mt-8">
                   <button
-                    key={`gallery-${idx}`}
                     type="button"
-                    onClick={() => openGalleryViewer(idx)}
-                    className="overflow-hidden rounded-lg bg-slate-100 text-left"
+                    onClick={() => navigate("/website-preview/page/gallery")}
+                    className="rounded-full bg-[#6f6f6f] px-8 py-2 text-xs font-semibold text-white md:px-10 md:text-sm"
                   >
-                    <img
-                      src={item}
-                      alt={`Gallery ${idx + 1}`}
-                      className="h-[190px] w-full object-cover transition duration-300 hover:scale-[1.02] md:h-[256px]"
-                    />
+                    SHOW MORE
                   </button>
-                ))}
+                </div>
               </div>
-              <div className="mt-6 flex justify-center md:mt-8">
-                <button
-                  type="button"
-                  onClick={() => navigate("/website-preview/page/gallery")}
-                  className="rounded-full bg-[#6f6f6f] px-8 py-2 text-xs font-semibold text-white md:px-10 md:text-sm"
-                >
-                  SHOW MORE
-                </button>
-              </div>
-            </div>
-          </section>
+            </section>
+          ) : null}
 
           {/* Testimonials preview section: merged draft testimonials and approved public reviews. */}
           <section id="testimonials" className={SECTION_BLOCK}>
@@ -2011,29 +2062,31 @@ const PageDemo = () => {
           </section>
 
           {/* Contact summary section: map iframe and shared contact card. */}
-          <section id="contact" className={SECTION_BLOCK}>
-            <div className={CONTENT_WRAP}>
-              <LinedHeading title={draft?.contactTitle || "Contact"} />
-            <div className="mt-6 grid grid-cols-1 gap-4 md:mt-8 md:grid-cols-12">
-                <div className="md:col-span-7">
-                  {draft?.mapUrl ? (
-                    <iframe
-                      title="map"
-                      src={draft.mapUrl}
-                      className="h-[220px] w-full border-0 md:h-[420px]"
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                    />
-                  ) : (
-                    <div className="h-[220px] w-full bg-slate-300 md:h-[420px]" />
-                  )}
-                </div>
-                <div className="md:col-span-5">
-                  {renderContactCard()}
+          {contactPageEnabled ? (
+            <section id="contact" className={SECTION_BLOCK}>
+              <div className={CONTENT_WRAP}>
+                <LinedHeading title={draft?.contactTitle || "Contact"} />
+              <div className="mt-6 grid grid-cols-1 gap-4 md:mt-8 md:grid-cols-12">
+                  <div className="md:col-span-7">
+                    {draft?.mapUrl ? (
+                      <iframe
+                        title="map"
+                        src={draft.mapUrl}
+                        className="h-[220px] w-full border-0 md:h-[420px]"
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                      />
+                    ) : (
+                      <div className="h-[220px] w-full bg-slate-300 md:h-[420px]" />
+                    )}
+                  </div>
+                  <div className="md:col-span-5">
+                    {renderContactCard()}
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
+          ) : null}
 
           {/* Logo Carousel — optional section after contact */}
           {draft?.logoCarousel?.enabled && Array.isArray(draft.logoCarousel.logos) && draft.logoCarousel.logos.length > 0 ? (
@@ -2049,7 +2102,7 @@ const PageDemo = () => {
       ) : null}
 
       {/* About page: full narrative blocks and image cards. */}
-      {currentSection === "about" ? (
+      {currentSection === "about" && aboutPageEnabled ? (
         <section className="bg-black px-4 py-12 text-white md:px-6 md:py-24">
           <div className={`${CONTENT_WRAP} text-center`}>
             <h2 className="text-[24px] font-semibold text-[#f7e53f] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[32px]">
@@ -2160,7 +2213,7 @@ const PageDemo = () => {
       ) : null}
 
       {/* Products page: category detail view or menu-style rendering based on the selected product slug. */}
-      {currentSection === "products" ? (
+      {currentSection === "products" && productsPageEnabled ? (
         <>
           {/* -- Product Item Detail Page -- */}
           {selectedDetailItem && selectedProductPage ? (() => {
@@ -2528,7 +2581,7 @@ const PageDemo = () => {
       ) : null}
 
       {/* Gallery page: full gallery grid for browsing every uploaded image. */}
-      {currentSection === "gallery" ? (
+      {currentSection === "gallery" && galleryPageEnabled ? (
         <section className={SECTION_BLOCK}>
           <div className={CONTENT_WRAP}>
             <LinedHeading title={draft?.galleryTitle || "Gallery"} />
@@ -3244,25 +3297,27 @@ const PageDemo = () => {
               ))}
             </div>
           </div>
-          <div>
-            <h3 className={FOOTER_HEADING}>Products</h3>
-            <div className={FOOTER_BODY_TEXT}>
-              {productPages.length > 0 ? (
-                productPages.map((page: any, idx: number) => (
-                  <button
-                    key={`footer-product-${idx}`}
-                    type="button"
-                    onClick={() => goToProductPage(page?.slug || page?.name || "")}
-                    className="block w-full md:w-auto"
-                  >
-                    {page?.name || page?.heading || "Product"}
-                  </button>
-                ))
-              ) : (
-                <p className="text-slate-400">No products listed</p>
-              )}
+          {productsPageEnabled ? (
+            <div>
+              <h3 className={FOOTER_HEADING}>Products</h3>
+              <div className={FOOTER_BODY_TEXT}>
+                {productPages.length > 0 ? (
+                  productPages.map((page: any, idx: number) => (
+                    <button
+                      key={`footer-product-${idx}`}
+                      type="button"
+                      onClick={() => goToProductPage(page?.slug || page?.name || "")}
+                      className="block w-full md:w-auto"
+                    >
+                      {page?.name || page?.heading || "Product"}
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-slate-400">No products listed</p>
+                )}
+              </div>
             </div>
-          </div>
+          ) : null}
           <div>
             <h3 className={FOOTER_HEADING}>Contact Us</h3>
             <div className={FOOTER_BODY_TEXT}>
