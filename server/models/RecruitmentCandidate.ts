@@ -44,6 +44,9 @@ export interface IRecruitmentCandidate extends Document {
     contactMethod?: string;
     currentCompany?: string;
     dateOfBirth?: Date | null;
+    country?: string;
+    state?: string;
+    city?: string;
     currentAddress?: string;
     earliestStartDate?: Date | null;
     availability: string;
@@ -146,6 +149,9 @@ const recruitmentCandidateSchema = new Schema<IRecruitmentCandidate>(
         contactMethod: { type: String, trim: true, default: "" },
         currentCompany: { type: String, trim: true, default: "" },
         dateOfBirth: { type: Date, default: null },
+        country: { type: String, trim: true, default: "" },
+        state: { type: String, trim: true, default: "" },
+        city: { type: String, trim: true, default: "" },
         currentAddress: { type: String, trim: true, default: "" },
         earliestStartDate: { type: Date, default: null, index: true },
         availability: { type: String, trim: true, default: "Full-time" },

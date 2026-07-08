@@ -5065,13 +5065,6 @@ const CreateWebsite = () => {
                 ) : null}
               </div>
               <div className="flex items-center justify-center gap-4">
-                <PrimaryButton
-                  type="button"
-                  title={effectiveEditMode ? "Submit" : "Publish"}
-                  onClick={() => setShowConfirmPopup(true)}
-                  isLoading={isWebsiteSubmitting}
-                  disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
-                />
                 <SecondaryButton
                   type="button"
                   title="Preview"
@@ -5080,10 +5073,17 @@ const CreateWebsite = () => {
                 <button
                   type="button"
                   onClick={resetFormToEmpty}
-                  className="px-6 py-2 bg-gray-200 text-black rounded-md"
+                  className="px-8 py-1.5 bg-gray-200 text-black rounded-md"
                 >
                   Reset
                 </button>
+                <PrimaryButton
+                  type="button"
+                  title={effectiveEditMode ? "Submit" : "Publish"}
+                  onClick={() => setShowConfirmPopup(true)}
+                  isLoading={isWebsiteSubmitting}
+                  disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
+                />
               </div>
               {publishedWebsiteUrl ? (
                 <div className="mt-3 text-center">

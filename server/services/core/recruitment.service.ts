@@ -90,6 +90,24 @@ function buildFullName(candidate: Record<string, any> = {}) {
   return [candidate.firstName, candidate.middleName, candidate.lastName].map(normalizeText).filter(Boolean).join(" ");
 }
 
+function splitFullName(value = "") {
+  const parts = normalizeText(value).split(/\s+/).filter(Boolean);
+  if (!parts.length) {
+    return { firstName: "", middleName: "", lastName: "" };
+  }
+  if (parts.length === 1) {
+    return { firstName: parts[0], middleName: "", lastName: "" };
+  }
+  if (parts.length === 2) {
+    return { firstName: parts[0], middleName: "", lastName: parts[1] };
+  }
+  return {
+    firstName: parts[0],
+    middleName: parts.slice(1, -1).join(" "),
+    lastName: parts[parts.length - 1],
+  };
+}
+
 async function uploadResumeAttachment(file: Express.Multer.File | null) {
   if (!file?.buffer?.length) return null;
   const route = `hr/recruitment/resumes/${Date.now()}-${normalizeText(file.originalname || "resume").replace(/\s+/g, "-")}`;
@@ -121,6 +139,8 @@ function buildCandidateView(candidate: any) {
     sourceType: candidate.sourceType || "Walk-in",
     status: candidate.status || "Applied",
     resume: candidate.resume?.name || `${fullName || "Candidate"}_Resume.pdf`,
+    resumeUrl: candidate.resume?.url || "",
+    resumeMeta: candidate.resume || null,
     exp: candidate.experience || "",
     appliedAt: formatRelativeTime(candidate.appliedAt || candidate.createdAt),
     formData: {
@@ -128,6 +148,9 @@ function buildCandidateView(candidate: any) {
       middleName: candidate.middleName || "",
       lastName: candidate.lastName || "",
       dob: formatDisplayDate(candidate.dateOfBirth),
+      country: candidate.country || "",
+      state: candidate.state || "",
+      city: candidate.city || "",
       address: candidate.currentAddress || "",
       department: candidate.department || "",
       earliestStartDate: candidate.earliestStartDate ? formatDisplayDate(candidate.earliestStartDate) : "Immediate",
@@ -200,10 +223,13 @@ async function getDepartmentOptions(workspaceId: any, fallbackOpenings: any[] = 
 
 function buildCandidateMutationPayload(input: Record<string, any> = {}) {
   const position = normalizeText(input.position || input.designation || input.jobTitle);
+  const name = normalizeText(input.fullName || input.name || [input.firstName, input.middleName, input.lastName].map(normalizeText).filter(Boolean).join(" "));
+  const splitName = splitFullName(name);
   return {
-    firstName: normalizeText(input.firstName),
-    middleName: normalizeText(input.middleName),
-    lastName: normalizeText(input.lastName),
+    firstName: normalizeText(input.firstName) || splitName.firstName,
+    middleName: normalizeText(input.middleName) || splitName.middleName,
+    lastName: normalizeText(input.lastName) || splitName.lastName,
+    fullName: name,
     email: normalizeEmail(input.email),
     phone: normalizeText(input.phone),
     department: normalizeText(input.department),
@@ -215,7 +241,12 @@ function buildCandidateMutationPayload(input: Record<string, any> = {}) {
     contactMethod: normalizeText(input.contactMethod),
     currentCompany: normalizeText(input.currentCompany),
     dateOfBirth: parseDate(input.dateOfBirth),
-    currentAddress: normalizeText(input.currentAddress || input.address),
+    country: normalizeText(input.country),
+    state: normalizeText(input.state),
+    city: normalizeText(input.city),
+    currentAddress:
+      normalizeText(input.currentAddress || input.address) ||
+      [input.country, input.state, input.city].map(normalizeText).filter(Boolean).join(", "),
     earliestStartDate: parseDate(input.earliestStartDate),
     availability: normalizeText(input.availability) || "Full-time",
     experience: normalizeText(input.experience),
@@ -445,7 +476,7 @@ async function upsertCandidateFromPayload({
   candidate.firstName = payload.firstName || candidate.firstName || "";
   candidate.middleName = payload.middleName;
   candidate.lastName = payload.lastName || candidate.lastName || "";
-  candidate.fullName = buildFullName(candidate);
+  candidate.fullName = payload.fullName || buildFullName(candidate);
   candidate.email = payload.email || candidate.email || "";
   candidate.phone = payload.phone;
   candidate.department = payload.department;
@@ -457,6 +488,9 @@ async function upsertCandidateFromPayload({
   candidate.contactMethod = payload.contactMethod;
   candidate.currentCompany = payload.currentCompany;
   candidate.dateOfBirth = payload.dateOfBirth;
+  candidate.country = payload.country;
+  candidate.state = payload.state;
+  candidate.city = payload.city;
   candidate.currentAddress = payload.currentAddress;
   candidate.earliestStartDate = payload.earliestStartDate;
   candidate.availability = payload.availability;
