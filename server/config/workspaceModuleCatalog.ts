@@ -250,22 +250,22 @@ const normalizePlan = (value = "") => {
   return "basic";
 };
 
+// These two sets are hand-synced against the plan/module tracking sheet
+// ("INC PLAN" column: All / Professional / Custom). "All" -> in Basic (and
+// therefore every higher tier too, since Professional/Custom build on top
+// of Basic). "Professional" -> added on top of Basic's set here, not in
+// Basic. "Custom" -> deliberately NOT in either set below — those modules
+// are only ever added per-customer on top of whichever plan they're on
+// (staff enables them individually via master panel's workspace module
+// toggle), they are never part of a plan's own default list.
 const BASIC_DEFAULT_IDS = new Set([
   "dashboard",
   "customer-support",
-  "attendance",
-  "tasks",
-  "tickets",
-  "leave-requests",
-  "meeting-room-system",
-  "calendar",
   "visitor-management",
-  "assets",
-  "inventory",
-  "finance-management",
-  "reports",
-  "website-builder",
+  "visitors-management",
   "wono-nomad",
+  "website-builder",
+  "tech-website-builder",
   "website-leads",
   "organization-management",
   "org_tab_users",
@@ -279,47 +279,22 @@ const BASIC_DEFAULT_IDS = new Set([
   "org_departments_assign_acting_manager",
   "org_departments_remove_acting_manager",
   "access-grants",
-  "it-repair-logs",
-  "tenant-companies-admin",
-  "bookings",
-  "visitors-management",
-  "resource-management",
-  "house-keeping",
-  "leads-management",
-  "tenant-companies-sales",
-  "resource-pricing",
-  "sales-architecture",
-  "analytics",
 ]);
 
 const PROFESSIONAL_DEFAULT_IDS = new Set([
   ...Array.from(BASIC_DEFAULT_IDS),
+  "tickets",
+  "meeting-room-system",
+  "calendar",
   "workspace-settings",
   "workspace-management",
-  "employee-management",
-  "hr-documents",
-  "recruitment",
-  "leave-request-processing",
-  "attendance-review",
-  "payroll-management",
-  "exit-management",
   "tenant-companies-admin",
   "bookings",
-  "visitors-management",
   "resource-management",
-  "house-keeping",
-  "workspace-layout",
   "leads-management",
   "tenant-companies-sales",
   "resource-pricing",
   "sales-architecture",
-  "finance-budget",
-  "billing-payments",
-  "accounting",
-  "maintenance-repair-logs",
-  "amc-maintenance-scheduler",
-  "tech-website-builder",
-  "it-repair-logs",
 ]);
 
 const canPlanAccess = (plan = "basic", moduleId = "") => {
@@ -411,6 +386,18 @@ export const getDefaultEnabledModuleIdsForPlan = (selectedPlan = "basic") => {
       }
     }
   }
+  // BASIC_DEFAULT_IDS / PROFESSIONAL_DEFAULT_IDS include some ids (the
+  // Organization Management sub-permissions: org_tab_users,
+  // org_tab_departments, org_users_invite_member, etc.) that have no
+  // corresponding node anywhere in MODULE_GROUPS — they only ever exist as
+  // flat entries in those id sets and in Sidebar.tsx's role-permission
+  // checks. The tree-walk above can never discover them, so a plan's
+  // defaults would silently omit them at workspace creation. Union them in
+  // directly so a plan's promised defaults are actually complete.
+  const allKnownIds = new Set([...BASIC_DEFAULT_IDS, ...PROFESSIONAL_DEFAULT_IDS]);
+  allKnownIds.forEach((id) => {
+    if (canPlanAccess(normalizedPlan, id)) ids.add(id);
+  });
   return Array.from(ids);
 };
 

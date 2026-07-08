@@ -1,86 +1,51 @@
 import type { PlanType } from "./inviteOnboarding";
 
-const COMPANY_SETTINGS_IDS = [
+// Hand-synced with BASIC_DEFAULT_IDS / PROFESSIONAL_DEFAULT_IDS in
+// server/config/workspaceModuleCatalog.ts, which is itself synced against
+// the plan/module tracking sheet ("INC PLAN" column). Keep all three in
+// lockstep. Anything tagged "Custom" on that sheet is deliberately absent
+// from both lists below — those modules are only ever enabled per-customer
+// via master panel's workspace module toggle, never part of a plan's own
+// default set.
+const BASIC_IDS = [
+  "dashboard",
+  "customer-support",
+  "visitor-management",
+  "visitors-management",
+  "wono-nomad",
   "website-builder",
-  "nomad-listing",
+  "tech-website-builder",
   "website-leads",
-  "reviews",
   "organization-management",
-  "module-management",
+  "org_tab_users",
+  "org_tab_departments",
+  "org_users_invite_member",
+  "org_users_change_role",
+  "org_users_toggle_access",
+  "org_departments_create",
+  "org_departments_edit",
+  "org_departments_assign_manager",
+  "org_departments_assign_acting_manager",
+  "org_departments_remove_acting_manager",
   "access-grants",
+] as const;
+
+const PROFESSIONAL_EXTRA_IDS = [
+  "tickets",
+  "meeting-room-system",
+  "calendar",
   "workspace-settings",
-  "analytics",
+  "tenant-companies-admin",
+  "bookings",
+  "resource-management",
+  "leads-management",
+  "tenant-companies-sales",
+  "resource-pricing",
+  "sales-architecture",
 ] as const;
 
 const WORKSPACE_MANAGEMENT_ID = "workspace-management";
 const BASIC_LOCKED_MODULE_IDS = ["workspace-settings"] as const;
-
-const BASIC_KEY_APP_IDS = [
-  "tickets",
-  "calendar",
-] as const;
-
-const BASIC_DEPARTMENT_IDS = [
-  "tenant-companies-admin",
-  "bookings",
-  "visitors-management",
-  "resource-management",
-  "house-keeping",
-  "leads-management",
-  "tenant-companies-sales",
-  "resource-pricing",
-  "sales-architecture",
-  "it-repair-logs",
-  "it-system-access",
-] as const;
-
-const PROFESSIONAL_EXTRA_IDS = [
-  "meeting-room-system",
-  "leads-management",
-  "tenant-companies-sales",
-  "resource-pricing",
-  "sales-architecture",
-] as const;
-
-const ALL_LEAF_IDS = [
-  ...COMPANY_SETTINGS_IDS,
-  WORKSPACE_MANAGEMENT_ID,
-  "attendance",
-  "tasks",
-  "tickets",
-  "leave-requests",
-  "meeting-room-system",
-  "calendar",
-  "assets",
-  "inventory",
-  "finance-management",
-  "reports",
-  "employee-management",
-  "hr-documents",
-  "recruitment",
-  "leave-request-processing",
-  "attendance-review",
-  "payroll-management",
-  "exit-management",
-  "tenant-companies-admin",
-  "bookings",
-  "visitors-management",
-  "resource-management",
-  "house-keeping",
-  "workspace-layout",
-  "leads-management",
-  "tenant-companies-sales",
-  "resource-pricing",
-  "sales-architecture",
-  "finance-budget",
-  "billing-payments",
-  "accounting",
-  "maintenance-repair-logs",
-  "amc-maintenance-scheduler",
-  "tech-website-builder",
-  "it-repair-logs",
-  "it-system-access",
-] as const;
 
 export const getWorkspaceCount = (value: unknown): number => {
   const parsed = Number(value);
@@ -94,13 +59,12 @@ export const getEnabledModuleIdsForPlan = (
   plan: PlanType,
   workspaceCount: number,
 ): string[] => {
-  if (plan === "custom") {
-    return [...ALL_LEAF_IDS];
-  }
+  // Custom = Professional's own default set; whatever a customer specifically
+  // asked for beyond that is enabled per-workspace via master panel (reflected
+  // separately through workspaceAccessMap.enabledModuleIds, not here).
+  const enabled = new Set<string>([...BASIC_IDS]);
 
-  const enabled = new Set<string>([...COMPANY_SETTINGS_IDS, ...BASIC_KEY_APP_IDS, ...BASIC_DEPARTMENT_IDS]);
-
-  if (plan === "professional") {
+  if (plan === "professional" || plan === "custom") {
     PROFESSIONAL_EXTRA_IDS.forEach((id) => enabled.add(id));
   }
 

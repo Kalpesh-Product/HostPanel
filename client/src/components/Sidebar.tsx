@@ -172,7 +172,6 @@ const keyAppsData: NavNode[] = [
   { id: "visitor-management", label: "Visitor Management", icon: ContactRound, route: "/visitors/visitor-management", disabled: false },
   { id: "website-builder", label: "Website Builder", icon: Globe, route: "/company-settings/website-builder", disabled: false },
   { id: "wono-nomad", label: "Wono Nomad", icon: ShieldCheck, route: "/company-settings/wono-nomad", disabled: false },
-  { id: "leads-management", label: "Leads Management", icon: Magnet, route: "/sales-crm/leads-management", disabled: false },
 ];
 
 const departmentModules: NavNode[] = [
@@ -723,7 +722,6 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
   const enabledIds = new Set([
     ...getEnabledModuleIdsForPlan(planLabel, workspaceCount),
     ...(workspaceAccessMap?.enabledModuleIds || workspaceSetup.enabledModuleIds || []),
-    "calendar",
   ]);
 
   useEffect(() => {
@@ -801,7 +799,6 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
           children: applyEnabledState(item.children || []),
         };
       }
-      if (!item.disabled) return item;
       if (isModuleLockedForPlan(planLabel, item.id)) {
         return {
           ...item,
@@ -973,7 +970,19 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
       return String(raw || "").trim();
     };
 
-    const planDefaults = getEnabledModuleIdsForPlan(planLabel, workspaceCount);
+    // Plan defaults are only a bootstrapping fallback for the brief window
+    // before a real workspace has ever been fetched (e.g. the pre-creation
+    // setup wizard, using workspaceSetup's local-storage draft). Once a real
+    // workspace exists, Workspace.enabledModuleIds — seeded from the plan's
+    // defaults at creation, then fully staff-controlled from master panel's
+    // Workspace/Employee Access screens in either direction — is the only
+    // source of truth. Unioning plan defaults in unconditionally here would
+    // make it impossible for staff to ever turn off a module that happens to
+    // be one of the plan's defaults (e.g. Dashboard, Customer Support,
+    // Visitor Management, Website Builder), which is exactly the override
+    // capability those screens are meant to provide.
+    const hasRealWorkspace = Boolean(workspaceAccessMap);
+    const planDefaults = hasRealWorkspace ? [] : getEnabledModuleIdsForPlan(planLabel, workspaceCount);
     const enabledRaw = [
       ...planDefaults,
       ...(workspaceAccessMap?.enabledModuleIds || workspaceSetup.enabledModuleIds || []),
@@ -993,6 +1002,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
         .filter(Boolean),
     );
   }, [
+    workspaceAccessMap,
     workspaceAccessMap?.enabledModuleIds,
     workspaceAccessMap?.moduleMap?.sections,
     workspaceAccessMap?.selectedPlan,
@@ -1015,9 +1025,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
           .map((tab) => {
             const tabId = String(tab?.id || "").trim();
             const tabRoute = tab?.route || ROUTE_BY_ID[tabId];
-            const workspaceUnlocked =
-              workspaceEnabledCanonicalIds.has(tabId) ||
-              (sectionKey === "common-modules" && enabledIds.has(tabId));
+            const workspaceUnlocked = workspaceEnabledCanonicalIds.has(tabId);
             const roleUnlocked = roleAllowedModuleIds.has(tabId);
             const unlocked = workspaceUnlocked && roleUnlocked;
             return {
@@ -1043,31 +1051,27 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
         };
       }
       const basicPlanLocked = planLabel === "basic" && BASIC_PLAN_HARD_LOCK_IDS.has(itemId);
-      const workspaceUnlocked =
-        workspaceEnabledCanonicalIds.has(itemId) ||
-        (sectionKey === "common-modules" && enabledIds.has(itemId));
+      const workspaceUnlocked = workspaceEnabledCanonicalIds.has(itemId);
       const roleUnlocked = roleAllowedModuleIds.has(itemId);
-      const isMeetingRoom = itemId === "meeting-room-system";
       return {
         id: itemId,
         label: String(item?.label || itemId),
         icon: ICON_BY_ID[itemId] || Boxes,
         route: itemRoute,
-        disabled: isMeetingRoom ? false : (basicPlanLocked || !(workspaceUnlocked && roleUnlocked)),
-        upgradeLocked: isMeetingRoom ? false : (basicPlanLocked || !workspaceUnlocked),
-        disabledTitle: isMeetingRoom
-          ? undefined
-          : (basicPlanLocked || !workspaceUnlocked
+        disabled: basicPlanLocked || !(workspaceUnlocked && roleUnlocked),
+        upgradeLocked: basicPlanLocked || !workspaceUnlocked,
+        disabledTitle:
+          basicPlanLocked || !workspaceUnlocked
             ? "Upgrade plan to unlock this"
             : !roleUnlocked
               ? "You do not have access to this module"
-              : undefined),
+              : undefined,
       };
     }).filter(Boolean);
     let sortedItems = sortEnabledFirst(mappedItems);
     sortedItems = sortedItems.map((item) => {
       if (item.id === "website-leads")
-        return { id: "leads-management", label: "Leads Management", icon: Magnet, route: "/sales-crm/leads-management", disabled: false };
+        return { ...item, label: "Leads Management", icon: Magnet };
       if (item.id === "resource-pricing")
         return { ...item, label: "Resource & Pricing" };
       return item;
@@ -1249,72 +1253,60 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
               return { locked, unlocked };
             };
 
-            // New rule:
-            // - "Add-ons" should render ONLY the locked tree nodes.
-            // - "Key Apps" / "Department Accesses" (outside Add-ons) should render ONLY
+            // New rule, applied uniformly to every real section (Common
+            // Modules, Extra Common Modules, Key Apps, Founder Core Modules,
+            // Department Accesses) — not just Key Apps/Department Accesses:
+            // - "Add-ons" should render ONLY the locked tree nodes, grouped
+            //   by the section they came from.
+            // - Every other section (outside Add-ons) should render ONLY its
             //   unlocked tree nodes.
-            // This prevents duplicate modules (locked items appearing in both places),
-            // while Add-ons mirrors the exact same dropdown shape as outside — a "Key
-            // Apps" group plus one group per department, just showing each group's
-            // locked children instead of its unlocked ones.
+            // This prevents duplicate modules (locked items appearing in
+            // both places) and stops locked items from sitting greyed-out in
+            // their normal section instead of moving to Add-ons.
+            const sectionSplits = new Map<string, { locked: NavNode[]; unlocked: NavNode[] }>();
+            rawSections.forEach((s) => {
+              if (s.key === "add-ons") return;
+              sectionSplits.set(s.key, splitLockedTree(s.items));
+            });
 
-            const { locked: lockedDepartmentItems, unlocked: unlockedDepartmentItems } = (() => {
-              const deptSection = rawSections.find((s) => s.key === "department-accesses");
-              if (!deptSection) return { locked: [] as NavNode[], unlocked: [] as NavNode[] };
-              return splitLockedTree(deptSection.items);
-            })();
+            const addonsItems: NavNode[] = [];
+            rawSections.forEach((s) => {
+              const split = sectionSplits.get(s.key);
+              if (!split || !split.locked.length) return;
 
-            const { locked: lockedKeyAppsItems, unlocked: unlockedKeyAppsItems } = (() => {
-              const keyAppsSection = rawSections.find((s) => s.key === "key-apps");
-              if (!keyAppsSection) return { locked: [] as NavNode[], unlocked: [] as NavNode[] };
-              return splitLockedTree(keyAppsSection.items);
-            })();
-
-            // Key Apps has no group wrapper outside Add-ons (its items sit directly
-            // under the "Key Apps" section header) — wrap its locked leaves in a
-            // synthetic "Key Apps" group node so it shows as its own dropdown inside
-            // Add-ons too, exactly like a locked department does.
-            const lockedKeyAppsGroup: NavNode[] =
-              lockedKeyAppsItems.length > 0
-                ? [{ id: "key-apps", label: "Key Apps", icon: Boxes, defaultOpen: true, children: lockedKeyAppsItems }]
-                : [];
-
-            // Wrap all locked department dropdowns under a single "Department" group
-            // inside Add-ons (outside Add-ons each department sits directly under the
-            // "Department Accesses" section header — Add-ons uses its own "Department"
-            // sub-dropdown instead, one level deeper).
-            const lockedDepartmentGroup: NavNode[] =
-              lockedDepartmentItems.length > 0
-                ? [{ id: "department-accesses", label: "Department", icon: Building, defaultOpen: true, children: lockedDepartmentItems }]
-                : [];
-
-            const addonsItems = [...lockedKeyAppsGroup, ...lockedDepartmentGroup];
+              if (s.key === "key-apps") {
+                // Key Apps has no group wrapper outside Add-ons (its items sit
+                // directly under the "Key Apps" section header) — wrap its
+                // locked leaves in a synthetic "Key Apps" group node so it
+                // shows as its own dropdown inside Add-ons too, exactly like a
+                // locked department does.
+                addonsItems.push({ id: "key-apps", label: "Key Apps", icon: Boxes, defaultOpen: true, children: split.locked });
+                return;
+              }
+              if (s.key === "department-accesses") {
+                // Wrap all locked department dropdowns under a single
+                // "Department" group inside Add-ons (outside Add-ons each
+                // department sits directly under the "Department Accesses"
+                // section header — Add-ons uses its own "Department"
+                // sub-dropdown instead, one level deeper).
+                addonsItems.push({ id: "department-accesses", label: "Department", icon: Building, defaultOpen: true, children: split.locked });
+                return;
+              }
+              // Every other section (Common Modules, Extra Common Modules,
+              // Founder Core Modules) also renders flat outside Add-ons —
+              // wrap it the same way as Key Apps for consistency.
+              addonsItems.push({ id: s.key, label: s.title, icon: Boxes, defaultOpen: true, children: split.locked });
+            });
 
             const cleanedSections = rawSections
               .map((s) => {
-                if (s.key === "key-apps") {
-                  // keep only unlocked apps in the normal Key Apps section
-                  return unlockedKeyAppsItems.length > 0
-                    ? { ...s, items: unlockedKeyAppsItems }
-                    : null;
-                }
-
-                if (s.key === "department-accesses") {
-                  // keep only unlocked in normal department tree
-                  return unlockedDepartmentItems.length > 0
-                    ? { ...s, items: unlockedDepartmentItems }
-                    : null;
-                }
-
                 if (s.key === "add-ons") {
-                  // replace add-ons with locked Key Apps + department trees (preserve their group structure)
-                  return addonsItems.length > 0
-                    ? { ...s, items: addonsItems }
-                    : null;
+                  return addonsItems.length > 0 ? { ...s, items: addonsItems } : null;
                 }
 
-                // all other sections stay as-is
-                return s;
+                const split = sectionSplits.get(s.key);
+                if (!split) return s;
+                return split.unlocked.length > 0 ? { ...s, items: split.unlocked } : null;
               })
               .filter(Boolean) as Array<{ key: string; title: string; items: NavNode[] }>;
 
