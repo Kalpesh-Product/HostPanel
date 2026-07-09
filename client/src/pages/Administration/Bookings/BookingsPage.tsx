@@ -527,7 +527,7 @@ function canManageExternalBooking(row: Record<string, unknown>): boolean {
 
 const departmentCatalog: DepartmentCatalogEntry[] = [
   { name: 'Human Resources', aliases: ['human resources', 'hr', 'hr dept', 'hr department', 'human-resources'] },
-  { name: 'Sales & CRM', aliases: ['sales & crm', 'sales crm', 'sales', 'sales department', 'sales team', 'sales-crm'] },
+  { name: 'Sales', aliases: ['Sales', 'sales crm', 'sales', 'sales department', 'sales team', 'sales-crm'] },
   { name: 'Finance', aliases: ['finance', 'accounting', 'finance department', 'finance team'] },
   { name: 'Administration', aliases: ['administration', 'admin', 'management', 'admin department', 'administration department'] },
   { name: 'IT', aliases: ['it', 'information technology', 'it support', 'it department'] },

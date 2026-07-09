@@ -348,7 +348,7 @@ export default function LeadsManagementPage() {
     const isWebsite = mainTab === "website-leads";
     const exportData = isWebsite ? visibleWebsiteLeads : visibleLeads;
     if (!exportData.length) { toast.error("There are no leads to export."); return; }
-    const departmentLabel = "Sales & CRM";
+    const departmentLabel = "Sales";
     const searchLabel = searchQuery.trim() || "All";
     const stageLabel = stageFilter || "All";
     setIsExportingReport(reportFormat);

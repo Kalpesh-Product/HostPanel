@@ -490,7 +490,7 @@ const FrontendDashboard = () => {
     },
     {
       route: "leads",
-      title: "Leads",
+      title: "Website Leads",
       icon: <LuHardDriveUpload />,
     },
   ];
@@ -579,7 +579,7 @@ const FrontendDashboard = () => {
           if (!isWebsiteTemplate && config.title === "Create Website")
             return true;
           if (isWebsiteTemplate && config.title === "Edit Website") return true;
-          if (config.title === "Leads") return true;
+          if (config.title === "Website Leads") return true;
           return false;
         })
 

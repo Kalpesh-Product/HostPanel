@@ -10,7 +10,7 @@ function normalizeText(value = "") {
 function normalizeDepartment(value = "") {
   const normalized = normalizeText(value).toLowerCase();
   if (!normalized) return "HR";
-  if (normalized.includes("sales")) return "Sales & CRM";
+  if (normalized.includes("sales")) return "Sales";
   if (normalized.includes("finance") || normalized.includes("account")) return "Finance";
   if (normalized.includes("tech") || normalized.includes("engineering")) return "Tech";
   if (normalized.includes("lead") || normalized.includes("exec") || normalized.includes("top")) return "Leadership";
@@ -68,11 +68,18 @@ function buildJobOpeningView(opening = {}, index = 0) {
     employmentTypeLabel: employmentType === "intern" ? "Intern" : employmentType === "full_time" ? "Full Time" : employmentType,
     isPaid: opening.isPaid !== false,
     internshipDurationMonths: Number(opening.internshipDurationMonths || 0),
-    vacancyTotal,
-    vacancyFilled,
-    remainingVacancies,
-    isActive: opening.isActive !== false,
-    description: normalizeText(opening.description),
+      vacancyTotal,
+      vacancyFilled,
+      remainingVacancies,
+      location: normalizeText(opening.location),
+      workMode: normalizeText(opening.workMode),
+      isActive: opening.isActive !== false,
+      isPostedOnWebsite: opening.isPostedOnWebsite === true,
+      description: normalizeText(opening.description),
+    aboutTheJob: normalizeText(opening.aboutTheJob),
+    keyResponsibilities: normalizeText(opening.keyResponsibilities),
+    requirements: normalizeText(opening.requirements),
+    softSkills: normalizeText(opening.softSkills),
     createdAt: opening.createdAt || null,
     updatedAt: opening.updatedAt || null,
     status: opening.isActive !== false && remainingVacancies > 0 ? "Active" : "Inactive",
@@ -181,10 +188,17 @@ export async function createRecruitmentJobOpeningForWorkspace(workspace, input =
     employmentType: normalizeText(input.employmentType) || "full_time",
     isPaid: input.isPaid !== false,
     internshipDurationMonths: Number(input.internshipDurationMonths || 0),
-    vacancyTotal: Math.max(1, Number(input.vacancyTotal || 1)),
-    vacancyFilled: Math.max(0, Number(input.vacancyFilled || 0)),
-    isActive: input.isActive !== false,
-    description: normalizeText(input.description),
+      vacancyTotal: Math.max(1, Number(input.vacancyTotal || 1)),
+      vacancyFilled: Math.max(0, Number(input.vacancyFilled || 0)),
+      location: normalizeText(input.location),
+      workMode: normalizeText(input.workMode),
+      isActive: input.isActive !== false,
+      isPostedOnWebsite: input.isPostedOnWebsite === true,
+      description: normalizeText(input.description),
+    aboutTheJob: normalizeText(input.aboutTheJob),
+    keyResponsibilities: normalizeText(input.keyResponsibilities),
+    requirements: normalizeText(input.requirements),
+    softSkills: normalizeText(input.softSkills),
   };
 
   openings.unshift(opening);
@@ -215,10 +229,17 @@ export async function updateRecruitmentJobOpeningForWorkspace(workspace, jobCode
     employmentType: Object.prototype.hasOwnProperty.call(input, "employmentType") ? normalizeText(input.employmentType) || "full_time" : normalizeText(openings[index].employmentType || "full_time"),
     isPaid: Object.prototype.hasOwnProperty.call(input, "isPaid") ? input.isPaid !== false : openings[index].isPaid !== false,
     internshipDurationMonths: Object.prototype.hasOwnProperty.call(input, "internshipDurationMonths") ? Number(input.internshipDurationMonths || 0) : Number(openings[index].internshipDurationMonths || 0),
-    vacancyTotal: Object.prototype.hasOwnProperty.call(input, "vacancyTotal") ? Math.max(1, Number(input.vacancyTotal || 1)) : Math.max(1, Number(openings[index].vacancyTotal || 1)),
-    vacancyFilled: Object.prototype.hasOwnProperty.call(input, "vacancyFilled") ? Math.max(0, Number(input.vacancyFilled || 0)) : Math.max(0, Number(openings[index].vacancyFilled || 0)),
-    isActive: Object.prototype.hasOwnProperty.call(input, "isActive") ? Boolean(input.isActive) : openings[index].isActive !== false,
+      vacancyTotal: Object.prototype.hasOwnProperty.call(input, "vacancyTotal") ? Math.max(1, Number(input.vacancyTotal || 1)) : Math.max(1, Number(openings[index].vacancyTotal || 1)),
+      vacancyFilled: Object.prototype.hasOwnProperty.call(input, "vacancyFilled") ? Math.max(0, Number(input.vacancyFilled || 0)) : Math.max(0, Number(openings[index].vacancyFilled || 0)),
+      location: Object.prototype.hasOwnProperty.call(input, "location") ? normalizeText(input.location) : normalizeText(openings[index].location),
+      workMode: Object.prototype.hasOwnProperty.call(input, "workMode") ? normalizeText(input.workMode) : normalizeText(openings[index].workMode),
+      isActive: Object.prototype.hasOwnProperty.call(input, "isActive") ? Boolean(input.isActive) : openings[index].isActive !== false,
+      isPostedOnWebsite: Object.prototype.hasOwnProperty.call(input, "isPostedOnWebsite") ? input.isPostedOnWebsite === true : openings[index].isPostedOnWebsite === true,
     description: Object.prototype.hasOwnProperty.call(input, "description") ? normalizeText(input.description) : normalizeText(openings[index].description),
+    aboutTheJob: Object.prototype.hasOwnProperty.call(input, "aboutTheJob") ? normalizeText(input.aboutTheJob) : normalizeText(openings[index].aboutTheJob),
+    keyResponsibilities: Object.prototype.hasOwnProperty.call(input, "keyResponsibilities") ? normalizeText(input.keyResponsibilities) : normalizeText(openings[index].keyResponsibilities),
+    requirements: Object.prototype.hasOwnProperty.call(input, "requirements") ? normalizeText(input.requirements) : normalizeText(openings[index].requirements),
+    softSkills: Object.prototype.hasOwnProperty.call(input, "softSkills") ? normalizeText(input.softSkills) : normalizeText(openings[index].softSkills),
   };
 
   if (nextOpening.vacancyFilled > nextOpening.vacancyTotal) {

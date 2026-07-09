@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { LuHardDriveUpload } from "react-icons/lu";
 import { SiGoogleadsense } from "react-icons/si";
 import { MdOutlineRateReview } from "react-icons/md";
+import { MdOutlineWorkHistory } from "react-icons/md";
 import { Loader2 } from "lucide-react";
 import Card from "../../../../components/Card";
 import PageFrame from "../../../../components/Pages/PageFrame";
@@ -235,6 +236,7 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
   const createOrEditRoute = `${builderBasePath}/dynamic/create-website`;
   const leadsRoute = `${builderBasePath}/dynamic/leads`;
   const reviewsRoute = `${builderBasePath}/dynamic/reviews`;
+  const careersRoute = `${builderBasePath}/dynamic/careers`;
   const hasExistingWebsite = Boolean(existingWebsite);
   const hasResumableDraft =
     existingWebsite?.isDraft === true &&
@@ -413,8 +415,9 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
                 </div>
               </>
             )}
-            <Card icon={<SiGoogleadsense />} title="Leads" route={leadsRoute} />
-            <Card icon={<MdOutlineRateReview />} title="Reviews" route={reviewsRoute} />
+            <Card icon={<SiGoogleadsense />} title="Website Leads" route={leadsRoute} />
+            <Card icon={<MdOutlineRateReview />} title="Website Review" route={reviewsRoute} />
+            <Card icon={<MdOutlineWorkHistory />} title="Careers" route={careersRoute} />
           </div>
         </div>
       </PageFrame>

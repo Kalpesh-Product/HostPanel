@@ -213,6 +213,7 @@ const DEPARTMENT_NAME_TO_GROUP_ID: Record<string, string> = {
   hr: "hr-department",
   administration: "administration-department",
   sales: "sales-department",
+  "Sales": "sales-department",
   finance: "finance-department",
   maintenance: "maintenance-department",
   technology: "tech-department",

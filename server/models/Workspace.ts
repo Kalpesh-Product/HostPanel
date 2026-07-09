@@ -94,6 +94,14 @@ const workspaceSchema = new mongoose.Schema(
       primaryColor: { type: String, default: "#2563EB" },
       logoUrl: { type: String, default: "" },
     },
+    attendanceGeofence: {
+      enabled: { type: Boolean, default: false },
+      latitude: { type: Number, default: null },
+      longitude: { type: Number, default: null },
+      radiusMeters: { type: Number, default: 150, min: 25, max: 5000 },
+      updatedAt: { type: Date, default: null },
+      updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "HostUser", default: null },
+    },
     isSetupComplete: {
       type: Boolean,
       default: true,

@@ -1393,7 +1393,7 @@ export default function PricingPackagesPage() {
 
       const response = await createReport({
         title: `Sales ${scopeLabel}`,
-        department: 'Sales & CRM',
+        department: 'Sales',
         category: 'Other',
         dataWindow: 'Custom',
         reportMonth: new Date().toISOString().slice(0, 7),
@@ -1431,7 +1431,7 @@ export default function PricingPackagesPage() {
     try {
       const response = await createReport({
         title: `${item.name || 'Package'} Report`,
-        department: 'Sales & CRM',
+        department: 'Sales',
         category: 'Other',
         dataWindow: 'Custom',
         reportMonth: new Date().toISOString().slice(0, 7),

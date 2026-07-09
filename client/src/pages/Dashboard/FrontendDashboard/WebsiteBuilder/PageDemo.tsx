@@ -1,6 +1,8 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { ChevronDown } from "lucide-react";
 import { api } from "../../../../utils/axios";
+import { Country, State, City } from "country-state-city";
 
 const LIVE_PREVIEW_DRAFT_STORAGE_KEY = "website_builder_live_preview_draft";
 
@@ -19,8 +21,76 @@ const FALLBACK_NAV = [
   { name: "Products", slug: "products" },
   { name: "Gallery", slug: "gallery" },
   { name: "Partner", slug: "partner" },
+  { name: "Careers", slug: "careers" },
   { name: "Contact", slug: "contact" },
 ];
+
+const CAREERS_FALLBACK_INTRO = [
+  "BIZ Nest is a focused, young company building the foundation for destination-based lifestyle experiences.",
+  "We are connecting ambitious people with a healthier way to work and live, while helping brands and communities grow in Goa and beyond.",
+  "Join our team if you want to help shape a platform that blends operations, service, and technology into one experience.",
+];
+
+const CAREERS_FALLBACK_CLOSE = [
+  "Please send in your resume here on Apply Now if you cannot find your department of interest.",
+  "*Mention your applying department in the message box",
+];
+
+const CAREERS_DEFAULT_DEPARTMENT_ORDER = [
+  "Product & Tech Development",
+  "Tech",
+  "Technology",
+  "Networking & IT",
+  "IT",
+  "Finance",
+  "Human Resource & EA",
+  "HR",
+  "Human Resources",
+  "Sales & Business Development",
+  "Sales",
+  "Administration & Front office",
+  "Administration",
+  "Marketing",
+  "Legal",
+  "Kaffe Operation",
+  "Kaffe Kitchen",
+  "Internships Across Departments",
+  "Civil & Maintenance",
+  "Service & Maintenance",
+  "Maintenance",
+];
+
+const CAREERS_ROMAN_NUMERALS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII"];
+
+interface CareersFormField {
+  id: string;
+  type: "text" | "textarea" | "select" | "number" | "email" | "tel";
+  label: string;
+  required: boolean;
+  options?: string;
+  fullWidth?: boolean;
+}
+
+const parseCareersFormFields = (value: unknown): CareersFormField[] => {
+  try {
+    const raw = typeof value === "string" ? JSON.parse(value || "[]") : value;
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((field: any, index: number) => ({
+        id: String(field?.id || `field_${index}`),
+        type: ["text", "textarea", "select", "number", "email", "tel"].includes(String(field?.type || "text"))
+          ? (String(field?.type || "text") as CareersFormField["type"])
+          : "text",
+        label: String(field?.label || "").trim(),
+        required: field?.required === true,
+        options: String(field?.options || ""),
+        fullWidth: field?.fullWidth === true,
+      }))
+      .filter((field) => field.label || field.id);
+  } catch {
+    return [];
+  }
+};
 
 const resolveSectionFromSlug = (slug: string) => {
   const normalized = normalizeSlug(slug);
@@ -28,6 +98,7 @@ const resolveSectionFromSlug = (slug: string) => {
   if (normalized.includes("product")) return "products";
   if (normalized.includes("gallery")) return "gallery";
   if (normalized.includes("partner")) return "partner";
+  if (normalized.includes("career")) return "careers";
   if (normalized.includes("testimonial") || normalized.includes("review")) return "testimonials";
   if (normalized.includes("contact")) return "contact";
   return "home";
@@ -298,6 +369,39 @@ const OverallRating = ({ testimonials }: { testimonials: any[] }) => {
 const getNonEmptyTextList = (...values: unknown[]) =>
   values.map((value) => String(value || "").trim()).filter(Boolean);
 
+const getCareersJobTitle = (job: any) =>
+  String(job?.title || job?.designation || job?.name || "Untitled Role").trim();
+
+const formatCareersMetaValue = (value: any, mode: "employmentType" | "workMode" | "generic" = "generic") => {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return "";
+  if (mode === "employmentType") {
+    if (raw === "full_time") return "FULL TIME";
+    if (raw === "part_time") return "PART TIME";
+    if (raw === "intern") return "INTERN";
+    if (raw === "contractor") return "CONTRACTOR";
+    if (raw === "trainee") return "TRAINEE";
+  }
+  if (mode === "workMode") {
+    if (raw === "on_site" || raw === "onsite" || raw === "on-site" || raw === "on site") return "ON-SITE";
+    if (raw === "remote") return "REMOTE";
+    if (raw === "hybrid") return "HYBRID";
+  }
+  return raw.replace(/_/g, " ").toUpperCase();
+};
+
+const getCareersJobMeta = (job: any) => {
+  const meta = [
+    formatCareersMetaValue(job?.employmentTypeLabel || job?.employmentType, "employmentType"),
+    formatCareersMetaValue(job?.workMode, "workMode"),
+    formatCareersMetaValue(job?.location),
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .map((value) => value.replace(/_/g, " "));
+  return meta.length ? meta.join(" | ") : "Apply now to view the full role details.";
+};
+
 const getMediaSrc = (value: any) => {
   if (!value) return "";
   if (typeof value === "string") return value;
@@ -481,6 +585,7 @@ const PageDemo = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [draft, setDraft] = useState<any>(null);
+  const previewDraftRawRef = useRef<string | null>(null);
   const [heroIndex, setHeroIndex] = useState(0);
   const [testimonialIndex, setTestimonialIndex] = useState(0);
   const [galleryViewerOpen, setGalleryViewerOpen] = useState(false);
@@ -509,6 +614,65 @@ const PageDemo = () => {
   const [successPopup, setSuccessPopup] = useState({ open: false, message: "" });
   const [partnerForm, setPartnerForm] = useState({ name: "", email: "", mobile: "", message: "" });
   const [partnerSubmitPending, setPartnerSubmitPending] = useState(false);
+  const [careersJobs, setCareersJobs] = useState<any[]>([]);
+  const [careersJobsLoading, setCareersJobsLoading] = useState(false);
+  const [careersApplyJob, setCareersApplyJob] = useState<any>(null);
+  const [careersApplyForm, setCareersApplyForm] = useState({
+    fullName: "",
+    email: "",
+    dateOfBirth: "",
+    phone: "",
+    country: "",
+    state: "",
+    city: "",
+    experience: "",
+    linkedinProfileUrl: "",
+    currentSalary: "",
+    expectedSalary: "",
+    joinAvailability: "Immediate",
+    relocateToGoa: "Yes",
+    personality: "",
+    skills: "",
+    whyConsiderYou: "",
+    bootstrapStartup: "",
+    personalMessage: "",
+  });
+  const [careersCustomValues, setCareersCustomValues] = useState<Record<string, string>>({});
+  const [applyCountryList] = useState(() => Country.getAllCountries());
+  const [applyStateList, setApplyStateList] = useState<any[]>([]);
+  const [applyCityList, setApplyCityList] = useState<any[]>([]);
+  const [careersResumeFile, setCareersResumeFile] = useState<File | null>(null);
+  const [careersApplySubmitted, setCareersApplySubmitted] = useState(false);
+  const [careersApplySubmitting, setCareersApplySubmitting] = useState(false);
+  const [careersApplyError, setCareersApplyError] = useState("");
+  const [careersDeptFilter, setCareersDeptFilter] = useState("");
+  const [careersOpenDepartment, setCareersOpenDepartment] = useState<string>("");
+  const [careersDetailTab, setCareersDetailTab] = useState<"description" | "apply">("description");
+  const [careersDirectApply, setCareersDirectApply] = useState(false);
+  const resetCareersApplyForm = () => {
+    setCareersApplyForm({
+      fullName: "",
+      email: "",
+      dateOfBirth: "",
+      phone: "",
+      country: "",
+      state: "",
+      city: "",
+      experience: "",
+      linkedinProfileUrl: "",
+      currentSalary: "",
+      expectedSalary: "",
+      joinAvailability: "Immediate",
+      relocateToGoa: "Yes",
+      personality: "",
+      skills: "",
+      whyConsiderYou: "",
+      bootstrapStartup: "",
+      personalMessage: "",
+    });
+    setCareersCustomValues({});
+    setCareersResumeFile(null);
+  };
   const [leadForm, setLeadForm] = useState({
     fullName: "",
     people: "",
@@ -523,11 +687,19 @@ const PageDemo = () => {
     review: "",
   });
   const [productHeroIndex, setProductHeroIndex] = useState(0);
+  const careersFormFields = useMemo(
+    () => parseCareersFormFields(draft?.careersFormFields),
+    [draft?.careersFormFields],
+  );
 
   useEffect(() => {
     const loadDraft = () => {
       try {
         const raw = localStorage.getItem(LIVE_PREVIEW_DRAFT_STORAGE_KEY);
+        if (raw === previewDraftRawRef.current) {
+          return;
+        }
+        previewDraftRawRef.current = raw;
         if (!raw) {
           setDraft(null);
           return;
@@ -584,6 +756,72 @@ const PageDemo = () => {
       }));
     return fromDraft.length ? fromDraft : FALLBACK_NAV;
   }, [draft]);
+  const partnerPageEnabled = useMemo(() => {
+    const sourceNavItems = Array.isArray(draft?.pageNavItems)
+      ? draft.pageNavItems
+      : Array.isArray(draft?.navItems)
+        ? draft.navItems
+        : [];
+    const partnerItem = sourceNavItems.find(
+      (item: any) => normalizeSlug(item?.slug || item?.name || "") === "partner",
+    );
+    return partnerItem ? partnerItem?.enabled !== false : true;
+  }, [draft?.pageNavItems, draft?.navItems]);
+  const careersPageEnabled = useMemo(() => {
+    const sourceNavItems = Array.isArray(draft?.pageNavItems)
+      ? draft.pageNavItems
+      : Array.isArray(draft?.navItems)
+        ? draft.navItems
+        : [];
+    const careersItem = sourceNavItems.find(
+      (item: any) => normalizeSlug(item?.slug || item?.name || "") === "careers",
+    );
+    return careersItem ? careersItem?.enabled !== false : true;
+  }, [draft?.pageNavItems, draft?.navItems]);
+  const aboutPageEnabled = useMemo(() => {
+    const sourceNavItems = Array.isArray(draft?.pageNavItems)
+      ? draft.pageNavItems
+      : Array.isArray(draft?.navItems)
+        ? draft.navItems
+        : [];
+    const item = sourceNavItems.find(
+      (i: any) => normalizeSlug(i?.slug || i?.name || "") === "about-us",
+    );
+    return item ? item?.enabled !== false : true;
+  }, [draft?.pageNavItems, draft?.navItems]);
+  const productsPageEnabled = useMemo(() => {
+    const sourceNavItems = Array.isArray(draft?.pageNavItems)
+      ? draft.pageNavItems
+      : Array.isArray(draft?.navItems)
+        ? draft.navItems
+        : [];
+    const item = sourceNavItems.find(
+      (i: any) => normalizeSlug(i?.slug || i?.name || "") === "products",
+    );
+    return item ? item?.enabled !== false : true;
+  }, [draft?.pageNavItems, draft?.navItems]);
+  const galleryPageEnabled = useMemo(() => {
+    const sourceNavItems = Array.isArray(draft?.pageNavItems)
+      ? draft.pageNavItems
+      : Array.isArray(draft?.navItems)
+        ? draft.navItems
+        : [];
+    const item = sourceNavItems.find(
+      (i: any) => normalizeSlug(i?.slug || i?.name || "") === "gallery",
+    );
+    return item ? item?.enabled !== false : true;
+  }, [draft?.pageNavItems, draft?.navItems]);
+  const contactPageEnabled = useMemo(() => {
+    const sourceNavItems = Array.isArray(draft?.pageNavItems)
+      ? draft.pageNavItems
+      : Array.isArray(draft?.navItems)
+        ? draft.navItems
+        : [];
+    const item = sourceNavItems.find(
+      (i: any) => normalizeSlug(i?.slug || i?.name || "") === "contact-us",
+    );
+    return item ? item?.enabled !== false : true;
+  }, [draft?.pageNavItems, draft?.navItems]);
 
   const productPages = useMemo(
     () => {
@@ -696,7 +934,23 @@ const PageDemo = () => {
     if (currentSection !== "home") {
       items.push({
         label: currentSection === "partner" ? "Partner" : currentSection === "testimonials" ? "Testimonials" : currentSection.charAt(0).toUpperCase() + currentSection.slice(1),
-        onClick: () => navigate(`/website-preview/page/${currentSection}`),
+        onClick: currentSection === "careers"
+          ? () => {
+              setCareersApplyJob(null);
+              setCareersApplySubmitted(false);
+              setCareersApplyError("");
+              setCareersDetailTab("description");
+              setCareersDirectApply(false);
+              resetCareersApplyForm();
+              navigate(`/website-preview/page/careers`);
+            }
+          : () => navigate(`/website-preview/page/${currentSection}`),
+      });
+    }
+
+    if (currentSection === "careers" && careersApplyJob) {
+      items.push({
+        label: getCareersJobTitle(careersApplyJob),
       });
     }
 
@@ -717,7 +971,7 @@ const PageDemo = () => {
     }
 
     return items;
-  }, [currentSection, navigate, selectedProductPage]);
+  }, [careersApplyJob, currentSection, navigate, resetCareersApplyForm, selectedProductPage]);
 
   // Home-page images are reused as the top-level hero background.
   const heroImages = Array.isArray(draft?.heroImages) ? draft.heroImages : [];
@@ -780,6 +1034,38 @@ const PageDemo = () => {
   }, [location.pathname]);
 
   useEffect(() => {
+    const scrollableDiv = document.getElementById("scrollable-content");
+    if (scrollableDiv) {
+      scrollableDiv.scrollTo({ top: 0, behavior: "instant" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
+  }, [currentSection]);
+
+  useEffect(() => {
+    if (!careersApplyJob) return;
+    const scrollableDiv = document.getElementById("scrollable-content");
+    if (scrollableDiv) {
+      scrollableDiv.scrollTo({ top: 0, behavior: "instant" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
+  }, [careersApplyJob]);
+
+  useEffect(() => {
+    const isoCode = careersApplyForm.country;
+    setApplyStateList(isoCode ? State.getStatesOfCountry(isoCode) : []);
+    setApplyCityList([]);
+    setCareersApplyForm((p) => ({ ...p, state: "", city: "" }));
+  }, [careersApplyForm.country]);
+
+  useEffect(() => {
+    const { country, state } = careersApplyForm;
+    setApplyCityList(country && state ? City.getCitiesOfState(country, state) : []);
+    setCareersApplyForm((p) => ({ ...p, city: "" }));
+  }, [careersApplyForm.state]);
+
+  useEffect(() => {
     if (!mobileMenuOpen) {
       setMobileProductsMenuOpen(false);
     }
@@ -810,6 +1096,29 @@ const PageDemo = () => {
       setTestimonialIndex(0);
     }
   }, [approvedReviews, draft?.testimonials, testimonialIndex, testimonialPerView]);
+
+  const fetchPostedJobs = useCallback(async () => {
+    const workspaceId = draft?.workspaceId || "";
+    if (!workspaceId) {
+      console.log("[Careers] No workspaceId in draft, skipping fetch");
+      return;
+    }
+    setCareersJobsLoading(true);
+    try {
+      console.log("[Careers] Fetching jobs for workspaceId:", workspaceId);
+      const response = await api.get("/api/recruitment/jobs/public", {
+        params: { workspaceId },
+      });
+      const jobs = Array.isArray(response?.data?.data) ? response.data.data : [];
+      console.log("[Careers] Jobs fetched:", jobs.length);
+      setCareersJobs(jobs);
+    } catch (err: any) {
+      console.error("[Careers] Failed to fetch jobs:", err?.response?.data || err?.message || err);
+      setCareersJobs([]);
+    } finally {
+      setCareersJobsLoading(false);
+    }
+  }, [draft?.workspaceId]);
 
   useEffect(() => {
     const fetchApprovedReviews = async () => {
@@ -842,8 +1151,32 @@ const PageDemo = () => {
 
     if (draft) {
       void fetchApprovedReviews();
+      void fetchPostedJobs();
     }
-  }, [draft]);
+  }, [draft?.searchKey, draft?.companyId, draft?.workspaceId, fetchPostedJobs]);
+
+  const careersDepartmentSections = useMemo(() => {
+    const grouped = new Map<string, any[]>();
+
+    careersJobs.forEach((job: any) => {
+      const rawDepartment = String(job?.department || "").trim();
+      const department = rawDepartment || "Open Positions";
+      const bucket = grouped.get(department) || [];
+      bucket.push(job);
+      grouped.set(department, bucket);
+    });
+
+    const orderedDepartments = [
+      ...CAREERS_DEFAULT_DEPARTMENT_ORDER,
+      ...Array.from(grouped.keys()).filter((department) => !CAREERS_DEFAULT_DEPARTMENT_ORDER.includes(department)).sort(),
+    ].filter((department, index, list) => list.indexOf(department) === index && grouped.has(department));
+
+    return orderedDepartments.map((department, index) => ({
+      department,
+      ordinal: CAREERS_ROMAN_NUMERALS[index] || String(index + 1),
+      jobs: grouped.get(department) || [],
+    }));
+  }, [careersJobs]);
 
   const heroImage = heroImages[heroIndex] || heroImages[0] || "";
   const galleryItems = Array.isArray(draft?.gallery)
@@ -1005,6 +1338,7 @@ const PageDemo = () => {
   };
 
   const goToProductPage = (slug: string) => {
+    if (!productsPageEnabled) return;
     setProductsMenuOpen(false);
     setMobileMenuOpen(false);
     setMobileProductsMenuOpen(false);
@@ -1536,73 +1870,77 @@ const PageDemo = () => {
           </section>
 
           {/* About summary section: compact intro pulled from about text fields. */}
-          <section id="about" className="bg-black px-4 py-12 text-white md:px-6 md:py-20">
-            <div className={`${CONTENT_WRAP} text-center`}>
-              <h2 className="text-[24px] font-semibold text-[#f7e53f] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[32px]">
-                About Our Vision
-              </h2>
-              <div className="mt-6 space-y-3 text-white md:mt-7 md:space-y-4">
-                {aboutIntroBlocks.length ? (
-                  aboutIntroBlocks.map((item: string, idx: number) => (
-                    <p
-                      key={`about-${idx}`}
-                      className="font-['Poppins',ui-sans-serif,system-ui,sans-serif] text-[14px] leading-[1.7] md:text-[20px] md:leading-[1.4]"
-                    >
-                      {item}
-                    </p>
-                  ))
-                ) : (
-                  <p></p>
-                )}
+          {aboutPageEnabled ? (
+            <section id="about" className="bg-black px-4 py-12 text-white md:px-6 md:py-20">
+              <div className={`${CONTENT_WRAP} text-center`}>
+                <h2 className="text-[24px] font-semibold text-[#f7e53f] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[32px]">
+                  About Our Vision
+                </h2>
+                <div className="mt-6 space-y-3 text-white md:mt-7 md:space-y-4">
+                  {aboutIntroBlocks.length ? (
+                    aboutIntroBlocks.map((item: string, idx: number) => (
+                      <p
+                        key={`about-${idx}`}
+                        className="font-['Poppins',ui-sans-serif,system-ui,sans-serif] text-[14px] leading-[1.7] md:text-[20px] md:leading-[1.4]"
+                      >
+                        {item}
+                      </p>
+                    ))
+                  ) : (
+                    <p></p>
+                  )}
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          ) : null}
 
           {/* Products section: home-page product cards that link into product detail routes. */}
-          <section id="products" className={SECTION_BLOCK}>
-            <div className={CONTENT_WRAP}>
-              <LinedHeading title="Our Products" />
-              <div className="mt-6 grid grid-cols-1 gap-6 md:mt-10 md:grid-cols-3 md:gap-7">
-                {productPages.map((item: any, idx: number) => (
-                  <article key={`product-${idx}`} className="flex flex-col overflow-hidden rounded-2xl shadow-md">
-                    {/* Image */}
-                    <div className="w-full overflow-hidden bg-slate-200">
-                      {item?.cardImage ? (
-                        <img
-                          src={item.cardImage}
-                          alt={item?.heading || item?.name}
-                          className="h-[200px] w-full object-cover md:h-[230px]"
-                        />
-                      ) : (
-                        <div className="h-[200px] w-full md:h-[230px]" />
-                      )}
-                    </div>
-
-                    {/* Dark card: name + description + explore button */}
-                    <div className="flex flex-1 flex-col items-center gap-3 bg-[#1a1a1a] px-5 py-5 text-center">
-                      <h3 className="text-[15px] font-semibold uppercase tracking-wide text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">
-                        {item?.heading || item?.name || "Product"}
-                      </h3>
-                      {(item?.homeCardSubText || item?.subText) ? (
-                        <p className="text-[12px] leading-relaxed text-white/75 font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[13px]">
-                          {item?.homeCardSubText || item?.subText}
-                        </p>
-                      ) : null}
-                      <div className="mt-auto pt-1">
-                        <button
-                          type="button"
-                          onClick={() => handleProductCardAction(item)}
-                          className="rounded-full border border-white/60 px-6 py-2 text-[11px] font-semibold uppercase tracking-widest text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
-                        >
-                          Explore
-                        </button>
+          {productsPageEnabled ? (
+            <section id="products" className={SECTION_BLOCK}>
+              <div className={CONTENT_WRAP}>
+                <LinedHeading title="Our Products" />
+                <div className="mt-6 grid grid-cols-1 gap-6 md:mt-10 md:grid-cols-3 md:gap-7">
+                  {productPages.map((item: any, idx: number) => (
+                    <article key={`product-${idx}`} className="flex flex-col overflow-hidden rounded-2xl shadow-md">
+                      {/* Image */}
+                      <div className="w-full overflow-hidden bg-slate-200">
+                        {item?.cardImage ? (
+                          <img
+                            src={item.cardImage}
+                            alt={item?.heading || item?.name}
+                            className="h-[200px] w-full object-cover md:h-[230px]"
+                          />
+                        ) : (
+                          <div className="h-[200px] w-full md:h-[230px]" />
+                        )}
                       </div>
-                    </div>
-                  </article>
-                ))}
+
+                      {/* Dark card: name + description + explore button */}
+                      <div className="flex flex-1 flex-col items-center gap-3 bg-[#1a1a1a] px-5 py-5 text-center">
+                        <h3 className="text-[15px] font-semibold uppercase tracking-wide text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">
+                          {item?.heading || item?.name || "Product"}
+                        </h3>
+                        {(item?.homeCardSubText || item?.subText) ? (
+                          <p className="text-[12px] leading-relaxed text-white/75 font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[13px]">
+                            {item?.homeCardSubText || item?.subText}
+                          </p>
+                        ) : null}
+                        <div className="mt-auto pt-1">
+                          <button
+                            type="button"
+                            onClick={() => handleProductCardAction(item)}
+                            className="rounded-full border border-white/60 px-6 py-2 text-[11px] font-semibold uppercase tracking-widest text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
+                          >
+                            Explore
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          ) : null}
 
           {/* Inclusions section: home-page amenities grid */}
           {Array.isArray(draft?.inclusions) && draft.inclusions.length > 0 ? (
@@ -1610,36 +1948,38 @@ const PageDemo = () => {
           ) : null}
 
           {/* Gallery preview section: first six images on home, full gallery on the gallery page. */}
-          <section id="gallery" className={SECTION_BLOCK}>
-            <div className={CONTENT_WRAP}>
-              <LinedHeading title={draft?.galleryTitle || "Gallery"} />
-              <div className="mt-6 grid grid-cols-1 gap-[8px] sm:grid-cols-2 md:mt-10 md:grid-cols-3">
-                {homeGalleryItems.map((item: string, idx: number) => (
+          {galleryPageEnabled ? (
+            <section id="gallery" className={SECTION_BLOCK}>
+              <div className={CONTENT_WRAP}>
+                <LinedHeading title={draft?.galleryTitle || "Gallery"} />
+                <div className="mt-6 grid grid-cols-1 gap-[8px] sm:grid-cols-2 md:mt-10 md:grid-cols-3">
+                  {homeGalleryItems.map((item: string, idx: number) => (
+                    <button
+                      key={`gallery-${idx}`}
+                      type="button"
+                      onClick={() => openGalleryViewer(idx)}
+                      className="overflow-hidden rounded-lg bg-slate-100 text-left"
+                    >
+                      <img
+                        src={item}
+                        alt={`Gallery ${idx + 1}`}
+                        className="h-[190px] w-full object-cover transition duration-300 hover:scale-[1.02] md:h-[256px]"
+                      />
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-6 flex justify-center md:mt-8">
                   <button
-                    key={`gallery-${idx}`}
                     type="button"
-                    onClick={() => openGalleryViewer(idx)}
-                    className="overflow-hidden rounded-lg bg-slate-100 text-left"
+                    onClick={() => navigate("/website-preview/page/gallery")}
+                    className="rounded-full bg-[#6f6f6f] px-8 py-2 text-xs font-semibold text-white md:px-10 md:text-sm"
                   >
-                    <img
-                      src={item}
-                      alt={`Gallery ${idx + 1}`}
-                      className="h-[190px] w-full object-cover transition duration-300 hover:scale-[1.02] md:h-[256px]"
-                    />
+                    SHOW MORE
                   </button>
-                ))}
+                </div>
               </div>
-              <div className="mt-6 flex justify-center md:mt-8">
-                <button
-                  type="button"
-                  onClick={() => navigate("/website-preview/page/gallery")}
-                  className="rounded-full bg-[#6f6f6f] px-8 py-2 text-xs font-semibold text-white md:px-10 md:text-sm"
-                >
-                  SHOW MORE
-                </button>
-              </div>
-            </div>
-          </section>
+            </section>
+          ) : null}
 
           {/* Testimonials preview section: merged draft testimonials and approved public reviews. */}
           <section id="testimonials" className={SECTION_BLOCK}>
@@ -1722,29 +2062,31 @@ const PageDemo = () => {
           </section>
 
           {/* Contact summary section: map iframe and shared contact card. */}
-          <section id="contact" className={SECTION_BLOCK}>
-            <div className={CONTENT_WRAP}>
-              <LinedHeading title={draft?.contactTitle || "Contact"} />
-            <div className="mt-6 grid grid-cols-1 gap-4 md:mt-8 md:grid-cols-12">
-                <div className="md:col-span-7">
-                  {draft?.mapUrl ? (
-                    <iframe
-                      title="map"
-                      src={draft.mapUrl}
-                      className="h-[220px] w-full border-0 md:h-[420px]"
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                    />
-                  ) : (
-                    <div className="h-[220px] w-full bg-slate-300 md:h-[420px]" />
-                  )}
-                </div>
-                <div className="md:col-span-5">
-                  {renderContactCard()}
+          {contactPageEnabled ? (
+            <section id="contact" className={SECTION_BLOCK}>
+              <div className={CONTENT_WRAP}>
+                <LinedHeading title={draft?.contactTitle || "Contact"} />
+              <div className="mt-6 grid grid-cols-1 gap-4 md:mt-8 md:grid-cols-12">
+                  <div className="md:col-span-7">
+                    {draft?.mapUrl ? (
+                      <iframe
+                        title="map"
+                        src={draft.mapUrl}
+                        className="h-[220px] w-full border-0 md:h-[420px]"
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                      />
+                    ) : (
+                      <div className="h-[220px] w-full bg-slate-300 md:h-[420px]" />
+                    )}
+                  </div>
+                  <div className="md:col-span-5">
+                    {renderContactCard()}
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
+          ) : null}
 
           {/* Logo Carousel — optional section after contact */}
           {draft?.logoCarousel?.enabled && Array.isArray(draft.logoCarousel.logos) && draft.logoCarousel.logos.length > 0 ? (
@@ -1760,7 +2102,7 @@ const PageDemo = () => {
       ) : null}
 
       {/* About page: full narrative blocks and image cards. */}
-      {currentSection === "about" ? (
+      {currentSection === "about" && aboutPageEnabled ? (
         <section className="bg-black px-4 py-12 text-white md:px-6 md:py-24">
           <div className={`${CONTENT_WRAP} text-center`}>
             <h2 className="text-[24px] font-semibold text-[#f7e53f] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[32px]">
@@ -1871,7 +2213,7 @@ const PageDemo = () => {
       ) : null}
 
       {/* Products page: category detail view or menu-style rendering based on the selected product slug. */}
-      {currentSection === "products" ? (
+      {currentSection === "products" && productsPageEnabled ? (
         <>
           {/* -- Product Item Detail Page -- */}
           {selectedDetailItem && selectedProductPage ? (() => {
@@ -2239,7 +2581,7 @@ const PageDemo = () => {
       ) : null}
 
       {/* Gallery page: full gallery grid for browsing every uploaded image. */}
-      {currentSection === "gallery" ? (
+      {currentSection === "gallery" && galleryPageEnabled ? (
         <section className={SECTION_BLOCK}>
           <div className={CONTENT_WRAP}>
             <LinedHeading title={draft?.galleryTitle || "Gallery"} />
@@ -2346,7 +2688,7 @@ const PageDemo = () => {
       ) : null}
 
       {/* Partner page: heading, content on left, inquiry form on right. */}
-      {currentSection === "partner" ? (
+      {currentSection === "partner" && partnerPageEnabled ? (
         <section className={SECTION_BLOCK}>
           <div className={CONTENT_WRAP}>
             <LinedHeading title={partnerPageHeading || "Become A Partner"} />
@@ -2407,6 +2749,496 @@ const PageDemo = () => {
         </section>
       ) : null}
 
+      {/* Careers page: job listings fetched from recruitment API. */}
+      {currentSection === "careers" && careersPageEnabled ? (
+          <section className="px-4 py-10 md:px-6 md:py-12">
+            <div className={CONTENT_WRAP}>
+              {!careersApplyJob ? (
+                <>
+                  <LinedHeading
+                    title={draft?.companyName ? `Join Our Team - ${draft.companyName}` : "Join Our Team - Company Name"}
+                  />
+
+                  <div className="mx-auto mt-10 max-w-4xl text-center text-[15px] leading-[1.9] text-[#374151] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[17px]">
+                    {draft?.careersPageIntro ? (
+                      draft.careersPageIntro.split("\n").map((para: string, i: number) => (
+                        <p key={`careers-intro-${i}`} className="mb-5 last:mb-0">
+                          {para}
+                        </p>
+                      ))
+                    ) : (
+                      CAREERS_FALLBACK_INTRO.map((para, i) => (
+                        <p key={`careers-fallback-intro-${i}`} className="mb-5 last:mb-0">
+                          {para}
+                        </p>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="mt-10 flex items-center gap-4">
+                    <div className="flex-1 border-t border-[#111827]" />
+                    <h2 className="shrink-0 text-center text-[20px] font-semibold uppercase tracking-[0.15em] text-[#111827] font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[28px] lg:text-[32px]">
+                      Open Positions
+                    </h2>
+                    <div className="flex-1 border-t border-[#111827]" />
+                  </div>
+                </>
+              ) : null}
+            {!careersApplyJob ? (
+              careersJobsLoading ? (
+                <div className="mt-10 flex justify-center">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-[#111827]" />
+                </div>
+              ) : careersJobs.length === 0 ? (
+                <div className="mt-10 rounded-[28px] border border-[#111827]/10 bg-white px-6 py-10 text-center shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+                  <p className="text-[16px] font-semibold text-[#111827] font-['Poppins',ui-sans-serif,system-ui,sans-serif]">
+                    No job openings at the moment.
+                  </p>
+                  <p className="mt-2 text-[14px] text-[#374151] font-['Poppins',ui-sans-serif,system-ui,sans-serif]">
+                    Please check back later or use the apply button to share your resume.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-10">
+                  <div className="mt-5 space-y-2">
+                    {careersDepartmentSections.map((section) => {
+                      const isOpen = careersOpenDepartment === section.department;
+                      return (
+                        <div key={section.department} className="border-b border-slate-200">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCareersApplyJob(null);
+                              setCareersApplySubmitted(false);
+                              setCareersApplyError("");
+                              setCareersDetailTab("description");
+                              resetCareersApplyForm();
+                              setCareersOpenDepartment(isOpen ? "" : section.department);
+                            }}
+                            className="flex w-full items-center justify-between gap-4 py-4 text-left transition"
+                          >
+                            <span className="text-[16px] font-bold text-[#111827] md:text-[19px]">
+                              {section.ordinal}. {section.department}
+                              {section.department.toLowerCase().includes("team") ? "" : " Team"}
+                            </span>
+                            <span className={`text-[#6b7280] transition-transform ${isOpen ? "rotate-180" : ""}`}>
+                              <ChevronDown size={18} />
+                            </span>
+                          </button>
+
+                          {isOpen ? (
+                            <div className="border-t border-slate-200 pl-3 pr-0 py-2 md:pl-4">
+                              {section.jobs.map((job: any, jobIndex: number) => {
+                                const jobTitle = getCareersJobTitle(job);
+                                const jobMeta = getCareersJobMeta(job);
+                                return (
+                                  <button
+                                    key={job.jobCode || job.id || `${section.department}-${jobTitle}-${jobIndex}`}
+                                    type="button"
+                                    onClick={() => {
+                                      setCareersOpenDepartment(section.department);
+                                      setCareersApplyJob(job);
+                                      setCareersDetailTab("description");
+                                      setCareersDirectApply(false);
+                                      resetCareersApplyForm();
+                                      setCareersApplySubmitted(false);
+                                      setCareersApplyError("");
+                                    }}
+                                    className="flex w-full items-center justify-between gap-4 border-b border-slate-100 py-3 text-left last:border-b-0"
+                                  >
+                                    <div className="min-w-0">
+                                      <p className="text-[13px] font-semibold text-[#374151] md:text-[14px]">
+                                        {jobIndex + 1}. {jobTitle}
+                                      </p>
+                                      <p className="mt-1 text-[12px] font-medium leading-6 text-[#6b7280]">
+                                        {jobMeta}
+                                      </p>
+                                    </div>
+                                    <span className="shrink-0 rounded-md bg-[#111827] px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-white">
+                                      {draft?.careersApplyButtonText || "Apply Now"}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-8 border-t border-slate-200 pt-8 flex flex-col items-center text-center">
+                    {draft?.companyLogo ? (
+                      <img
+                        src={draft.companyLogo}
+                        alt={draft.companyName || "Company"}
+                        className="mx-auto h-12 w-auto object-contain"
+                      />
+                    ) : draft?.companyName ? (
+                      <p className="text-[16px] font-semibold text-[#111827]">{draft.companyName}</p>
+                    ) : null}
+                    <p className="mt-4 max-w-lg text-[14px] leading-7 text-[#374151]">
+                      {draft?.careersClosingText || CAREERS_FALLBACK_CLOSE[0]}
+                    </p>
+                    <p className="mt-1 text-[12px] text-[#6b7280]">
+                      {draft?.careersClosingHeading || CAREERS_FALLBACK_CLOSE[1]}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        resetCareersApplyForm();
+                        setCareersApplySubmitted(false);
+                        setCareersApplyError("");
+                        setCareersDetailTab("apply");
+                        setCareersDirectApply(true);
+                        setCareersApplyJob({ jobTitle: "General Application", jobCode: "GENERAL" });
+                      }}
+                      className="mt-5 rounded-full bg-[#111827] px-8 py-3 text-[13px] font-semibold text-white transition hover:bg-[#1f2937]"
+                    >
+                      Apply Now
+                    </button>
+                  </div>
+                </div>
+              )
+            ) : careersApplyJob ? (
+              <div>
+                <LinedHeading title={careersDirectApply ? "Untitled Role" : getCareersJobTitle(careersApplyJob)} />
+
+                {!careersDirectApply ? (
+                  <div className="mt-8 flex border-b-2 border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setCareersDetailTab("description")}
+                      className={`flex-1 py-3 text-[12px] font-semibold uppercase tracking-[0.2em] transition border-b-2 -mb-[2px] ${
+                        careersDetailTab === "description"
+                          ? "border-[#111827] text-[#111827]"
+                          : "border-transparent text-[#6b7280] hover:text-[#111827]"
+                      }`}
+                    >
+                      Job Description
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCareersDetailTab("apply")}
+                      className={`flex-1 py-3 text-[12px] font-semibold uppercase tracking-[0.2em] transition border-b-2 -mb-[2px] ${
+                        careersDetailTab === "apply"
+                          ? "border-[#111827] text-[#111827]"
+                          : "border-transparent text-[#6b7280] hover:text-[#111827]"
+                      }`}
+                    >
+                      Apply Now
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-8 flex border-b-2 border-slate-200">
+                    <div className="flex-1 py-3 text-[12px] font-semibold uppercase tracking-[0.2em] border-b-2 -mb-[2px] border-[#111827] text-[#111827] text-center">
+                      Apply Now
+                    </div>
+                  </div>
+                )}
+
+                {careersDetailTab === "description" && !careersDirectApply ? (
+                  <section className="mt-8">
+                    <div className="space-y-7 text-[14px] leading-7 text-[#374151]">
+                      {careersApplyJob.aboutTheJob ? (
+                        <div>
+                          <p className="text-[18px] font-bold text-[#111827]">About this role</p>
+                          <p className="mt-2 whitespace-pre-wrap">{careersApplyJob.aboutTheJob}</p>
+                        </div>
+                      ) : null}
+                      {careersApplyJob.keyResponsibilities ? (
+                        <div>
+                          <p className="text-[18px] font-bold text-[#111827]">Key responsibilities</p>
+                          <ul className="mt-2 list-inside list-disc space-y-1">
+                            {careersApplyJob.keyResponsibilities
+                              .split(/\.\s+/)
+                              .map((s: string) => s.replace(/\.$/, "").trim())
+                              .filter(Boolean)
+                              .map((point: string, i: number) => (
+                                <li key={i}>{point}</li>
+                              ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                      {careersApplyJob.requirements ? (
+                        <div>
+                          <p className="text-[18px] font-bold text-[#111827]">Requirements</p>
+                          <ul className="mt-2 list-inside list-disc space-y-1">
+                            {careersApplyJob.requirements
+                              .split(/\.\s+/)
+                              .map((s: string) => s.replace(/\.$/, "").trim())
+                              .filter(Boolean)
+                              .map((point: string, i: number) => (
+                                <li key={i}>{point}</li>
+                              ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                      {careersApplyJob.softSkills ? (
+                        <div>
+                          <p className="text-[18px] font-bold text-[#111827]">Soft skills</p>
+                          <ul className="mt-2 list-inside list-disc space-y-1">
+                            {careersApplyJob.softSkills
+                              .split(/\.\s+/)
+                              .map((s: string) => s.replace(/\.$/, "").trim())
+                              .filter(Boolean)
+                              .map((point: string, i: number) => (
+                                <li key={i}>{point}</li>
+                              ))}
+                          </ul>
+                        </div>
+                      ) : null}
+
+                      {/* Resume fallback — logo + email nudge */}
+                      <div className="mt-2 border-t border-slate-200 pt-6 text-center">
+                        {draft?.companyLogo ? (
+                          <img
+                            src={draft.companyLogo}
+                            alt={draft.companyName || "Company"}
+                            className="mx-auto h-12 w-auto object-contain"
+                          />
+                        ) : draft?.companyName ? (
+                          <p className="text-[16px] font-semibold text-[#111827]">{draft.companyName}</p>
+                        ) : null}
+                        {draft?.email ? (
+                          <p className="mt-3 text-[14px] leading-7 text-[#374151]">
+                            Please send in your resume to{" "}
+                            <span className="font-semibold text-[#111827]">
+                              Email: {draft.email}
+                            </span>{" "}
+                            if unable to apply now.
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </section>
+                ) : null}
+
+                {careersDetailTab === "apply" || careersDirectApply ? (
+                  <section className="mt-6 rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_8px_30px_rgba(15,23,42,0.05)] md:p-7">
+                    {careersApplySubmitted ? (
+                      <div className="rounded-2xl border border-green-200 bg-green-50 p-5 text-center">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-2xl text-green-600">
+                          ✓
+                        </div>
+                        <p className="mt-3 text-[14px] font-semibold text-green-700">Application Submitted!</p>
+                        <p className="mt-2 text-[12px] leading-6 text-green-700">
+                          We will review your application and get back to you shortly.
+                        </p>
+                      </div>
+                    ) : (
+                      <form
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          setCareersApplySubmitting(true);
+                          setCareersApplyError("");
+                          try {
+                            const payload = new FormData();
+                            payload.append("workspaceId", draft?.workspaceId || "");
+                            payload.append("jobCode", careersApplyJob.jobCode || "");
+                            payload.append("jobTitle", getCareersJobTitle(careersApplyJob));
+                            payload.append("fullName", careersApplyForm.fullName);
+                            payload.append("email", careersApplyForm.email);
+                            payload.append("dateOfBirth", careersApplyForm.dateOfBirth);
+                            payload.append("phone", careersApplyForm.phone);
+                            payload.append("country", careersApplyForm.country);
+                            payload.append("state", careersApplyForm.state);
+                            payload.append("city", careersApplyForm.city);
+                            payload.append("customFields", JSON.stringify(careersCustomValues));
+                            if (careersResumeFile) {
+                              payload.append("resumeFile", careersResumeFile);
+                            }
+                            await api.post("/api/recruitment/jobs/apply", payload);
+                            setCareersApplySubmitted(true);
+                          } catch (err: any) {
+                            setCareersApplyError(err?.response?.data?.message || "Failed to submit application. Please try again.");
+                          } finally {
+                            setCareersApplySubmitting(false);
+                          }
+                        }}
+                        className="grid grid-cols-1 gap-4 md:grid-cols-2"
+                      >
+                        {/* Centered APPLICATION FORM heading */}
+                        <p className="md:col-span-2 text-center text-[25px] font-bold uppercase tracking-[0.10em] text-[#111827]">
+                          Application Form
+                        </p>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Name *"
+                          value={careersApplyForm.fullName}
+                          onChange={(e) => setCareersApplyForm((p) => ({ ...p, fullName: e.target.value }))}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-[13px] outline-none focus:border-[#111827]"
+                        />
+                        <input
+                          type="email"
+                          required
+                          placeholder="Email *"
+                          value={careersApplyForm.email}
+                          onChange={(e) => setCareersApplyForm((p) => ({ ...p, email: e.target.value }))}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-[13px] outline-none focus:border-[#111827]"
+                        />
+                        <input
+                          type="date"
+                          required
+                          placeholder="Date of Birth *"
+                          value={careersApplyForm.dateOfBirth}
+                          onChange={(e) => setCareersApplyForm((p) => ({ ...p, dateOfBirth: e.target.value }))}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-[13px] outline-none focus:border-[#111827]"
+                        />
+                        <input
+                          type="tel"
+                          required
+                          placeholder="Mobile Number *"
+                          value={careersApplyForm.phone}
+                          onChange={(e) => setCareersApplyForm((p) => ({ ...p, phone: e.target.value }))}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-[13px] outline-none focus:border-[#111827]"
+                        />
+                        {/* Country */}
+                        <select
+                          required
+                          value={careersApplyForm.country}
+                          onChange={(e) => setCareersApplyForm((p) => ({ ...p, country: e.target.value }))}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px] outline-none focus:border-[#111827]"
+                        >
+                          <option value="">Country *</option>
+                          {applyCountryList.map((c) => (
+                            <option key={c.isoCode} value={c.isoCode}>{c.name}</option>
+                          ))}
+                        </select>
+                        {/* State */}
+                        <select
+                          required
+                          value={careersApplyForm.state}
+                          onChange={(e) => setCareersApplyForm((p) => ({ ...p, state: e.target.value }))}
+                          disabled={!careersApplyForm.country}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px] outline-none focus:border-[#111827] disabled:opacity-50"
+                        >
+                          <option value="">State *</option>
+                          {applyStateList.map((s) => (
+                            <option key={s.isoCode} value={s.isoCode}>{s.name}</option>
+                          ))}
+                        </select>
+                        {/* City */}
+                        <select
+                          required
+                          value={careersApplyForm.city}
+                          onChange={(e) => setCareersApplyForm((p) => ({ ...p, city: e.target.value }))}
+                          disabled={!careersApplyForm.state}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px] outline-none focus:border-[#111827] disabled:opacity-50"
+                        >
+                          <option value="">City *</option>
+                          {applyCityList.map((c) => (
+                            <option key={c.name} value={c.name}>{c.name}</option>
+                          ))}
+                        </select>
+                        <div className="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-3 text-[13px]">
+                          <label className="flex cursor-pointer items-center justify-between gap-3">
+                            <span className="font-medium text-[#111827]">
+                              {careersResumeFile ? careersResumeFile.name : "Upload Resume / CV *"}
+                            </span>
+                            <span className="rounded-md border border-slate-300 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-[#374151]">
+                              Choose File
+                            </span>
+                            <input
+                              type="file"
+                              required
+                              accept=".pdf,.doc,.docx"
+                              className="hidden"
+                              onChange={(e) => setCareersResumeFile(e.target.files?.[0] || null)}
+                            />
+                          </label>
+                        </div>
+                        {careersFormFields.map((field) => {
+                          const fieldClassName = `${field.fullWidth ? "md:col-span-2" : ""} w-full rounded-lg border border-slate-300 px-3 py-2 text-[13px] outline-none focus:border-[#111827]`;
+                          const placeholder = `${field.label}${field.required ? " *" : ""}`;
+                          const value = careersCustomValues[field.id] || "";
+                          if (field.type === "textarea") {
+                            return (
+                              <textarea
+                                key={field.id}
+                                rows={3}
+                                required={field.required}
+                                placeholder={placeholder}
+                                value={value}
+                                onChange={(event) =>
+                                  setCareersCustomValues((prev) => ({
+                                    ...prev,
+                                    [field.id]: event.target.value,
+                                  }))
+                                }
+                                className={`md:col-span-2 w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-[13px] outline-none focus:border-[#111827]`}
+                              />
+                            );
+                          }
+                          if (field.type === "select") {
+                            const options = String(field.options || "")
+                              .split(",")
+                              .map((option) => option.trim())
+                              .filter(Boolean);
+                            return (
+                              <select
+                                key={field.id}
+                                required={field.required}
+                                value={value}
+                                onChange={(event) =>
+                                  setCareersCustomValues((prev) => ({
+                                    ...prev,
+                                    [field.id]: event.target.value,
+                                  }))
+                                }
+                                className={fieldClassName}
+                              >
+                                <option value="">{placeholder}</option>
+                                {options.map((option) => (
+                                  <option key={option} value={option}>
+                                    {option}
+                                  </option>
+                                ))}
+                              </select>
+                            );
+                          }
+                          return (
+                            <input
+                              key={field.id}
+                              type={field.type}
+                              required={field.required}
+                              placeholder={placeholder}
+                              value={value}
+                              onChange={(event) =>
+                                setCareersCustomValues((prev) => ({
+                                  ...prev,
+                                  [field.id]: event.target.value,
+                                }))
+                              }
+                              className={fieldClassName}
+                            />
+                          );
+                        })}
+                        {careersApplyError ? (
+                          <p className="md:col-span-2 text-[12px] text-red-500">{careersApplyError}</p>
+                        ) : null}
+                        <div className="md:col-span-2 flex justify-center">
+                          <button
+                            type="submit"
+                            disabled={careersApplySubmitting}
+                            className="rounded-full bg-[#111827] px-8 py-3 text-[13px] font-semibold text-white transition hover:bg-[#1f2937] disabled:opacity-60"
+                          >
+                            {careersApplySubmitting
+                              ? "Submitting..."
+                              : draft?.careersApplyButtonText || "Submit Application"}
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </section>
+                ) : null}
+              </div>
+            ) : null}
+            </div>
+          </section>
+      ) : null}
+
       {/* Contact page: embedded map and the detailed contact card. */}
       {currentSection === "contact" ? (
         <section className="px-4 py-10 md:px-6 md:py-12">
@@ -2465,25 +3297,27 @@ const PageDemo = () => {
               ))}
             </div>
           </div>
-          <div>
-            <h3 className={FOOTER_HEADING}>Products</h3>
-            <div className={FOOTER_BODY_TEXT}>
-              {productPages.length > 0 ? (
-                productPages.map((page: any, idx: number) => (
-                  <button
-                    key={`footer-product-${idx}`}
-                    type="button"
-                    onClick={() => goToProductPage(page?.slug || page?.name || "")}
-                    className="block w-full md:w-auto"
-                  >
-                    {page?.name || page?.heading || "Product"}
-                  </button>
-                ))
-              ) : (
-                <p className="text-slate-400">No products listed</p>
-              )}
+          {productsPageEnabled ? (
+            <div>
+              <h3 className={FOOTER_HEADING}>Products</h3>
+              <div className={FOOTER_BODY_TEXT}>
+                {productPages.length > 0 ? (
+                  productPages.map((page: any, idx: number) => (
+                    <button
+                      key={`footer-product-${idx}`}
+                      type="button"
+                      onClick={() => goToProductPage(page?.slug || page?.name || "")}
+                      className="block w-full md:w-auto"
+                    >
+                      {page?.name || page?.heading || "Product"}
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-slate-400">No products listed</p>
+                )}
+              </div>
             </div>
-          </div>
+          ) : null}
           <div>
             <h3 className={FOOTER_HEADING}>Contact Us</h3>
             <div className={FOOTER_BODY_TEXT}>

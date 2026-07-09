@@ -57,12 +57,14 @@ const DEFAULT_PAGE_NAV_ITEMS = [
   "Products",
   "Gallery",
   "Partner",
+  "Careers",
   "Contact Us",
 ];
 
 // Migrates legacy "Testimonials" nav items to "Partner" for existing websites
-const migrateNavItems = (items: any[]): any[] =>
-  items.map((item: any) => {
+// and ensures "Careers" is present after "Partner"
+const migrateNavItems = (items: any[]): any[] => {
+  const migrated = items.map((item: any) => {
     const slug = String(item?.slug || "").trim().toLowerCase();
     const name = String(item?.name || "").trim().toLowerCase();
     if (slug === "testimonials" || name === "testimonials") {
@@ -70,6 +72,30 @@ const migrateNavItems = (items: any[]): any[] =>
     }
     return item;
   });
+  // Ensure "Careers" is present after the Partner entry
+  const hasCareers = migrated.some(
+    (item) =>
+      String(item?.slug || "").trim().toLowerCase() === "careers" ||
+      String(item?.name || "").trim().toLowerCase() === "careers",
+  );
+  if (!hasCareers) {
+    const partnerIndex = migrated.findIndex(
+      (item) =>
+        String(item?.slug || "").trim().toLowerCase() === "partner" ||
+        String(item?.name || "").trim().toLowerCase() === "partner",
+    );
+    if (partnerIndex >= 0) {
+      migrated.splice(partnerIndex + 1, 0, {
+        name: "Careers",
+        slug: "careers",
+        enabled: true,
+      });
+    } else {
+      migrated.push({ name: "Careers", slug: "careers", enabled: true });
+    }
+  }
+  return migrated;
+};
 
 const DEFAULT_PRODUCT_DROPDOWN_PAGES = [
   "Co-Working",
@@ -79,6 +105,149 @@ const DEFAULT_PRODUCT_DROPDOWN_PAGES = [
   "Co-Living",
   "Workations",
 ];
+
+const CAREERS_FORM_FIELD_TYPES = [
+  { value: "text", label: "Text" },
+  { value: "textarea", label: "Textarea" },
+  { value: "select", label: "Select" },
+  { value: "number", label: "Number" },
+  { value: "email", label: "Email" },
+  { value: "tel", label: "Phone" },
+];
+
+const CAREERS_DEFAULT_FORM_FIELDS = [
+  { label: "Name", fixed: true },
+  { label: "Email", fixed: true },
+  { label: "DOB", fixed: true },
+  { label: "Mobile", fixed: true },
+  { label: "Country", fixed: true },
+  { label: "State", fixed: true },
+  { label: "City", fixed: true },
+  { label: "Upload CV", fixed: true },
+];
+
+const tryParseJson = (value: unknown, fallback: any) => {
+  if (value === undefined || value === null || value === "") return fallback;
+  if (Array.isArray(value)) return value;
+  if (typeof value === "object") return value;
+  if (typeof value !== "string") return fallback;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const AddFieldPanel = ({ onAdd }: { onAdd: (field: any) => void }) => {
+  const [open, setOpen] = useState(false);
+  const [fieldType, setFieldType] = useState("text");
+  const [label, setLabel] = useState("");
+  const [required, setRequired] = useState(false);
+  const [options, setOptions] = useState("");
+  const [fullWidth, setFullWidth] = useState(false);
+
+  const reset = () => {
+    setFieldType("text");
+    setLabel("");
+    setRequired(false);
+    setOptions("");
+    setFullWidth(false);
+  };
+
+  const handleAdd = () => {
+    const trimmedLabel = String(label || "").trim();
+    if (!trimmedLabel) return;
+    onAdd({
+      type: fieldType,
+      label: trimmedLabel,
+      required,
+      options: fieldType === "select" ? options : "",
+      fullWidth,
+    });
+    reset();
+    setOpen(false);
+  };
+
+  return (
+    <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+        >
+          Add Field
+        </button>
+      ) : (
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+          <select
+            value={fieldType}
+            onChange={(event) => setFieldType(event.target.value)}
+            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs outline-none"
+          >
+            {CAREERS_FORM_FIELD_TYPES.map((fieldTypeOption) => (
+              <option key={fieldTypeOption.value} value={fieldTypeOption.value}>
+                {fieldTypeOption.label}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={label}
+            onChange={(event) => setLabel(event.target.value)}
+            placeholder="Field label"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs outline-none"
+          />
+          {fieldType === "select" ? (
+            <input
+              type="text"
+              value={options}
+              onChange={(event) => setOptions(event.target.value)}
+              placeholder="Options separated by commas"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs outline-none md:col-span-2"
+            />
+          ) : null}
+          <label className="flex items-center gap-2 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              checked={required}
+              onChange={(event) => setRequired(event.target.checked)}
+            />
+            Required
+          </label>
+          <label className="flex items-center gap-2 text-xs text-slate-600">
+            <input
+              type="checkbox"
+              checked={fullWidth}
+              onChange={(event) => setFullWidth(event.target.checked)}
+            />
+            Full width
+          </label>
+          <div className="md:col-span-2 flex items-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={handleAdd}
+              className="rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
+            >
+              Add Field
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                reset();
+                setOpen(false);
+              }}
+              className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const normalizeVerticalKey = (value: unknown): VerticalType => {
   const raw = String(value || "").trim().toLowerCase();
@@ -418,6 +587,11 @@ const buildDraftFormDataFromValues = (formValues: any, meta: any = {}) => ({
   partnerPageHeading: String(formValues?.partnerPageHeading || "").trim(),
   partnerPageContent: String(formValues?.partnerPageContent || "").trim(),
   partnerFormTitle: String(formValues?.partnerFormTitle || "").trim(),
+  careersPageHeading: String(formValues?.careersPageHeading || "").trim(),
+  careersPageIntro: String(formValues?.careersPageIntro || "").trim(),
+  careersFormFields: Array.isArray(formValues?.careersFormFields)
+    ? formValues.careersFormFields
+    : tryParseJson(formValues?.careersFormFields, []),
   founders: Array.isArray(formValues?.founders)
     ? formValues.founders.map((item: any) => ({
         name: String(item?.name || "").trim(),
@@ -631,7 +805,7 @@ const CreateWebsite = () => {
       pageNavItems: DEFAULT_PAGE_NAV_ITEMS.map((name) => ({
         name,
         slug: String(name).toLowerCase().replace(/\s+/g, "-"),
-        enabled: true,
+        enabled: String(name).toLowerCase().replace(/\s+/g, "-") === "home",
       })),
       productDropdownPages: [],
       aboutPageIntro: "",
@@ -665,6 +839,10 @@ const CreateWebsite = () => {
       partnerPageHeading: "",
       partnerPageContent: "",
       partnerFormTitle: "",
+      // Careers page
+      careersPageHeading: "",
+      careersPageIntro: "",
+      careersFormFields: [],
       // Founders (about page)
       founders: [{ name: "", role: "", bio: "", highlights: "", image: null }],
     },
@@ -743,6 +921,25 @@ const CreateWebsite = () => {
   };
 
   const values = watch();
+  const pageNavItemsForVisibility = Array.isArray(values.pageNavItems) ? values.pageNavItems : [];
+  const partnerPageNavIndex = pageNavItemsForVisibility.findIndex(
+    (item: any) => String(item?.slug || "").trim().toLowerCase() === "partner",
+  );
+  const careersPageNavIndex = pageNavItemsForVisibility.findIndex(
+    (item: any) => String(item?.slug || "").trim().toLowerCase() === "careers",
+  );
+  const aboutPageNavIndex = pageNavItemsForVisibility.findIndex(
+    (item: any) => String(item?.slug || "").trim().toLowerCase() === "about-us",
+  );
+  const productsPageNavIndex = pageNavItemsForVisibility.findIndex(
+    (item: any) => String(item?.slug || "").trim().toLowerCase() === "products",
+  );
+  const galleryPageNavIndex = pageNavItemsForVisibility.findIndex(
+    (item: any) => String(item?.slug || "").trim().toLowerCase() === "gallery",
+  );
+  const contactPageNavIndex = pageNavItemsForVisibility.findIndex(
+    (item: any) => String(item?.slug || "").trim().toLowerCase() === "contact-us",
+  );
   const CHAR_LIMITS = {
     heroTitle: 100,
     heroSubTitle: 200,
@@ -1051,7 +1248,7 @@ const CreateWebsite = () => {
                   : DEFAULT_PAGE_NAV_ITEMS.map((name) => ({
                       name,
                       slug: String(name).toLowerCase().replace(/\s+/g, "-"),
-                      enabled: true,
+                      enabled: String(name).toLowerCase().replace(/\s+/g, "-") === "home",
                     })),
             productDropdownPages: (() => {
               const fromDraft =
@@ -1230,6 +1427,16 @@ const CreateWebsite = () => {
             partnerFormTitle: String(
               draftData?.partnerFormTitle || found?.partnerFormTitle || "",
             ).trim(),
+            careersPageHeading: String(
+              draftData?.careersPageHeading || found?.careersPageHeading || "",
+            ).trim(),
+            careersPageIntro: String(
+              draftData?.careersPageIntro || found?.careersPageIntro || "",
+            ).trim(),
+            careersFormFields: tryParseJson(
+              draftData?.careersFormFields ?? found?.careersFormFields ?? "[]",
+              [],
+            ),
             founders:
               Array.isArray(draftData?.founders) && draftData.founders.length
                 ? draftData.founders.map((item: any, index: number) => ({
@@ -1423,6 +1630,12 @@ const CreateWebsite = () => {
     append: appendFounder,
     remove: removeFounder,
   } = useFieldArray({ control, name: "founders" });
+  const {
+    fields: careersFieldItems,
+    append: appendCareersField,
+    remove: removeCareersField,
+    move: moveCareersField,
+  } = useFieldArray({ control, name: "careersFormFields", keyName: "fieldKey" });
   const [activeMainPageTab, setActiveMainPageTab] = useState(0);
   const [activeProductPageTab, setActiveProductPageTab] = useState(0);
   const [selectedProductPageOption, setSelectedProductPageOption] = useState(
@@ -1606,6 +1819,21 @@ const CreateWebsite = () => {
     fd.set("partnerPageHeading", values.partnerPageHeading || "");
     fd.set("partnerPageContent", values.partnerPageContent || "");
     fd.set("partnerFormTitle", values.partnerFormTitle || "");
+    fd.set("careersPageHeading", values.careersPageHeading || "");
+    fd.set("careersPageIntro", values.careersPageIntro || "");
+    fd.set(
+      "careersFormFields",
+      JSON.stringify(
+        (values.careersFormFields || []).map((field: any) => ({
+          id: field?.id || `field_${Date.now()}`,
+          type: field?.type || "text",
+          label: String(field?.label || "").trim(),
+          required: !!field?.required,
+          options: String(field?.options || ""),
+          fullWidth: !!field?.fullWidth,
+        })),
+      ),
+    );
     fd.set("founders", JSON.stringify(
       (values.founders || []).map((f: any) => ({
         name: f?.name || "",
@@ -1664,6 +1892,7 @@ const CreateWebsite = () => {
   return {
     companyName,
     searchKey,
+    workspaceId: String(workspaceId || "").trim(),
     title: String(formValues?.title || "").trim(),
     subTitle: String(formValues?.subTitle || "").trim(),
     ctaText: String(formValues?.CTAButtonText || "Explore").trim(),
@@ -1846,6 +2075,11 @@ const CreateWebsite = () => {
       partnerPageHeading: String(formValues?.partnerPageHeading || "").trim(),
       partnerPageContent: String(formValues?.partnerPageContent || "").trim(),
       partnerFormTitle: String(formValues?.partnerFormTitle || "").trim(),
+      careersPageHeading: String(formValues?.careersPageHeading || "").trim(),
+      careersPageIntro: String(formValues?.careersPageIntro || "").trim(),
+      careersFormFields: Array.isArray(formValues?.careersFormFields)
+        ? formValues.careersFormFields
+        : tryParseJson(formValues?.careersFormFields, []),
       founders: (formValues?.founders || []).map((item: any) => ({
         name: String(item?.name || "").trim(),
         role: String(item?.role || "").trim(),
@@ -2385,6 +2619,24 @@ const CreateWebsite = () => {
               <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3 min-w-0 overflow-hidden">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-slate-800">Products Page Tabs</p>
+                  {productsPageNavIndex >= 0 ? (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <Controller
+                        name={`pageNavItems.${productsPageNavIndex}.enabled`}
+                        control={control}
+                        render={({ field }) => (
+                          <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={field.value !== false}
+                              onChange={(event) => field.onChange(event.target.checked)}
+                            />
+                            Show Products page on website
+                          </label>
+                        )}
+                      />
+                    </div>
+                  ) : null}
                   <div className="flex flex-shrink-0 items-center gap-2 flex-wrap">
                     <TextField
                       select
@@ -2946,6 +3198,24 @@ const CreateWebsite = () => {
               .toLowerCase() === "about-us" ? (
               <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
                 <p className="text-sm font-semibold text-slate-800">About Page</p>
+                {aboutPageNavIndex >= 0 ? (
+                  <div className="mb-2 mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <Controller
+                      name={`pageNavItems.${aboutPageNavIndex}.enabled`}
+                      control={control}
+                      render={({ field }) => (
+                        <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={field.value !== false}
+                            onChange={(event) => field.onChange(event.target.checked)}
+                          />
+                          Show About Us page on website
+                        </label>
+                      )}
+                    />
+                  </div>
+                ) : null}
                 <div className="mt-3 grid grid-cols-1 gap-3">
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                     <Controller
@@ -3236,6 +3506,24 @@ const CreateWebsite = () => {
               .toLowerCase() === "gallery" ? (
               <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
                 <p className="text-sm font-semibold text-slate-800">Gallery Page</p>
+                {galleryPageNavIndex >= 0 ? (
+                  <div className="mb-2 mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <Controller
+                      name={`pageNavItems.${galleryPageNavIndex}.enabled`}
+                      control={control}
+                      render={({ field }) => (
+                        <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={field.value !== false}
+                            onChange={(event) => field.onChange(event.target.checked)}
+                          />
+                          Show Gallery page on website
+                        </label>
+                      )}
+                    />
+                  </div>
+                ) : null}
                 <div className="mt-3 grid grid-cols-1 gap-3">
                   <Controller
                     name="galleryPageHeading"
@@ -3283,6 +3571,24 @@ const CreateWebsite = () => {
               .toLowerCase() === "partner" ? (
               <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
                 <p className="text-sm font-semibold text-slate-800">Partner Page</p>
+                {partnerPageNavIndex >= 0 ? (
+                  <div className="mb-2 mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <Controller
+                      name={`pageNavItems.${partnerPageNavIndex}.enabled`}
+                      control={control}
+                      render={({ field }) => (
+                        <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={field.value !== false}
+                            onChange={(event) => field.onChange(event.target.checked)}
+                          />
+                          Show Partner page on website
+                        </label>
+                      )}
+                    />
+                  </div>
+                ) : null}
                 <div className="mt-3 grid grid-cols-1 gap-3">
                   <Controller
                     name="partnerPageHeading"
@@ -3334,9 +3640,214 @@ const CreateWebsite = () => {
 
             {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
               .trim()
+              .toLowerCase() === "careers" ? (
+              <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
+                <p className="text-sm font-semibold text-slate-800">Careers Page</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Job openings marked as "Posted" in Recruitment will appear on this page automatically.
+                </p>
+                {careersPageNavIndex >= 0 ? (
+                  <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <Controller
+                      name={`pageNavItems.${careersPageNavIndex}.enabled`}
+                      control={control}
+                      render={({ field }) => (
+                        <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={field.value !== false}
+                            onChange={(event) => field.onChange(event.target.checked)}
+                          />
+                          Show Careers page on website
+                        </label>
+                      )}
+                    />
+                  </div>
+                ) : null}
+                <div className="mt-3 grid grid-cols-1 gap-3">
+                  <Controller
+                    name="careersPageHeading"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        size="small"
+                        label="Page Heading"
+                        placeholder="Join Our Team"
+                        fullWidth
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="careersPageIntro"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        size="small"
+                        label="Introduction Text"
+                        placeholder="Tell visitors about your company and why they should join..."
+                        multiline
+                        minRows={6}
+                        fullWidth
+                      />
+                    )}
+                  />
+                  <div className="rounded-lg border border-slate-200 bg-white p-3">
+                    <p className="text-xs font-semibold text-slate-700">Apply Now Form Layout</p>
+                    <p className="mt-0.5 text-[10px] text-slate-500">
+                      Fixed fields stay in place. Custom fields can be reordered and appear after Upload CV.
+                    </p>
+                    <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                          Default Fields
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {CAREERS_DEFAULT_FORM_FIELDS.map((field) => (
+                            <span
+                              key={field.label}
+                              className="rounded-full border border-slate-300 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700"
+                            >
+                              {field.label}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                          Custom Fields
+                        </p>
+                        <p className="mt-0.5 text-[10px] text-slate-500">
+                          These are saved to the template and rendered in the same order here and on the live careers form.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-semibold text-slate-700">Additional Form Fields</p>
+                    <p className="mt-0.5 text-[10px] text-slate-500">
+                      These appear on the Apply Now form after the Resume upload and stay enabled.
+                    </p>
+                    <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                        Added Fields Preview
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {careersFieldItems.length ? (
+                          careersFieldItems.map((field: any) => (
+                            <span
+                              key={field.fieldKey}
+                              className="rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-700"
+                            >
+                              {String(field.label || field.type || "Field").trim() || "Field"}
+                              <span className="ml-1 text-[10px] font-medium text-slate-500">
+                                ({String(field.type || "text")})
+                              </span>
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-[11px] text-slate-500">
+                            No additional fields added yet.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-2 flex flex-col gap-2">
+                      {careersFieldItems.map((field: any, index: number) => (
+                        <div
+                          key={field.fieldKey}
+                          className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-2 md:flex-row md:items-center"
+                        >
+                          <span className="inline-flex w-fit rounded bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                            {String(field.type || "text")}
+                          </span>
+                          <Controller
+                            name={`careersFormFields.${index}.label`}
+                            control={control}
+                            render={({ field: labelField }) => (
+                              <input
+                                {...labelField}
+                                placeholder="Field label"
+                                className="min-w-0 flex-1 rounded-md border border-slate-200 px-2 py-1 text-xs outline-none"
+                              />
+                            )}
+                          />
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              disabled={index === 0}
+                              onClick={() => moveCareersField(index, index - 1)}
+                              className="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                              aria-label={`Move ${field.label || field.type} up`}
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              disabled={index === careersFieldItems.length - 1}
+                              onClick={() => moveCareersField(index, index + 1)}
+                              className="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                              aria-label={`Move ${field.label || field.type} down`}
+                            >
+                              ↓
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeCareersField(index)}
+                            className="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                      {!careersFieldItems.length ? (
+                        <p className="text-[11px] text-slate-500">
+                          No custom fields yet. Add one below and it will render after Upload CV.
+                        </p>
+                      ) : null}
+                    </div>
+                    <AddFieldPanel
+                      onAdd={(fieldDef) =>
+                        appendCareersField({
+                          id: `field_${Date.now()}`,
+                          type: fieldDef.type || "text",
+                          label: fieldDef.label || "",
+                          required: !!fieldDef.required,
+                          options: fieldDef.options || "",
+                          fullWidth: !!fieldDef.fullWidth,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
+              .trim()
               .toLowerCase() === "contact-us" ? (
               <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
                 <p className="text-sm font-semibold text-slate-800">Contact Page</p>
+                {contactPageNavIndex >= 0 ? (
+                  <div className="mb-2 mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <Controller
+                      name={`pageNavItems.${contactPageNavIndex}.enabled`}
+                      control={control}
+                      render={({ field }) => (
+                        <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={field.value !== false}
+                            onChange={(event) => field.onChange(event.target.checked)}
+                          />
+                          Show Contact Us page on website
+                        </label>
+                      )}
+                    />
+                  </div>
+                ) : null}
                 <div className="mt-3 grid grid-cols-1 gap-3">
                   <Controller
                     name="contactPageHeading"
@@ -4554,13 +5065,6 @@ const CreateWebsite = () => {
                 ) : null}
               </div>
               <div className="flex items-center justify-center gap-4">
-                <PrimaryButton
-                  type="button"
-                  title={effectiveEditMode ? "Submit" : "Publish"}
-                  onClick={() => setShowConfirmPopup(true)}
-                  isLoading={isWebsiteSubmitting}
-                  disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
-                />
                 <SecondaryButton
                   type="button"
                   title="Preview"
@@ -4569,10 +5073,17 @@ const CreateWebsite = () => {
                 <button
                   type="button"
                   onClick={resetFormToEmpty}
-                  className="px-6 py-2 bg-gray-200 text-black rounded-md"
+                  className="px-8 py-1.5 bg-gray-200 text-black rounded-md"
                 >
                   Reset
                 </button>
+                <PrimaryButton
+                  type="button"
+                  title={effectiveEditMode ? "Submit" : "Publish"}
+                  onClick={() => setShowConfirmPopup(true)}
+                  isLoading={isWebsiteSubmitting}
+                  disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
+                />
               </div>
               {publishedWebsiteUrl ? (
                 <div className="mt-3 text-center">

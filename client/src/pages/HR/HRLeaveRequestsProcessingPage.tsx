@@ -130,7 +130,7 @@ function normalizeDepartmentGroup(value: unknown): string {
   const normalized = normalizeKey(String(value || ""));
   if (!normalized) return "";
   if (normalized === "hr" || normalized.startsWith("hr-") || normalized.includes("human-resources")) return "HR";
-  if (normalized.includes("sales") || normalized.includes("crm")) return "Sales & CRM";
+  if (normalized.includes("sales") || normalized.includes("crm")) return "Sales";
   if (normalized.includes("finance")) return "Finance";
   if (normalized === "admin" || normalized.startsWith("admin-") || normalized.includes("administration")) return "Administration";
   if (normalized.includes("tech")) return "Tech";
@@ -158,7 +158,7 @@ function inferDepartmentsFromRole(role?: string): string[] {
   const result: string[] = [];
   if (n.includes("hr")) result.push("HR");
   if (n.includes("admin") || n.includes("administration")) result.push("Administration");
-  if (n.includes("sales")) result.push("Sales & CRM");
+  if (n.includes("sales")) result.push("Sales");
   if (n.includes("finance")) result.push("Finance");
   if (n.includes("tech")) result.push("Tech");
   if (n === "it" || n.includes("it-")) result.push("IT");
@@ -342,7 +342,7 @@ export default function HRLeaveRequestsProcessingPage() {
   const departments = useMemo(() => {
     const all = [...allEntries, ...teamAttendance];
     const canonical = Array.from(new Set(all.flatMap((item) => normalizeDepartmentList((item as Record<string, unknown>)?.departments || (item as Record<string, unknown>)?.department)).filter(Boolean)));
-    const preferred = ["HR", "Sales & CRM", "Finance", "Administration", "Tech", "IT", "Maintenance"];
+    const preferred = ["HR", "Sales", "Finance", "Administration", "Tech", "IT", "Maintenance"];
     return [...preferred.filter((d) => canonical.includes(d)), ...canonical.filter((d) => !preferred.includes(d)).sort(), "All Departments"];
   }, [allEntries, teamAttendance]);
 
@@ -494,7 +494,7 @@ export default function HRLeaveRequestsProcessingPage() {
   }, [activeTab]);
 
   const departmentSummaryCards: DeptSummaryCard[] = useMemo(() =>
-    ["HR", "Sales & CRM", "Finance", "Administration", "Tech", "IT", "Maintenance"].map((deptName) => {
+    ["HR", "Sales", "Finance", "Administration", "Tech", "IT", "Maintenance"].map((deptName) => {
       const members = employeeRoster.filter((e) => normalizeDepartmentList(e.departments).includes(deptName));
       return { departmentName: deptName, total: members.length, onLeave: members.filter((m) => m.status === "On Leave Today").length };
     }),

@@ -530,7 +530,7 @@ export default function SalesArchitecturePage() {
     try {
       const response = await createReport({
         title: `Sales Architecture - ${selectedBuilding}`,
-        department: "Sales & CRM", category: "Other", dataWindow: "Custom",
+        department: "Sales", category: "Other", dataWindow: "Custom",
         reportMonth: new Date().toISOString().slice(0, 7),
         period: `${selectedBuilding} Floor ${selectedFloor}`,
         generatedBy: currentUserName,

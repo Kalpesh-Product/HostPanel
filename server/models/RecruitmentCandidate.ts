@@ -44,6 +44,9 @@ export interface IRecruitmentCandidate extends Document {
     contactMethod?: string;
     currentCompany?: string;
     dateOfBirth?: Date | null;
+    country?: string;
+    state?: string;
+    city?: string;
     currentAddress?: string;
     earliestStartDate?: Date | null;
     availability: string;
@@ -55,6 +58,7 @@ export interface IRecruitmentCandidate extends Document {
     certifications?: string;
     coverLetter?: string;
     notes?: string;
+    customFields?: string;
     status: string;
     statusReason?: string;
     appliedAt: Date;
@@ -145,6 +149,9 @@ const recruitmentCandidateSchema = new Schema<IRecruitmentCandidate>(
         contactMethod: { type: String, trim: true, default: "" },
         currentCompany: { type: String, trim: true, default: "" },
         dateOfBirth: { type: Date, default: null },
+        country: { type: String, trim: true, default: "" },
+        state: { type: String, trim: true, default: "" },
+        city: { type: String, trim: true, default: "" },
         currentAddress: { type: String, trim: true, default: "" },
         earliestStartDate: { type: Date, default: null, index: true },
         availability: { type: String, trim: true, default: "Full-time" },
@@ -156,6 +163,7 @@ const recruitmentCandidateSchema = new Schema<IRecruitmentCandidate>(
         certifications: { type: String, trim: true, default: "" },
         coverLetter: { type: String, trim: true, default: "" },
         notes: { type: String, trim: true, default: "" },
+        customFields: { type: String, trim: true, default: "" },
         status: { type: String, trim: true, default: "Applied", index: true },
         statusReason: { type: String, trim: true, default: "" },
         appliedAt: { type: Date, default: Date.now, index: true },

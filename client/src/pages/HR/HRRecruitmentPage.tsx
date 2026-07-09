@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import { Country } from "country-state-city";
 import PageFrame from "@/components/Pages/PageFrame";
 import { HRRecruitmentSkeleton } from "@/components/ui/Skeleton";
 import { createReport } from "@/services/reports";
@@ -38,11 +39,16 @@ interface CandidateRaw {
   source?: string;
   status?: string;
   resume?: string;
+  resumeUrl?: string;
+  resumeMeta?: { url?: string; name?: string };
   formData?: {
     firstName?: string;
     middleName?: string;
     lastName?: string;
     dob?: string;
+    country?: string;
+    state?: string;
+    city?: string;
     address?: string;
     earliestStartDate?: string;
     availability?: string;
@@ -52,6 +58,7 @@ interface CandidateRaw {
     skills?: string;
     certifications?: string;
     coverLetter?: string;
+    customFields?: string;
   };
 }
 
@@ -68,6 +75,13 @@ interface JobOpening {
   vacancyTotal?: number;
   vacancyFilled?: number;
   isPostedOnWebsite?: boolean;
+  description?: string;
+  aboutTheJob?: string;
+  location?: string;
+  workMode?: string;
+  keyResponsibilities?: string;
+  requirements?: string;
+  softSkills?: string;
 }
 
 interface RecruitmentSummary {
@@ -90,13 +104,13 @@ interface HistoryView {
 }
 
 interface NewCandidateForm {
-  firstName: string;
-  middleName: string;
-  lastName: string;
+  fullName: string;
   email: string;
-  phone: string;
+  mobileNumber: string;
   dob: string;
-  address: string;
+  country: string;
+  state: string;
+  city: string;
   department: string;
   jobCode: string;
   position: string;
@@ -126,7 +140,12 @@ interface NewJobForm {
   vacancyTotal: string;
   isPaid: boolean;
   internshipDurationMonths: string;
-  description: string;
+  aboutTheJob: string;
+  location: string;
+  workMode: string;
+  keyResponsibilities: string;
+  requirements: string;
+  softSkills: string;
 }
 
 /* ───────────────────────────── Constants ───────────────────────────── */
@@ -144,7 +163,7 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 const EMPTY_CANDIDATE: NewCandidateForm = {
-  firstName: "", middleName: "", lastName: "", email: "", phone: "", dob: "", address: "",
+  fullName: "", email: "", mobileNumber: "", dob: "", country: "", state: "", city: "",
   department: "", jobCode: "", position: "", source: "Walk-in", sourceReference: "", sourceNotes: "",
   contactMethod: "In-person", currentCompany: "", earliestStartDate: "", expectedSalary: "",
   availability: "Full-time", experience: "", education: "", skills: "", certifications: "",
@@ -153,7 +172,8 @@ const EMPTY_CANDIDATE: NewCandidateForm = {
 
 const EMPTY_JOB: NewJobForm = {
   jobCode: "", title: "", department: "", employmentType: "full_time", vacancyTotal: "1",
-  isPaid: true, internshipDurationMonths: "6", description: "",
+  isPaid: true, internshipDurationMonths: "6",
+  aboutTheJob: "", location: "", workMode: "on_site", keyResponsibilities: "", requirements: "", softSkills: "",
 };
 
 function generateJobCode(title: string, department: string): string {
@@ -174,6 +194,61 @@ function getInitials(name: string): string {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase();
 }
 
+function parseCustomFields(raw: unknown): Array<[string, string]> {
+  if (!raw) return [];
+
+  let parsed: unknown = raw;
+  if (typeof raw === "string") {
+    const text = raw.trim();
+    if (!text) return [];
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      return [];
+    }
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return [];
+
+  const coreKeys = new Set([
+    "name", "fullName", "email", "dob", "dateOfBirth", "phone", "mobile", "mobileNumber",
+    "country", "state", "city", "resume", "resumeUrl", "resumeFile",
+  ]);
+
+  return Object.entries(parsed as Record<string, unknown>)
+      .filter(([key, value]) => !coreKeys.has(String(key).toLowerCase()) && String(value ?? "").trim() !== "")
+      .map(([key, value]) => [key, String(value ?? "")]);
+}
+
+function resolveCountryName(value: unknown) {
+  const code = String(value ?? "").trim();
+  if (!code) return "-";
+  return Country.getCountryByCode(code)?.name || code;
+}
+
+function buildCandidateCustomFields(form: NewCandidateForm) {
+  return {
+    "Job Code": form.jobCode,
+    Department: form.department,
+    Position: form.position,
+    Source: form.source,
+    "Source Reference": form.sourceReference,
+    "Source Notes": form.sourceNotes,
+    "Contact Method": form.contactMethod,
+    "Current Company": form.currentCompany,
+    "Earliest Start Date": form.earliestStartDate,
+    "Expected Salary": form.expectedSalary,
+    Availability: form.availability,
+    Experience: form.experience,
+    Education: form.education,
+    Skills: form.skills,
+    Certifications: form.certifications,
+    "Employment History": form.employmentHistory,
+    "Cover Letter": form.coverLetter,
+    Notes: form.notes,
+  };
+}
+
 /* ──────────────────────────────────────────────────────────────── */
 /*  CandidateDetailModal                                            */
 /* ──────────────────────────────────────────────────────────────── */
@@ -192,14 +267,16 @@ function CandidateDetailModal({
   candidate, onClose, onReject, onAccept, onSendEmail, onConvert, busyId,
 }: CandidateDetailModalProps) {
   const fd = candidate.formData || {};
+  const resumeUrl = candidate.resumeUrl || candidate.resumeMeta?.url || "";
+  const customFieldEntries = parseCustomFields(fd.customFields || "");
 
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
-      <div className="bg-white rounded-4xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+      <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         <div className="p-8 bg-slate-50 border-b border-slate-100/60 flex justify-between items-start shrink-0">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <h2 className="text-3xl font-bold text-slate-900 leading-none">{candidate.name}</h2>
+              <h2 className="text-3xl font-pmedium text-primary leading-none">{candidate.name}</h2>
               <span className={`px-2.5 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider border ${getStatusStyle(candidate.status || "")}`}>
                 {candidate.status}
               </span>
@@ -225,36 +302,54 @@ function CandidateDetailModal({
         <div className="p-8 space-y-8 overflow-y-auto flex-1 bg-white">
           <div>
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
-              <Users size={16} /> Personal & Contact Information
+              <Users size={16} /> Basic Information
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-8 bg-slate-50/50 p-5 rounded-2xl border border-slate-100/60">
-              <div>
-                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1">First Name</p>
-                <p className="font-semibold text-slate-900">{fd.firstName}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1">Middle Name</p>
-                <p className="font-semibold text-slate-900">{fd.middleName || "-"}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1">Last Name</p>
-                <p className="font-semibold text-slate-900">{fd.lastName}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1">Date of Birth</p>
-                <p className="font-semibold text-slate-900">{fd.dob}</p>
+              <div className="col-span-2 md:col-span-4">
+                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1">Name</p>
+                <p className="font-semibold text-slate-900">{candidate.name}</p>
               </div>
               <div className="col-span-2">
                 <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><Mail size={12} /> Email Address</p>
                 <p className="font-semibold text-slate-900">{candidate.email}</p>
               </div>
               <div className="col-span-2">
-                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><Phone size={12} /> Phone Number</p>
-                <p className="font-semibold text-slate-900">{candidate.phone}</p>
+                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><Phone size={12} /> Mobile Number</p>
+                <p className="font-semibold text-slate-900">{candidate.phone || "-"}</p>
               </div>
-              <div className="col-span-4">
-                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><MapPin size={12} /> Current Address</p>
-                <p className="font-semibold text-slate-900">{fd.address}</p>
+              <div>
+                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1">Date of Birth</p>
+                <p className="font-semibold text-slate-900">{fd.dob || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1">Country</p>
+                  <p className="font-semibold text-slate-900">{resolveCountryName(fd.country)}</p>
+                </div>
+              <div>
+                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1">State</p>
+                <p className="font-semibold text-slate-900">{fd.state || "-"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1">City</p>
+                <p className="font-semibold text-slate-900">{fd.city || "-"}</p>
+              </div>
+              <div className="col-span-2 md:col-span-4">
+                <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><FileText size={12} /> Resume</p>
+                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                  <p className="font-semibold text-slate-900">{candidate.resume || "Resume file"}</p>
+                  {resumeUrl ? (
+                    <a
+                      href={resumeUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-blue-700 transition hover:bg-blue-100"
+                    >
+                      <ExternalLink size={12} /> View Resume
+                    </a>
+                  ) : (
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">No file available</span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -268,22 +363,22 @@ function CandidateDetailModal({
                 <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><Briefcase size={12} /> Position Applied For</p>
                 <p className="font-semibold text-blue-900">{candidate.position}</p>
               </div>
-              <div>
+              {/* <div>
                 <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><Calendar size={12} /> Earliest Start Date</p>
                 <p className="font-semibold text-slate-900">{fd.earliestStartDate}</p>
-              </div>
-              <div>
+              </div> */}
+              {/* <div>
                 <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><Clock size={12} /> Availability</p>
                 <p className="font-semibold text-slate-900">{fd.availability}</p>
-              </div>
-              <div className="col-span-2">
+              </div> */}
+              {/* <div className="col-span-2">
                 <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1 flex items-center gap-1"><DollarSign size={12} /> Expected Salary (CTC)</p>
                 <p className="font-semibold text-slate-900">{fd.expectedSalary}</p>
-              </div>
+              </div> */}
             </div>
           </div>
 
-          <div>
+          {/* <div>
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
               <Award size={16} /> Professional Background
             </h3>
@@ -318,25 +413,43 @@ function CandidateDetailModal({
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
 
-          <div>
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
-              <FileText size={16} /> Application Attachments
-            </h3>
-            <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-white shadow-sm rounded-xl text-blue-600"><FileText size={24} /></div>
-                <div>
-                  <p className="font-semibold text-slate-900 text-sm">{candidate.resume}</p>
-                  <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Mandatory Upload | PDF</p>
-                </div>
+          {customFieldEntries.length > 0 ? (
+            <div>
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
+                  <FileText size={16} /> Custom Fields
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-8 bg-purple-50/30 p-5 rounded-2xl border border-purple-100">
+                  {customFieldEntries.map(([key, val]) => (
+                    <div key={key}>
+                    <p className="text-[10px] text-slate-500 uppercase font-medium tracking-wider mb-1">{key.replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/\s+/g, " ").trim()}</p>
+                    <p className="font-semibold text-slate-900">{val || "-"}</p>
+                  </div>
+                ))}
               </div>
-              <button className="p-2 bg-white text-slate-600 hover:text-blue-600 rounded-lg shadow-sm border border-slate-200 transition-all flex items-center gap-2 text-xs font-medium px-4">
-                <ExternalLink size={14} /> View File
-              </button>
             </div>
-          </div>
+          ) : null}
+
+          {resumeUrl ? null : (
+            <div>
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-100/60 pb-2 mb-4 flex items-center gap-2">
+                <FileText size={16} /> Application Attachments
+              </h3>
+              <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-white shadow-sm rounded-xl text-blue-600"><FileText size={24} /></div>
+                  <div>
+                    <p className="font-semibold text-slate-900 text-sm">{candidate.resume}</p>
+                    <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Mandatory Upload | PDF</p>
+                  </div>
+                </div>
+                <span className="p-2 bg-white text-slate-400 rounded-lg shadow-sm border border-slate-200 text-xs font-medium px-4">
+                  No file available
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="p-6 bg-slate-50 border-t border-slate-100/60 flex gap-4 shrink-0">
@@ -359,7 +472,7 @@ function CandidateDetailModal({
             </>
           ) : (
             <div className="flex gap-4 w-full">
-              <button onClick={onClose} className="flex-1 py-4 bg-white border border-slate-200 rounded-4xl font-semibold text-slate-600 hover:bg-slate-100 transition-all">
+              <button onClick={onClose} className="flex-1 py-4 bg-blue-600 text-white border border-slate-200 rounded-2xl font-semibold transition-all">
                 CLOSE PROFILE
               </button>
               {candidate.status === "Selected" && (
@@ -467,36 +580,48 @@ function AddCandidateModal({
           </button>
         </div>
         <div className="p-6 max-h-[75vh] overflow-y-auto space-y-5 bg-slate-100">
-          <FormSection title="Personal & Contact Information" icon={Users}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">First Name <span className="text-red-400">*</span></label>
-                <input type="text" placeholder="John" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Middle Name</label>
-                <input type="text" placeholder="Optional" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.middleName} onChange={(e) => setForm({ ...form, middleName: e.target.value })} />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Last Name <span className="text-red-400">*</span></label>
-                <input type="text" placeholder="Doe" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
+          <FormSection title="Basic Information" icon={Users}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1 md:col-span-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Full Name <span className="text-red-400">*</span></label>
+                <input type="text" placeholder="John Doe" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
                 <input type="email" placeholder="john@example.com" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Phone</label>
-                <input type="tel" placeholder="+91 00000 00000" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-              </div>
-              <div className="flex flex-col gap-1">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Date of Birth</label>
                 <input type="date" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} />
               </div>
-              <div className="flex flex-col gap-1 md:col-span-3">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Current Address</label>
-                <input type="text" placeholder="Street, City, State, ZIP" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Mobile Number <span className="text-red-400">*</span></label>
+                <input type="tel" placeholder="+91 00000 00000" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.mobileNumber} onChange={(e) => setForm({ ...form, mobileNumber: e.target.value })} />
               </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Country</label>
+                <input type="text" placeholder="India" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">State</label>
+                <input type="text" placeholder="Maharashtra" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+              </div>
+              <div className="flex flex-col gap-1 md:col-span-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">City</label>
+                <input type="text" placeholder="Mumbai" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+              </div>
+              <div className="flex flex-col gap-1 md:col-span-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Resume / CV <span className="text-red-400">*</span></label>
+                <label className="w-full px-3 py-3 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center gap-2 text-slate-500 font-semibold text-[11px] cursor-pointer hover:bg-white transition-all bg-white">
+                  <FileText size={16} /> {form.resumeFile ? form.resumeFile.name : "Click to attach file (PDF/Doc)"}
+                  <input type="file" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg" className="hidden" onChange={(event) => setForm({ ...form, resumeFile: event.target.files?.[0] || null })} />
+                </label>
+              </div>
+            </div>
+          </FormSection>
+
+          <FormSection title="Custom Fields" icon={Target}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Department</label>
                 <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.department} onChange={(e) => handleDepartmentChange(e.target.value)}>
@@ -504,11 +629,6 @@ function AddCandidateModal({
                   {departments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
                 </select>
               </div>
-            </div>
-          </FormSection>
-
-          <FormSection title="Source & Job Details" icon={Target}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Candidate Source</label>
                 <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
@@ -573,7 +693,7 @@ function AddCandidateModal({
             </div>
           </FormSection>
 
-          <FormSection title="Professional Background" icon={Award}>
+          <FormSection title="Additional Details" icon={Award}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1 md:col-span-2">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Employment History</label>
@@ -599,13 +719,6 @@ function AddCandidateModal({
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Notes</label>
                 <textarea rows={2} placeholder="Walk-in context, LinkedIn note, call summary..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none" value={form.sourceNotes} onChange={(e) => setForm({ ...form, sourceNotes: e.target.value })} />
               </div>
-              <div className="flex flex-col gap-1 md:col-span-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Resume / CV</label>
-                <label className="w-full px-3 py-3 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center gap-2 text-slate-500 font-semibold text-[11px] cursor-pointer hover:bg-white transition-all bg-white">
-                  <FileText size={16} /> {form.resumeFile ? form.resumeFile.name : "Click to attach file (PDF/Doc)"}
-                  <input type="file" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg" className="hidden" onChange={(event) => setForm({ ...form, resumeFile: event.target.files?.[0] || null })} />
-                </label>
-              </div>
             </div>
           </FormSection>
         </div>
@@ -615,7 +728,7 @@ function AddCandidateModal({
           </button>
           <button
             type="button"
-            disabled={isSaving || !form.firstName || !form.lastName || !form.email || !form.position}
+            disabled={isSaving || !form.fullName || !form.email || !form.mobileNumber || !form.position}
             onClick={onSave}
             className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
           >
@@ -637,24 +750,25 @@ interface AddJobModalProps {
   open: boolean;
   onClose: () => void;
   onSave: () => void;
+  mode?: "create" | "edit";
   form: NewJobForm;
   setForm: React.Dispatch<React.SetStateAction<NewJobForm>>;
   departments: string[];
 }
 
-function AddJobModal({ open, onClose, onSave, form, setForm, departments }: AddJobModalProps) {
+function AddJobModal({ open, onClose, onSave, form, setForm, departments, mode = "create" }: AddJobModalProps) {
   return open && createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-start justify-center pt-[4vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto"
       onClick={onClose}
     >
-      <div
-        className="relative w-full max-w-3xl mx-4 bg-slate-100 rounded-3xl shadow-2xl border border-slate-200 overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
+        <div
+          className="relative w-full max-w-3xl mx-4 bg-slate-100 rounded-3xl shadow-2xl border border-slate-200 overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
         <div className="px-6 py-5 border-b border-slate-200 bg-slate-900 text-white flex items-center justify-between">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <Briefcase size={16} /> Publish Job Opening
+            <Briefcase size={16} /> {mode === "edit" ? "Edit Job Opening" : "Publish Job Opening"}
           </h3>
           <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
             <X size={16} className="text-white/80" />
@@ -707,9 +821,33 @@ function AddJobModal({ open, onClose, onSave, form, setForm, departments }: AddJ
                   </select>
                 </div>
               )}
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Location</label>
+                <input type="text" placeholder="State" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Work Mode</label>
+                <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" value={form.workMode} onChange={(e) => setForm({ ...form, workMode: e.target.value })}>
+                  <option value="on_site">On Site</option>
+                  <option value="remote">Remote</option>
+                  <option value="hybrid">Hybrid</option>
+                </select>
+              </div>
               <div className="flex flex-col gap-1 md:col-span-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Description</label>
-                <textarea rows={4} placeholder="Describe the role and key requirements..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">About the Job</label>
+                <textarea rows={6} placeholder="Short overview shown at the top of the role page..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none" value={form.aboutTheJob} onChange={(e) => setForm({ ...form, aboutTheJob: e.target.value })} />
+              </div>
+              <div className="flex flex-col gap-1 md:col-span-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Key Responsibilities</label>
+                <textarea rows={6} placeholder="Add the bullet points shown in the left description tab..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none" value={form.keyResponsibilities} onChange={(e) => setForm({ ...form, keyResponsibilities: e.target.value })} />
+              </div>
+              <div className="flex flex-col gap-1 md:col-span-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Requirements</label>
+                <textarea rows={6} placeholder="List the must-have skills and experience..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none" value={form.requirements} onChange={(e) => setForm({ ...form, requirements: e.target.value })} />
+              </div>
+              <div className="flex flex-col gap-1 md:col-span-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Soft Skills</label>
+                <textarea rows={3} placeholder="Communication, teamwork, ownership..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none" value={form.softSkills} onChange={(e) => setForm({ ...form, softSkills: e.target.value })} />
               </div>
             </div>
           </FormSection>
@@ -725,7 +863,7 @@ function AddJobModal({ open, onClose, onSave, form, setForm, departments }: AddJ
             className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
           >
             <Briefcase size={14} />
-            Publish to Website
+            {mode === "edit" ? "Update Job" : "Publish to Website"}
           </button>
         </div>
       </div>
@@ -797,7 +935,7 @@ function HistoryModal({ open, onClose, data }: HistoryModalProps) {
 /*  Main Page Component                                              */
 /* ──────────────────────────────────────────────────────────────── */
 
-export default function HRRecruitmentPage() {
+export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "careers" } = {}) {
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState("candidates");
@@ -823,6 +961,7 @@ export default function HRRecruitmentPage() {
 
   const [newCandidate, setNewCandidate] = useState<NewCandidateForm>(EMPTY_CANDIDATE);
   const [newJob, setNewJob] = useState<NewJobForm>(EMPTY_JOB);
+  const [editingJobCode, setEditingJobCode] = useState("");
   const bulkUploadInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -927,10 +1066,14 @@ export default function HRRecruitmentPage() {
     }
   };
 
-  const handleToggleWebsitePost = (job: JobOpening) => {
-    setJobOpenings((prev) => prev.map((j) =>
-      j.jobCode === job.jobCode ? { ...j, isPostedOnWebsite: !j.isPostedOnWebsite } : j
-    ));
+  const handleToggleWebsitePost = async (job: JobOpening) => {
+    if (!job?.jobCode) return;
+    try {
+      await updateRecruitmentJobOpening(job.jobCode, { isPostedOnWebsite: !job.isPostedOnWebsite });
+      await refreshJobOpenings();
+    } catch (error: any) {
+      setErrorMessage(error?.message || "Failed to update website posting status.");
+    }
   };
 
   const buildRecruitmentReportRows = () => jobOpenings.map((job) => ({
@@ -1002,7 +1145,12 @@ export default function HRRecruitmentPage() {
       "vacancyFilled",
       "isPaid",
       "internshipDurationMonths",
-      "description",
+      "aboutTheJob",
+      "location",
+      "workMode",
+      "keyResponsibilities",
+      "requirements",
+      "softSkills",
       "isActive",
     ];
     const csv = headers.join(",");
@@ -1028,11 +1176,39 @@ export default function HRRecruitmentPage() {
     bulkUploadInputRef.current?.click();
   };
 
+  const buildJobFormFromOpening = (job: JobOpening): NewJobForm => ({
+    jobCode: job.jobCode || "",
+    title: job.title || job.designation || "",
+    department: job.department || "",
+    employmentType: String((job as any).employmentType || "full_time"),
+    vacancyTotal: String(job.vacancyTotal ?? 1),
+    isPaid: Boolean(job.isPaid ?? true),
+    internshipDurationMonths: String((job as any).internshipDurationMonths ?? "6"),
+    aboutTheJob: job.aboutTheJob || "",
+    location: job.location || "",
+    workMode: String((job as any).workMode || "on_site"),
+    keyResponsibilities: job.keyResponsibilities || "",
+    requirements: job.requirements || "",
+    softSkills: job.softSkills || "",
+  });
+
+  const openCreateJobModal = () => {
+    setEditingJobCode("");
+    setNewJob(EMPTY_JOB);
+    setIsJobModalOpen(true);
+  };
+
+  const openEditJobModal = (job: JobOpening) => {
+    setEditingJobCode(job.jobCode || "");
+    setNewJob(buildJobFormFromOpening(job));
+    setIsJobModalOpen(true);
+  };
+
   const handleAddJob = async () => {
     if (!newJob.title || !newJob.department) return;
     const nextJobCode = String(newJob.jobCode || "").trim().toUpperCase() || generateJobCode(newJob.title, newJob.department);
     try {
-      await createRecruitmentJobOpening({
+      const payload = {
         jobCode: nextJobCode,
         title: newJob.title,
         designation: newJob.title,
@@ -1041,15 +1217,29 @@ export default function HRRecruitmentPage() {
         vacancyTotal: Number(newJob.vacancyTotal || 1),
         isPaid: newJob.employmentType === "intern" ? false : Boolean(newJob.isPaid),
         internshipDurationMonths: newJob.employmentType === "intern" ? Number(newJob.internshipDurationMonths || 6) : null,
-        description: newJob.description,
-      });
+        aboutTheJob: newJob.aboutTheJob,
+        location: newJob.location,
+        workMode: newJob.workMode,
+        keyResponsibilities: newJob.keyResponsibilities,
+        requirements: newJob.requirements,
+        softSkills: newJob.softSkills,
+      };
+      if (editingJobCode) {
+        await updateRecruitmentJobOpening(editingJobCode, payload);
+      } else {
+        await createRecruitmentJobOpening(payload);
+      }
       await refreshJobOpenings();
-      setRecruitmentSummary((prev) => ({ ...prev, activeJobs: (prev.activeJobs || 0) + 1 }));
+      const overview = await getRecruitmentOverview();
+      if (overview?.summary) {
+        setRecruitmentSummary(overview.summary);
+      }
       setIsJobModalOpen(false);
       setActiveTab("jobs");
       setNewJob(EMPTY_JOB);
+      setEditingJobCode("");
     } catch (error: any) {
-      setErrorMessage(error?.message || "Failed to publish job opening.");
+      setErrorMessage(error?.message || (editingJobCode ? "Failed to update job opening." : "Failed to publish job opening."));
     }
   };
 
@@ -1074,6 +1264,7 @@ export default function HRRecruitmentPage() {
 
       setActiveTab("jobs");
       setIsJobModalOpen(false);
+      setEditingJobCode("");
       setIsBulkUploadMenuOpen(false);
     } catch (error: any) {
       setErrorMessage(error?.message || "Failed to bulk upload job openings.");
@@ -1090,15 +1281,14 @@ export default function HRRecruitmentPage() {
   };
 
   const handleAddCandidate = async () => {
-    if (!newCandidate.firstName || !newCandidate.lastName || !newCandidate.email || !newCandidate.position) return;
+    if (!newCandidate.fullName || !newCandidate.email || !newCandidate.mobileNumber || !newCandidate.position) return;
     setIsSavingCandidate(true);
     try {
+      const customFields = buildCandidateCustomFields(newCandidate);
       const response = await createRecruitmentCandidate({
-        firstName: newCandidate.firstName,
-        middleName: newCandidate.middleName,
-        lastName: newCandidate.lastName,
+        fullName: newCandidate.fullName,
         email: newCandidate.email,
-        phone: newCandidate.phone,
+        phone: newCandidate.mobileNumber,
         department: newCandidate.department,
         jobCode: newCandidate.jobCode,
         position: newCandidate.position,
@@ -1109,7 +1299,10 @@ export default function HRRecruitmentPage() {
         contactMethod: newCandidate.contactMethod,
         currentCompany: newCandidate.currentCompany,
         dateOfBirth: newCandidate.dob,
-        currentAddress: newCandidate.address,
+        country: newCandidate.country,
+        state: newCandidate.state,
+        city: newCandidate.city,
+        currentAddress: [newCandidate.country, newCandidate.state, newCandidate.city].filter(Boolean).join(", "),
         earliestStartDate: newCandidate.earliestStartDate,
         expectedSalary: newCandidate.expectedSalary,
         availability: newCandidate.availability,
@@ -1120,6 +1313,7 @@ export default function HRRecruitmentPage() {
         employmentHistory: newCandidate.employmentHistory,
         coverLetter: newCandidate.coverLetter,
         notes: newCandidate.notes,
+        customFields: JSON.stringify(customFields),
         resumeFile: newCandidate.resumeFile,
       });
       const createdCandidate = response?.candidate;
@@ -1248,10 +1442,10 @@ export default function HRRecruitmentPage() {
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Recruitment Management
+                {mode === "careers" ? "Careers" : "Recruitment Management"}
               </h2>
               <p className="text-xs font-medium text-slate-500 mt-1">
-                Core Module | Applicant Tracking System
+                {mode === "careers" ? "Job openings & applications from your website." : "Core Module | Applicant Tracking System"}
               </p>
             </div>
             {activeTab === "jobs" && (
@@ -1307,7 +1501,7 @@ export default function HRRecruitmentPage() {
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
-              CANDIDATES TRACKING
+              {mode === "careers" ? "APPLICATIONS" : "CANDIDATES TRACKING"}
             </button>
             <button
               onClick={() => { setActiveTab("jobs"); setSearchQuery(""); }}
@@ -1356,18 +1550,20 @@ export default function HRRecruitmentPage() {
                   />
                 </div>
                 {activeTab === "candidates" ? (
-                  <button
-                    onClick={() => setIsCandidateModalOpen(true)}
-                    className="px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
-                  >
-                    <Plus size={13} strokeWidth={2.5} /> ADD CANDIDATE
-                  </button>
-                ) : (
-                  <div className="flex flex-wrap gap-2 justify-end">
+                  mode !== "careers" && (
                     <button
-                      onClick={() => setIsJobModalOpen(true)}
+                      onClick={() => setIsCandidateModalOpen(true)}
                       className="px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                     >
+                      <Plus size={13} strokeWidth={2.5} /> ADD CANDIDATE
+                    </button>
+                  )
+                ) : (
+                  <div className="flex flex-wrap gap-2 justify-end">
+                      <button
+                        onClick={openCreateJobModal}
+                        className="px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                      >
                       <Plus size={13} strokeWidth={2.5} /> PUBLISH JOB
                     </button>
                   </div>
@@ -1423,7 +1619,7 @@ export default function HRRecruitmentPage() {
                           </td>
                           <td className="px-5 py-4">
                             <p className="font-semibold text-slate-800 text-[12px]">{can.position}</p>
-                            <p className="text-[9px] font-medium text-slate-400 uppercase tracking-wider mt-0.5">Exp: {can.exp}</p>
+                            {/* <p className="text-[9px] font-medium text-slate-400 uppercase tracking-wider mt-0.5">Exp: {can.exp}</p> */}
                           </td>
                           <td className="px-5 py-4 text-center">
                             <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md uppercase tracking-wider">{can.source}</span>
@@ -1488,12 +1684,13 @@ export default function HRRecruitmentPage() {
                       <th className="px-5 py-4 text-center">Application Stats</th>
                       <th className="px-5 py-4 text-center">Status</th>
                       <th className="px-5 py-4 text-center">Website Status</th>
+                      <th className="px-5 py-4 text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
                     {displayedJobs.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-8 py-16 text-center text-slate-400 font-semibold">
+                        <td colSpan={6} className="px-8 py-16 text-center text-slate-400 font-semibold">
                           <div className="flex flex-col items-center gap-3">
                             <Briefcase size={28} className="text-slate-300" />
                             <p className="text-sm">No job openings found.</p>
@@ -1539,9 +1736,19 @@ export default function HRRecruitmentPage() {
                                   ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200"
                                   : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200"
                               }`}
+                              >
+                                {job.isPostedOnWebsite ? <Globe size={12} /> : <Globe size={12} className="opacity-50" />}
+                                {job.isPostedOnWebsite ? "Posted" : "Not Posted"}
+                              </button>
+                          </td>
+                          <td className="px-5 py-4 text-center">
+                            <button
+                              type="button"
+                              onClick={() => openEditJobModal(job)}
+                              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                             >
-                              {job.isPostedOnWebsite ? <Globe size={12} /> : <Globe size={12} className="opacity-50" />}
-                              {job.isPostedOnWebsite ? "Posted" : "Not Posted"}
+                              <AlignLeft size={12} />
+                              Edit
                             </button>
                           </td>
                         </tr>
@@ -1633,7 +1840,7 @@ export default function HRRecruitmentPage() {
                   <ChevronDown size={14} className={`transition-transform ${isBulkUploadInstructionsOpen ? "rotate-180" : ""}`} />
                 </summary>
                 <div className="px-4 pb-4 text-[11px] leading-6 text-slate-600 space-y-2 border-t border-slate-200/70">
-                  <p>Template fields: jobCode, title, designation, department, employmentType, vacancyTotal, vacancyFilled, isPaid, internshipDurationMonths, description, isActive.</p>
+                    <p>Template fields: jobCode, title, designation, department, employmentType, vacancyTotal, vacancyFilled, isPaid, internshipDurationMonths, aboutTheJob, location, workMode, keyResponsibilities, requirements, softSkills, isActive.</p>
                   <p>Leave jobCode empty if you want the backend to generate it. Leave designation empty if you want it to follow title.</p>
                   <p>Use true or false for boolean values. Keep one job opening per row. Do not add extra columns.</p>
                 </div>
@@ -1673,26 +1880,33 @@ export default function HRRecruitmentPage() {
       />
 
       {/* Add Candidate Modal */}
-      <AddCandidateModal
-        open={isCandidateModalOpen}
-        onClose={() => { setIsCandidateModalOpen(false); setNewCandidate(EMPTY_CANDIDATE); }}
-        onSave={handleAddCandidate}
-        form={newCandidate}
-        setForm={setNewCandidate}
-        jobOpenings={jobOpenings}
-        departments={DEPARTMENTS}
-        isSaving={isSavingCandidate}
-      />
+      {mode !== "careers" && (
+        <AddCandidateModal
+          open={isCandidateModalOpen}
+          onClose={() => { setIsCandidateModalOpen(false); setNewCandidate(EMPTY_CANDIDATE); }}
+          onSave={handleAddCandidate}
+          form={newCandidate}
+          setForm={setNewCandidate}
+          jobOpenings={jobOpenings}
+          departments={DEPARTMENTS}
+          isSaving={isSavingCandidate}
+        />
+      )}
 
-      {/* Publish Job Modal */}
-      <AddJobModal
-        open={isJobModalOpen}
-        onClose={() => { setIsJobModalOpen(false); setNewJob(EMPTY_JOB); }}
-        onSave={handleAddJob}
-        form={newJob}
-        setForm={setNewJob}
-        departments={DEPARTMENTS}
-      />
+      {mode !== "careers" && (
+        <>
+          {/* Publish Job Modal */}
+          <AddJobModal
+            open={isJobModalOpen}
+            onClose={() => { setIsJobModalOpen(false); setNewJob(EMPTY_JOB); setEditingJobCode(""); }}
+            onSave={handleAddJob}
+            form={newJob}
+            setForm={setNewJob}
+            departments={DEPARTMENTS}
+            mode={editingJobCode ? "edit" : "create"}
+          />
+        </>
+      )}
     </div>
   );
 }

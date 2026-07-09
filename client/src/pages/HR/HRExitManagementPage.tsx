@@ -105,7 +105,7 @@ interface ManagerProfile {
 
 /* ───────────────────────────── Constants ───────────────────────────── */
 
-const FALLBACK_DEPARTMENTS = ["HR", "Administration", "Finance", "Sales & CRM", "Tech", "IT", "Maintenance"];
+const FALLBACK_DEPARTMENTS = ["HR", "Administration", "Finance", "Sales", "Tech", "IT", "Maintenance"];
 
 const defaultOverview: ExitManagementOverview = {
   exitRequests: [],
