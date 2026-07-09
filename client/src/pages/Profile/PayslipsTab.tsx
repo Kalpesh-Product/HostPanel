@@ -1,67 +1,103 @@
-import React, { useEffect, useState } from "react";
-import { FileText, Download, Eye, Search } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Download, Eye, FileText, Search } from "lucide-react";
 import { getMyPayslips } from "../../services/finance";
 
-interface Payslip {
-  id?: string;
-  payslipNumber?: string;
-  month?: string;
-  year?: string;
-  cycleKey?: string;
-  netPay?: number;
-  grossPay?: number;
-  totalDeductions?: number;
-  status?: string;
-  generatedAt?: string;
-  sentToEmployeeAt?: string;
-  fileName?: string;
+function formatCurrency(value = 0, currency = "INR"): string {
+  try {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: String(currency || "INR").trim().toUpperCase() || "INR",
+      maximumFractionDigits: 0,
+    }).format(Number(value || 0));
+  } catch {
+    return `${currency} ${Number(value || 0).toLocaleString("en-IN")}`;
+  }
 }
 
-function formatCurrency(amount?: number): string {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency", currency: "INR", maximumFractionDigits: 0,
-  }).format(amount || 0);
-}
-
-function formatDate(dateStr?: string): string {
-  if (!dateStr) return "-";
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "-";
+function formatDate(value: string | undefined): string {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+interface PayslipRecord {
+  id?: string;
+  fileName?: string;
+  amount?: number;
+  currency?: string;
+  grossPay?: number;
+  totalDeductions?: number;
+  netPay?: number;
+  monthLabel?: string;
+  year?: string;
+  cycleKey?: string;
+  generatedAt?: string;
+  sentToEmployeeAt?: string;
+  fileUrl?: string;
+  emailDeliveryStatus?: string;
+}
+
 export function PayslipsTab() {
-  const [payslips, setPayslips] = useState<Payslip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [payslips, setPayslips] = useState<PayslipRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     let mounted = true;
     setIsLoading(true);
+
     (async () => {
       try {
-        const data = await getMyPayslips();
+        const response = await getMyPayslips();
         if (!mounted) return;
-        setPayslips(Array.isArray(data) ? data : data?.payslips || []);
-      } catch {
-        if (mounted) setPayslips([]);
+        const data = response || {};
+        const list = Array.isArray(data.payslips) ? data.payslips : Array.isArray(data) ? data : [];
+        setPayslips(list);
+      } catch (err: unknown) {
+        if (mounted) {
+          setErrorMessage((err as Error)?.message || "Failed to load payslips");
+          setPayslips([]);
+        }
       } finally {
         if (mounted) setIsLoading(false);
       }
     })();
+
     return () => { mounted = false; };
   }, []);
 
-  const filtered = payslips.filter((p) =>
-    !searchQuery.trim() ||
-    (p.cycleKey || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (p.month || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (p.year || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (p.payslipNumber || "").toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    if (!searchQuery.trim()) return payslips;
+    const q = searchQuery.toLowerCase();
+    return payslips.filter((p) =>
+      (p.cycleKey || "").toLowerCase().includes(q) ||
+      (p.monthLabel || "").toLowerCase().includes(q) ||
+      (p.year || "").toLowerCase().includes(q) ||
+      (p.fileName || "").toLowerCase().includes(q)
+    );
+  }, [payslips, searchQuery]);
+
+  const openPayslip = (p: PayslipRecord) => {
+    if (!p.fileUrl) return;
+    window.open(p.fileUrl, "_blank", "noopener,noreferrer");
+  };
+
+  const downloadPayslip = (p: PayslipRecord) => {
+    if (!p.fileUrl) return;
+    const link = document.createElement("a");
+    link.href = p.fileUrl;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.download = p.fileName || "Payslip.pdf";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
 
   return (
-    <div>
+    <div className="border-default border-borderGray rounded-xl bg-white p-4">
       <div className="flex items-center justify-between pb-4">
         <span className="text-title font-pmedium text-primary uppercase">My Payslips</span>
       </div>
@@ -83,6 +119,8 @@ export function PayslipsTab() {
             <div key={i} className="h-20 bg-white rounded-xl border border-slate-100 animate-pulse" />
           ))}
         </div>
+      ) : errorMessage ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{errorMessage}</div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-xl border border-slate-100">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-50 mb-4 border border-slate-100">
@@ -97,42 +135,51 @@ export function PayslipsTab() {
             <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
               <tr>
                 <th className="px-6 py-4">Period</th>
-                <th className="px-6 py-4 text-right">Gross Pay</th>
-                <th className="px-6 py-4 text-right">Deductions</th>
-                <th className="px-6 py-4 text-right">Net Pay</th>
+                <th className="px-6 py-4">File Name</th>
+                <th className="px-6 py-4 text-right">Amount</th>
                 <th className="px-6 py-4 text-center">Status</th>
                 <th className="px-6 py-4 text-center">Generated</th>
+                <th className="px-6 py-4 text-center">Sent</th>
                 <th className="px-6 py-4 text-center">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100/60">
               {filtered.map((p) => (
-                <tr key={p.id || p.cycleKey} className="hover:bg-blue-50/30 transition-all group">
+                <tr key={p.id || p.cycleKey || p.fileName} className="hover:bg-blue-50/30 transition-all group">
                   <td className="px-6 py-4">
-                    <div className="font-semibold text-slate-900 text-sm">{p.cycleKey || `${p.month} ${p.year}`}</div>
-                    <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mt-0.5">{p.payslipNumber}</div>
+                    <div className="font-semibold text-slate-900 text-sm">{p.cycleKey || `${p.monthLabel || ""} ${p.year || ""}`.trim() || "-"}</div>
                   </td>
-                  <td className="px-6 py-4 text-right font-semibold text-slate-900">{formatCurrency(p.grossPay)}</td>
-                  <td className="px-6 py-4 text-right font-semibold text-red-500">{formatCurrency(p.totalDeductions)}</td>
-                  <td className="px-6 py-4 text-right font-semibold text-blue-600 text-base">{formatCurrency(p.netPay)}</td>
+                  <td className="px-6 py-4">
+                    <span className="text-[13px] font-medium text-slate-700">{p.fileName || "-"}</span>
+                  </td>
+                  <td className="px-6 py-4 text-right font-semibold text-slate-900">{formatCurrency(p.amount, p.currency)}</td>
                   <td className="px-6 py-4 text-center">
                     <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider border ${
-                      p.sentToEmployeeAt
+                      p.emailDeliveryStatus === "Sent"
                         ? "bg-green-50 text-green-600 border-green-200"
                         : p.generatedAt
                           ? "bg-blue-50 text-blue-600 border-blue-200"
                           : "bg-amber-50 text-amber-600 border-amber-200"
                     }`}>
-                      {p.sentToEmployeeAt ? "Sent" : p.generatedAt ? "Generated" : "Pending"}
+                      {p.emailDeliveryStatus === "Sent" ? "Sent" : p.generatedAt ? "Generated" : "Pending"}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center text-xs font-medium text-slate-600">{formatDate(p.generatedAt)}</td>
+                  <td className="px-6 py-4 text-center text-xs font-medium text-slate-600">{formatDate(p.sentToEmployeeAt)}</td>
                   <td className="px-6 py-4 text-center">
                     <div className="flex items-center justify-center gap-2">
-                      <button className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-lg text-[10px] font-semibold uppercase transition-all flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openPayslip(p)}
+                        className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-lg text-[10px] font-semibold uppercase transition-all flex items-center gap-1"
+                      >
                         <Eye size={12} /> View
                       </button>
-                      <button className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-lg text-[10px] font-semibold uppercase transition-all flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => downloadPayslip(p)}
+                        className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-lg text-[10px] font-semibold uppercase transition-all flex items-center gap-1"
+                      >
                         <Download size={12} /> PDF
                       </button>
                     </div>
@@ -146,3 +193,5 @@ export function PayslipsTab() {
     </div>
   );
 }
+
+export default PayslipsTab;

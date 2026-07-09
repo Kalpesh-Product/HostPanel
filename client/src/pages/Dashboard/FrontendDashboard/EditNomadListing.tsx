@@ -12,8 +12,6 @@ import {
   ListItemText,
 } from "@mui/material";
 import PageFrame from "../../../components/Pages/PageFrame";
-import PrimaryButton from "../../../components/PrimaryButton";
-import SecondaryButton from "../../../components/SecondaryButton";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
@@ -479,7 +477,7 @@ const EditNomadListing = () => {
                   <button
                     type="button"
                     onClick={() => removeReview(index)}
-                    className="text-sm text-red-500"
+                    className="text-red-500 hover:text-red-700 text-xs font-semibold"
                   >
                     Remove
                   </button>
@@ -539,7 +537,7 @@ const EditNomadListing = () => {
               <button
                 type="button"
                 onClick={() => appendReview({ ...defaultReview })}
-                className="text-sm text-primary"
+                className="text-[#2563EB] text-sm font-semibold hover:underline inline-flex items-center gap-1"
               >
                 + Add Review
               </button>
@@ -548,17 +546,17 @@ const EditNomadListing = () => {
 
           {/* Submit / Reset */}
           <div className="col-span-2 flex items-center justify-center gap-4">
-            <PrimaryButton
+            <button
               type="submit"
-              title={isSaving ? "Submitting..." : "Submit"}
-              isPending={isSaving}
               disabled={isSaving}
-            />
-            {/* <SecondaryButton handleSubmit={handleReset} title="Reset" /> */}
+              className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {isSaving ? "Submitting..." : "Submit"}
+            </button>
             <button
               type="button"
               onClick={resetFormToEmpty}
-              className="px-6 py-2 bg-gray-200 text-black rounded-md"
+              className="px-8 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50"
             >
               Reset
             </button>

@@ -9,13 +9,9 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
-  Tabs,
-  Tab,
 } from "@mui/material";
 import PageFrame from "../../../../components/Pages/PageFrame";
-import PrimaryButton from "../../../../components/PrimaryButton";
-import SecondaryButton from "../../../../components/SecondaryButton";
+
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
@@ -175,37 +171,43 @@ const AddFieldPanel = ({ onAdd }: { onAdd: (field: any) => void }) => {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+          className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
         >
           Add Field
         </button>
       ) : (
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-          <select
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <TextField
+            select
+            size="small"
+            label="Field Type"
             value={fieldType}
             onChange={(event) => setFieldType(event.target.value)}
-            className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-xs outline-none"
+            fullWidth
           >
             {CAREERS_FORM_FIELD_TYPES.map((fieldTypeOption) => (
-              <option key={fieldTypeOption.value} value={fieldTypeOption.value}>
+              <MenuItem key={fieldTypeOption.value} value={fieldTypeOption.value}>
                 {fieldTypeOption.label}
-              </option>
+              </MenuItem>
             ))}
-          </select>
-          <input
-            type="text"
+          </TextField>
+          <TextField
+            size="small"
+            label="Field Label"
             value={label}
             onChange={(event) => setLabel(event.target.value)}
             placeholder="Field label"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs outline-none"
+            fullWidth
           />
           {fieldType === "select" ? (
-            <input
-              type="text"
+            <TextField
+              size="small"
+              label="Options"
               value={options}
               onChange={(event) => setOptions(event.target.value)}
               placeholder="Options separated by commas"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-xs outline-none md:col-span-2"
+              fullWidth
+              sx={{ gridColumn: { md: "span 2" } }}
             />
           ) : null}
           <label className="flex items-center gap-2 text-xs text-slate-600">
@@ -213,6 +215,7 @@ const AddFieldPanel = ({ onAdd }: { onAdd: (field: any) => void }) => {
               type="checkbox"
               checked={required}
               onChange={(event) => setRequired(event.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 accent-slate-800"
             />
             Required
           </label>
@@ -221,6 +224,7 @@ const AddFieldPanel = ({ onAdd }: { onAdd: (field: any) => void }) => {
               type="checkbox"
               checked={fullWidth}
               onChange={(event) => setFullWidth(event.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 accent-slate-800"
             />
             Full width
           </label>
@@ -228,7 +232,7 @@ const AddFieldPanel = ({ onAdd }: { onAdd: (field: any) => void }) => {
             <button
               type="button"
               onClick={handleAdd}
-              className="rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
+              className="px-4 py-2 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all"
             >
               Add Field
             </button>
@@ -238,7 +242,7 @@ const AddFieldPanel = ({ onAdd }: { onAdd: (field: any) => void }) => {
                 reset();
                 setOpen(false);
               }}
-              className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700"
+              className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
             >
               Cancel
             </button>
@@ -2597,21 +2601,44 @@ const CreateWebsite = () => {
             >
           <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 min-w-0 overflow-hidden">
             <p className="text-sm font-semibold text-slate-800">Website Pages</p>
-            <Tabs
-              className="mt-2"
-              value={Math.min(activeMainPageTab, Math.max(pageNavFields.length - 1, 0))}
-              onChange={(_, next) => setActiveMainPageTab(next)}
-              variant="scrollable"
-              scrollButtons="auto"
-              sx={{ maxWidth: "100%" }}
-            >
-              {pageNavFields.map((item, index) => (
-                <Tab
-                  key={item.id}
-                  label={watch(`pageNavItems.${index}.name`) || `Page ${index + 1}`}
-                />
-              ))}
-            </Tabs>
+            <div className="mt-2 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+              {pageNavFields.map((item, index) => {
+                const tabSlug = String(watch(`pageNavItems.${index}.slug`) || "").trim().toLowerCase();
+                const isCareersTab = tabSlug === "careers";
+                const isLocked = isCareersTab && !hasExistingWebsite;
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      if (isLocked) {
+                        toast.error("Please create your website first to unlock the Careers page settings.");
+                        return;
+                      }
+                      setActiveMainPageTab(index);
+                    }}
+                    className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+                      isLocked
+                        ? "opacity-50 cursor-not-allowed bg-slate-100 text-slate-400"
+                        : activeMainPageTab === index
+                          ? "bg-[#2563EB] text-white shadow-sm"
+                          : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-1.5">
+                      {isLocked ? (
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                      ) : null}
+                      {watch(`pageNavItems.${index}.name`) || `Page ${index + 1}`}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
 
             {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
               .trim()
@@ -2658,7 +2685,7 @@ const CreateWebsite = () => {
                     </TextField>
                     <button
                       type="button"
-                      className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700"
+                      className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
                       onClick={() => {
                         const optionName = String(selectedProductPageOption || "").trim();
                         if (!optionName) return;
@@ -2704,7 +2731,7 @@ const CreateWebsite = () => {
                     </button>
                     <button
                       type="button"
-                      className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700"
+                      className="px-3 py-1.5 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all"
                       onClick={() => {
                         const newPageNumber = (values?.productDropdownPages || []).length + 1;
                         const newName = `Product ${newPageNumber}`;
@@ -2745,20 +2772,22 @@ const CreateWebsite = () => {
                 </p>
                 {productPageFields.length > 0 ? (
                   <>
-                    <Tabs
-                      value={Math.min(activeProductPageTab, Math.max(productPageFields.length - 1, 0))}
-                      onChange={(_, next) => setActiveProductPageTab(next)}
-                      variant="scrollable"
-                      scrollButtons="auto"
-                      sx={{ maxWidth: "100%" }}
-                    >
+                    <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
                       {productPageFields.map((item, index) => (
-                        <Tab
+                        <button
                           key={item.id}
-                          label={watch(`productDropdownPages.${index}.name`) || `Product Page ${index + 1}`}
-                        />
+                          type="button"
+                          onClick={() => setActiveProductPageTab(index)}
+                          className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+                            activeProductPageTab === index
+                              ? "bg-[#2563EB] text-white shadow-sm"
+                              : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                          }`}
+                        >
+                          {watch(`productDropdownPages.${index}.name`) || `Product Page ${index + 1}`}
+                        </button>
                       ))}
-                    </Tabs>
+                    </div>
                     {productPageFields[activeProductPageTab] ? (
                       <div className="mt-3 grid grid-cols-1 gap-3">
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -3015,7 +3044,7 @@ const CreateWebsite = () => {
                                       <button
                                         type="button"
                                         onClick={() => removeProduct(index)}
-                                        className="text-sm text-red-600"
+                                        className="text-red-500 hover:text-red-700 text-xs font-semibold transition-all"
                                       >
                                         Remove
                                       </button>
@@ -3098,7 +3127,7 @@ const CreateWebsite = () => {
                                 <button
                                   type="button"
                                   onClick={() => appendProduct({ ...defaultProduct })}
-                                  className="w-fit text-sm text-primary"
+                                  className="text-[#2563EB] text-sm font-semibold hover:underline inline-flex items-center gap-1 transition-all w-fit"
                                 >
                                   + Add Product
                                 </button>
@@ -3262,7 +3291,7 @@ const CreateWebsite = () => {
                       <button
                         type="button"
                         onClick={() => appendAbout({ text: "" })}
-                        className="w-fit text-sm text-primary"
+                        className="text-[#2563EB] text-sm font-semibold hover:underline inline-flex items-center gap-1 transition-all w-fit"
                       >
                         + Add Shared Paragraph
                       </button>
@@ -3338,7 +3367,7 @@ const CreateWebsite = () => {
                           <div className="mb-3 flex items-center justify-between">
                             <span className="text-sm font-semibold text-slate-700">Founder {index + 1}</span>
                             {founderFields.length > 1 ? (
-                              <button type="button" className="text-sm text-red-600" onClick={() => removeFounder(index)}>
+                              <button type="button" className="text-red-500 hover:text-red-700 text-xs font-semibold transition-all" onClick={() => removeFounder(index)}>
                                 Remove
                               </button>
                             ) : null}
@@ -3411,7 +3440,7 @@ const CreateWebsite = () => {
                       <button
                         type="button"
                         onClick={() => appendFounder({ name: "", role: "", bio: "", highlights: "", image: null })}
-                        className="w-fit text-sm text-primary"
+                        className="text-[#2563EB] text-sm font-semibold hover:underline inline-flex items-center gap-1 transition-all w-fit"
                       >
                         + Add Founder
                       </button>
@@ -3478,7 +3507,7 @@ const CreateWebsite = () => {
                           {aboutImageCardFields.length > 1 ? (
                             <button
                               type="button"
-                              className="mt-3 text-sm text-red-600"
+                              className="mt-3 text-red-500 hover:text-red-700 text-xs font-semibold transition-all"
                               onClick={() => removeAboutImageCard(index)}
                             >
                               Remove Card
@@ -3766,10 +3795,11 @@ const CreateWebsite = () => {
                             name={`careersFormFields.${index}.label`}
                             control={control}
                             render={({ field: labelField }) => (
-                              <input
+                              <TextField
                                 {...labelField}
+                                size="small"
                                 placeholder="Field label"
-                                className="min-w-0 flex-1 rounded-md border border-slate-200 px-2 py-1 text-xs outline-none"
+                                fullWidth
                               />
                             )}
                           />
@@ -3778,7 +3808,7 @@ const CreateWebsite = () => {
                               type="button"
                               disabled={index === 0}
                               onClick={() => moveCareersField(index, index - 1)}
-                              className="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                              className="px-2 py-1 bg-white border border-slate-200 text-slate-600 rounded-lg font-bold text-[10px] hover:bg-slate-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                               aria-label={`Move ${field.label || field.type} up`}
                             >
                               ↑
@@ -3787,7 +3817,7 @@ const CreateWebsite = () => {
                               type="button"
                               disabled={index === careersFieldItems.length - 1}
                               onClick={() => moveCareersField(index, index + 1)}
-                              className="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                              className="px-2 py-1 bg-white border border-slate-200 text-slate-600 rounded-lg font-bold text-[10px] hover:bg-slate-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                               aria-label={`Move ${field.label || field.type} down`}
                             >
                               ↓
@@ -3796,7 +3826,7 @@ const CreateWebsite = () => {
                           <button
                             type="button"
                             onClick={() => removeCareersField(index)}
-                            className="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                            className="px-3 py-1.5 bg-white border border-slate-200 text-red-500 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
                           >
                             Remove
                           </button>
@@ -4173,7 +4203,7 @@ const CreateWebsite = () => {
                       <button
                         type="button"
                         onClick={() => removeAbout(index)}
-                        className="text-sm text-red-600"
+                        className="text-red-500 hover:text-red-700 text-xs font-semibold transition-all"
                       >
                         Remove
                       </button>
@@ -4206,7 +4236,7 @@ const CreateWebsite = () => {
                   <button
                     type="button"
                     onClick={() => appendAbout({ text: "" })}
-                    className="text-sm text-primary"
+                    className="text-[#2563EB] text-sm font-semibold hover:underline inline-flex items-center gap-1 transition-all"
                   >
                     + Add Para
                   </button>
@@ -4400,7 +4430,7 @@ const CreateWebsite = () => {
                         </div>
                       ))}
                       {faqs.length < 10 ? (
-                        <button type="button" onClick={addFaq} className="w-fit text-sm text-primary font-medium">+ Add FAQ</button>
+                        <button type="button" onClick={addFaq} className="text-[#2563EB] text-sm font-semibold hover:underline inline-flex items-center gap-1 transition-all w-fit">+ Add FAQ</button>
                       ) : (
                         <p className="text-xs text-slate-400">Maximum 10 FAQs reached.</p>
                       )}
@@ -4447,7 +4477,7 @@ const CreateWebsite = () => {
                       <button
                         type="button"
                         onClick={() => removeProduct(index)}
-                        className="text-sm text-red-600"
+                        className="text-red-500 hover:text-red-700 text-xs font-semibold transition-all"
                       >
                         Remove
                       </button>
@@ -4566,7 +4596,7 @@ const CreateWebsite = () => {
                   <button
                     type="button"
                     onClick={() => appendProduct({ ...defaultProduct })}
-                    className="text-sm text-primary"
+                    className="text-[#2563EB] text-sm font-semibold hover:underline inline-flex items-center gap-1 transition-all"
                   >
                     + Add Product
                   </button>
@@ -4684,7 +4714,7 @@ const CreateWebsite = () => {
                       <button
                         type="button"
                         onClick={() => removeTestimonial(index)}
-                        className="text-sm text-red-600"
+                        className="text-red-500 hover:text-red-700 text-xs font-semibold transition-all"
                       >
                         Remove
                       </button>
@@ -4797,7 +4827,7 @@ const CreateWebsite = () => {
                   <button
                     type="button"
                     onClick={() => appendTestimonial({ ...defaultTestimonial })}
-                    className="text-sm text-primary"
+                    className="text-[#2563EB] text-sm font-semibold hover:underline inline-flex items-center gap-1 transition-all"
                   >
                     + Add Testimonial
                   </button>
@@ -5065,25 +5095,32 @@ const CreateWebsite = () => {
                 ) : null}
               </div>
               <div className="flex items-center justify-center gap-4">
-                <SecondaryButton
+                <button
                   type="button"
-                  title="Preview"
                   onClick={openPreview}
-                />
+                  className="px-8 py-2.5 bg-green-500 border border-slate-200 text-white rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-green-600 transition-all"
+                >
+                  Preview
+                </button>
                 <button
                   type="button"
                   onClick={resetFormToEmpty}
-                  className="px-8 py-1.5 bg-gray-200 text-black rounded-md"
+                  className="px-8 py-2.5 bg-red-500 border border-slate-200 text-slate-100 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-red-600 transition-all"
                 >
                   Reset
                 </button>
-                <PrimaryButton
+                <button
                   type="button"
-                  title={effectiveEditMode ? "Submit" : "Publish"}
                   onClick={() => setShowConfirmPopup(true)}
-                  isLoading={isWebsiteSubmitting}
                   disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
-                />
+                  className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
+                >
+                  {isWebsiteSubmitting ? (
+                    <>{effectiveEditMode ? "Submitting..." : "Publishing..."}</>
+                  ) : (
+                    <>{effectiveEditMode ? "Submit" : "Publish"}</>
+                  )}
+                </button>
               </div>
               {publishedWebsiteUrl ? (
                 <div className="mt-3 text-center">
@@ -5142,37 +5179,18 @@ const CreateWebsite = () => {
                 </div>
               </DialogContent>
               <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-                <Button
+                <button
+                  type="button"
                   onClick={() => setShowConfirmPopup(false)}
                   disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
-                  sx={{
-                    borderRadius: "6px",
-                    textTransform: "none",
-                    px: 3,
-                    py: 1,
-                    backgroundColor: "#e5e7eb",
-                    color: "#111111",
-                    "&:hover": {
-                      backgroundColor: "#d1d5db",
-                    },
-                  }}
+                  className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all disabled:opacity-50"
                 >
                   Cancel
-                </Button>
-                <Button
-                  variant="contained"
+                </button>
+                <button
+                  type="button"
                   disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
-                  sx={{
-                    borderRadius: "6px",
-                    textTransform: "none",
-                    px: 3,
-                    py: 1,
-                    backgroundColor: "#2563eb",
-                    color: "#ffffff",
-                    "&:hover": {
-                      backgroundColor: "#1d4ed8",
-                    },
-                  }}
+                  className="px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                   onClick={() => {
                     if (isWebsiteSubmitting || isRedirectingAfterCreate) return;
                     setShowConfirmPopup(false);
@@ -5188,7 +5206,7 @@ const CreateWebsite = () => {
                     : effectiveEditMode
                       ? "Confirm & Submit"
                       : "Confirm & Publish"}
-                </Button>
+                </button>
               </DialogActions>
             </Dialog>
           </div>

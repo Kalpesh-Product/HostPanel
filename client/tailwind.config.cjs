@@ -12,6 +12,7 @@ module.exports = {
       },
       colors: {
         primary: '#1E3D73',
+        accent: '#2563EB',
         wonoGreen : "#80bf01",
         borderGray: '#d1d5db',
         successGreen : "#BAE4C9"
