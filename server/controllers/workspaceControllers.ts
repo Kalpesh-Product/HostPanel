@@ -63,6 +63,10 @@ const buildAuthUserPayload = (
   workspaceCount = 1,
 ) => ({
   ...user,
+  companyId: company?.companyId || user?.companyId,
+  effectiveNomadsCompanyId:
+    company?.linkedNomadsCompanyId || company?.companyId || user?.companyId,
+  companiesListingRequested: Boolean(company?.companiesListingRequestedAt),
   companyName: company?.companyName,
   logo: company?.logo,
   isWebsiteTemplate: company?.isWebsiteTemplate,

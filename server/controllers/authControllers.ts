@@ -191,6 +191,13 @@ const buildAuthUserPayload = (
   hasCompletedWorkspaceSetupOverride: boolean | null = null,
 ) => ({
   ...user,
+  companyId: company?.companyId || user?.companyId,
+  // If staff have linked this Host Company to an existing Nomads company
+  // (via Transfer), Nomads listing reads/writes should go through that
+  // company instead of creating a separate, disconnected record.
+  effectiveNomadsCompanyId:
+    company?.linkedNomadsCompanyId || company?.companyId || user?.companyId,
+  companiesListingRequested: Boolean(company?.companiesListingRequestedAt),
   companyName: company?.companyName,
   logo: company?.logo,
   isWebsiteTemplate: company?.isWebsiteTemplate,
