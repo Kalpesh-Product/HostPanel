@@ -1110,7 +1110,7 @@ export const inviteOrganizationMember = async (req, res, next) => {
       ...managerOrgGrantIds,
     ]);
 
-    await WorkspaceMember.findOneAndUpdate(
+    const workspaceMember = await WorkspaceMember.findOneAndUpdate(
       { workspace: workspace._id, user: targetUser._id },
       {
         $set: {

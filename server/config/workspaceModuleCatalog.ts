@@ -240,6 +240,15 @@ export const getAllModuleIds = (): string[] => {
       }
     }
   }
+  // Organization Management sub-permission ids (org_tab_users,
+  // org_users_invite_member, etc.) only exist as flat entries in
+  // BASIC_DEFAULT_IDS/PROFESSIONAL_DEFAULT_IDS, never as MODULE_GROUPS tree
+  // nodes, so the walk above misses them. Without this, owner/super_admin
+  // (whose "full access" is computed from this function) never actually get
+  // org_users_invite_member in their granted list, so the Organization
+  // Management "Add User" button shows disabled for them on the frontend.
+  BASIC_DEFAULT_IDS.forEach((id) => ids.add(id));
+  PROFESSIONAL_DEFAULT_IDS.forEach((id) => ids.add(id));
   return Array.from(ids);
 };
 
@@ -262,6 +271,13 @@ const BASIC_DEFAULT_IDS = new Set([
   "customer-support",
   "visitor-management",
   "visitors-management",
+  "visitors_manage_internal_visitors",
+  // Visitor Management start page (VisitorManagement.tsx) grants: Standard
+  // visitor logging only, matching Basic = "Standard" visitor access.
+  "visitors_tab_daily",
+  "visitors_tab_history",
+  "visitors_mode_standard",
+  "visitors_standard_type_standard",
   "wono-nomad",
   "website-builder",
   "tech-website-builder",
@@ -282,6 +298,16 @@ const BASIC_DEFAULT_IDS = new Set([
 
 const PROFESSIONAL_DEFAULT_IDS = new Set([
   ...Array.from(BASIC_DEFAULT_IDS),
+  "visitors_manage_external_clients",
+  // Complete Visitor Management access: the rest of the start-page tabs and
+  // New Frontdesk Action modes/subtabs, on top of Basic's Standard-only set.
+  "visitors_tab_bookings",
+  "visitors_tab_clients",
+  "visitors_mode_workspace_tour",
+  "visitors_mode_walkin_booking",
+  "visitors_mode_verify_booking",
+  "visitors_standard_type_department",
+  "visitors_standard_type_tenant",
   "tickets",
   "meeting-room-system",
   "calendar",

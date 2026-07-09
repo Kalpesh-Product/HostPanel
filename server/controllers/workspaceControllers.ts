@@ -11,7 +11,6 @@ import {
   getEffectiveEnabledModuleIds,
   COMMON_MODULE_IDS,
   EXTRA_COMMON_MODULE_IDS,
-  getAllModuleIds,
 } from "../config/workspaceModuleCatalog.js";
 import { ensureEmployeeProfileForMember } from "../services/core/hr.service.js";
 
@@ -687,7 +686,14 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
     let baseModules: string[] = [];
 
     if (roleBand === "owner" || roleBand === "super_admin") {
-      baseModules = getAllModuleIds();
+      // Plan-gated features are capped by the workspace's own plan
+      // (enabledModuleIds) — a Basic-plan owner/super_admin should not see
+      // Professional-only features just because of their role. Org-management
+      // / role-capability ids (invite member, access grants, departments tab,
+      // etc.) are already part of every plan's default set (see
+      // BASIC_DEFAULT_IDS in workspaceModuleCatalog.ts), so they stay
+      // available without needing a separate always-on bypass here.
+      baseModules = enabledModuleIds;
     } else if (roleBand === "admin" || roleBand === "manager") {
       // Collect dept modules from assigned departments (WorkspaceMember.departments)
       const assignedDeptIds = Array.isArray(currentMember?.departments)

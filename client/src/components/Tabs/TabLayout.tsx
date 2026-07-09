@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import useIsMobile from "../../hooks/useIsMobile";
-import useAuth from "../../hooks/useAuth";
+import useModuleAccessMap from "../../hooks/useModuleAccessMap";
 import { Lock } from "lucide-react";
 
 interface TabItem {
@@ -31,18 +31,17 @@ const TabLayout = ({
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile(768);
-  const { auth } = useAuth();
-
-  const rawPermissions = (auth?.user as any)?.permissions?.permissions;
-  const userPermissions = useMemo(() => rawPermissions || [], [rawPermissions]);
+  const { grantedModules, isLoading: isLoadingAccess } = useModuleAccessMap();
 
   const tabsWithAccess = useMemo(
     () =>
       tabs.map((tab) => ({
         ...tab,
-        locked: Boolean(tab.permission && !userPermissions.includes(tab.permission)),
+        // While the access map is still loading, treat tabs as unlocked so
+        // they don't flash locked-then-unlocked on every page load.
+        locked: Boolean(tab.permission) && !isLoadingAccess && !grantedModules.has(String(tab.permission)),
       })),
-    [tabs, userPermissions],
+    [tabs, grantedModules, isLoadingAccess],
   );
 
   const filteredTabs = useMemo(() => {
