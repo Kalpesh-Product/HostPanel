@@ -1,0 +1,48 @@
+import { useEffect, useMemo, useState } from "react";
+import useAxiosPrivate from "./useAxiosPrivate";
+
+/**
+ * Fetches the current member's granted module ids from
+ * GET /api/workspaces/module-access-map (the same source OrganizationPage.tsx
+ * and Sidebar.tsx already use for plan/role-based access). This is the real
+ * grant list — founder/super_admin get every id via the server's
+ * getAllModuleIds() bypass, admin/manager get their department's modules,
+ * employees get the common baseline, all merged with any explicit grants.
+ */
+export default function useModuleAccessMap() {
+  const axiosPrivate = useAxiosPrivate();
+  const [grantedModules, setGrantedModules] = useState<Set<string>>(new Set());
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const response = await axiosPrivate.get("/api/workspaces/module-access-map");
+        const ids = Array.isArray(response?.data?.data?.currentMemberGrantedModules)
+          ? response.data.data.currentMemberGrantedModules
+          : [];
+        if (isMounted) {
+          setGrantedModules(new Set(ids.map((id: any) => String(id || "").trim()).filter(Boolean)));
+        }
+      } catch (error) {
+        if (isMounted) setGrantedModules(new Set());
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [axiosPrivate]);
+
+  const hasModuleAccess = useMemo(
+    () => (permission?: string) => {
+      if (!permission) return true;
+      return grantedModules.has(String(permission).trim());
+    },
+    [grantedModules],
+  );
+
+  return { grantedModules, hasModuleAccess, isLoading };
+}

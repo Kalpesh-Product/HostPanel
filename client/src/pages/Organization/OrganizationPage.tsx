@@ -244,7 +244,7 @@ export function OrganizationPage() {
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [transferredTeamMembers, setTransferredTeamMembers] = useState<TeamMember[]>([]);
-  const [, setWorkspacePlan] = useState('basic');
+  const [workspacePlan, setWorkspacePlan] = useState('basic');
   const [availableCoreModules, setAvailableCoreModules] = useState<CoreModuleOption[]>([]);
   const [newDepartmentForm, setNewDepartmentForm] = useState({
     name: '',
@@ -539,10 +539,55 @@ export function OrganizationPage() {
     hasOrgModuleAccess && currentMemberGrantedKeys.has('org-departments-assign-acting-manager');
   const canRemoveActingManagerByAccess =
     hasOrgModuleAccess && currentMemberGrantedKeys.has('org-departments-remove-acting-manager');
-  const canAddUserOnCurrentPlan = canAccessUsersTab && canInviteUsersByAccess;
-  const addUserHoverMessage = canAddUserOnCurrentPlan
-    ? 'Invite and onboard instantly'
-    : 'You do not have access to invite users';
+  const isBasicPlanWorkspace = workspacePlan === 'basic';
+  // Mirrors the backend cap in organizationControllers.ts (isBasicPlan block):
+  // Basic plan allows the founder to add exactly one additional user, who must
+  // be Super Admin. Count active (non-disabled) Super Admins the same way the
+  // backend counts WorkspaceMember.isActive super_admin members.
+  const activeSuperAdminCount = teamMembers.filter((member) => {
+    const memberRole = normalizeRoleValue(member.role);
+    const memberStatus = (member.status || '').toLowerCase();
+    return memberRole === 'super-admin' && memberStatus !== 'disabled';
+  }).length;
+  const basicPlanAdditionalUserLimit = 1;
+  const basicPlanLimitReached = isBasicPlanWorkspace && activeSuperAdminCount >= basicPlanAdditionalUserLimit;
+
+  const isProfessionalPlanWorkspace = workspacePlan === 'professional';
+  // Mirrors PROFESSIONAL_PLAN_MAX_USERS in organizationControllers.ts — total
+  // active members (including the founder) capped at 5 on Professional.
+  const professionalPlanMaxUsers = 5;
+  const activeMemberCount = teamMembers.filter(
+    (member) => (member.status || '').toLowerCase() !== 'disabled',
+  ).length;
+  const professionalPlanLimitReached =
+    isProfessionalPlanWorkspace && activeMemberCount >= professionalPlanMaxUsers;
+  // Professional plan only has built-out modules for Administration, Sales,
+  // and Technology departments — HR/Finance/Maintenance/IT are Custom-only
+  // (see workspaceModuleCatalog.ts PROFESSIONAL_DEFAULT_IDS), so restrict
+  // department assignment in Add User to match.
+  const PROFESSIONAL_ALLOWED_DEPARTMENT_NAMES = new Set(['administration', 'sales', 'technology']);
+  const isDepartmentAllowedForPlan = (departmentName = '') =>
+    !isProfessionalPlanWorkspace ||
+    PROFESSIONAL_ALLOWED_DEPARTMENT_NAMES.has(String(departmentName || '').trim().toLowerCase());
+
+  const canAddUserOnCurrentPlan = isBasicPlanWorkspace
+    ? isFounderRole && !basicPlanLimitReached
+    : isProfessionalPlanWorkspace
+      ? canAccessUsersTab && canInviteUsersByAccess && !professionalPlanLimitReached
+      : canAccessUsersTab && canInviteUsersByAccess;
+  const addUserHoverMessage = isBasicPlanWorkspace
+    ? !isFounderRole
+      ? 'Only the founder can add users on the Basic plan.'
+      : basicPlanLimitReached
+        ? `Basic plan limit reached — ${activeSuperAdminCount}/${basicPlanAdditionalUserLimit} additional user added.`
+        : `Add your one allowed Super Admin (${activeSuperAdminCount}/${basicPlanAdditionalUserLimit} used)`
+    : isProfessionalPlanWorkspace
+      ? professionalPlanLimitReached
+        ? `Professional plan limit reached — ${activeMemberCount}/${professionalPlanMaxUsers} users added.`
+        : `Add a user (${activeMemberCount}/${professionalPlanMaxUsers} used)`
+      : canAddUserOnCurrentPlan
+        ? 'Invite and onboard instantly'
+        : 'You do not have access to invite users';
   const workspaceCount = getWorkspaceCount(
     (currentUser as { workspaceCount?: number } | null)?.workspaceCount,
   );
@@ -1086,7 +1131,7 @@ export function OrganizationPage() {
           }`}
           onClick={() => {
             setActiveTab('users');
-            setTeamMemberFormData({ name: '', email: '', role: 'manager', departments: [] });
+            setTeamMemberFormData({ name: '', email: '', role: isBasicPlanWorkspace ? 'super-admin' : 'manager', departments: [] });
             setShowTeamMemberModal(true);
           }}>
           <div className="min-w-0">
@@ -1096,6 +1141,16 @@ export function OrganizationPage() {
               Add User
             </p>
             <p className="text-[10px] font-semibold text-slate-400 mt-1">{addUserHoverMessage}</p>
+            {isBasicPlanWorkspace && (
+              <p className="text-[10px] font-semibold text-slate-400 mt-0.5">
+                {activeSuperAdminCount} of {basicPlanAdditionalUserLimit} additional user added
+              </p>
+            )}
+            {isProfessionalPlanWorkspace && (
+              <p className="text-[10px] font-semibold text-slate-400 mt-0.5">
+                {activeMemberCount} of {professionalPlanMaxUsers} users added
+              </p>
+            )}
           </div>
           <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><UserPlus size={16}/></div>
         </button>
@@ -1142,10 +1197,20 @@ export function OrganizationPage() {
                   ))}
                 </select>
               </div>
+              {isBasicPlanWorkspace && (
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
+                  {activeSuperAdminCount}/{basicPlanAdditionalUserLimit} additional user added
+                </p>
+              )}
+              {isProfessionalPlanWorkspace && (
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
+                  {activeMemberCount}/{professionalPlanMaxUsers} users added
+                </p>
+              )}
               <button
                 title={addUserHoverMessage}
                 onClick={() => {
-                  setTeamMemberFormData({ name: '', email: '', role: 'manager', departments: [] });
+                  setTeamMemberFormData({ name: '', email: '', role: isBasicPlanWorkspace ? 'super-admin' : 'manager', departments: [] });
                   setShowTeamMemberModal(true);
                 }}
                 disabled={!canAddUserOnCurrentPlan}
@@ -2037,14 +2102,19 @@ export function OrganizationPage() {
                             : teamMemberFormData.departments,
                     })
                   }
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
+                  disabled={isBasicPlanWorkspace}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                   <option value="employee">Department Employee</option>
-                   <option value="manager">Department Manager</option>
-                   <option value="admin">Department Admin</option>
+                   <option value="employee" disabled={isBasicPlanWorkspace}>Department Employee</option>
+                   <option value="manager" disabled={isBasicPlanWorkspace}>Department Manager</option>
+                   <option value="admin" disabled={isBasicPlanWorkspace}>Department Admin</option>
                    <option value="super-admin" disabled={!canInviteSuperAdmin}>Super Admin</option>
                 </select>
-                {!canInviteSuperAdmin && (
+                {isBasicPlanWorkspace ? (
+                  <p className="text-[11px] text-amber-600 font-medium">
+                    Basic plan only allows the founder to add one additional user, as Super Admin.
+                  </p>
+                ) : !canInviteSuperAdmin && (
                   <p className="text-[11px] text-amber-600 font-medium">
                     Only the founder can create a new Super Admin account.
                   </p>
@@ -2060,16 +2130,24 @@ export function OrganizationPage() {
                     <p className="text-[11px] text-slate-500 -mt-1">
                       Department managers stay attached to one department. Department admins and employees may cover multiple departments.
                     </p>
+                    {isProfessionalPlanWorkspace && (
+                      <p className="text-[11px] text-amber-600 font-medium -mt-1">
+                        Professional plan only allows Administration, Sales, and Technology departments — upgrade to Custom for the rest.
+                      </p>
+                    )}
                     <div className="flex flex-wrap gap-1.5">
                     {departments.map((dept) => {
                       const isSelected = dept.id ? teamMemberFormData.departments.includes(dept.id) : false;
+                      const isAllowed = isDepartmentAllowedForPlan(dept.name);
                       return (
-                        <button key={dept.id} onClick={() => {
-                            if (teamMemberFormData.role === 'manager') { setTeamMemberFormData({ ...teamMemberFormData, departments: dept.id ? [dept.id] : [] }); } 
+                        <button key={dept.id} disabled={!isAllowed} title={!isAllowed ? 'Not available on Professional plan.' : undefined} onClick={() => {
+                            if (!isAllowed) return;
+                            if (teamMemberFormData.role === 'manager') { setTeamMemberFormData({ ...teamMemberFormData, departments: dept.id ? [dept.id] : [] }); }
                             else { setTeamMemberFormData({ ...teamMemberFormData, departments: isSelected ? teamMemberFormData.departments.filter((departmentId) => departmentId !== dept.id) : dept.id ? [...teamMemberFormData.departments, dept.id] : teamMemberFormData.departments }); }
-                          }} 
-                          className={`px-3 py-2 rounded-[10px] text-[12px] font-semibold border transition-all ${isSelected ? 'border-[#2563EB] bg-[#2563EB] text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-[#2563EB] hover:text-[#2563EB]'}`}
+                          }}
+                          className={`px-3 py-2 rounded-[10px] text-[12px] font-semibold border transition-all ${!isAllowed ? 'border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed' : isSelected ? 'border-[#2563EB] bg-[#2563EB] text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-[#2563EB] hover:text-[#2563EB]'}`}
                         >
+                          {!isAllowed ? <Lock size={10} className="inline mr-1" /> : null}
                           {dept.name}
                         </button>
                       );
