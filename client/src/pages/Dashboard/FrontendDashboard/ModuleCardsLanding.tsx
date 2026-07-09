@@ -2,6 +2,7 @@ import {
   Calendar,
   CheckCircle2,
   BarChart,
+  ChevronDown,
   Bed,
   Boxes,
   BriefcaseBusiness,
@@ -16,6 +17,7 @@ import {
   FileSearch,
   Globe,
   HandCoins,
+  KeyRound,
   Laptop,
   LayoutDashboard,
   ListChecks,
@@ -26,6 +28,7 @@ import {
   NotebookText,
   Package,
   Receipt,
+  LogOut,
   ScanSearch,
   Settings,
   ShieldCheck,
@@ -49,6 +52,7 @@ import PageFrame from "../../../components/Pages/PageFrame";
 import PrimaryButton from "../../../components/PrimaryButton";
 import useAuth from "../../../hooks/useAuth";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
+import { getProfileTabItemsForPlan } from "../../Profile/profileAccess";
 import { PLAN_UI_DATA } from "../../WorkspaceSetup/workspaceSetupPlans";
 import { getEnabledModuleIdsForPlan, getWorkspaceCount } from "../../../utils/workspacePlanAccess";
 import { toast } from "sonner";
@@ -59,9 +63,10 @@ type SectionType =
   | "common-modules"
   | "extra-common-modules"
   | "key-apps"
-  | "company-settings"
+  | "profile"
   | "founder-core-modules"
-  | "department-accesses";
+  | "department-accesses"
+  | "add-ons";
 
 type LandingCard = {
   id: string;
@@ -74,6 +79,41 @@ type LandingCard = {
   disabledTitle?: string;
   helperText?: string;
 };
+
+type AddOnModuleCard = LandingCard & {
+  groupLabel: string;
+  unlocked: boolean;
+};
+
+type AddOnGroup = {
+  key: string;
+  label: string;
+  roman: string;
+  cards: AddOnModuleCard[];
+  departments?: Array<{
+    key: string;
+    label: string;
+    cards: AddOnModuleCard[];
+  }>;
+};
+
+const ADD_ON_GROUP_ORDER = [
+  { key: "common-modules", label: "Common Modules", roman: "I" },
+  { key: "extra-common-modules", label: "Extra Common Modules", roman: "II" },
+  { key: "key-apps", label: "Key Apps", roman: "III" },
+  { key: "founder-core-modules", label: "Core Modules", roman: "IV" },
+  { key: "department-accesses", label: "Department Accesses", roman: "V" },
+] as const;
+
+const ADD_ON_DEPARTMENT_ORDER = [
+  "HR Department",
+  "Administration Department",
+  "Sales Department",
+  "Finance Department",
+  "Maintenance Department",
+  "Tech Department",
+  "IT Department",
+];
 
 type WorkspaceSetupState = {
   selectedPlan?: PlanType;
@@ -121,22 +161,75 @@ const SECTION_TITLES: Record<SectionType, string> = {
   "common-modules": "Common Modules",
   "extra-common-modules": "Extra Common Modules",
   "key-apps": "Key Apps",
+  "profile": "Profile",
   "founder-core-modules": "Founder Core Modules",
   "department-accesses": "Department Accesses",
+  "add-ons": "Add-Ons",
 };
+
+// Section order on the Add-Ons page; department modules follow after these.
+const ADD_ON_SECTION_ORDER: SectionType[] = [
+  "common-modules",
+  "extra-common-modules",
+  "key-apps",
+  "founder-core-modules",
+];
 
 const DEFAULT_SECTION_ROUTES: Record<string, string> = {
   dashboard: "/dashboard",
   tickets: "/tickets",
+  "company-profile": "/profile/company-profile",
+  "my-profile": "/profile/my-profile",
+  "change-password": "/profile/change-password",
+  "assigned-assets": "/profile/assigned-assets",
+  payslips: "/profile/payslips",
+  "exit-request": "/profile/exit-request",
   "meeting-room-system": "/meetings/meeting-rooms",
   "customer-support": "/company-settings/customer-support",
   tasks: "/extra-common-modules/tasks",
   "leave-requests": "/leave-requests",
   attendance: "/extra-common-modules/attendance",
+  calendar: "/calendar",
+  assets: "/extra-common-modules/assets",
+  inventory: "/extra-common-modules/inventory",
+  "department-inventory": "/extra-common-modules/department-inventory",
+  "finance-management": "/extra-common-modules/finance-management",
+  reports: "/extra-common-modules/reports",
+  // Department module routes, mirroring the sidebar's ROUTE_BY_ID.
+  "employee-management": "/hr/employee-management",
+  "hr-documents": "/hr/documents",
+  "attendance-review": "/hr/attendance-review",
+  "leave-request-processing": "/hr/leave-request-processing",
+  recruitment: "/hr/recruitment",
+  "payroll-management": "/hr/payroll-management",
+  "exit-management": "/hr/exit-management",
+  "tenant-companies-admin": "/administration/tenant-companies",
+  bookings: "/administration/bookings",
+  "visitors-management": "/visitors/visitor-management",
+  "resource-management": "/administration/resource-management",
+  "house-keeping": "/administration/house-keeping",
+  "leads-management": "/sales-crm/leads-management",
+  "tenant-companies-sales": "/sales-crm/tenant-companies",
+  "resource-pricing": "/sales-crm/resource-pricing",
+  "sales-architecture": "/sales-crm/sales-architecture",
+  "finance-budget": "/finance/expenses-budget",
+  "billing-payments": "/finance/billing-payments",
+  accounting: "/finance/accounting",
+  "maintenance-repair-logs": "/maintenance/repair-logs",
+  "amc-maintenance-scheduler": "/maintenance/amc-scheduler",
+  "tech-website-builder": "/company-settings/website-builder",
+  "it-repair-logs": "/it/repair-logs",
+  "it-system-access": "/it/system-access",
 };
 
 const ICON_BY_ID: Record<string, ElementType> = {
   dashboard: LayoutDashboard,
+  "company-profile": Building2,
+  "my-profile": UserCog,
+  "change-password": KeyRound,
+  "assigned-assets": BriefcaseBusiness,
+  payslips: Receipt,
+  "exit-request": LogOut,
   "customer-support": MessageSquareCode,
   attendance: Clock,
   tasks: ListChecks,
@@ -146,11 +239,12 @@ const ICON_BY_ID: Record<string, ElementType> = {
   calendar: Calendar,
   assets: Package,
   inventory: Warehouse,
+  "department-inventory": Warehouse,
   "finance-management": Wallet,
   reports: FileChartColumn,
   "website-builder": Globe,
   "wono-nomad": ShieldCheck,
-  "website-leads": NotebookText,
+  "website-leads": Magnet,
   "organization-management": Building,
   "module-management": Boxes,
   "access-grants": UserCog,
@@ -221,10 +315,22 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
     sectionId: "key-apps",
     sectionLabel: "Key Apps",
     items: [
-      { id: "visitor-management", label: "Visitor Management", route: "/visitors/visitor-management", implemented: true, unlockedInWorkspace: true },
       { id: "website-builder", label: "Website Builder", route: "/company-settings/website-builder", implemented: true, unlockedInWorkspace: true },
-      { id: "wono-nomad", label: "Wono Nomad", route: "/company-settings/wono-nomad", implemented: true, unlockedInWorkspace: true },
+      { id: "wono-nomad", label: "Wono Nomads", route: "/company-settings/wono-nomad", implemented: true, unlockedInWorkspace: true },
+      { id: "visitor-management", label: "Visitor Management", route: "/visitors/visitor-management", implemented: true, unlockedInWorkspace: true },
       { id: "leads-management", label: "Leads Management", route: "/sales-crm/leads-management", implemented: true, unlockedInWorkspace: true },
+    ],
+  },
+  "profile": {
+    sectionId: "profile",
+    sectionLabel: "Profile",
+    items: [
+      { id: "company-profile", label: "Company Profile", route: "/profile/company-profile", implemented: true, unlockedInWorkspace: true },
+      { id: "my-profile", label: "My Profile", route: "/profile/my-profile", implemented: true, unlockedInWorkspace: true },
+      { id: "change-password", label: "Change Password", route: "/profile/change-password", implemented: true, unlockedInWorkspace: true },
+      { id: "assigned-assets", label: "Assigned Assets", route: "/profile/assigned-assets", implemented: true, unlockedInWorkspace: true },
+      { id: "payslips", label: "Payslips", route: "/profile/payslips", implemented: true, unlockedInWorkspace: true },
+      { id: "exit-request", label: "Exit Request", route: "/profile/exit-request", implemented: true, unlockedInWorkspace: true },
     ],
   },
   "founder-core-modules": {
@@ -250,6 +356,13 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
       { id: "tech-department", label: "Tech Department", tabs: [] },
       { id: "it-department", label: "IT Department", tabs: [] },
     ],
+  },
+  // The Add-Ons page derives its groups from the sections above, so it has no
+  // fallback items of its own.
+  "add-ons": {
+    sectionId: "add-ons",
+    sectionLabel: "Add-Ons",
+    items: [],
   },
 };
 
@@ -353,6 +466,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isUpgradeSubmitting, setIsUpgradeSubmitting] = useState(false);
   const [requestedUpgradePlan, setRequestedUpgradePlan] = useState("");
+  const [openAddOnGroups, setOpenAddOnGroups] = useState<Record<string, boolean>>({});
   const workspaceSetup = readWorkspaceSetup();
   const sectionId = resolveSectionId(section || params.sectionId);
   const departmentId = params.departmentId;
@@ -689,6 +803,8 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
   }, [isCardsHydrated, matchedWorkspaceSection, sectionId]);
 
   const cards = useMemo(() => {
+    if (sectionId === "add-ons") return [];
+    const profilePlanTabs = sectionId === "profile" ? getProfileTabItemsForPlan(planLabel) : [];
     const rawItems = Array.isArray(sectionData?.items) ? sectionData.items : [];
     const itemsWithAttendance = sectionId === "common-modules"
       ? (rawItems.some((i) => String(i?.id || "").trim() === "attendance")
@@ -704,7 +820,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
     const remappedItems = filteredItems.map((item) => {
       const itemId = String(item?.id || "").trim();
       if (itemId === "website-leads")
-        return { ...item, id: "leads-management", label: "Leads Management", route: "/sales-crm/leads-management" };
+        return { ...item, label: "Leads Management", route: "/sales-crm/leads-management" };
       if (itemId === "resource-pricing")
         return { ...item, label: "Resource & Pricing" };
       return item;
@@ -725,6 +841,21 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
         const Icon = ICON_BY_ID[itemId];
         const iconNode = Icon ? <Icon size={26} /> : undefined;
         const routedItem = String(item?.route || DEFAULT_SECTION_ROUTES[itemId] || "").trim() || undefined;
+
+        if (sectionId === "profile") {
+          const isEnabled = profilePlanTabs.find((tab) => tab.id === itemId)?.unlocked ?? false;
+          return {
+            id: itemId,
+            title: itemLabel,
+            route: isEnabled ? routedItem : undefined,
+            icon: iconNode,
+            isEnabled,
+            isInteractive: isEnabled && Boolean(routedItem),
+            upgradeLocked: !isEnabled,
+            disabledTitle: !isEnabled ? "Locked in basic plan" : undefined,
+            helperText: !isEnabled ? "Upgrade to unlock this tab" : undefined,
+          };
+        }
 
         if (sectionId === "department-accesses" && !departmentId) {
           const tabs = Array.isArray(item?.tabs) ? item.tabs : [];
@@ -788,6 +919,176 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
     workspaceEnabledCanonicalIds,
   ]);
 
+  // Add-Ons page: one flat list of MODULES only (no department cards), in
+  // section order — Common Modules, Extra Common Modules, Key Apps, Core
+  // Modules, then every department's modules. Each module appears exactly
+  // once (e.g. Website Builder lives in both Key Apps and Tech Department),
+  // enabled ones float to the top as normal cards (matching what's enabled in
+  // the sidebar), and locked ones follow as locked cards with their home
+  // section/department named below the lock.
+  const addOnModules = useMemo(() => {
+    if (sectionId !== "add-ons") return [] as AddOnModuleCard[];
+
+    const mappedSections = Array.isArray(workspaceAccessMap?.moduleMap?.sections)
+      ? workspaceAccessMap.moduleMap.sections
+      : [];
+    const findSection = (id: SectionType): WorkspaceModuleSection =>
+      mappedSections.find((item) => String(item?.sectionId || "").trim() === id) ||
+      SECTION_FALLBACKS[id];
+
+    const isItemUnlocked = (itemId: string) => {
+      const basicPlanLocked = planLabel === "basic" && BASIC_PLAN_HARD_LOCK_IDS.has(itemId);
+      const workspaceUnlocked =
+        workspaceEnabledCanonicalIds.has(itemId) || enabledIds.has(itemId);
+      const roleUnlocked = roleAllowedModuleIds.has(itemId);
+      return Boolean(workspaceUnlocked && roleUnlocked && !basicPlanLocked);
+    };
+
+    const GROUP_LABELS: Record<string, string> = {
+      "common-modules": "Common Modules",
+      "extra-common-modules": "Extra Common Modules",
+      "key-apps": "Key Apps",
+      "founder-core-modules": "Core Modules",
+    };
+
+    const entries: AddOnModuleCard[] = [];
+    const pushModule = (
+      item: WorkspaceModuleItem | WorkspaceModuleTab,
+      groupLabel: string,
+    ) => {
+      const itemId = String(item?.id || "").trim();
+      if (!itemId) return;
+      const Icon = ICON_BY_ID[itemId];
+      const unlocked = isItemUnlocked(itemId);
+      const route =
+        String(item?.route || DEFAULT_SECTION_ROUTES[itemId] || "").trim() || undefined;
+      entries.push({
+        id: itemId,
+        title: String(item?.label || itemId).trim(),
+        icon: Icon ? <Icon size={26} /> : undefined,
+        isEnabled: unlocked,
+        upgradeLocked: !unlocked,
+        route: unlocked ? route : undefined,
+        groupLabel,
+        unlocked,
+      });
+    };
+
+    ADD_ON_SECTION_ORDER.forEach((secId) => {
+      const secData = findSection(secId);
+      const rawItems = Array.isArray(secData?.items) ? secData.items : [];
+      // Mirror the section pages: Attendance lives under Common Modules and
+      // Website Leads is presented as Leads Management.
+      const items = (secId === "extra-common-modules"
+        ? rawItems.filter((item) => String(item?.id || "").trim() !== "attendance")
+        : rawItems
+      ).map((item) =>
+        String(item?.id || "").trim() === "website-leads"
+          ? { ...item, label: "Leads Management" }
+          : item,
+      );
+      items.forEach((item) => pushModule(item, GROUP_LABELS[secId]));
+    });
+
+    const deptSection = findSection("department-accesses");
+    (Array.isArray(deptSection?.items) ? deptSection.items : []).forEach((dept) => {
+      const deptId = String(dept?.id || "").trim();
+      const deptLabel = String(dept?.label || DEPARTMENT_LABELS[deptId] || deptId).trim();
+      (Array.isArray(dept?.tabs) ? dept.tabs : []).forEach((tab) => pushModule(tab, deptLabel));
+    });
+
+    // Collapse only true aliases of the SAME module (Website Builder also
+    // listed under Tech Department, the visitor-management spellings, Website
+    // Leads vs Leads Management). Distinct modules that merely share a name —
+    // like the two Tenant Companies from Administration and Sales — both stay,
+    // told apart by the department named on the card. First occurrence wins,
+    // but an unlocked occurrence replaces a locked duplicate.
+    const ADD_ON_ALIASES: Record<string, string> = {
+      "tech-website-builder": "website-builder",
+      "visitors-management": "visitor-management",
+      "administration-visitor-management": "visitor-management",
+      "leads-management": "website-leads",
+    };
+    const dedupeKey = (id: string) => ADD_ON_ALIASES[id] || id;
+    const byKey = new Map<string, AddOnModuleCard>();
+    const keyOrder: string[] = [];
+    entries.forEach((entry) => {
+      const key = dedupeKey(entry.id);
+      const existing = byKey.get(key);
+      if (!existing) {
+        byKey.set(key, entry);
+        keyOrder.push(key);
+        return;
+      }
+      if (!existing.unlocked && entry.unlocked) byKey.set(key, entry);
+    });
+    const deduped = keyOrder.map((key) => byKey.get(key) as AddOnModuleCard);
+
+    return [
+      ...deduped.filter((entry) => entry.unlocked),
+      ...deduped.filter((entry) => !entry.unlocked),
+    ];
+  }, [
+    enabledIds,
+    planLabel,
+    roleAllowedModuleIds,
+    sectionId,
+    workspaceAccessMap?.moduleMap?.sections,
+    workspaceEnabledCanonicalIds,
+  ]);
+
+  const addOnGroups = useMemo(() => {
+    if (sectionId !== "add-ons") return [] as AddOnGroup[];
+
+    const grouped = new Map<string, AddOnModuleCard[]>();
+    addOnModules.forEach((card) => {
+      const key = card.groupLabel;
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)?.push(card);
+    });
+
+    const groupCards = (label: string) => grouped.get(label) || [];
+    const groups: AddOnGroup[] = ADD_ON_GROUP_ORDER
+      .map((group) => {
+        const cards = groupCards(group.label);
+        if (group.key !== "department-accesses") {
+          return { key: group.key, label: group.label, roman: group.roman, cards };
+        }
+
+        const deptMap = new Map<string, AddOnModuleCard[]>();
+        cards.forEach((card) => {
+          const deptKey = card.helperText || card.groupLabel;
+          if (!deptMap.has(deptKey)) deptMap.set(deptKey, []);
+          deptMap.get(deptKey)?.push(card);
+        });
+
+        const departments = ADD_ON_DEPARTMENT_ORDER.map((deptLabel) => {
+          const deptCards = deptMap.get(deptLabel);
+          return deptCards?.length ? { key: deptLabel, label: deptLabel, cards: deptCards } : null;
+        }).filter(Boolean) as Array<{ key: string; label: string; cards: AddOnModuleCard[] }>;
+
+        deptMap.forEach((deptCards, deptKey) => {
+          if (!departments.some((item) => item.key === deptKey)) {
+            departments.push({ key: deptKey, label: deptKey, cards: deptCards });
+          }
+        });
+
+        return { key: group.key, label: group.label, roman: group.roman, cards, departments };
+      })
+      .filter((group) => group.cards.length > 0 || (group.departments || []).length > 0);
+
+    return groups;
+  }, [addOnModules, sectionId]);
+
+  useEffect(() => {
+    if (sectionId !== "add-ons") return;
+    if (!addOnGroups.length) return;
+    setOpenAddOnGroups((prev) => {
+      if (Object.keys(prev).length) return prev;
+      return Object.fromEntries(addOnGroups.map((group) => [group.key, true]));
+    });
+  }, [addOnGroups, sectionId]);
+
   const handleUpgradePlanRequest = async (plan: string) => {
     if (requestedUpgradePlan === plan) {
       toast.info(`${plan.toUpperCase()} plan already requested.`);
@@ -832,15 +1133,203 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
   return (
     <PageFrame>
       <div className="p-4 md:p-6">
-        <h2 className="mb-6 text-title font-pmedium uppercase text-primary">{pageTitle}</h2>
+        <div className="mb-6">
+          <h2 className="text-title font-pmedium uppercase text-primary">{pageTitle}</h2>
+          {sectionId === "add-ons" ? (
+            <p className="mt-1 text-sm text-slate-500">
+              {isCardsHydrated ? addOnModules.filter((module) => module.unlocked).length : 0} enabled &middot;{" "}
+              {isCardsHydrated ? addOnModules.filter((module) => !module.unlocked).length : 0} locked
+            </p>
+          ) : null}
+        </div>
         {!isCardsHydrated && !sectionData ? (
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 animate-pulse">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 animate-pulse">
             {Array.from({ length: 6 }).map((_, index) => (
               <div key={`cards-skeleton-${index}`} className="h-60 rounded-2xl bg-gray-200" />
             ))}
           </div>
+        ) : sectionId === "add-ons" ? (
+          addOnGroups.length === 0 ? (
+            <p className="text-sm text-slate-500">
+              Nothing here — every module available to you is already unlocked.
+            </p>
+          ) : (
+            <div className="space-y-5">
+              {addOnGroups.map((group) => {
+                const isDeptGroup = group.key === "department-accesses";
+                const enabledCards = group.cards.filter((card) => card.unlocked);
+                const disabledCards = group.cards.filter((card) => !card.unlocked);
+
+                return (
+                  <div key={group.key} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenAddOnGroups((prev) => ({
+                          ...prev,
+                          [group.key]: !prev[group.key],
+                        }))
+                      }
+                      className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
+                    >
+                      <div>
+                        <h3 className="text-[15px] font-bold uppercase tracking-wide text-slate-800">
+                          {group.roman}. {group.label}
+                        </h3>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {isDeptGroup ? `${group.departments?.length || 0} departments` : `${group.cards.length} modules`}
+                        </p>
+                      </div>
+                      <ChevronDown
+                        className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 ${
+                          openAddOnGroups[group.key] ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {openAddOnGroups[group.key] ? (
+                      <div className="border-t border-slate-200 px-5 py-5">
+                        {!isDeptGroup ? (
+                          <div className="space-y-5">
+                            <div className="space-y-3">
+                              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-600">Enabled</p>
+                              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                {enabledCards.map((card) => {
+                                  const titleWithGroup = (
+                                    <span className="flex flex-col items-center gap-1">
+                                      <span>{card.title}</span>
+                                      <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                                        {card.groupLabel}
+                                      </span>
+                                    </span>
+                                  );
+                                  return (
+                                    <Card
+                                      key={`addon-enabled-${card.id}`}
+                                      title={titleWithGroup}
+                                      icon={card.icon}
+                                      route={card.route || "#"}
+                                      fullHeight
+                                      state={{ fromSection: "add-ons" }}
+                                      interactive={Boolean(card.route)}
+                                    />
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {disabledCards.length > 0 ? (
+                              <div className="space-y-3">
+                                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Disabled</p>
+                                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                  {disabledCards.map((card) => (
+                                    <LockedCard
+                                      key={`addon-disabled-${card.id}`}
+                                      title={card.title}
+                                      icon={card.icon}
+                                      helperText={card.groupLabel}
+                                      onClick={upgradePlanCards.length > 0 ? () => setIsUpgradeModalOpen(true) : undefined}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {(group.departments || []).map((department) => {
+                              const deptOpen = Boolean(openAddOnGroups[department.key]);
+                              const enabledDeptCards = department.cards.filter((card) => card.unlocked);
+                              const disabledDeptCards = department.cards.filter((card) => !card.unlocked);
+
+                              return (
+                                <div key={department.key} className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setOpenAddOnGroups((prev) => ({
+                                        ...prev,
+                                        [department.key]: !prev[department.key],
+                                      }))
+                                    }
+                                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                                  >
+                                    <div>
+                                      <h4 className="text-sm font-bold uppercase tracking-wide text-slate-700">
+                                        {department.label}
+                                      </h4>
+                                      <p className="mt-1 text-xs text-slate-500">{department.cards.length} modules</p>
+                                    </div>
+                                    <ChevronDown
+                                      className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 ${
+                                        deptOpen ? "rotate-180" : ""
+                                      }`}
+                                    />
+                                  </button>
+
+                                  {deptOpen ? (
+                                    <div className="border-t border-slate-200 px-4 py-4">
+                                      <div className="space-y-5">
+                                        <div className="space-y-3">
+                                          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-600">Enabled</p>
+                                          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                            {enabledDeptCards.map((card) => {
+                                              const titleWithGroup = (
+                                                <span className="flex flex-col items-center gap-1">
+                                                  <span>{card.title}</span>
+                                                  <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                                                    {card.groupLabel}
+                                                  </span>
+                                                </span>
+                                              );
+                                              return (
+                                                <Card
+                                                  key={`dept-enabled-${card.id}`}
+                                                  title={titleWithGroup}
+                                                  icon={card.icon}
+                                                  route={card.route || "#"}
+                                                  fullHeight
+                                                  state={{ fromSection: "add-ons" }}
+                                                  interactive={Boolean(card.route)}
+                                                />
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+
+                                        {disabledDeptCards.length > 0 ? (
+                                          <div className="space-y-3">
+                                            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Disabled</p>
+                                            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                              {disabledDeptCards.map((card) => (
+                                                <LockedCard
+                                                  key={`dept-disabled-${card.id}`}
+                                                  title={card.title}
+                                                  icon={card.icon}
+                                                  helperText={card.groupLabel}
+                                                  onClick={upgradePlanCards.length > 0 ? () => setIsUpgradeModalOpen(true) : undefined}
+                                                />
+                                              ))}
+                                            </div>
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          )
         ) : (
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {cards.map((card) => (
               <div key={card.id}>
                 {card.isEnabled && card.route ? (
@@ -849,7 +1338,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
                     icon={card.icon}
                     route={card.route}
                     fullHeight
-                    state={departmentId && sectionId === "department-accesses" ? { fromSection: "department-accesses" } : undefined}
+                    state={{ fromSection: sectionId }}
                   />
                 ) : card.isEnabled ? (
                   <Card

@@ -328,6 +328,65 @@ function isValidEmail(value = '') {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 }
 
+function getStandardVisitorValidationErrors(form = {}, isDepartmentVisitorType = false, isTenantVisitorType = false) {
+  const errors = {};
+  const requiredMessage = 'This field is required.';
+  const firstName = String(form.firstName || '').trim();
+  const lastName = String(form.lastName || '').trim();
+  const gender = String(form.gender || '').trim();
+  const phone = String(form.phone || '').trim();
+  const email = String(form.email || '').trim();
+  const country = String(form.country || '').trim();
+  const state = String(form.state || '').trim();
+  const city = String(form.city || '').trim();
+  const visitorCompanyType = String(form.visitorCompanyType || 'individual').trim();
+  const visitorCompany = String(form.visitorCompany || '').trim();
+  const purpose = String(form.purpose || '').trim();
+  const reason = String(form.reason || '').trim();
+  const hostGroupType = String(form.hostGroupType || '').trim();
+  const hostGroupValue = String(form.hostGroupValue || '').trim();
+  const hostUserId = String(form.hostUserId || '').trim();
+  const tenantCompanyName = String(form.tenantCompanyName || '').trim();
+
+  if (!firstName) errors.firstName = requiredMessage;
+  else if (!isValidName(firstName)) errors.firstName = 'Only letters and spaces are allowed.';
+
+  if (!lastName) errors.lastName = requiredMessage;
+  else if (!isValidName(lastName)) errors.lastName = 'Only letters and spaces are allowed.';
+
+  if (!gender) errors.gender = requiredMessage;
+
+  if (!phone) errors.phone = requiredMessage;
+  else if (!isValidPhone(phone)) errors.phone = 'Enter a valid 10-digit phone number.';
+
+  if (!email) errors.email = requiredMessage;
+  else if (!isValidEmail(email)) errors.email = 'Enter a valid email address.';
+
+  if (!country) errors.country = requiredMessage;
+  if (!state) errors.state = requiredMessage;
+  if (!city) errors.city = requiredMessage;
+  if (!purpose) errors.purpose = requiredMessage;
+
+  if (visitorCompanyType === 'company' && !visitorCompany) {
+    errors.visitorCompany = requiredMessage;
+  }
+
+  if (isDepartmentVisitorType) {
+    if (!hostGroupType) errors.hostGroupType = requiredMessage;
+    if (!hostGroupValue) errors.hostGroupValue = requiredMessage;
+    if (!hostUserId) errors.hostUserId = requiredMessage;
+    if (!reason) errors.reason = requiredMessage;
+  }
+
+  if (isTenantVisitorType) {
+    if (!tenantCompanyName) errors.tenantCompanyName = requiredMessage;
+    if (!hostGroupValue) errors.hostGroupValue = requiredMessage;
+    if (!hostUserId) errors.hostUserId = requiredMessage;
+  }
+
+  return errors;
+}
+
 function timeToMinutes(value) {
   if (!value) return null;
   if (value instanceof Date) {
@@ -907,6 +966,8 @@ export default function VisitorsManagementPage() {
   const [showCountrySuggestions, setShowCountrySuggestions] = useState(false);
   const [countryHighlightIndex, setCountryHighlightIndex] = useState(0);
   const [lastSelectedExistingVisitor, setLastSelectedExistingVisitor] = useState(null);
+  const [standardVisitorTouched, setStandardVisitorTouched] = useState({});
+  const [standardVisitorSubmitAttempted, setStandardVisitorSubmitAttempted] = useState(false);
   const tenantCompanyOptions = useMemo(
     () => [...new Set((bookingClients || []).map((client) => String(client?.company || '').trim()).filter(Boolean))],
     [bookingClients],
@@ -2097,31 +2158,27 @@ export default function VisitorsManagementPage() {
     setCountryHighlightIndex(0);
   }, [countrySearch, showCountrySuggestions]);
 
-  const isStandardFormComplete = useMemo(() => {
-    const firstName = String(form.firstName || '').trim();
-    const lastName = String(form.lastName || '').trim();
-    const gender = String(form.gender || '').trim();
-    const phone = String(form.phone || '').trim();
-    const email = String(form.email || '').trim();
-    const purpose = String(form.purpose || '').trim();
-    const note = String(form.reason || '').trim();
-
-    if (!firstName || !lastName || !gender || !phone || !email || !form.country || !form.state || !form.city || !purpose) return false;
-    if (!isValidName(firstName) || !isValidName(lastName)) return false;
-    if (!isValidPhone(phone)) return false;
-    if (!isValidEmail(email)) return false;
-    if (form.visitorCompanyType === 'company' && !String(form.visitorCompany || '').trim()) return false;
-
-    if (isDepartmentVisitorType) {
-      return Boolean(form.hostGroupType && form.hostGroupValue && form.hostUserId && note);
-    }
-
-    if (isTenantVisitorType) {
-      return Boolean(form.tenantCompanyName && form.hostGroupValue && form.hostUserId);
-    }
-
-    return true;
+  const standardVisitorErrors = useMemo(() => {
+    return getStandardVisitorValidationErrors(
+      form,
+      isDepartmentVisitorType,
+      isTenantVisitorType,
+    );
   }, [form, isDepartmentVisitorType, isTenantVisitorType]);
+  const visibleStandardVisitorErrors = useMemo(() => {
+    const nextErrors = {};
+    Object.entries(standardVisitorErrors).forEach(([field, message]) => {
+      if (standardVisitorTouched[field] || standardVisitorSubmitAttempted) {
+        nextErrors[field] = message;
+      }
+    });
+    return nextErrors;
+  }, [standardVisitorErrors, standardVisitorTouched, standardVisitorSubmitAttempted]);
+  const shouldShowStandardVisitorError = (field) => Boolean(standardVisitorTouched[field] || standardVisitorSubmitAttempted);
+
+  const isStandardFormComplete = useMemo(() => {
+    return Object.keys(standardVisitorErrors).length === 0;
+  }, [standardVisitorErrors]);
 
   useEffect(() => {
     if (lockedTopTabs.has(activeTab)) {
@@ -2373,7 +2430,10 @@ export default function VisitorsManagementPage() {
     };
 
     if (visitorMode === 'standard') {
-      if (!isStandardFormComplete) return alert('Please complete all required fields with valid details.');
+      if (!isStandardFormComplete) {
+        setStandardVisitorSubmitAttempted(true);
+        return;
+      }
       const isDepartmentVisitor = form.standardVisitorType === 'department';
       const isTenantVisitor = form.standardVisitorType === 'tenant';
 
@@ -2447,6 +2507,8 @@ export default function VisitorsManagementPage() {
           setVerifiedBooking(null);
           setWalkInStep(1);
           setForm(getDefaultVisitorForm());
+          setStandardVisitorTouched({});
+          setStandardVisitorSubmitAttempted(false);
         } catch (error) {
           alert(error.message || 'Unable to check in visitor right now.');
         } finally {
@@ -3302,7 +3364,7 @@ export default function VisitorsManagementPage() {
                 type="button"
                 disabled={!canOpenFrontdeskAction}
                 title={!canOpenFrontdeskAction ? 'You do not have permission for frontdesk action tabs.' : undefined}
-                onClick={() => { setVisitorMode('standard'); setWalkInStep(1); setForm(getDefaultVisitorForm()); setVerifiedBooking(null); setBookingConfirmation(null); setIsLoggingVisitor(true); }}
+                onClick={() => { setVisitorMode('standard'); setWalkInStep(1); setForm(getDefaultVisitorForm()); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setVerifiedBooking(null); setBookingConfirmation(null); setIsLoggingVisitor(true); }}
                 className={`inline-flex items-center justify-center gap-1.5 rounded-2xl px-4 py-2.5 text-[10px] font-bold shadow-sm transition-all whitespace-nowrap ${
                   canOpenFrontdeskAction
                     ? 'bg-[#2563EB] text-white hover:bg-blue-700 active:scale-95'
@@ -3694,7 +3756,7 @@ export default function VisitorsManagementPage() {
                     type="button"
                     disabled={!visitorAccess.modes.standard}
                     title={!visitorAccess.modes.standard ? 'You do not have permission for Standard Visitor.' : undefined}
-                    onClick={() => { setVisitorMode('standard'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setForm((prev) => ({ ...prev, standardVisitorType: prev.standardVisitorType || 'standard' })); }}
+                    onClick={() => { setVisitorMode('standard'); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); setForm((prev) => ({ ...prev, standardVisitorType: prev.standardVisitorType || 'standard' })); }}
                     className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-bold uppercase whitespace-nowrap transition-all ${visitorMode === 'standard' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-800/30' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.standard ? 'cursor-not-allowed opacity-60' : ''}`}
                   >Standard Visitor</button>
                   <button type="button" disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have permission for Unit Tour.' : undefined} onClick={() => setVisitorMode('tour')} className={`w-full px-2.5 py-2 rounded-lg text-[9px] font-bold uppercase whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 ${visitorMode === 'tour' ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-800/30' : 'text-slate-400 hover:text-white'} ${!visitorAccess.modes.tour ? 'text-slate-500 bg-slate-700/60 cursor-not-allowed' : ''}`}>{!visitorAccess.modes.tour && <Lock size={11} />} Unit Tour</button>
@@ -3895,104 +3957,154 @@ export default function VisitorsManagementPage() {
                       <div className="rounded-lg border border-slate-200 bg-white p-2.5 space-y-3">
                         <h4 className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Personal Information</h4>
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          <input
-                            type="text"
-                            placeholder="First Name"
-                            value={form.firstName}
-                            onChange={(e) => setForm((prev) => ({ ...prev, firstName: e.target.value, name: `${e.target.value} ${String(prev.lastName || '')}`.trim() }))}
-                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Last Name"
-                            value={form.lastName}
-                            onChange={(e) => setForm((prev) => ({ ...prev, lastName: e.target.value, name: `${String(prev.firstName || '')} ${e.target.value}`.trim() }))}
-                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500"
-                          />
-                          <select
-                            value={form.gender}
-                            onChange={(e) => setForm((prev) => ({ ...prev, gender: e.target.value }))}
-                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500"
-                          >
-                            <option value="">Select Gender</option>
-                            <option value="male">Male</option>
-                            <option value="female">Female</option>
-                            <option value="other">Other</option>
-                          </select>
-                          <input
-                            type="tel"
-                            placeholder="Phone Number"
-                            value={form.phone}
-                            onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value.replace(/[^\d]/g, '') }))}
-                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500"
-                          />
-                          <input
-                            type="email"
-                            placeholder="Email Address"
-                            value={form.email}
-                            onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
-                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 sm:col-span-2"
-                          />
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">First Name *</label>
+                            <input
+                              type="text"
+                              placeholder="Visitor Name"
+                              value={form.firstName}
+                              onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, firstName: true }))}
+                              onChange={(e) => setForm((prev) => ({ ...prev, firstName: e.target.value, name: `${e.target.value} ${String(prev.lastName || '')}`.trim() }))}
+                              className={`w-full rounded-lg border px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none ${visibleStandardVisitorErrors.firstName ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
+                            />
+                            {visibleStandardVisitorErrors.firstName ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.firstName}</p> : null}
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Last Name *</label>
+                            <input
+                              type="text"
+                              placeholder="Visitor Surname"
+                              value={form.lastName}
+                              onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, lastName: true }))}
+                              onChange={(e) => setForm((prev) => ({ ...prev, lastName: e.target.value, name: `${String(prev.firstName || '')} ${e.target.value}`.trim() }))}
+                              className={`w-full rounded-lg border px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none ${visibleStandardVisitorErrors.lastName ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
+                            />
+                            {visibleStandardVisitorErrors.lastName ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.lastName}</p> : null}
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Gender *</label>
+                            <select
+                              value={form.gender}
+                              onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, gender: true }))}
+                              onChange={(e) => setForm((prev) => ({ ...prev, gender: e.target.value }))}
+                              className={`w-full rounded-lg border px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none ${visibleStandardVisitorErrors.gender ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
+                            >
+                              <option value="">Select Gender</option>
+                              <option value="male">Male</option>
+                              <option value="female">Female</option>
+                              <option value="other">Other</option>
+                            </select>
+                            {visibleStandardVisitorErrors.gender ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.gender}</p> : null}
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Phone Number *</label>
+                            <input
+                              type="tel"
+                              placeholder="10 digit phone number"
+                              value={form.phone}
+                              onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, phone: true }))}
+                              onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value.replace(/[^\d]/g, '') }))}
+                              className={`w-full rounded-lg border px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none ${visibleStandardVisitorErrors.phone ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
+                            />
+                            {visibleStandardVisitorErrors.phone ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.phone}</p> : null}
+                          </div>
+                          <div className="space-y-1 sm:col-span-2">
+                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Email Address *</label>
+                            <input
+                              type="email"
+                              inputMode="email"
+                              autoComplete="email"
+                              placeholder="name@example.com"
+                              value={form.email}
+                              onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, email: true }))}
+                              onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+                              className={`w-full rounded-lg border px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none ${visibleStandardVisitorErrors.email ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
+                            />
+                            {visibleStandardVisitorErrors.email ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.email}</p> : null}
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                          <select
-                            value={form.country}
-                            onChange={(e) => setForm((prev) => ({ ...prev, country: e.target.value, state: '', city: '' }))}
-                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500"
-                          >
-                            <option value="">Select Country</option>
-                            {countryOptions.map((country) => (
-                              <option key={country.isoCode} value={country.name}>
-                                {country.name}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            value={form.state}
-                            onChange={(e) => setForm((prev) => ({ ...prev, state: e.target.value, city: '' }))}
-                            disabled={!form.country}
-                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
-                          >
-                            <option value="">{form.country ? 'Select State' : 'Select country first'}</option>
-                            {stateOptions.map((state) => (
-                              <option key={state.isoCode} value={state.name}>
-                                {state.name}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            value={form.city}
-                            onChange={(e) => setForm((prev) => ({ ...prev, city: e.target.value }))}
-                            disabled={!form.country || !form.state}
-                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
-                          >
-                            <option value="">{form.country && form.state ? 'Select City' : 'Select country and state first'}</option>
-                            {cityOptions.map((city) => (
-                              <option key={`${city.name}-${city.stateCode}-${city.latitude}`} value={city.name}>
-                                {city.name}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Country *</label>
+                            <select
+                              value={form.country}
+                              onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, country: true }))}
+                              onChange={(e) => setForm((prev) => ({ ...prev, country: e.target.value, state: '', city: '' }))}
+                              className={`w-full rounded-lg border px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none ${visibleStandardVisitorErrors.country ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
+                            >
+                              <option value="">Select Country</option>
+                              {countryOptions.map((country) => (
+                                <option key={country.isoCode} value={country.name}>
+                                  {country.name}
+                                </option>
+                              ))}
+                            </select>
+                            {visibleStandardVisitorErrors.country ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.country}</p> : null}
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">State *</label>
+                            <select
+                              value={form.state}
+                              onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, state: true }))}
+                              onChange={(e) => setForm((prev) => ({ ...prev, state: e.target.value, city: '' }))}
+                              disabled={!form.country}
+                              className={`w-full rounded-lg border px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100 ${visibleStandardVisitorErrors.state ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
+                            >
+                              <option value="">{form.country ? 'Select State' : 'Select country first'}</option>
+                              {stateOptions.map((state) => (
+                                <option key={state.isoCode} value={state.name}>
+                                  {state.name}
+                                </option>
+                              ))}
+                            </select>
+                            {visibleStandardVisitorErrors.state ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.state}</p> : null}
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">City *</label>
+                            <select
+                              value={form.city}
+                              onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, city: true }))}
+                              onChange={(e) => setForm((prev) => ({ ...prev, city: e.target.value }))}
+                              disabled={!form.country || !form.state}
+                              className={`w-full rounded-lg border px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100 ${visibleStandardVisitorErrors.city ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
+                            >
+                              <option value="">{form.country && form.state ? 'Select City' : 'Select country and state first'}</option>
+                              {cityOptions.map((city) => (
+                                <option key={`${city.name}-${city.stateCode}-${city.latitude}`} value={city.name}>
+                                  {city.name}
+                                </option>
+                              ))}
+                            </select>
+                            {visibleStandardVisitorErrors.city ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.city}</p> : null}
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          <select
-                            value={form.visitorCompanyType}
-                            onChange={(e) => setForm((prev) => ({ ...prev, visitorCompanyType: e.target.value, visitorCompany: e.target.value === 'individual' ? '' : prev.visitorCompany }))}
-                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500"
-                          >
-                            <option value="individual">Individual</option>
-                            <option value="company">Company</option>
-                          </select>
-                          <input
-                            type="text"
-                            placeholder="Visitor Company"
-                            value={form.visitorCompany}
-                            onChange={(e) => setForm((prev) => ({ ...prev, visitorCompany: e.target.value }))}
-                            disabled={form.visitorCompanyType === 'individual'}
-                            className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                          />
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Visitor Type</label>
+                            <select
+                              value={form.visitorCompanyType}
+                              onChange={(e) => setForm((prev) => ({ ...prev, visitorCompanyType: e.target.value, visitorCompany: e.target.value === 'individual' ? '' : prev.visitorCompany }))}
+                              className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500"
+                            >
+                              <option value="individual">Individual</option>
+                              <option value="company">Company</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Visitor Company {form.visitorCompanyType === 'company' ? '*' : ''}</label>
+                            <input
+                              type="text"
+                              placeholder="Visitor Company"
+                              value={form.visitorCompany}
+                              onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, visitorCompany: true }))}
+                              onChange={(e) => setForm((prev) => ({ ...prev, visitorCompany: e.target.value }))}
+                              disabled={form.visitorCompanyType === 'individual'}
+                              className={`w-full rounded-lg border px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed ${visibleStandardVisitorErrors.visitorCompany ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
+                            />
+                            {visibleStandardVisitorErrors.visitorCompany ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.visitorCompany}</p> : null}
+                          </div>
                         </div>
                       </div>
 
@@ -4031,16 +4143,18 @@ export default function VisitorsManagementPage() {
                         <>
                           <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1">
-                              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Purpose</label>
-                              <select className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg font-semibold text-xs text-gray-900 focus:border-[#2563EB] outline-none cursor-pointer" value={form.purpose} onChange={e => setForm({ ...form, purpose: e.target.value })}>
+                              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Purpose *</label>
+                              <select className={`w-full px-2.5 py-2 bg-white border rounded-lg font-semibold text-xs text-gray-900 outline-none cursor-pointer ${visibleStandardVisitorErrors.purpose ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-[#2563EB]'}`} value={form.purpose} onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, purpose: true }))} onChange={e => setForm({ ...form, purpose: e.target.value })}>
                                 <option value="Meeting">Meeting</option><option value="Interview">Interview</option><option value="Delivery">Delivery</option><option value="Maintenance">Maintenance</option>
                               </select>
+                              {visibleStandardVisitorErrors.purpose ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.purpose}</p> : null}
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Role / Department</label>
+                              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Role / Department *</label>
                               <select
-                                className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg font-semibold text-xs text-gray-900 focus:border-[#2563EB] outline-none cursor-pointer disabled:cursor-not-allowed"
+                                className={`w-full px-2.5 py-2 bg-white border rounded-lg font-semibold text-xs text-gray-900 outline-none cursor-pointer disabled:cursor-not-allowed ${visibleStandardVisitorErrors.hostGroupType ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-[#2563EB]'}`}
                                 value={form.hostGroupType}
+                                onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, hostGroupType: true }))}
                                 onChange={(e) => {
                                   const nextType = e.target.value;
                                   setForm((prev) => ({
@@ -4056,12 +4170,14 @@ export default function VisitorsManagementPage() {
                                 <option value="department">Department</option>
                                 <option value="role">Role</option>
                               </select>
+                              {visibleStandardVisitorErrors.hostGroupType ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.hostGroupType}</p> : null}
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Department / Role Name</label>
+                              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Department / Role Name *</label>
                               <select
-                                className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg font-semibold text-xs text-gray-900 focus:border-[#2563EB] outline-none cursor-pointer disabled:cursor-not-allowed"
+                                className={`w-full px-2.5 py-2 bg-white border rounded-lg font-semibold text-xs text-gray-900 outline-none cursor-pointer disabled:cursor-not-allowed ${visibleStandardVisitorErrors.hostGroupValue ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-[#2563EB]'}`}
                                 value={form.hostGroupValue}
+                                onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, hostGroupValue: true }))}
                                 onChange={(e) => {
                                   setForm((prev) => ({
                                     ...prev,
@@ -4083,12 +4199,14 @@ export default function VisitorsManagementPage() {
                                   );
                                 })}
                               </select>
+                              {visibleStandardVisitorErrors.hostGroupValue ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.hostGroupValue}</p> : null}
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Host Member</label>
+                              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Host Member *</label>
                               <select
-                                className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg font-semibold text-xs text-gray-900 focus:border-[#2563EB] outline-none cursor-pointer disabled:cursor-not-allowed"
+                                className={`w-full px-2.5 py-2 bg-white border rounded-lg font-semibold text-xs text-gray-900 outline-none cursor-pointer disabled:cursor-not-allowed ${visibleStandardVisitorErrors.hostUserId ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-[#2563EB]'}`}
                                 value={form.hostUserId}
+                                onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, hostUserId: true }))}
                                 onChange={(e) => {
                                   setForm((prev) => ({
                                     ...prev,
@@ -4106,6 +4224,7 @@ export default function VisitorsManagementPage() {
                                   </option>
                                 ))}
                               </select>
+                              {visibleStandardVisitorErrors.hostUserId ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.hostUserId}</p> : null}
                             </div>
                           </div>
 
@@ -4114,10 +4233,12 @@ export default function VisitorsManagementPage() {
                             <textarea
                               rows={3}
                               placeholder="Why is the visitor here?"
-                              className="w-full px-2.5 py-2 bg-white border border-gray-200 rounded-lg font-semibold text-xs text-gray-900 focus:border-[#2563EB] outline-none resize-none"
+                              onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, reason: true }))}
+                              className={`w-full px-2.5 py-2 bg-white border rounded-lg font-semibold text-xs text-gray-900 outline-none resize-none ${visibleStandardVisitorErrors.reason ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-[#2563EB]'}`}
                               value={form.reason}
                               onChange={e => setForm({ ...form, reason: e.target.value })}
                             />
+                            {visibleStandardVisitorErrors.reason ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.reason}</p> : null}
                           </div>
 
                           <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-2 mt-3">
@@ -4890,12 +5011,13 @@ export default function VisitorsManagementPage() {
               </div>
 
               <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-4 shrink-0">
-                <button onClick={() => { setIsLoggingVisitor(false); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setWalkInStep(1); setAvailabilityStatus('idle'); }} className="flex-1 py-3 bg-white border border-gray-200 rounded-xl font-black text-xs text-gray-500 hover:text-gray-900 transition-all shadow-sm">CANCEL</button>
+                <button onClick={() => { setIsLoggingVisitor(false); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setWalkInStep(1); setAvailabilityStatus('idle'); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); }} className="flex-1 py-3 bg-white border border-gray-200 rounded-xl font-black text-xs text-gray-500 hover:text-gray-900 transition-all shadow-sm">CANCEL</button>
 
                 {visitorMode === 'standard' && (
                   <button
+                    type="button"
                     onClick={handleProcessAction}
-                    disabled={isSubmittingVisitor || isVisitorOverviewLoading || !isStandardFormComplete || !visitorAccess.modes.standard}
+                    disabled={isSubmittingVisitor || isVisitorOverviewLoading || !visitorAccess.modes.standard}
                     title={!visitorAccess.modes.standard ? 'You do not have access to Standard Visitor tab.' : undefined}
                     className="flex-[2] py-3 bg-[#2563EB] text-white rounded-xl text-xs font-black shadow-md shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:shadow-none"
                   >

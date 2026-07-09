@@ -358,7 +358,7 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
       <PageFrame>
         <div className="flex flex-col gap-5">
           <h2 className="text-title font-pmedium text-primary uppercase">
-            Dynamic Website
+            Website Builder
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

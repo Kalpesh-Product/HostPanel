@@ -153,7 +153,7 @@ export default function NomadListingsOverview() {
           <div className="mb-1 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
-                Nomad Listings
+                Nomads Listings
               </h2>
               <p className="text-xs font-medium text-slate-500 mt-1">
                 Manage your nomad business listings.

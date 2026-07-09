@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import {
   Building2, Plus, Trash2, X, Users, UserPlus, ArrowLeft,
   Mail, Calendar, Briefcase, Shield, Send, DollarSign, Wrench,
-  CheckCircle2, Search, Crown, CheckSquare,
+  CheckCircle2, Search, Crown, CheckSquare, ChevronDown,
   Power, AlertCircle, Lock, Clock, UserCheck, UserX, Ban, Loader2
 } from 'lucide-react';
 import { Switch } from '@mui/material';
@@ -214,7 +214,7 @@ export function OrganizationPage() {
   const [view, setView] = useState('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [deptRoleFilter, setDeptRoleFilter] = useState('all');
   
   // Selection States
   const [selectedDepartment, setSelectedDepartment] = useState<DepartmentOption | null>(null);
@@ -374,8 +374,8 @@ export function OrganizationPage() {
       setTeamMembers(nextMembers);
       setTransferredTeamMembers(nextTransferredMembers);
       setPermissions(payload.metrics || {});
-      setDepartmentFilter((current) =>
-        current === 'all' || visibleDepartments.some((department) => department.id === current)
+      setDeptRoleFilter((current) =>
+        current === 'all' || (current.startsWith('dept:') && visibleDepartments.some((department) => department.id === current.replace('dept:', '')))
           ? current
           : 'all',
       );
@@ -428,7 +428,7 @@ export function OrganizationPage() {
     setIsSavingDepartments(false);
     setSearchQuery('');
     setStatusFilter('all');
-    setDepartmentFilter('all');
+    setDeptRoleFilter('all');
     setShowDepartmentModal(false);
     setShowEmployeeModal(false);
     setShowAssignManagerModal(false);
@@ -657,17 +657,27 @@ export function OrganizationPage() {
         memberStatus.includes(normalizedSearch);
 
       const matchesStatus = statusFilter === 'all' || memberStatus === statusFilter;
-      const matchesDepartment =
-        departmentFilter === 'all' ||
-        memberDepartments.some(
+
+      let matchesRole = true;
+      let matchesDepartment = true;
+
+      if (deptRoleFilter === 'all') {
+        // both true by default
+      } else if (deptRoleFilter.startsWith('dept:')) {
+        const deptId = deptRoleFilter.replace('dept:', '');
+        matchesDepartment = memberDepartments.some(
           (department) =>
             department.toLowerCase() ===
-            (departments.find((dept) => dept.id === departmentFilter)?.name || '').toLowerCase(),
+            (departments.find((d) => d.id === deptId)?.name || '').toLowerCase(),
         );
+      } else if (deptRoleFilter.startsWith('role:')) {
+        const role = deptRoleFilter.replace('role:', '');
+        matchesRole = memberRole === role;
+      }
 
-      return matchesSearch && matchesStatus && matchesDepartment;
+      return matchesSearch && matchesStatus && matchesRole && matchesDepartment;
     });
-  }, [teamMembers, searchQuery, statusFilter, departmentFilter, departments]);
+  }, [teamMembers, searchQuery, statusFilter, deptRoleFilter, departments]);
 
   const filteredTransferredTeamMembers = useMemo(() => {
     const normalizedSearch = searchQuery.toLowerCase().trim();
@@ -685,17 +695,23 @@ export function OrganizationPage() {
         memberRole.includes(normalizedSearch) ||
         memberDestination.includes(normalizedSearch);
 
-      const matchesDepartment =
-        departmentFilter === 'all' ||
-        memberDepartments.some(
+      let matchesDepartment = true;
+
+      if (deptRoleFilter === 'all') {
+        // show all
+      } else if (deptRoleFilter.startsWith('dept:')) {
+        const deptId = deptRoleFilter.replace('dept:', '');
+        matchesDepartment = memberDepartments.some(
           (department) =>
             department.toLowerCase() ===
-            (departments.find((dept) => dept.id === departmentFilter)?.name || '').toLowerCase(),
+            (departments.find((d) => d.id === deptId)?.name || '').toLowerCase(),
         );
+      }
+      // role filter — show all transferred (no role filtering on transferred table)
 
       return matchesSearch && matchesDepartment;
     });
-  }, [transferredTeamMembers, searchQuery, departmentFilter, departments]);
+  }, [transferredTeamMembers, searchQuery, deptRoleFilter, departments]);
 
   const formatTransferDate = (value) => {
     if (!value) {
@@ -1140,7 +1156,7 @@ export function OrganizationPage() {
               {!canAddUserOnCurrentPlan ? <Lock size={12} /> : null}
               Add User
             </p>
-            <p className="text-[10px] font-semibold text-slate-400 mt-1">{addUserHoverMessage}</p>
+            {/* <p className="text-[10px] font-semibold text-slate-400 mt-1">{addUserHoverMessage}</p>
             {isBasicPlanWorkspace && (
               <p className="text-[10px] font-semibold text-slate-400 mt-0.5">
                 {activeSuperAdminCount} of {basicPlanAdditionalUserLimit} additional user added
@@ -1150,7 +1166,7 @@ export function OrganizationPage() {
               <p className="text-[10px] font-semibold text-slate-400 mt-0.5">
                 {activeMemberCount} of {professionalPlanMaxUsers} users added
               </p>
-            )}
+            )} */}
           </div>
           <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><UserPlus size={16}/></div>
         </button>
@@ -1164,17 +1180,25 @@ export function OrganizationPage() {
       {activeTab === 'users' && (
         <>
         <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-          {/* DATA PANEL HEADER ROW: heading (left) + search/filter/action (right) */}
+          {/* HEADER: status sub-tabs on left, search + filters + actions on right */}
           <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-            <div>
-              <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">Platform Users</h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">
-                Manage platform users, their roles, department assignments, and access permissions.
-              </p>
+            <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+              {['all', 'invited', 'registered', 'pending', 'joined', 'disabled'].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
+                    statusFilter === status
+                      ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                      : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                  }`}
+                >
+                  {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              ))}
             </div>
-
             <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-              <div className="relative flex-1 min-w-[180px]">
+              <div className="relative min-w-[180px]">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                 <input
                   type="text" placeholder="Search platform users..."
@@ -1183,60 +1207,53 @@ export function OrganizationPage() {
                   className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                 />
               </div>
-              <div className="relative">
-                <select
-                  value={departmentFilter}
-                  onChange={(e) => setDepartmentFilter(e.target.value)}
-                  className="pl-3 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
-                >
-                  <option value="all">All Depts</option>
-                  {departments.map((department) => (
-                    <option key={department.id} value={department.id}>
-                      {normalizeDepartmentLabel(department.name)}
-                    </option>
-                  ))}
-                </select>
+              <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
+                <div className="relative w-min">
+                  <select
+                    value={deptRoleFilter}
+                    onChange={(e) => setDeptRoleFilter(e.target.value)}
+                    className="pl-1 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[9px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none"
+                  >
+                    <option value="all">All</option>
+                    <option disabled className="text-slate-300">── DEPARTMENTS ──</option>
+                    {departments.map((department) => (
+                      <option key={department.id} value={`dept:${department.id}`}>
+                        {normalizeDepartmentLabel(department.name)}
+                      </option>
+                    ))}
+                    <option disabled className="text-slate-300">─── ROLES ───</option>
+                    <option value="role:owner">Founder</option>
+                    <option value="role:super-admin">Super Admin</option>
+                    <option value="role:admin">Admin</option>
+                    <option value="role:manager">Manager</option>
+                    <option value="role:employee">Employee</option>
+                  </select>
+                  <ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 text-[#2563EB] pointer-events-none" />
+                </div>
+                {isBasicPlanWorkspace && (
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
+                    {activeSuperAdminCount}/{basicPlanAdditionalUserLimit} additional user added
+                  </p>
+                )}
+                {isProfessionalPlanWorkspace && (
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
+                    {activeMemberCount}/{professionalPlanMaxUsers} users added
+                  </p>
+                )}
+                <button
+                  title={addUserHoverMessage}
+                  onClick={() => {
+                    setTeamMemberFormData({ name: '', email: '', role: isBasicPlanWorkspace ? 'super-admin' : 'manager', departments: [] });
+                    setShowTeamMemberModal(true);
+                  }}
+                  disabled={!canAddUserOnCurrentPlan}
+                  className={`bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap ${
+                    !canAddUserOnCurrentPlan ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}>
+                  <Plus size={13} strokeWidth={3} /> ADD USER
+                </button>
               </div>
-              {isBasicPlanWorkspace && (
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
-                  {activeSuperAdminCount}/{basicPlanAdditionalUserLimit} additional user added
-                </p>
-              )}
-              {isProfessionalPlanWorkspace && (
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">
-                  {activeMemberCount}/{professionalPlanMaxUsers} users added
-                </p>
-              )}
-              <button
-                title={addUserHoverMessage}
-                onClick={() => {
-                  setTeamMemberFormData({ name: '', email: '', role: isBasicPlanWorkspace ? 'super-admin' : 'manager', departments: [] });
-                  setShowTeamMemberModal(true);
-                }}
-                disabled={!canAddUserOnCurrentPlan}
-                className={`bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap ${
-                  !canAddUserOnCurrentPlan ? 'opacity-50 cursor-not-allowed' : ''
-                }`}>
-                <Plus size={13} strokeWidth={3} /> ADD USER
-              </button>
             </div>
-          </div>
-
-          {/* STATUS SUB-TABS (pill filters) */}
-          <div className="px-3 sm:px-4 lg:px-5 py-2 border-b border-slate-100/40 bg-white flex items-center gap-1.5 overflow-x-auto">
-            {['all', 'pending', 'accepted', 'registered', 'joined', 'invited', 'disabled'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
-                  statusFilter === status
-                    ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
-                    : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
-                }`}
-              >
-                {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
-              </button>
-            ))}
           </div>
 
           {/* TABLE */}
@@ -1259,10 +1276,12 @@ export function OrganizationPage() {
                   const normalizedDepartments = Array.isArray(member.departmentNames)
                     ? member.departmentNames.filter(Boolean)
                     : [];
+                  // Super Admins automatically receive top-level access to ALL
+                  // departments, so their row always reads "All Departments"
+                  // exactly like the founder's, regardless of how many
+                  // department assignments the API happens to return.
                   const hasAllDepartmentsAccess =
-                    (normalizedRole === 'owner' || normalizedRole === 'super-admin') &&
-                    (normalizedDepartments.length === 0 ||
-                      (departments.length > 0 && normalizedDepartments.length >= departments.length));
+                    normalizedRole === 'owner' || normalizedRole === 'super-admin';
                   const departmentBadges = hasAllDepartmentsAccess
                     ? ['All Departments']
                     : normalizedDepartments;

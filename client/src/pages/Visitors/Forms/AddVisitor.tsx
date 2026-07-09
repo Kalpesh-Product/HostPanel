@@ -12,11 +12,11 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import PageFrame from "../../../components/Pages/PageFrame";
 import {
   isAlphanumeric,
+  isValidEmail,
   isValidPhoneNumber,
   noOnlyWhitespace,
 } from "../../../utils/validators";
@@ -28,9 +28,11 @@ const AddVisitor = () => {
     reset,
     watch,
     setValue,
+    clearErrors,
     formState: { errors },
   } = useForm({
     mode: "onChange",
+    reValidateMode: "onChange",
     defaultValues: {
       firstName: "",
       lastName:"",
@@ -56,12 +58,10 @@ const AddVisitor = () => {
   });
 
   const selectedCompany = watch("toMeetCompany");
-  const selectedIdType = watch("idProof.idType");
   const visitorType = watch("visitorType");
 
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const axios = useAxiosPrivate();
-  const navigate = useNavigate();
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ["employees"],
     queryFn: async () => {
@@ -165,7 +165,10 @@ const AddVisitor = () => {
   };
 
   useEffect(() => {
-    setValue("checkIn", dayjs(new Date()));
+    setValue("checkIn", dayjs(new Date()), {
+      shouldDirty: false,
+      shouldValidate: true,
+    });
   }, [setValue]);
 
   return (
@@ -237,7 +240,16 @@ const AddVisitor = () => {
                       {...field}
                       size="small"
                       label="Phone"
-                      type="number"
+                      type="text"
+                      inputProps={{
+                        inputMode: "numeric",
+                        maxLength: 10,
+                        pattern: "[0-9]*",
+                      }}
+                      onChange={(event) => {
+                        const nextValue = event.target.value.replace(/\D/g, "").slice(0, 10);
+                        field.onChange(nextValue);
+                      }}
                       error={!!errors.phoneNumber}
                       helperText={errors.phoneNumber?.message}
                       fullWidth
@@ -247,10 +259,18 @@ const AddVisitor = () => {
                 <Controller
                   name="email"
                   control={control}
+                  rules={{
+                    required: "Email is required",
+                    validate: {
+                      noOnlyWhitespace,
+                      isValidEmail,
+                    },
+                  }}
                   render={({ field }) => (
                     <TextField
                       {...field}
                       size="small"
+                      type="email"
                       error={!!errors.email}
                       helperText={errors.email?.message}
                       label="Email"
@@ -294,6 +314,14 @@ const AddVisitor = () => {
                       label="Select Visitor Type"
                       error={!!errors.visitorType}
                       helperText={errors.visitorType?.message}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        setValue("scheduledDate", null, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                        clearErrors("scheduledDate");
+                      }}
                     >
                       <MenuItem value="" disabled>
                         Select Visitor Type
@@ -306,10 +334,18 @@ const AddVisitor = () => {
                 <Controller
                   name="visitorCompany"
                   control={control}
+                  rules={{
+                    required: "Visitor company is required",
+                    validate: {
+                      noOnlyWhitespace,
+                    },
+                  }}
                   render={({ field }) => (
                     <TextField
                       {...field}
                       size="small"
+                      error={!!errors.visitorCompany}
+                      helperText={errors.visitorCompany?.message}
                       fullWidth
                       label={"Visitor company"}
                     />
@@ -347,6 +383,9 @@ const AddVisitor = () => {
                 <Controller
                   name="toMeetCompany"
                   control={control}
+                  rules={{
+                    required: "Company is required",
+                  }}
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -356,8 +395,19 @@ const AddVisitor = () => {
                       onChange={(e) => {
                         field.onChange(e);
                         setSelectedDepartment("");
+                        setValue("department", "", {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                        setValue("toMeet", "", {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        });
+                        clearErrors(["department", "toMeet"]);
                       }}
                       select
+                      error={!!errors.toMeetCompany}
+                      helperText={errors.toMeetCompany?.message}
                     >
                       <MenuItem value="" disabled>
                         Select Company
@@ -416,6 +466,23 @@ const AddVisitor = () => {
                 <Controller
                   name="toMeet"
                   control={control}
+                  rules={{
+                    validate: (value) => {
+                      const isBiznest =
+                        selectedCompany === "6799f0cd6a01edbe1bc3fcea";
+                      const showClientMembers = selectedCompany && !isBiznest;
+                      const showBiznestEmployees =
+                        isBiznest &&
+                        selectedDepartment &&
+                        selectedDepartment !== "na";
+
+                      if (showClientMembers || showBiznestEmployees) {
+                        return value ? true : "Person to meet is required";
+                      }
+
+                      return true;
+                    },
+                  }}
                   render={({ field }) => {
                     const isBiznest =
                       selectedCompany === "6799f0cd6a01edbe1bc3fcea";
@@ -436,6 +503,8 @@ const AddVisitor = () => {
                           (isBiznest && selectedDepartment === "na")
                         }
                         label={"Select Person"}
+                        error={!!errors.toMeet}
+                        helperText={errors.toMeet?.message}
                       >
                         <MenuItem value="">Select the person to meet</MenuItem>
 
@@ -481,6 +550,14 @@ const AddVisitor = () => {
                     <Controller
                       name="scheduledDate"
                       control={control}
+                      rules={{
+                        validate: (value) => {
+                          if (visitorType === "Scheduled") {
+                            return value ? true : "Scheduled date is required";
+                          }
+                          return true;
+                        },
+                      }}
                       render={({ field }) => {
                         const visitType =
                           visitorType !== "Scheduled"
