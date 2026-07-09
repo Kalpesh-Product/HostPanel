@@ -488,7 +488,7 @@ function UnifiedCalendar() {
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Calendar
               </h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Unified view of all your bookings, tasks, tickets, and leave requests
               </p>
             </div>

@@ -384,7 +384,7 @@ export default function LeadsManagementPage() {
             <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
               Leads Management
             </h2>
-            <p className="text-xs font-medium text-slate-500 mt-1">
+            <p className="text-xs font-pmedium text-slate-500 mt-1">
               Sales synced from Visitor Management and Website Builder.
             </p>
           </div>
@@ -431,21 +431,21 @@ export default function LeadsManagementPage() {
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Active Pipeline</p>
+              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Active Pipeline</p>
               <p className="text-[15px] font-black text-slate-900">{stats[1]?.value ?? 0}</p>
             </div>
             <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><BadgeCheck size={16}/></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">High Priority</p>
+              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">High Priority</p>
               <p className="text-[15px] font-black text-slate-900">{stats[2]?.value ?? 0}</p>
             </div>
             <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><Sparkles size={16}/></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Converted</p>
+              <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Converted</p>
               <p className="text-[15px] font-black text-slate-900">{stats[3]?.value ?? 0}</p>
             </div>
             <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16}/></div>
@@ -462,21 +462,21 @@ export default function LeadsManagementPage() {
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pending</p>
+              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Pending</p>
               <p className="text-[15px] font-black text-slate-900">{websiteLeadStats[1]?.value ?? 0}</p>
             </div>
             <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Sparkles size={16}/></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Contacted</p>
+              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Contacted</p>
               <p className="text-[15px] font-black text-slate-900">{websiteLeadStats[2]?.value ?? 0}</p>
             </div>
             <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><BadgeCheck size={16}/></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Closed</p>
+              <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Closed</p>
               <p className="text-[15px] font-black text-slate-900">{websiteLeadStats[3]?.value ?? 0}</p>
             </div>
             <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16}/></div>

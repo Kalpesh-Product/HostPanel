@@ -329,7 +329,7 @@ export default function AMCMaintenanceSchedulerPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-title font-pmedium text-primary uppercase">AMC Maintenance Scheduler</h1>
-              <p className="text-xs font-medium text-slate-500 mt-1">Preventive Servicing & Alerts</p>
+              <p className="text-xs font-pmedium text-slate-500 mt-1">Preventive Servicing & Alerts</p>
             </div>
           </div>
 

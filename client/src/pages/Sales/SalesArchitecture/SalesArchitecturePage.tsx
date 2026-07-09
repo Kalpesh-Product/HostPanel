@@ -859,7 +859,7 @@ export default function SalesArchitecturePage() {
           ].map(({ icon: Icon, label, value, cardClass, iconClass }) => (
             <div key={label} className={cardClass}>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">{label}</p>
                 <p className="text-[15px] font-black text-slate-900">{value}</p>
               </div>
               <div className={`p-2 rounded-2xl ${iconClass} shrink-0`}><Icon size={16} /></div>
@@ -1088,7 +1088,7 @@ export default function SalesArchitecturePage() {
           ].map(({ icon: Icon, label, value, cardClass, iconClass }) => (
             <div key={label} className={cardClass}>
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">{label}</p>
                 <p className="text-[15px] font-pmedium text-primary">{value}</p>
               </div>
               <div className={`p-2 rounded-2xl ${iconClass} shrink-0`}><Icon size={16} /></div>
@@ -1173,7 +1173,7 @@ export default function SalesArchitecturePage() {
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Sales Architecture
               </h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Visual workspace map with tenant and department seating. Assign and manage space allocations.
               </p>
             </div>

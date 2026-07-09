@@ -1711,7 +1711,7 @@ export default function BookingsPage() {
                 <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                   Administration Meeting Room Bookings
                 </h2>
-                <p className="text-xs font-medium text-slate-500 mt-1">View meeting room bookings Internal, External, and Tenant.</p>
+                <p className="text-xs font-pmedium text-slate-500 mt-1">View meeting room bookings Internal, External, and Tenant.</p>
               </div>
               <div className="flex items-center gap-2">
                 <button

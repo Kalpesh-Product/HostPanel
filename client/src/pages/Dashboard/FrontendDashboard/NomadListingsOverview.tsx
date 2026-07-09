@@ -29,26 +29,21 @@ export default function NomadListingsOverview() {
 
   const companyId = user?.companyId || "";
 
+  // Plain GET without custom cache headers: extra headers on this cross-origin
+  // call force a CORS preflight round-trip against a cold Vercel lambda, and
+  // the old cache-buster param defeated CDN caching entirely — both made this
+  // page noticeably slow to load. Cached data renders instantly on revisits
+  // while a background refetch keeps it fresh (mutations also invalidate it).
   const { data: listings = [], isPending } = useQuery({
     queryKey: ["nomad-listings", companyId],
     enabled: !!companyId,
     queryFn: async () => {
       const res = await axios.get(
         `https://wononomadsbe.vercel.app/api/company/get-listings/${companyId}`,
-        {
-          headers: {
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            Pragma: "no-cache",
-            Expires: "0",
-          },
-          params: { t: Date.now() },
-        },
       );
       return res.data || [];
     },
-    staleTime: 0,
-    cacheTime: 0,
-    refetchOnMount: "always",
+    staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
 
@@ -155,7 +150,7 @@ export default function NomadListingsOverview() {
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Nomads Listings
               </h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Manage your nomad business listings.
               </p>
             </div>
@@ -179,14 +174,14 @@ export default function NomadListingsOverview() {
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Active</p>
+                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Active</p>
                 <p className="text-[15px] font-black text-slate-900">{listingStats[1]?.value ?? 0}</p>
               </div>
               <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><BadgeCheck size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-rose-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Inactive</p>
+                <p className="text-[10px] font-bold text-rose-600 uppercase tracking-widest mb-1">Inactive</p>
                 <p className="text-[15px] font-black text-slate-900">{listingStats[2]?.value ?? 0}</p>
               </div>
               <div className="p-2 rounded-2xl bg-rose-50 text-rose-600 shrink-0"><X size={16} /></div>

@@ -376,7 +376,7 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
           <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
             Reports
           </h2>
-          <p className="text-xs font-medium text-slate-500 mt-1">
+          <p className="text-xs font-pmedium text-slate-500 mt-1">
             View, preview and download structured department reports.
           </p>
         </div>

@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import {
   Calendar,
   CheckCircle2,
@@ -102,7 +103,7 @@ const ADD_ON_GROUP_ORDER = [
   { key: "extra-common-modules", label: "Extra Common Modules", roman: "II" },
   { key: "key-apps", label: "Key Apps", roman: "III" },
   { key: "founder-core-modules", label: "Core Modules", roman: "IV" },
-  { key: "department-accesses", label: "Department Accesses", roman: "V" },
+  { key: "department-accesses", label: "Department Modules", roman: "V" },
 ] as const;
 
 const ADD_ON_DEPARTMENT_ORDER = [
@@ -466,7 +467,10 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isUpgradeSubmitting, setIsUpgradeSubmitting] = useState(false);
   const [requestedUpgradePlan, setRequestedUpgradePlan] = useState("");
-  const [openAddOnGroups, setOpenAddOnGroups] = useState<Record<string, boolean>>({});
+  // Accordion state for the Add-Ons page: everything starts closed, and only
+  // one group (and one department inside Department Modules) is open at once.
+  const [openAddOnGroup, setOpenAddOnGroup] = useState("");
+  const [openAddOnDepartment, setOpenAddOnDepartment] = useState("");
   const workspaceSetup = readWorkspaceSetup();
   const sectionId = resolveSectionId(section || params.sectionId);
   const departmentId = params.departmentId;
@@ -919,13 +923,12 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
     workspaceEnabledCanonicalIds,
   ]);
 
-  // Add-Ons page: one flat list of MODULES only (no department cards), in
-  // section order — Common Modules, Extra Common Modules, Key Apps, Core
-  // Modules, then every department's modules. Each module appears exactly
-  // once (e.g. Website Builder lives in both Key Apps and Tech Department),
-  // enabled ones float to the top as normal cards (matching what's enabled in
-  // the sidebar), and locked ones follow as locked cards with their home
-  // section/department named below the lock.
+  // Add-Ons page: every module with its group label — sections first (Common
+  // Modules, Extra Common Modules, Key Apps, Core Modules), then each
+  // department's modules labelled with the department name. The accordion
+  // below groups these by label, so a module living in two places (e.g.
+  // Website Builder in Key Apps and Tech Department) appears inside both of
+  // its dropdowns.
   const addOnModules = useMemo(() => {
     if (sectionId !== "add-ons") return [] as AddOnModuleCard[];
 
@@ -997,37 +1000,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
       (Array.isArray(dept?.tabs) ? dept.tabs : []).forEach((tab) => pushModule(tab, deptLabel));
     });
 
-    // Collapse only true aliases of the SAME module (Website Builder also
-    // listed under Tech Department, the visitor-management spellings, Website
-    // Leads vs Leads Management). Distinct modules that merely share a name —
-    // like the two Tenant Companies from Administration and Sales — both stay,
-    // told apart by the department named on the card. First occurrence wins,
-    // but an unlocked occurrence replaces a locked duplicate.
-    const ADD_ON_ALIASES: Record<string, string> = {
-      "tech-website-builder": "website-builder",
-      "visitors-management": "visitor-management",
-      "administration-visitor-management": "visitor-management",
-      "leads-management": "website-leads",
-    };
-    const dedupeKey = (id: string) => ADD_ON_ALIASES[id] || id;
-    const byKey = new Map<string, AddOnModuleCard>();
-    const keyOrder: string[] = [];
-    entries.forEach((entry) => {
-      const key = dedupeKey(entry.id);
-      const existing = byKey.get(key);
-      if (!existing) {
-        byKey.set(key, entry);
-        keyOrder.push(key);
-        return;
-      }
-      if (!existing.unlocked && entry.unlocked) byKey.set(key, entry);
-    });
-    const deduped = keyOrder.map((key) => byKey.get(key) as AddOnModuleCard);
-
-    return [
-      ...deduped.filter((entry) => entry.unlocked),
-      ...deduped.filter((entry) => !entry.unlocked),
-    ];
+    return entries;
   }, [
     enabledIds,
     planLabel,
@@ -1048,46 +1021,37 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
     });
 
     const groupCards = (label: string) => grouped.get(label) || [];
+    const sectionLabels = new Set<string>(
+      ADD_ON_GROUP_ORDER.map((group) => group.label),
+    );
+
     const groups: AddOnGroup[] = ADD_ON_GROUP_ORDER
       .map((group) => {
-        const cards = groupCards(group.label);
         if (group.key !== "department-accesses") {
-          return { key: group.key, label: group.label, roman: group.roman, cards };
+          return { key: group.key, label: group.label, roman: group.roman, cards: groupCards(group.label) };
         }
 
-        const deptMap = new Map<string, AddOnModuleCard[]>();
-        cards.forEach((card) => {
-          const deptKey = card.helperText || card.groupLabel;
-          if (!deptMap.has(deptKey)) deptMap.set(deptKey, []);
-          deptMap.get(deptKey)?.push(card);
-        });
-
-        const departments = ADD_ON_DEPARTMENT_ORDER.map((deptLabel) => {
-          const deptCards = deptMap.get(deptLabel);
-          return deptCards?.length ? { key: deptLabel, label: deptLabel, cards: deptCards } : null;
-        }).filter(Boolean) as Array<{ key: string; label: string; cards: AddOnModuleCard[] }>;
-
-        deptMap.forEach((deptCards, deptKey) => {
-          if (!departments.some((item) => item.key === deptKey)) {
-            departments.push({ key: deptKey, label: deptKey, cards: deptCards });
+        // Department cards carry their department's name as groupLabel, so
+        // bucket by that. Always list all 7 departments, even ones with no
+        // modules yet.
+        const departments = ADD_ON_DEPARTMENT_ORDER.map((deptLabel) => ({
+          key: deptLabel,
+          label: deptLabel,
+          cards: groupCards(deptLabel),
+        }));
+        grouped.forEach((deptCards, label) => {
+          if (sectionLabels.has(label)) return;
+          if (!departments.some((item) => item.key === label)) {
+            departments.push({ key: label, label, cards: deptCards });
           }
         });
 
-        return { key: group.key, label: group.label, roman: group.roman, cards, departments };
+        return { key: group.key, label: group.label, roman: group.roman, cards: [], departments };
       })
-      .filter((group) => group.cards.length > 0 || (group.departments || []).length > 0);
+      .filter((group) => (group.departments ? group.departments.length > 0 : group.cards.length > 0));
 
     return groups;
   }, [addOnModules, sectionId]);
-
-  useEffect(() => {
-    if (sectionId !== "add-ons") return;
-    if (!addOnGroups.length) return;
-    setOpenAddOnGroups((prev) => {
-      if (Object.keys(prev).length) return prev;
-      return Object.fromEntries(addOnGroups.map((group) => [group.key, true]));
-    });
-  }, [addOnGroups, sectionId]);
 
   const handleUpgradePlanRequest = async (plan: string) => {
     if (requestedUpgradePlan === plan) {
@@ -1143,11 +1107,22 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
           ) : null}
         </div>
         {!isCardsHydrated && !sectionData ? (
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 animate-pulse">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div key={`cards-skeleton-${index}`} className="h-60 rounded-2xl bg-gray-200" />
-            ))}
-          </div>
+          sectionId === "add-ons" ? (
+            <div className="space-y-5 animate-pulse">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <div
+                  key={`addons-skeleton-${index}`}
+                  className="h-[76px] rounded-3xl border border-slate-200 bg-gray-200"
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 animate-pulse">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={`cards-skeleton-${index}`} className="h-60 rounded-2xl bg-gray-200" />
+              ))}
+            </div>
+          )
         ) : sectionId === "add-ons" ? (
           addOnGroups.length === 0 ? (
             <p className="text-sm text-slate-500">
@@ -1164,12 +1139,10 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
                   <div key={group.key} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
                     <button
                       type="button"
-                      onClick={() =>
-                        setOpenAddOnGroups((prev) => ({
-                          ...prev,
-                          [group.key]: !prev[group.key],
-                        }))
-                      }
+                      onClick={() => {
+                        setOpenAddOnGroup((prev) => (prev === group.key ? "" : group.key));
+                        setOpenAddOnDepartment("");
+                      }}
                       className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
                     >
                       <div>
@@ -1182,16 +1155,16 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
                       </div>
                       <ChevronDown
                         className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 ${
-                          openAddOnGroups[group.key] ? "rotate-180" : ""
+                          openAddOnGroup === group.key ? "rotate-180" : ""
                         }`}
                       />
                     </button>
 
-                    {openAddOnGroups[group.key] ? (
+                    {openAddOnGroup === group.key ? (
                       <div className="border-t border-slate-200 px-5 py-5">
                         {!isDeptGroup ? (
                           <div className="space-y-5">
-                            <div className="space-y-3">
+                            <div className={enabledCards.length > 0 ? "space-y-3" : "hidden"}>
                               <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-600">Enabled</p>
                               <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                 {enabledCards.map((card) => {
@@ -1238,7 +1211,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
                         ) : (
                           <div className="space-y-4">
                             {(group.departments || []).map((department) => {
-                              const deptOpen = Boolean(openAddOnGroups[department.key]);
+                              const deptOpen = openAddOnDepartment === department.key;
                               const enabledDeptCards = department.cards.filter((card) => card.unlocked);
                               const disabledDeptCards = department.cards.filter((card) => !card.unlocked);
 
@@ -1247,10 +1220,9 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
                                   <button
                                     type="button"
                                     onClick={() =>
-                                      setOpenAddOnGroups((prev) => ({
-                                        ...prev,
-                                        [department.key]: !prev[department.key],
-                                      }))
+                                      setOpenAddOnDepartment((prev) =>
+                                        prev === department.key ? "" : department.key,
+                                      )
                                     }
                                     className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
                                   >
@@ -1270,7 +1242,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
                                   {deptOpen ? (
                                     <div className="border-t border-slate-200 px-4 py-4">
                                       <div className="space-y-5">
-                                        <div className="space-y-3">
+                                        <div className={enabledDeptCards.length > 0 ? "space-y-3" : "hidden"}>
                                           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-600">Enabled</p>
                                           <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                             {enabledDeptCards.map((card) => {
@@ -1365,8 +1337,8 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
           </div>
         )}
       </div>
-      {isUpgradeModalOpen ? (
-        <div className="fixed inset-0 z-50 bg-[#0f172a]/45 backdrop-blur-[2px] px-4 py-6 flex items-center justify-center">
+      {isUpgradeModalOpen ? createPortal(
+        <div className="fixed inset-0 z-[1400] bg-[#0f172a]/45 backdrop-blur-[2px] px-4 py-6 flex items-center justify-center">
           <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] border border-[#dbe5f2] shadow-[0_20px_80px_rgba(15,23,42,0.28)] p-5 sm:p-6">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
@@ -1444,7 +1416,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
             </div>
           </div>
         </div>
-      ) : null}
+      , document.body) : null}
     </PageFrame>
   );
 };

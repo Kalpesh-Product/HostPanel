@@ -298,7 +298,7 @@ export function InventoryPage() {
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Inventory
               </h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
                 {isAdminScope
                   ? 'Admin view: monitor inventory only for the departments assigned to you.'
                   : 'Founder view: monitor tracking, create inventory, and execute global stock reallocations.'}

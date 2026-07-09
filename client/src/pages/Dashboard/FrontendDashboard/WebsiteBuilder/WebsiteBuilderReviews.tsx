@@ -213,7 +213,7 @@ export default function WebsiteBuilderReviews() {
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Website Review
               </h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Visitor-submitted reviews for your website.
               </p>
             </div>
@@ -230,21 +230,21 @@ export default function WebsiteBuilderReviews() {
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pending</p>
+                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Pending</p>
                 <p className="text-[15px] font-black text-slate-900">{reviewStats[1]?.value ?? 0}</p>
               </div>
               <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Sparkles size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Approved</p>
+                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Approved</p>
                 <p className="text-[15px] font-black text-slate-900">{reviewStats[2]?.value ?? 0}</p>
               </div>
               <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><BadgeCheck size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-rose-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Rejected</p>
+                <p className="text-[10px] font-bold text-rose-600 uppercase tracking-widest mb-1">Rejected</p>
                 <p className="text-[15px] font-black text-slate-900">{reviewStats[3]?.value ?? 0}</p>
               </div>
               <div className="p-2 rounded-2xl bg-rose-50 text-rose-600 shrink-0"><X size={16} /></div>

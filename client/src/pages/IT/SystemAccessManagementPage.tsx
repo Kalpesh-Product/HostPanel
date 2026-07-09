@@ -301,7 +301,7 @@ export default function SystemAccessManagementPage() {
               <ShieldCheck className="w-4 h-4" />
               System Access Management
             </h2>
-            <p className="text-xs font-medium text-slate-500 mt-1">
+            <p className="text-xs font-pmedium text-slate-500 mt-1">
               Software access, role gating, and expiry tracking
             </p>
           </div>
@@ -318,7 +318,7 @@ export default function SystemAccessManagementPage() {
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-3 shrink-0">
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Software Assets</p>
+              <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Software Assets</p>
               <p className="text-lg font-black text-slate-900">{softwareAssets.length}</p>
             </div>
             <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0">
@@ -327,7 +327,7 @@ export default function SystemAccessManagementPage() {
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-green-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Assigned</p>
+              <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest mb-1">Assigned</p>
               <p className="text-lg font-black text-slate-900">{assignedCount}</p>
             </div>
             <div className="p-2 rounded-2xl bg-green-50 text-green-600 shrink-0">
@@ -336,7 +336,7 @@ export default function SystemAccessManagementPage() {
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Expiring Soon</p>
+              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Expiring Soon</p>
               <p className="text-lg font-black text-slate-900">{expiringSoonCount}</p>
             </div>
             <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0">
@@ -345,7 +345,7 @@ export default function SystemAccessManagementPage() {
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-rose-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Expired</p>
+              <p className="text-[10px] font-bold text-rose-600 uppercase tracking-widest mb-1">Expired</p>
               <p className="text-lg font-black text-slate-900">{expiredCount}</p>
             </div>
             <div className="p-2 rounded-2xl bg-rose-50 text-rose-600 shrink-0">

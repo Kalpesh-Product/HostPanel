@@ -240,7 +240,7 @@ export default function ITRepairLogsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-title font-pmedium text-primary uppercase">IT Repair Logs</h1>
-              <p className="text-xs font-medium text-slate-500 mt-1">Track network, device, and system repairs for IT</p>
+              <p className="text-xs font-pmedium text-slate-500 mt-1">Track network, device, and system repairs for IT</p>
             </div>
           </div>
 

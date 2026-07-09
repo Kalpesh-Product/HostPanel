@@ -220,7 +220,7 @@ export default function WorkspaceSettingsPage() {
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Unit Settings
               </h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Manage the founder-level unit flow. Create new unit branches securely and unlock unit management once you have more than one unit.
               </p>
             </div>

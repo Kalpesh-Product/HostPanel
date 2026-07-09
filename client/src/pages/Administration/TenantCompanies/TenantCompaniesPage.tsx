@@ -1187,7 +1187,7 @@ export default function AdministrationTenantCompaniesPage() {
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Administration Tenant Companies
               </h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">View Added Tenant Companies and Add its Employees</p>
+              <p className="text-xs font-pmedium text-slate-500 mt-1">View Added Tenant Companies and Add its Employees</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
                               <button

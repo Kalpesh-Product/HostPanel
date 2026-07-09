@@ -387,7 +387,7 @@ export default function RepairLogsPage() {
           <div className="mb-3 flex items-center justify-between">
             <div>
               <h1 className="text-title font-pmedium text-primary uppercase">Repair Logs</h1>
-              <p className="text-xs font-medium text-slate-500 mt-1">Maintenance Department &bull; Repair work orders</p>
+              <p className="text-xs font-pmedium text-slate-500 mt-1">Maintenance Department &bull; Repair work orders</p>
             </div>
           </div>
 

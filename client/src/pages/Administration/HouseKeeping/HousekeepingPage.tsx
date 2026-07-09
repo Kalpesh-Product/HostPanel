@@ -590,7 +590,7 @@ function HousekeepingPageInner() {
           <div className="mb-3 flex items-center justify-between">
             <div>
               <h1 className="text-title font-pmedium text-primary uppercase">Housekeeping</h1>
-              <p className="text-xs font-medium text-slate-500 mt-1">
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Core Module - Administration Manager
               </p>
             </div>

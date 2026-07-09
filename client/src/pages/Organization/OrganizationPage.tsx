@@ -1085,7 +1085,7 @@ export function OrganizationPage() {
         <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
           <div>
             <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">Organization Management</h2>
-            <p className="text-xs font-medium text-slate-500 mt-1">Manage platform users and organization access.</p>
+            <p className="text-xs font-pmedium text-slate-500 mt-1">Manage platform users and organization access.</p>
           </div>
         </div>
 
@@ -1120,7 +1120,7 @@ export function OrganizationPage() {
         </div>
         <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Depts</p>
+            <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Total Depts</p>
             <p className={`text-[15px] font-black ${canAccessDepartmentsTab ? 'text-slate-900' : 'text-slate-300'}`}>
               {canAccessDepartmentsTab ? departments.length : '--'}
             </p>
@@ -1129,7 +1129,7 @@ export function OrganizationPage() {
         </div>
         <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Global Headcount</p>
+            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Global Headcount</p>
             <p className={`text-[15px] font-black ${canAccessDepartmentsTab ? 'text-slate-900' : 'text-slate-300'}`}>
               {canAccessDepartmentsTab ? totalEmployees : '--'}
             </p>
@@ -1500,7 +1500,7 @@ export function OrganizationPage() {
           <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
             <div>
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">Departments</h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Review existing departments and enable the ones that were missed during setup.
               </p>
             </div>

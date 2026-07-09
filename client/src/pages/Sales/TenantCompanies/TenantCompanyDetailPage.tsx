@@ -299,15 +299,15 @@ export default function TenantCompanyDetailPage() {
                 <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><CreditCard size={16} /></div>
               </div>
               <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-violet-500">
-                <div className="min-w-0"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Purchased</p><p className="text-[15px] font-black text-violet-600">+{fmt(pc)}</p></div>
+                <div className="min-w-0"><p className="text-[10px] font-bold text-violet-600 uppercase tracking-widest mb-1">Purchased</p><p className="text-[15px] font-black text-violet-600">+{fmt(pc)}</p></div>
                 <div className="p-2 rounded-2xl bg-violet-50 text-violet-600 shrink-0"><Plus size={16} /></div>
               </div>
               <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
-                <div className="min-w-0"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Credits Used</p><p className="text-[15px] font-black text-blue-600">{fmt(cu)}</p></div>
+                <div className="min-w-0"><p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Credits Used</p><p className="text-[15px] font-black text-blue-600">{fmt(cu)}</p></div>
                 <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><History size={16} /></div>
               </div>
               <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
-                <div className="min-w-0"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Remaining</p><p className="text-[15px] font-black text-emerald-600">{fmt(cr)}</p></div>
+                <div className="min-w-0"><p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Remaining</p><p className="text-[15px] font-black text-emerald-600">{fmt(cr)}</p></div>
                 <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><CheckCircle2 size={16} /></div>
               </div>
             </div>

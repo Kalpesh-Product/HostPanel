@@ -1338,7 +1338,7 @@ export default function AccessGrantsPage() {
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Access Grants
               </h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Manage user roles and module access for {workspace?.workspaceName || 'this unit'}.
               </p>
             </div>

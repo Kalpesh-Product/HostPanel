@@ -3237,7 +3237,7 @@ export default function VisitorsManagementPage() {
         <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
           <div>
             <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">Visitor Management</h2>
-            <p className="text-xs font-medium text-slate-500 mt-1">Daily visitors, walk-in bookings, client conversion, payment proof, and invoice handoff in one front desk unit.</p>
+            <p className="text-xs font-pmedium text-slate-500 mt-1">Daily visitors, walk-in bookings, client conversion, payment proof, and invoice handoff in one front desk unit.</p>
           </div>
         </div>
 
@@ -3296,15 +3296,15 @@ export default function VisitorsManagementPage() {
         {/* 3. STATS OVERVIEW */}
         <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
-            <div className="min-w-0"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Currently Inside</p><p className="text-[15px] font-black text-slate-900">{liveVisitors.filter((v) => normalizeText(v.status || v.statusKey || '').replace(/[_-]+/g, ' ') === 'checked in').length}</p></div>
+            <div className="min-w-0"><p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Currently Inside</p><p className="text-[15px] font-black text-slate-900">{liveVisitors.filter((v) => normalizeText(v.status || v.statusKey || '').replace(/[_-]+/g, ' ') === 'checked in').length}</p></div>
             <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><User size={16} /></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
-            <div className="min-w-0"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Daily Bookings</p><p className="text-[15px] font-black text-slate-900">{dailyBookings.length}</p></div>
+            <div className="min-w-0"><p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Daily Bookings</p><p className="text-[15px] font-black text-slate-900">{dailyBookings.length}</p></div>
             <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><CalendarDays size={16} /></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
-            <div className="min-w-0"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Payments Due</p><p className="text-[15px] font-black text-slate-900">{dailyBookings.filter((booking) => booking.paymentStatus === 'Pending Payment').length}</p></div>
+            <div className="min-w-0"><p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Payments Due</p><p className="text-[15px] font-black text-slate-900">{dailyBookings.filter((booking) => booking.paymentStatus === 'Pending Payment').length}</p></div>
             <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><Wallet size={16} /></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-slate-500">

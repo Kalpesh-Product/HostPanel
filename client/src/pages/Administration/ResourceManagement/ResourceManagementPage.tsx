@@ -896,7 +896,7 @@ function ResourceManagementPageInner() {
           <div className="mb-3 flex items-center justify-between">
             <div>
               <h1 className="text-title font-pmedium text-primary uppercase">Resource Management</h1>
-              <p className="text-xs font-medium text-slate-500 mt-1">
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Manage floor-by-floor inventory for open desks, cabin desks, meeting rooms, conference rooms, and virtual offices.
               </p>
             </div>

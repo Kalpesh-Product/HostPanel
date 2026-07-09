@@ -464,7 +464,7 @@ function AssetsSkeleton() {
                 <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                    Assets
                 </h2>
-                <p className="text-xs font-medium text-slate-500 mt-1">
+                <p className="text-xs font-pmedium text-slate-500 mt-1">
                   {isAdminScope
                     ? 'Admin View: track assets only for the departments assigned to you.'
                     : 'Founder View: Track all company hardware, software licenses, infrastructure, and equipment globally.'}

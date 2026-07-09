@@ -890,7 +890,7 @@ export default function HRPayrollPage() {
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Payroll Processing
               </h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">Core Module</p>
+              <p className="text-xs font-pmedium text-slate-500 mt-1">Core Module</p>
             </div>
 
             {/* Month/Year selectors */}
