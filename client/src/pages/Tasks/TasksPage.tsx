@@ -30,6 +30,7 @@ import {
   updateTask,
 } from '@/services/tasks';
 import { TasksSkeleton } from '@/components/ui/Skeleton';
+import { statusPillClass } from '../../lib/status-pill';
 
 const TASKS_PAGE_SIZE = 50;
 
@@ -1677,9 +1678,9 @@ export function TasksPage() {
 
   const getPriorityBadge = (priority = '') => {
     switch ((priority || '').toLowerCase()) {
-      case 'high': return <span className="px-2.5 py-1 bg-red-50 text-red-600 rounded-md text-[10px] font-bold uppercase tracking-wider border border-red-100 shadow-sm">High</span>;
-      case 'medium': return <span className="px-2.5 py-1 bg-amber-50 text-amber-600 rounded-md text-[10px] font-bold uppercase tracking-wider border border-amber-100 shadow-sm">Medium</span>;
-      case 'low': return <span className="px-2.5 py-1 bg-blue-50 text-blue-600 rounded-md text-[10px] font-bold uppercase tracking-wider border border-blue-100 shadow-sm">Low</span>;
+      case 'high': return <span className={statusPillClass("High")}>High</span>;
+      case 'medium': return <span className={statusPillClass("Medium")}>Medium</span>;
+      case 'low': return <span className={statusPillClass("Low")}>Low</span>;
       default: return null;
     }
   };
@@ -1687,10 +1688,10 @@ export function TasksPage() {
   const getStatusBadge = (status = '') => {
     switch ((status || '').toLowerCase()) {
       case 'completed':
-      case 'approved': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm"><CheckCircle2 size={12} /> {status}</span>;
-      case 'in progress': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-blue-50 text-[#2563EB] border border-blue-200 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm"><Clock size={12} /> In Progress</span>;
-      case 'pending': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm"><AlertCircle size={12} /> Pending</span>;
-      case 'rejected': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-red-50 text-red-600 border border-red-200 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm"><X size={12} /> Rejected</span>;
+      case 'approved': return <span className={statusPillClass(status)}>{status}</span>;
+      case 'in progress': return <span className={statusPillClass("In Progress")}>In Progress</span>;
+      case 'pending': return <span className={statusPillClass("Pending")}>Pending</span>;
+      case 'rejected': return <span className={statusPillClass("Rejected")}>Rejected</span>;
       default: return null;
     }
   };
@@ -1885,7 +1886,7 @@ export function TasksPage() {
                     <button
                       key={status}
                       onClick={() => setStatusFilter(status)}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${statusFilter === status
+                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${statusFilter === status
                         ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
                         : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
                       }`}
@@ -1900,14 +1901,14 @@ export function TasksPage() {
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
                       type="text" placeholder="Search Tasks or People..."
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                       value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
                   <div className="relative">
                     <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                     <select
-                      className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
+                      className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
                       value={selectedDeptFilter} onChange={(e) => setSelectedDeptFilter(e.target.value)}
                     >
                       <option value="All">All Departments</option>
@@ -1927,7 +1928,7 @@ export function TasksPage() {
               <div className="overflow-x-auto flex-1 [&::-webkit-scrollbar]:hidden bg-white/20">
                 {/* --- DESKTOP TABLE VIEW --- */}
                 <table className="hidden lg:table w-full text-left">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Task Details</th>
                       <th className="px-5 py-4">Type / Dept</th>
@@ -1943,7 +1944,7 @@ export function TasksPage() {
                       return (
                         <tr key={task.id} className={`hover:bg-slate-50/50 transition-all group ${isTaskOverdue ? 'bg-red-50/30' : ''}`}>
                           <td className="px-5 py-4 align-top max-w-[250px] xl:max-w-[400px]">
-                            <div className="font-semibold text-[#0F172A] text-[13px] sm:text-[14px]" title={task.title}>
+                            <div className="font-pmedium text-[#0F172A] text-[13px] sm:text-[14px]" title={task.title}>
                               {task.title}
                               {task.attachments && task.attachments.length > 0 && (
                                 <Paperclip size={12} className="inline ml-2 text-[#2563EB]" />
@@ -1953,17 +1954,17 @@ export function TasksPage() {
                           </td>
                           <td className="px-5 py-4 align-top">
                             <div className="flex flex-col items-start gap-1.5">
-                              <span className="w-max px-2 py-0.5 bg-slate-100/80 text-slate-600 rounded text-[10px] font-bold uppercase border border-slate-200/60">{task.type}</span>
-                              <span className="text-[10px] font-bold text-[#2563EB] uppercase flex items-center gap-1.5 mt-0.5"><Building2 size={12} /> {getCanonicalDepartmentLabel(task.department!)}</span>
+                              <span className={statusPillClass(task.type)}>{task.type}</span>
+                              <span className={statusPillClass(getCanonicalDepartmentLabel(task.department!))}>{getCanonicalDepartmentLabel(task.department!)}</span>
                             </div>
                           </td>
                           <td className="px-5 py-4 align-top">
-                            <div className="text-[12px] sm:text-[13px] font-semibold text-[#0F172A] min-w-[200px]">
-                              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">Raised By:</span>
+                            <div className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A] min-w-[200px]">
+                              <span className={statusPillClass("Raised By:")}>Raised By:</span>
                               {formatPersonLabel(task.raisedBy!, task.raisedByDept)}
                             </div>
-                            <div className="text-[12px] sm:text-[13px] font-semibold text-[#2563EB] min-w-[200px] mt-2.5">
-                              <span className="text-[9px] text-blue-400 font-bold uppercase tracking-wider block mb-0.5">Assigned To:</span>
+                            <div className="text-[12px] sm:text-[13px] font-pmedium text-[#2563EB] min-w-[200px] mt-2.5">
+                              <span className={statusPillClass("Assigned To:")}>Assigned To:</span>
                               {getAssigneeDisplayLabel(task)}
                             </div>
                           </td>
@@ -1980,10 +1981,9 @@ export function TasksPage() {
                           </td>
                           <td className="px-5 py-4 align-top">
                             <div className="flex flex-col items-start gap-1.5">
-                              <span className="font-semibold text-slate-700 text-[12px] sm:text-[13px]">{task.dueDate}</span>
+                              <span className="font-pmedium text-slate-700 text-[12px] sm:text-[13px]">{task.dueDate}</span>
                               {isTaskOverdue && (
-                                <span className="flex items-center gap-1 text-[9px] bg-red-50 text-red-700 px-1.5 py-0.5 rounded font-bold uppercase border border-red-100 shadow-sm">
-                                  <AlertTriangle size={10} strokeWidth={2.5} /> Overdue
+                                <span className={statusPillClass("Overdue")}>Overdue
                                 </span>
                               )}
                             </div>
@@ -2011,7 +2011,7 @@ export function TasksPage() {
                       <div key={task.id} className={`bg-white border p-4 sm:p-5 rounded-[20px] shadow-sm flex flex-col gap-3 transition-all ${isTaskOverdue ? 'border-red-200 bg-red-50/10' : 'border-slate-200/60'}`}>
                         <div className="flex justify-between items-start gap-3">
                           <div className="flex-1 flex flex-col gap-1.5">
-                            <span className="w-max px-2 py-0.5 bg-slate-100/80 text-slate-600 rounded text-[10px] font-bold uppercase border border-slate-200/60">{task.type}</span>
+                            <span className={statusPillClass(task.type)}>{task.type}</span>
                             <h3 className="font-semibold text-[#0F172A] text-[13px] sm:text-[14px]">
                               {task.title}
                               {task.attachments && task.attachments.length > 0 && <Paperclip size={12} className="inline ml-1 text-[#2563EB]" />}
@@ -2025,11 +2025,11 @@ export function TasksPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100 mt-1">
                           <div>
-                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">Raised By</span>
+                            <span className={statusPillClass("Raised By")}>Raised By</span>
                             <span className="text-[11px] font-semibold text-[#0F172A] truncate block" title={task.raisedBy}>{task.raisedBy!.split(' ')[0]}</span>
                           </div>
                           <div>
-                            <span className="text-[9px] text-blue-400 font-bold uppercase tracking-wider block mb-0.5">Assigned To</span>
+                            <span className={statusPillClass("Assigned To")}>Assigned To</span>
                             <span className="text-[11px] font-semibold text-[#2563EB] truncate block" title={task.assignee}>{task.assignee!.split(' ')[0]}</span>
                           </div>
                         </div>
@@ -2042,7 +2042,7 @@ export function TasksPage() {
                           <div className="flex flex-col">
                             <span className="font-semibold text-slate-700 text-[11px] sm:text-[12px] flex items-center gap-1.5"><Calendar size={12} /> {task.dueDate}</span>
                             {isTaskOverdue && (
-                              <span className="text-[9px] text-red-600 font-bold uppercase tracking-wider flex items-center gap-1 mt-0.5"><AlertTriangle size={10} strokeWidth={2.5} /> Overdue</span>
+                              <span className={statusPillClass("Overdue")}>Overdue</span>
                             )}
                           </div>
                           <button
@@ -2113,15 +2113,15 @@ export function TasksPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Task Type *</label>
-                      <select required className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all" value={taskForm.type} onChange={e => setTaskForm({ ...taskForm, type: e.target.value })}>
+                      <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Task Type *</label>
+                      <select required className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all" value={taskForm.type} onChange={e => setTaskForm({ ...taskForm, type: e.target.value })}>
                         <option value="Standard">Standard Execution</option>
                         <option value="Approval">Formal Approval Request</option>
                       </select>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Priority</label>
-                      <select className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all" value={taskForm.priority} onChange={e => setTaskForm({ ...taskForm, priority: e.target.value })}>
+                      <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Priority</label>
+                      <select className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all" value={taskForm.priority} onChange={e => setTaskForm({ ...taskForm, priority: e.target.value })}>
                         <option value="Low">Low</option>
                         <option value="Medium">Medium</option>
                         <option value="High">High</option>
@@ -2130,13 +2130,13 @@ export function TasksPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Task Title *</label>
-                    <input required type="text" placeholder="e.g. Audit Q3 Finances" className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none transition-all placeholder:font-medium placeholder:text-slate-400" value={taskForm.title} onChange={e => setTaskForm({ ...taskForm, title: e.target.value })} />
+                    <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Task Title *</label>
+                    <input required type="text" placeholder="e.g. Audit Q3 Finances" className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none transition-all placeholder: placeholder:text-slate-400" value={taskForm.title} onChange={e => setTaskForm({ ...taskForm, title: e.target.value })} />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Details & Instructions</label>
-                    <textarea required rows={3} placeholder="Detailed instructions..." className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-medium text-slate-700 focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none resize-none transition-all placeholder:text-slate-400" value={taskForm.description} onChange={e => setTaskForm({ ...taskForm, description: e.target.value })} />
+                    <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Details & Instructions</label>
+                    <textarea required rows={3} placeholder="Detailed instructions..." className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-slate-700 focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none resize-none transition-all placeholder:text-slate-400" value={taskForm.description} onChange={e => setTaskForm({ ...taskForm, description: e.target.value })} />
                   </div>
 
                   {/* Routing & Workload Control */}
@@ -2146,8 +2146,8 @@ export function TasksPage() {
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 mt-1">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Route to Department *</label>
-                        <select required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all" value={taskForm.department} onChange={e => {
+                        <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Route to Department *</label>
+                        <select required className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all" value={taskForm.department} onChange={e => {
                           const nextDepartment = e.target.value;
                           const defaultMember = getPreferredAssigneeForDepartment(nextDepartment);
 
@@ -2163,8 +2163,8 @@ export function TasksPage() {
                         </select>
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Assignee (Checks Workload)</label>
-                        <select required={isAdminTaskProfile || isTopManagementDepartmentName(taskForm.department)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all disabled:opacity-50 disabled:bg-slate-100" disabled={!taskForm.department} value={taskForm.assigneeUserId || ''} onChange={e => {
+                        <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Assignee (Checks Workload)</label>
+                        <select required={isAdminTaskProfile || isTopManagementDepartmentName(taskForm.department)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all disabled:opacity-50 disabled:bg-slate-100" disabled={!taskForm.department} value={taskForm.assigneeUserId || ''} onChange={e => {
                           const selected = assigneeOptions.find((member) => member.id === e.target.value) || null;
                           setTaskForm({
                             ...taskForm,
@@ -2206,17 +2206,17 @@ export function TasksPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Deadline *</label>
-                    <input required type="date" className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all" value={taskForm.dueDate} onChange={e => setTaskForm({ ...taskForm, dueDate: e.target.value })} />
+                    <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Deadline *</label>
+                    <input required type="date" className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all" value={taskForm.dueDate} onChange={e => setTaskForm({ ...taskForm, dueDate: e.target.value })} />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Reference Files (Optional)</label>
+                    <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Reference Files (Optional)</label>
                     <input
                       type="file"
                       multiple
                       onChange={handleAssignmentFilesChange}
-                      className="block w-full text-[12px] text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-[11px] file:font-bold file:uppercase file:tracking-wider file:text-blue-700 hover:file:bg-blue-100"
+                      className="block w-full text-[12px] text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-[11px] file:font-pmedium file:uppercase file:tracking-wider file:text-blue-700 hover:file:bg-blue-100"
                     />
                     {assignmentFiles.length > 0 ? (
                       <div className="space-y-2 mt-2">
@@ -2227,7 +2227,7 @@ export function TasksPage() {
                               <span className="text-[12px] font-semibold text-slate-700 truncate">{file.name}</span>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{formatFileSize(file.size)}</span>
+                              <span className={statusPillClass(formatFileSize(file.size))}>{formatFileSize(file.size)}</span>
                               <button
                                 type="button"
                                 onClick={() => removeAssignmentFile(file)}
@@ -2264,7 +2264,7 @@ export function TasksPage() {
                 <div className="p-5 sm:p-6 md:p-8 bg-white border-b border-slate-100 flex justify-between items-start shrink-0 relative">
                   <div className="pr-10">
                     <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-3">
-                      <span className="px-2.5 py-1 bg-slate-100/80 border border-slate-200/60 text-slate-600 rounded-md text-[10px] font-bold uppercase tracking-wider">{viewingTask.type}</span>
+                      <span className={statusPillClass(viewingTask.type)}>{viewingTask.type}</span>
                       {getPriorityBadge(viewingTask.priority)}
                       {getStatusBadge(viewingTask.status)}
                     </div>
@@ -2311,7 +2311,7 @@ export function TasksPage() {
                                   )}
                                 </div>
                                 {attachment.size ? (
-                                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0">{attachment.size}</span>
+                                  <span className={statusPillClass(attachment.size)}>{attachment.size}</span>
                                 ) : null}
                               </div>
                             ))}
@@ -2329,7 +2329,7 @@ export function TasksPage() {
                         <div className="min-w-0">
                           <span className="font-semibold text-[#0F172A] text-[12px] sm:text-[13px] block truncate">{viewingTask.raisedBy}</span>
                           {!viewingTask.raisedBy?.includes('(Owner)') ? (
-                            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate block">{viewingTask.raisedByDept}</span>
+                            <span className={statusPillClass(viewingTask.raisedByDept)}>{viewingTask.raisedByDept}</span>
                           ) : null}
                         </div>
                       </div>
@@ -2341,7 +2341,7 @@ export function TasksPage() {
                         <div className="min-w-0">
                           <span className="font-semibold text-[#0F172A] text-[12px] sm:text-[13px] block truncate">{getAssigneeDisplayLabel(viewingTask)}</span>
                           {viewingTask.assignee !== 'Unassigned' && (
-                            <span className="text-[9px] sm:text-[10px] font-bold text-amber-500 uppercase tracking-wider truncate block">{getPendingTaskCount(viewingTask.assignee || '')} Current Tasks</span>
+                            <span className={statusPillClass(getPendingTaskCount(viewingTask.assignee || ''))}>{getPendingTaskCount(viewingTask.assignee || '')} Current Tasks</span>
                           )}
                         </div>
                       </div>
@@ -2352,7 +2352,7 @@ export function TasksPage() {
                         <p className="font-bold text-[#0F172A] text-[13px] sm:text-[14px]">{viewingTask.dueDate}</p>
                       </div>
                       {isOverdue(viewingTask.dueDate!, viewingTask.status) && (
-                        <span className="bg-red-50 text-red-700 px-3 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-red-100 shadow-sm"><AlertTriangle size={14} /> Overdue</span>
+                        <span className={statusPillClass("Overdue")}>Overdue</span>
                       )}
                     </div>
                   </div>
@@ -2365,9 +2365,9 @@ export function TasksPage() {
                       ((isDepartmentManagerProfile && isDepartmentTask(viewingTask)) || (isSuperAdminProfile && isQueueTask(viewingTask))) ? (
                         <div className="mb-4 space-y-3">
                           <div>
-                            <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Accept as</label>
+                            <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Accept as</label>
                             <select
-                              className="mt-1.5 w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all"
+                              className="mt-1.5 w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all"
                               value={hrQueueAssigneeUserId || ''}
                               onChange={(e) => setHrQueueAssigneeUserId(e.target.value)}
                             >
@@ -2415,23 +2415,23 @@ export function TasksPage() {
                     {viewingTask.status === "In Progress" && !isOwnerProfile ? (
                       <div className="mb-4 space-y-3">
                         <div>
-                          <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Completion Message (Optional)</label>
+                          <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Completion Message (Optional)</label>
                           <textarea
                             rows={3}
                             value={completionNote}
                             onChange={(e) => setCompletionNote(e.target.value)}
                             placeholder="Add what was completed, blockers resolved, or handover notes..."
-                            className="mt-1.5 w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-medium text-slate-700 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none resize-none transition-all placeholder:text-slate-400"
+                            className="mt-1.5 w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-slate-700 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none resize-none transition-all placeholder:text-slate-400"
                           />
                         </div>
 
                         <div>
-                          <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Attach Document (Optional)</label>
+                          <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Attach Document (Optional)</label>
                           <input
                             type="file"
                             multiple
                             onChange={handleCompletionFilesChange}
-                            className="mt-1.5 block w-full text-[12px] text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-[11px] file:font-bold file:uppercase file:tracking-wider file:text-emerald-700 hover:file:bg-emerald-100"
+                            className="mt-1.5 block w-full text-[12px] text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-[11px] file:font-pmedium file:uppercase file:tracking-wider file:text-emerald-700 hover:file:bg-emerald-100"
                           />
                           {completionFiles.length > 0 ? (
                             <div className="mt-2 space-y-2">
@@ -2442,7 +2442,7 @@ export function TasksPage() {
                                     <span className="text-[12px] font-semibold text-slate-700 truncate">{file.name}</span>
                                   </div>
                                   <div className="flex items-center gap-2 shrink-0">
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{formatFileSize(file.size)}</span>
+                                    <span className={statusPillClass(formatFileSize(file.size))}>{formatFileSize(file.size)}</span>
                                     <button
                                       type="button"
                                       onClick={() => removeCompletionFile(file)}
@@ -2510,7 +2510,7 @@ export function TasksPage() {
                           <div>
                             <div className="flex flex-wrap items-center gap-2 mb-0.5">
                               <span className="font-semibold text-[#0F172A] text-[12px] sm:text-[13px]">{c.author}</span>
-                              <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100">{c.time}</span>
+                              <span className={statusPillClass(c.time)}>{c.time}</span>
                             </div>
                             <p className="text-slate-600 text-[12px] sm:text-[13px] font-medium leading-relaxed">{c.text}</p>
                           </div>
@@ -2523,7 +2523,7 @@ export function TasksPage() {
                       <input
                         type="text" value={commentText} onChange={(e) => setCommentText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
                         placeholder="Tag someone (@) or type a message..."
-                        className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-24 py-3 sm:py-3.5 text-[13px] sm:text-[14px] font-medium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none transition-all shadow-sm placeholder:text-slate-400"
+                        className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-24 py-3 sm:py-3.5 text-[13px] sm:text-[14px] font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none transition-all shadow-sm placeholder:text-slate-400"
                       />
                       <button onClick={handleAddComment} className="btn-pill absolute right-2 top-1.5 sm:top-2 bg-slate-900 hover:bg-black text-white px-4 py-1.5 sm:py-2 transition-colors shadow-sm">
                         Post

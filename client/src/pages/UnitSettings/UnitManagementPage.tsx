@@ -140,7 +140,7 @@ function TabButton({ label, isActive, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-xl px-3 py-1.5 text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${isActive
+      className={`rounded-xl px-3 py-1.5 text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${isActive
         ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
         : "bg-transparent text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
         }`}
@@ -204,7 +204,7 @@ function WorkspaceEditModal({
             <input
               value={form.workspaceName}
               onChange={(event) => onChange("workspaceName", event.target.value)}
-              className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
+              className="h-11 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-pmedium text-slate-900 outline-none transition focus:border-[#2563EB] focus:ring-4 focus:ring-blue-50"
               required
               maxLength={120}
             />
@@ -720,7 +720,7 @@ export default function WorkspaceManagementPage() {
                           setWorkspaceFilter(event.target.value);
                           setExpandedWorkspaceId("");
                         }}
-                        className="w-full pl-4 pr-9 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all appearance-none cursor-pointer"
+                        className="w-full pl-4 pr-9 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all appearance-none cursor-pointer"
                       >
                         <option value="all">All units</option>
                         {workspaceList.map((workspace) => (
@@ -736,7 +736,7 @@ export default function WorkspaceManagementPage() {
                       <select
                         value={departmentFilter}
                         onChange={(event) => setDepartmentFilter(event.target.value)}
-                        className="w-full pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none"
+                        className="w-full pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none"
                       >
                         {departmentOptions.map((departmentName) => (
                           <option key={departmentName} value={departmentName}>

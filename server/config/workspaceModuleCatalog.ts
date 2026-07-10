@@ -47,6 +47,7 @@ const MODULE_GROUPS = [
       { id: "website-builder", label: "Website Builder", route: "/company-settings/website-builder", implemented: true },
       { id: "wono-nomad", label: "Wono Nomads", route: "/company-settings/wono-nomad", implemented: true },
       { id: "website-leads", label: "Website Leads", route: "/company-settings/website-builder/leads", implemented: true },
+      { id: "website-review", label: "Website Review", route: "/company-settings/website-builder/dynamic/reviews", implemented: true },
       { id: "organization-management", label: "Organization Management", route: "/company-settings/organization-management", implemented: true },
       { id: "access-grants", label: "Access Grants", route: "/company-settings/access-grants", implemented: true },
       { id: "workspace-settings", label: "Unit Settings", route: "/company-settings/workspace-settings", implemented: true },
@@ -165,6 +166,8 @@ const MODULE_GROUPS = [
         isGroup: true,
         tabs: [
           { id: "tech-website-builder", label: "Website Builder", route: "/company-settings/website-builder", implemented: true },
+          { id: "website-leads", label: "Website Leads", route: "/company-settings/website-builder/leads", implemented: true },
+          { id: "website-review", label: "Website Review", route: "/company-settings/website-builder/dynamic/reviews", implemented: true },
         ],
       },
       {
@@ -283,6 +286,7 @@ const BASIC_DEFAULT_IDS = new Set([
   "website-builder",
   "tech-website-builder",
   "website-leads",
+  "website-review",
   "organization-management",
   "org_tab_users",
   "org_tab_departments",

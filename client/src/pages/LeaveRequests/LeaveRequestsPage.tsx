@@ -20,6 +20,7 @@ import {
 } from '@/lib/auth-session';
 import { extractDepartmentLabel } from '@/utils/user-helpers';
 import { LeaveSkeleton } from '@/components/ui/Skeleton';
+import { statusPillClass } from '../../lib/status-pill';
 
 interface LeaveRequest {
   recordId?: string;
@@ -615,29 +616,29 @@ export function LeaveRequestsPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'approved': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md text-[10px] font-black uppercase tracking-wider"><CheckCircle2 size={12} /> Approved</span>;
-      case 'rejected': return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 border border-red-200 rounded-md text-[10px] font-black uppercase tracking-wider"><XCircle size={12} /> Rejected</span>;
-      default: return <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-md text-[10px] font-black uppercase tracking-wider animate-pulse"><Clock size={12} /> Pending</span>;
+      case 'approved': return <span className={statusPillClass("Approved")}>Approved</span>;
+      case 'rejected': return <span className={statusPillClass("Rejected")}>Rejected</span>;
+      default: return <span className={statusPillClass("Pending")}>Pending</span>;
     }
   };
 
   const getLeaveTypeBadge = (type?: string) => {
-    if (type === 'Sick') return <span className="text-[10px] font-black px-2.5 py-1 rounded-md text-orange-700 bg-orange-50 border border-orange-200 uppercase tracking-widest">{type}</span>;
-    if (type === 'Vacation') return <span className="text-[10px] font-black px-2.5 py-1 rounded-md text-indigo-700 bg-indigo-50 border border-indigo-200 uppercase tracking-widest">{type}</span>;
-    return <span className="text-[10px] font-black px-2.5 py-1 rounded-md text-slate-700 bg-slate-100 border border-slate-200 uppercase tracking-widest">{type || 'Casual'}</span>;
+    if (type === 'Sick') return <span className={statusPillClass(type)}>{type}</span>;
+    if (type === 'Vacation') return <span className={statusPillClass(type)}>{type}</span>;
+    return <span className={statusPillClass(type || 'Casual')}>{type || 'Casual'}</span>;
   };
 
   const getLeaveModeBadge = (entry: LeaveRequest) => {
     const leaveMode = normalizeLeaveMode(entry?.leaveMode || '');
     if (leaveMode === 'half_day') {
       return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border bg-amber-50 text-amber-700 border-amber-200">
+        <span className={statusPillClass("Half Day")}>
           Half Day{entry?.halfDaySession ? ` | ${getHalfDaySessionLabel(entry.halfDaySession)}` : ''}
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border bg-slate-100 text-slate-700 border-slate-200">
+      <span className={statusPillClass("Full Day")}>
         Full Day
       </span>
     );
@@ -672,10 +673,10 @@ export function LeaveRequestsPage() {
 
   const getApprovalFlowBadge = (entry: LeaveRequest) => {
     const flow = getApprovalFlowMeta(entry);
-    if (flow.tone === 'emerald') return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border bg-emerald-50 text-emerald-700 border-emerald-200">{flow.label}</span>;
-    if (flow.tone === 'rose') return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border bg-rose-50 text-rose-700 border-rose-200">{flow.label}</span>;
-    if (flow.tone === 'amber') return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border bg-amber-50 text-amber-700 border-amber-200">{flow.label}</span>;
-    return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border bg-slate-100 text-slate-700 border-slate-200">{flow.label}</span>;
+    if (flow.tone === 'emerald') return <span className={statusPillClass(flow.label)}>{flow.label}</span>;
+    if (flow.tone === 'rose') return <span className={statusPillClass(flow.label)}>{flow.label}</span>;
+    if (flow.tone === 'amber') return <span className={statusPillClass(flow.label)}>{flow.label}</span>;
+    return <span className={statusPillClass(flow.label)}>{flow.label}</span>;
   };
 
   const isViewingOwnEntry = viewingRequest
@@ -763,7 +764,7 @@ export function LeaveRequestsPage() {
                   return (
                     <div key={dept} className={`bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col gap-2 sm:gap-3 transition-all hover:shadow-md border-l-4 ${accentColors[idx % accentColors.length]}`}>
                       <p className="text-[9px] sm:text-[10px] lg:text-[11px] font-bold text-slate-500 uppercase tracking-tight sm:tracking-widest flex items-start gap-1 sm:gap-1.5 break-words leading-tight mt-0.5"><Building2 size={12} className="shrink-0 text-slate-400 mt-[1px]" /> <span className="break-words">{dept}</span></p>
-                      <p className="text-xl sm:text-3xl lg:text-4xl font-black text-[#0F172A] leading-none">{getDepartmentOnLeaveCount(dept)} <span className="text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block sm:inline mt-1 sm:mt-0">On Leave Today</span></p>
+                      <p className="text-xl sm:text-3xl lg:text-4xl font-black text-[#0F172A] leading-none">{getDepartmentOnLeaveCount(dept)} <span className={statusPillClass("On Leave Today")}>On Leave Today</span></p>
                     </div>
                   );
                 })}
@@ -782,7 +783,7 @@ export function LeaveRequestsPage() {
                         key={status}
                         type="button"
                         onClick={() => setRequestQueueStatus(status)}
-                        className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${requestQueueStatus === status ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'}`}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${requestQueueStatus === status ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'}`}
                       >
                         {status.charAt(0).toUpperCase() + status.slice(1)}
                       </button>
@@ -796,7 +797,7 @@ export function LeaveRequestsPage() {
                         key={status}
                         type="button"
                         onClick={() => setMyLeaveStatus(status)}
-                        className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${myLeaveStatus === status ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'}`}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${myLeaveStatus === status ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'}`}
                       >
                         {status.charAt(0).toUpperCase() + status.slice(1)}
                       </button>
@@ -812,7 +813,7 @@ export function LeaveRequestsPage() {
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
                       type="text" placeholder="Search employee..."
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                       value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
@@ -821,7 +822,7 @@ export function LeaveRequestsPage() {
                       <div className="relative">
                         <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                         <select
-                          className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
+                          className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
                           value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}
                         >
                           <option value="All">All Departments</option>
@@ -832,7 +833,7 @@ export function LeaveRequestsPage() {
                       <div className="relative">
                         <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                         <select
-                          className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
+                          className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
                           value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
                         >
                           <option value="All">All Statuses</option>
@@ -859,7 +860,7 @@ export function LeaveRequestsPage() {
               <div className="overflow-x-auto flex-1 [&::-webkit-scrollbar]:hidden bg-white/20">
                 {/* Desktop Table */}
                 <table className="hidden lg:table w-full text-left">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Employee / Role</th>
                       <th className="px-5 py-4">Leave Type</th>
@@ -874,34 +875,34 @@ export function LeaveRequestsPage() {
                     {filteredData.map((item) => (
                       <tr key={item.recordId || item.id} className="hover:bg-slate-50/50 transition-all group">
                         <td className="px-5 py-4 align-top">
-                          <p className="font-semibold text-[#0F172A] text-[13px] sm:text-[14px] flex items-center gap-2">
-                            <User size={14} className={item.requesterRole === 'Admin' ? 'text-indigo-600' : 'text-[#2563EB]'} />
+                          <p className="font-pmedium text-[#0F172A] text-[13px] sm:text-[14px] flex items-center gap-2">
+                            <User size={14} className="text-slate-400" />
                             {item.employeeName}
                           </p>
                           {item.employeeId && (
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{item.employeeId}</p>
+                            <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">{item.employeeId}</p>
                           )}
-                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
-                            {item.department || <span className="text-indigo-600 font-black">GLOBAL</span>} &bull; <span className="text-slate-700">{item.requesterRole}</span>
+                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-1">
+                            {item.department || <span className="text-slate-600 font-pmedium">GLOBAL</span>} &bull; <span className="text-slate-700">{item.requesterRole}</span>
                           </p>
                         </td>
                         <td className="px-5 py-4 align-top">
                           {getLeaveTypeBadge(item.leaveType)}
                           <div className="mt-2 flex flex-wrap gap-1.5">{getLeaveModeBadge(item)}</div>
-                          <p className="text-[11px] font-bold text-slate-500 uppercase mt-2">{item.days} Total {item.days && item.days > 1 ? 'Days' : 'Day'}</p>
+                          <p className="text-[11px] font-pmedium text-slate-500 uppercase mt-2">{item.days} Total {item.days && item.days > 1 ? 'Days' : 'Day'}</p>
                         </td>
                         <td className="px-5 py-4 align-top">
-                          <p className="font-semibold text-[#0F172A] text-[13px] flex items-center gap-1.5"><Calendar size={14} className="text-slate-400" /> {item.startDate}</p>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 ml-5">To: {item.endDate}</p>
+                          <p className="font-pmedium text-[#0F172A] text-[13px] flex items-center gap-1.5"><Calendar size={14} className="text-slate-400" /> {item.startDate}</p>
+                          <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-1 ml-5">To: {item.endDate}</p>
                         </td>
                         <td className="px-5 py-4 align-top text-center">{getStatusBadge(item.status)}</td>
                         <td className="px-5 py-4 align-top">{getApprovalFlowBadge(item)}</td>
                         {activeTab === 'company-leaves' && showCompanyTabs && (
                           <td className="px-5 py-4 align-top">
                             {item.actionedBy ? (
-                              <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded inline-block uppercase border border-slate-200">{item.actionedBy}</span>
+                              <span className={statusPillClass(item.actionedBy)}>{item.actionedBy}</span>
                             ) : (
-                              <span className="text-[10px] font-bold text-amber-600 uppercase">Awaiting Action</span>
+                              <span className={statusPillClass("Awaiting Action")}>Awaiting Action</span>
                             )}
                           </td>
                         )}
@@ -1023,7 +1024,7 @@ export function LeaveRequestsPage() {
                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">{viewingRequest.status === 'approved' ? 'Approved By' : 'Rejected By'}</p>
                             <p className="text-[13px] font-semibold text-[#0F172A]">{viewingRequest.actionedBy}</p>
                           </div>
-                          <div className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider border ${viewingRequest.status === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>
+                          <div className="text-[10px] font-pmedium uppercase tracking-wider text-slate-600">
                             {viewingRequest.status}
                           </div>
                         </div>
@@ -1106,10 +1107,10 @@ export function LeaveRequestsPage() {
                           animate={{ height: 'auto', opacity: 1 }}
                           className="p-4 sm:p-5 bg-red-50/80 border border-red-200/80 rounded-2xl"
                         >
-                          <label className="text-[10px] font-bold text-red-600 uppercase tracking-widest mb-2 block">Mandatory Rejection Note</label>
+                          <label className="text-[10px] font-pmedium text-red-600 uppercase tracking-widest mb-2 block">Mandatory Rejection Note</label>
                           <textarea
                             rows={2} required placeholder="Explain why this request is denied..."
-                            className="w-full p-3 sm:p-4 text-[13px] sm:text-[14px] rounded-xl border border-red-200 outline-none focus:ring-2 focus:ring-red-200 bg-white font-medium text-red-900 placeholder:text-red-300 shadow-sm"
+                            className="w-full p-3 sm:p-4 text-[13px] sm:text-[14px] rounded-xl border border-red-200 outline-none focus:ring-2 focus:ring-red-200 bg-white font-pmedium text-red-900 placeholder:text-red-300 shadow-sm"
                             value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)}
                           />
                           <div className="flex justify-end gap-2 mt-4">
@@ -1176,16 +1177,16 @@ export function LeaveRequestsPage() {
                     </div>
                     <form onSubmit={handleSubmitOwnLeave} className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 bg-white [&::-webkit-scrollbar]:hidden">
                       <div className="space-y-1">
-                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Leave Category *</label>
+                        <label className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">Leave Category *</label>
                         <div className="relative">
-                          <select className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-bold text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none cursor-pointer appearance-none" value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })}>
+                          <select className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none cursor-pointer appearance-none" value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })}>
                             <option>Casual</option><option>Sick</option><option>Vacation</option>
                           </select>
                           <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={13} />
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Leave Mode *</label>
+                        <label className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">Leave Mode *</label>
                         <div className="grid grid-cols-3 gap-1.5">
                           {[
                             { value: 'full_day', label: 'Full Day' },
@@ -1212,11 +1213,11 @@ export function LeaveRequestsPage() {
                       {formData.leaveMode === 'half_day' ? (
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Date *</label>
-                            <input type="date" required className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-bold text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" value={formData.start} onChange={(e) => setFormData({ ...formData, start: e.target.value, end: e.target.value })} />
+                            <label className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">Date *</label>
+                            <input type="date" required className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" value={formData.start} onChange={(e) => setFormData({ ...formData, start: e.target.value, end: e.target.value })} />
                           </div>
                           <div className="space-y-1">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Session *</label>
+                            <label className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">Session *</label>
                             <div className="grid grid-cols-2 gap-1.5">
                               {[
                                 { value: 'morning', label: 'AM', time: '9:30-1:30' },
@@ -1235,12 +1236,12 @@ export function LeaveRequestsPage() {
                       ) : formData.leaveMode === 'partial_day' ? (
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Date *</label>
-                            <input type="date" required className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-bold text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" value={formData.start} onChange={(e) => setFormData({ ...formData, start: e.target.value, end: '' })} />
+                            <label className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">Date *</label>
+                            <input type="date" required className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" value={formData.start} onChange={(e) => setFormData({ ...formData, start: e.target.value, end: '' })} />
                           </div>
                           <div className="space-y-1">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Hours *</label>
-                            <select className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-bold text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none cursor-pointer appearance-none" value={formData.partialDayHours} onChange={(e) => { const h = Number(e.target.value); setFormData((prev) => ({ ...prev, partialDayHours: h, days: h / 8 })); }}>
+                            <label className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">Hours *</label>
+                            <select className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none cursor-pointer appearance-none" value={formData.partialDayHours} onChange={(e) => { const h = Number(e.target.value); setFormData((prev) => ({ ...prev, partialDayHours: h, days: h / 8 })); }}>
                               {[1, 2, 3, 4, 5, 6, 7, 8].map((h) => <option key={h} value={h}>{h} {h === 1 ? 'Hour' : 'Hours'}</option>)}
                             </select>
                           </div>
@@ -1248,12 +1249,12 @@ export function LeaveRequestsPage() {
                       ) : (
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">From Date *</label>
-                            <input type="date" required className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-bold text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" value={formData.start} onChange={(e) => setFormData({ ...formData, start: e.target.value })} />
+                            <label className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">From Date *</label>
+                            <input type="date" required className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" value={formData.start} onChange={(e) => setFormData({ ...formData, start: e.target.value })} />
                           </div>
                           <div className="space-y-1">
-                            <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">To Date *</label>
-                            <input type="date" required className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-bold text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" min={formData.start} value={formData.end} onChange={(e) => setFormData({ ...formData, end: e.target.value })} />
+                            <label className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">To Date *</label>
+                            <input type="date" required className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" min={formData.start} value={formData.end} onChange={(e) => setFormData({ ...formData, end: e.target.value })} />
                           </div>
                         </div>
                       )}
@@ -1298,12 +1299,12 @@ export function LeaveRequestsPage() {
                         </div>
                       )}
                       <div className="space-y-1">
-                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Reason *</label>
-                        <textarea required rows={2} placeholder="Reason for leave..." className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-medium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none resize-none placeholder:text-slate-400" value={formData.reason} onChange={(e) => setFormData({ ...formData, reason: e.target.value })} />
+                        <label className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest">Reason *</label>
+                        <textarea required rows={2} placeholder="Reason for leave..." className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200/60 rounded-xl font-pmedium text-[#0F172A] text-[12px] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none resize-none placeholder:text-slate-400" value={formData.reason} onChange={(e) => setFormData({ ...formData, reason: e.target.value })} />
                       </div>
                       {requiresMedicalCert && (
                         <div className="space-y-1.5">
-                          <label className="text-[9px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1"><AlertCircle size={11} /> Medical Certificate Required (Sick &gt; 2 Days)</label>
+                          <label className="text-[9px] font-pmedium text-red-500 uppercase tracking-widest flex items-center gap-1"><AlertCircle size={11} /> Medical Certificate Required (Sick &gt; 2 Days)</label>
                           <div className={`border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center transition-colors cursor-pointer ${medicalCertFile ? 'border-emerald-300 bg-emerald-50/50' : 'border-slate-300 bg-slate-50 hover:bg-slate-100/50 hover:border-[#2563EB]'}`}>
                             <input type="file" id="med-cert-sa" className="hidden" accept=".pdf,.jpg,.png" onChange={(e) => setMedicalCertFile(e.target.files?.[0] || null)} />
                             <label htmlFor="med-cert-sa" className="flex flex-col items-center cursor-pointer">

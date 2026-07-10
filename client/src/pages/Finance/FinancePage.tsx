@@ -10,6 +10,7 @@ import { applyFinanceApprovalDecision, getFinanceSnapshot, updateMonthlyExpenseS
 import { TablePageSkeleton } from '@/components/ui/Skeleton';
 import { DEFAULT_FISCAL_YEAR, getFiscalYearOptions } from '@/features/finance/utils/fiscalYear';
 import PageFrame from '@/components/Pages/PageFrame';
+import { statusPillClass } from '../../lib/status-pill';
 
 export function FinancePage() {
   const currentUser = getStoredUser();
@@ -277,8 +278,8 @@ export function FinancePage() {
   ];
 
   const subTabsApprovals = [
-    { key: 'annual', label: 'Projected Annual Budget Requests', count: pendingAnnualRequests.length },
-    { key: 'extra', label: 'Extra Budget Requests', count: pendingExtraRequests.length },
+    { key: 'annual', label: 'Projected Annual Budget Requests' },
+    { key: 'extra', label: 'Extra Budget Requests' },
   ];
 
   if (!hasLoadedFinanceSnapshot && isLoadingFinance) {
@@ -366,25 +367,18 @@ export function FinancePage() {
               
               {/* Inner Tabs for Approvals, or Title for Overview */}
               {activeTab === 'approvals' ? (
-                <div className="flex items-center gap-1 rounded-2xl bg-slate-100/70 p-1 overflow-x-auto w-full xl:w-auto">
+                <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden w-full xl:w-auto">
                   {subTabsApprovals.map(tab => (
                     <button
                       key={tab.key}
                       onClick={() => setApprovalSubTab(tab.key)}
-                      className={`rounded-xl px-3 py-1.5 text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
                         approvalSubTab === tab.key
                           ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
-                          : 'bg-transparent text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                          : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
                       }`}
                     >
                       {tab.label}
-                      {tab.count > 0 && (
-                        <span className={`rounded px-1.5 py-0.5 text-[8px] font-bold ${
-                          approvalSubTab === tab.key ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
-                        }`}>
-                          {tab.count}
-                        </span>
-                      )}
                     </button>
                   ))}
                 </div>
@@ -401,7 +395,7 @@ export function FinancePage() {
                   <input
                     type="text" placeholder="Search..."
                     value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                   />
                 </div>
                 
@@ -409,7 +403,7 @@ export function FinancePage() {
                   <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                   <select 
                     value={selectedFY} onChange={(e) => setSelectedFY(e.target.value)}
-                    className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
+                    className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
                   >
                     {fiscalYearOptions.map((year) => (
                       <option key={year} value={year}>{year}</option>
@@ -425,7 +419,7 @@ export function FinancePage() {
               {/* TAB: APPROVALS */}
               {activeTab === 'approvals' && (
                 <table className="w-full text-left min-w-[800px]">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     {approvalSubTab === 'annual' ? (
                       <tr>
                         <th className="px-5 py-4">Department</th>
@@ -449,13 +443,13 @@ export function FinancePage() {
                       visibleAnnualRequests.map((req) => (
                         <tr key={req.id} className="hover:bg-slate-50/50 transition-colors group">
                           <td className="px-5 py-4">
-                            <div className="font-bold text-slate-900 flex items-center gap-2"><Building2 size={14} className="text-[#2563EB]"/> {req.department}</div>
-                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">ID: {req.id}</div>
+                            <div className="font-pmedium text-slate-900 flex items-center gap-2"><Building2 size={14} className="text-[#2563EB]"/> {req.department}</div>
+                            <div className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">ID: {req.id}</div>
                           </td>
-                          <td className="px-5 py-4 font-black text-[#2563EB] text-lg">{formatCurrency(req.requestedBudget)}</td>
-                          <td className="px-5 py-4 font-bold text-slate-500">{formatCurrency(req.previousSpend)}</td>
+                          <td className="px-5 py-4 font-pmedium text-[#2563EB] text-lg">{formatCurrency(req.requestedBudget)}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-500">{formatCurrency(req.previousSpend)}</td>
                           <td className="px-5 py-4">
-                            <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${req.status === 'Pending' ? 'bg-amber-50 text-amber-600 border-amber-200' : req.status === 'Approved' ? 'bg-green-50 text-green-600 border-green-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+                            <span className={statusPillClass(req.status)}>
                               {req.status}
                             </span>
                           </td>
@@ -470,15 +464,15 @@ export function FinancePage() {
                       pendingExtraRequests.map((req) => (
                         <tr key={req.id} className="hover:bg-slate-50/50 transition-colors group">
                           <td className="px-5 py-4">
-                            <div className="font-bold text-slate-900">{req.department}</div>
-                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{req.date}</div>
+                            <div className="font-pmedium text-slate-900">{req.department}</div>
+                            <div className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">{req.date}</div>
                           </td>
-                          <td className="px-5 py-4 font-black text-[#2563EB] text-base">{formatCurrency(req.amount)}</td>
+                          <td className="px-5 py-4 font-pmedium text-[#2563EB] text-base">{formatCurrency(req.amount)}</td>
                           <td className="px-5 py-4">
-                            <div className="text-xs font-bold text-slate-600 max-w-[250px] truncate">{req.reason}</div>
+                            <div className="text-xs font-pmedium text-slate-600 max-w-[250px] truncate">{req.reason}</div>
                           </td>
                           <td className="px-5 py-4">
-                            <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${req.status === 'Pending' ? 'bg-amber-50 text-amber-600 border-amber-200' : req.status === 'Approved' ? 'bg-green-50 text-green-600 border-green-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+                            <span className={statusPillClass(req.status)}>
                               {req.status}
                             </span>
                           </td>
@@ -492,7 +486,7 @@ export function FinancePage() {
                     )}
                     {((approvalSubTab === 'annual' && visibleAnnualRequests.length === 0) || (approvalSubTab === 'extra' && pendingExtraRequests.length === 0)) && (
                        <tr>
-                         <td colSpan={5} className="text-center py-20 text-slate-400 font-semibold">
+                         <td colSpan={5} className="text-center py-20 text-slate-400 font-pmedium">
                            No items found.
                          </td>
                        </tr>
@@ -504,7 +498,7 @@ export function FinancePage() {
               {/* TAB: OVERVIEW */}
               {activeTab === 'overview' && (
                 <table className="w-full text-left min-w-[900px]">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Department Name</th>
                       <th className="px-5 py-4">Approved Annual Budget</th>
@@ -522,20 +516,20 @@ export function FinancePage() {
                       
                       return (
                         <tr key={dept.id} className="hover:bg-slate-50/50 transition-colors group">
-                          <td className="px-5 py-4 font-bold text-slate-900"><Building2 size={14} className="inline mr-2 text-slate-400"/>{dept.name}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-900"><Building2 size={14} className="inline mr-2 text-slate-400"/>{dept.name}</td>
                           <td className="px-5 py-4">
-                            <div className="font-black text-slate-700">{formatCurrency(approvedBudget)}</div>
-                            {dept.extraGrantedYTD > 0 && <div className="text-[10px] font-bold text-slate-500">+ {formatCurrency(dept.extraGrantedYTD)} Extra</div>}
+                            <div className="font-pmedium text-slate-700">{formatCurrency(approvedBudget)}</div>
+                            {dept.extraGrantedYTD > 0 && <div className="text-[10px] font-pmedium text-slate-500">+ {formatCurrency(dept.extraGrantedYTD)} Extra</div>}
                           </td>
                           <td className="px-5 py-4">
-                            <div className="font-bold text-indigo-600">{formatCurrency(dept.spentYTD)}</div>
+                            <div className="font-pmedium text-slate-700">{formatCurrency(dept.spentYTD)}</div>
                             <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2 max-w-[120px]">
                               <div className={`h-1.5 rounded-full ${spentPercent > 90 ? 'bg-red-500' : spentPercent > 75 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(spentPercent, 100)}%` }}></div>
                             </div>
                           </td>
-                          <td className="px-5 py-4 font-black text-slate-900">{formatCurrency(remaining)}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-900">{formatCurrency(remaining)}</td>
                           <td className="px-5 py-4">
-                            <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${dept.health === 'Healthy' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : dept.health === 'Warning' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-red-50 text-red-600 border-red-200'}`}>
+                            <span className={statusPillClass(dept.health)}>
                               {dept.health}
                             </span>
                           </td>
@@ -549,7 +543,7 @@ export function FinancePage() {
                     })}
                     {departments.length === 0 && (
                        <tr>
-                         <td colSpan={6} className="text-center py-20 text-slate-400 font-semibold">
+                         <td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium">
                            No departments found.
                          </td>
                        </tr>

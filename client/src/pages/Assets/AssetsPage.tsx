@@ -8,6 +8,7 @@ import {
   Filter, Plus, Monitor, Server, Cloud, Briefcase, User, Package,
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
+import { statusPillClass } from '../../lib/status-pill';
 
 interface Member {
   userId?: string;
@@ -429,9 +430,9 @@ export function AssetsPage() {
 
   function getStatusBadge(status: string) {
     switch (status.toLowerCase()) {
-      case 'active': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-green-50 text-green-600 border border-green-200 rounded-lg text-[10px] font-black uppercase tracking-wider"><ShieldCheck size={12} /> Active</span>;
-      case 'maintenance': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded-lg text-[10px] font-black uppercase tracking-wider"><Wrench size={12} /> In Maintenance</span>;
-      case 'decommissioned': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-slate-100 text-slate-500 border border-slate-200 rounded-lg text-[10px] font-black uppercase tracking-wider"><Box size={12} /> Decommissioned</span>;
+      case 'active': return <span className={statusPillClass("Active")}>Active</span>;
+      case 'maintenance': return <span className={statusPillClass("In Maintenance")}>In Maintenance</span>;
+      case 'decommissioned': return <span className={statusPillClass("Decommissioned")}>Decommissioned</span>;
       default: return null;
     }
   }
@@ -526,7 +527,7 @@ function AssetsSkeleton() {
                     <button
                       key={status}
                       onClick={() => setStatusFilter(status)}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${statusFilter === status
+                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${statusFilter === status
                         ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
                         : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
                       }`}
@@ -541,14 +542,14 @@ function AssetsSkeleton() {
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
                       type="text" placeholder="Search assets..."
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                       value={searchQuery} onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
                     />
                   </div>
                   <div className="relative">
                     <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                     <select
-                      className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
+                      className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
                       value={selectedDeptFilter} onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedDeptFilter(e.target.value)}
                     >
                       <option value="All">All Departments</option>
@@ -569,7 +570,7 @@ function AssetsSkeleton() {
 
                 {/* Desktop Table */}
                 <table className="hidden lg:table w-full text-left">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Asset Identity</th>
                       <th className="px-5 py-4">Department & Assignment</th>
@@ -582,24 +583,24 @@ function AssetsSkeleton() {
                     {displayedAssets.map((asset) => (
                       <tr key={asset.id || asset.recordId} className="hover:bg-slate-50/50 transition-all group">
                         <td className="px-5 py-4 align-top max-w-[250px] xl:max-w-[350px]">
-                          <span className="font-mono text-[10px] font-bold text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded border border-blue-100 mb-1.5 inline-block">{asset.id || asset.recordId}</span>
-                          <div className="font-semibold text-[#0F172A] text-[13px] sm:text-[14px]" title={asset.name}>{asset.name}</div>
+                          <span className="text-[10px] font-pmedium text-slate-600 mb-1.5 inline-block">{asset.id || asset.recordId}</span>
+                          <div className="font-pmedium text-[#0F172A] text-[13px] sm:text-[14px]" title={asset.name}>{asset.name}</div>
                           <div className="text-[11px] sm:text-[12px] text-slate-500 mt-1 flex items-center gap-1.5">
                             {getCategoryIcon(asset.category)} {asset.category}
                           </div>
                         </td>
                         <td className="px-5 py-4 align-top">
-                          <div className="text-[12px] sm:text-[13px] font-semibold text-[#0F172A] min-w-[200px]">
-                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">Owning Dept:</span>
+                          <div className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A] min-w-[200px]">
+                            <span className={statusPillClass("Owning Dept:")}>Owning Dept:</span>
                             <Building2 size={12} className="inline mr-1 -mt-0.5 text-slate-400" /> {asset.department || '--'}
                           </div>
-                          <div className="text-[12px] sm:text-[13px] font-semibold text-[#2563EB] min-w-[200px] mt-2.5">
-                            <span className="text-[9px] text-blue-400 font-bold uppercase tracking-wider block mb-0.5">Assigned To:</span>
+                          <div className="text-[12px] sm:text-[13px] font-pmedium text-[#2563EB] min-w-[200px] mt-2.5">
+                            <span className={statusPillClass("Assigned To:")}>Assigned To:</span>
                             <User size={12} className="inline mr-1 -mt-0.5" /> {asset.assignedTo}
                           </div>
                         </td>
                         <td className="px-5 py-4 align-top">
-                          <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-slate-700 bg-slate-50 border border-slate-100 px-2 py-1.5 rounded-lg shadow-sm">
+                          <span className="inline-flex items-center gap-1 text-[12px] font-pmedium text-slate-700 bg-slate-50 border border-slate-100 px-2 py-1.5 rounded-lg shadow-sm">
                             <MapPin size={12} className="text-slate-400" /> {asset.location}
                           </span>
                         </td>
@@ -651,11 +652,11 @@ function AssetsSkeleton() {
                       </div>
                       <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100 mt-1">
                         <div>
-                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">Owning Dept</span>
+                          <span className={statusPillClass("Owning Dept")}>Owning Dept</span>
                           <span className="text-[11px] font-semibold text-[#0F172A] truncate flex items-center gap-1" title={asset.department}><Building2 size={10} className="text-slate-400 shrink-0" /> {asset.department || '--'}</span>
                         </div>
                         <div>
-                          <span className="text-[9px] text-blue-400 font-bold uppercase tracking-wider block mb-0.5">Assigned To</span>
+                          <span className={statusPillClass("Assigned To")}>Assigned To</span>
                           <span className="text-[11px] font-semibold text-[#2563EB] truncate flex items-center gap-1" title={asset.assignedTo}><User size={10} className="text-blue-400 shrink-0" /> {asset.assignedTo}</span>
                         </div>
                       </div>
@@ -724,12 +725,12 @@ function AssetsSkeleton() {
             <form onSubmit={handleCreateAsset} className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-1 space-y-5 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-5">
                 <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Asset Name *</label>
-                  <input required value={assetForm.name} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, name: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none shadow-sm transition-all placeholder:text-slate-400" placeholder="e.g. MacBook Pro M3 Max" />
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Asset Name *</label>
+                  <input required value={assetForm.name} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, name: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none shadow-sm transition-all placeholder:text-slate-400" placeholder="e.g. MacBook Pro M3 Max" />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Category *</label>
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Category *</label>
                   <select value={assetForm.category} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, category: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all cursor-pointer">
                     <option value="Hardware">Hardware</option>
                     <option value="Infrastructure">Infrastructure</option>
@@ -740,27 +741,27 @@ function AssetsSkeleton() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Serial Number</label>
-                  <input type="text" value={assetForm.serialNumber} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, serialNumber: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all placeholder:text-slate-400" placeholder="IT asset tag or serial number" />
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Serial Number</label>
+                  <input type="text" value={assetForm.serialNumber} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, serialNumber: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all placeholder:text-slate-400" placeholder="IT asset tag or serial number" />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Brand / Model</label>
-                  <input type="text" value={assetForm.brandModel} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, brandModel: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all placeholder:text-slate-400" placeholder="e.g. Dell Latitude 5440" />
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Brand / Model</label>
+                  <input type="text" value={assetForm.brandModel} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, brandModel: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all placeholder:text-slate-400" placeholder="e.g. Dell Latitude 5440" />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Purchase Date</label>
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Purchase Date</label>
                   <input type="date" value={assetForm.purchaseDate} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, purchaseDate: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all" required={assetForm.ownershipType === 'Rented'} />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Quantity</label>
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Quantity</label>
                   <input type="number" min={1} value={assetForm.quantity} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, quantity: e.target.value === '' || /^\d+$/.test(e.target.value) ? e.target.value : prev.quantity }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all" required />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Ownership Type</label>
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Ownership Type</label>
                   <select value={assetForm.ownershipType} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, ownershipType: e.target.value, rentDurationMonths: e.target.value === 'Rented' ? prev.rentDurationMonths : '' }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all cursor-pointer">
                     <option value="Owned">Owned</option>
                     <option value="Rented">Rented</option>
@@ -769,18 +770,18 @@ function AssetsSkeleton() {
 
                 {assetForm.ownershipType === 'Rented' && (
                   <div className="space-y-1.5">
-                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Rent Duration (Months)</label>
+                    <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Rent Duration (Months)</label>
                     <input type="number" min={1} value={assetForm.rentDurationMonths} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, rentDurationMonths: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all" placeholder="e.g. 12" required />
                   </div>
                 )}
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Expiry Date (Auto)</label>
-                  <input type="date" readOnly value={expiryPreview} className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl font-semibold text-slate-700 outline-none shadow-sm cursor-not-allowed" />
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Expiry Date (Auto)</label>
+                  <input type="date" readOnly value={expiryPreview} className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl font-pmedium text-slate-700 outline-none shadow-sm cursor-not-allowed" />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Department *</label>
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Department *</label>
                   <select required value={assetForm.department} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, department: e.target.value, assignedToUserId: '', assignedTo: prev.assignedToType === 'department' ? e.target.value : '' }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all cursor-pointer">
                     <option value="">Select department</option>
                     {availableDepartments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
@@ -788,9 +789,9 @@ function AssetsSkeleton() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Assign To</label>
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Assign To</label>
                   <div className="relative">
-                    <select value={assetForm.assignedToType} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, assignedToType: e.target.value, assignedToUserId: '', assignedTo: e.target.value === 'department' ? prev.department : '' }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all appearance-none cursor-pointer">
+                    <select value={assetForm.assignedToType} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, assignedToType: e.target.value, assignedToUserId: '', assignedTo: e.target.value === 'department' ? prev.department : '' }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all appearance-none cursor-pointer">
                       <option value="department">Department</option>
                       <option value="employee">Employee</option>
                     </select>
@@ -800,12 +801,12 @@ function AssetsSkeleton() {
 
                 {assetForm.assignedToType === 'employee' ? (
                   <div className="space-y-1.5 sm:col-span-2">
-                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Employee *</label>
+                    <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Employee *</label>
                     <div className="relative">
                       <select required value={assetForm.assignedToUserId} onChange={(e: ChangeEvent<HTMLSelectElement>) => {
                         const selected = assetDepartmentEmployees.find((m) => m.value === e.target.value);
                         setAssetForm((prev) => ({ ...prev, assignedToUserId: e.target.value, assignedTo: selected?.label || '' }));
-                      }} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all appearance-none cursor-pointer">
+                      }} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all appearance-none cursor-pointer">
                         <option value="">Select employee</option>
                         {assetDepartmentEmployees.map((emp) => <option key={emp.value} value={emp.value}>{emp.label}</option>)}
                       </select>
@@ -814,13 +815,13 @@ function AssetsSkeleton() {
                   </div>
                 ) : (
                   <div className="space-y-1.5 sm:col-span-2">
-                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Assigned Department</label>
+                    <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Assigned Department</label>
                     <div className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-[#0F172A] shadow-sm">{assetForm.department || 'Select a department'}</div>
                   </div>
                 )}
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Status</label>
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Status</label>
                   <select value={assetForm.status} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, status: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all cursor-pointer">
                     <option value="Active">Active</option>
                     <option value="Maintenance">Maintenance</option>
@@ -829,9 +830,9 @@ function AssetsSkeleton() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Floor</label>
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Floor</label>
                   <div className="relative">
-                    <select value={assetForm.floor} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, floor: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all appearance-none cursor-pointer">
+                    <select value={assetForm.floor} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, floor: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all appearance-none cursor-pointer">
                       <option value="">Select floor</option>
                       {FLOOR_OPTIONS.map((f) => <option key={f} value={f}>{f}</option>)}
                     </select>
@@ -840,9 +841,9 @@ function AssetsSkeleton() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Wing</label>
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Wing</label>
                   <div className="relative">
-                    <select value={assetForm.wing} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, wing: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all appearance-none cursor-pointer">
+                    <select value={assetForm.wing} onChange={(e: ChangeEvent<HTMLSelectElement>) => setAssetForm((prev) => ({ ...prev, wing: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all appearance-none cursor-pointer">
                       <option value="">Select wing</option>
                       {WING_OPTIONS.map((w) => <option key={w} value={w}>{w}</option>)}
                     </select>
@@ -851,18 +852,18 @@ function AssetsSkeleton() {
                 </div>
 
                 <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Location Preview</label>
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Location Preview</label>
                   <div className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 shadow-sm">{getLocationLabel(assetForm.floor, assetForm.wing) || 'Select floor and wing'}</div>
                 </div>
 
                 <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Value</label>
-                  <input value={assetForm.value} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, value: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all placeholder:text-slate-400" placeholder="e.g. $3,499 or $120/mo" />
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Value</label>
+                  <input value={assetForm.value} onChange={(e: ChangeEvent<HTMLInputElement>) => setAssetForm((prev) => ({ ...prev, value: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all placeholder:text-slate-400" placeholder="e.g. $3,499 or $120/mo" />
                 </div>
 
                 <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Notes</label>
-                  <textarea rows={3} value={assetForm.notes} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setAssetForm((prev) => ({ ...prev, notes: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-600 focus:border-[#2563EB] outline-none resize-none shadow-sm transition-all placeholder:text-slate-400" placeholder="Additional notes for this asset" />
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Notes</label>
+                  <textarea rows={3} value={assetForm.notes} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setAssetForm((prev) => ({ ...prev, notes: e.target.value }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-slate-600 focus:border-[#2563EB] outline-none resize-none shadow-sm transition-all placeholder:text-slate-400" placeholder="Additional notes for this asset" />
                 </div>
               </div>
 
@@ -913,45 +914,45 @@ function AssetsSkeleton() {
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Asset Details</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Serial Number</span>
+                    <span className={statusPillClass("Serial Number")}>Serial Number</span>
                     <span className="text-[12px] font-semibold text-slate-700 block">{viewingAsset.serialNumber || '--'}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Brand / Model</span>
+                    <span className={statusPillClass("Brand / Model")}>Brand / Model</span>
                     <span className="text-[12px] font-semibold text-slate-700 block">{viewingAsset.brandModel || '--'}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Purchase Date</span>
+                    <span className={statusPillClass("Purchase Date")}>Purchase Date</span>
                     <span className="text-[12px] font-semibold text-slate-700 block">{viewingAsset.purchaseDate || '--'}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Expiry Date</span>
+                    <span className={statusPillClass("Expiry Date")}>Expiry Date</span>
                     <span className="text-[12px] font-semibold text-slate-700 block">{viewingAsset.expiryDate || viewingAsset.warrantyExpiry || '--'}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Quantity</span>
+                    <span className={statusPillClass("Quantity")}>Quantity</span>
                     <span className="text-[12px] font-semibold text-slate-700 block">{viewingAsset.quantity || 1}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Ownership</span>
+                    <span className={statusPillClass("Ownership")}>Ownership</span>
                     <span className="text-[12px] font-semibold text-slate-700 block">{viewingAsset.ownershipType || 'Owned'}</span>
                   </div>
                   {String(viewingAsset.ownershipType || '').trim() === 'Rented' && (
                     <div>
-                      <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Rent (Months)</span>
+                      <span className={statusPillClass("Rent (Months)")}>Rent (Months)</span>
                       <span className="text-[12px] font-semibold text-slate-700 block">{viewingAsset.rentDurationMonths || '--'}</span>
                     </div>
                   )}
                   <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Physical Location</span>
+                    <span className={statusPillClass("Physical Location")}>Physical Location</span>
                     <span className="text-[12px] font-semibold text-slate-700 block">{viewingAsset.location}</span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Asset Value</span>
+                    <span className={statusPillClass("Asset Value")}>Asset Value</span>
                     <span className="text-[12px] font-semibold text-slate-700 block">{viewingAsset.value}</span>
                   </div>
                   <div className="col-span-2 mt-2">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase block mb-1">Notes</span>
+                    <span className={statusPillClass("Notes")}>Notes</span>
                     <span className="text-[12px] font-medium text-slate-600 block bg-white p-3 border border-slate-100 rounded-lg">{viewingAsset.notes || 'No notes added yet.'}</span>
                   </div>
                 </div>
@@ -985,16 +986,16 @@ function AssetsSkeleton() {
 
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">New Department</label>
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">New Department</label>
                   <select value={transferForm.department} onChange={(e: ChangeEvent<HTMLSelectElement>) => setTransferForm((prev) => ({ ...prev, department: e.target.value, assignedToUserId: '', assignedTo: prev.assignedToType === 'department' ? e.target.value : '' }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all cursor-pointer">
                     <option value="">Select Dept</option>
                     {availableDepartments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Assign To</label>
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Assign To</label>
                   <div className="relative">
-                    <select value={transferForm.assignedToType} onChange={(e: ChangeEvent<HTMLSelectElement>) => setTransferForm((prev) => ({ ...prev, assignedToType: e.target.value, assignedToUserId: '', assignedTo: e.target.value === 'department' ? prev.department : '' }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all appearance-none cursor-pointer">
+                    <select value={transferForm.assignedToType} onChange={(e: ChangeEvent<HTMLSelectElement>) => setTransferForm((prev) => ({ ...prev, assignedToType: e.target.value, assignedToUserId: '', assignedTo: e.target.value === 'department' ? prev.department : '' }))} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all appearance-none cursor-pointer">
                       <option value="department">Department</option>
                       <option value="employee">Employee</option>
                     </select>
@@ -1004,12 +1005,12 @@ function AssetsSkeleton() {
 
                 {transferForm.assignedToType === 'employee' ? (
                   <div className="space-y-1.5">
-                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Employee *</label>
+                    <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Employee *</label>
                     <div className="relative">
                       <select required value={transferForm.assignedToUserId} onChange={(e: ChangeEvent<HTMLSelectElement>) => {
                         const selected = transferDepartmentEmployees.find((m) => m.value === e.target.value);
                         setTransferForm((prev) => ({ ...prev, assignedToUserId: e.target.value, assignedTo: selected?.label || '' }));
-                      }} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all appearance-none cursor-pointer">
+                      }} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] outline-none shadow-sm transition-all appearance-none cursor-pointer">
                         <option value="">Select employee</option>
                         {transferDepartmentEmployees.map((emp) => <option key={emp.value} value={emp.value}>{emp.label}</option>)}
                       </select>
@@ -1018,13 +1019,13 @@ function AssetsSkeleton() {
                   </div>
                 ) : (
                   <div className="space-y-1.5">
-                    <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Assigned Department</label>
+                    <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Assigned Department</label>
                     <div className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-[#0F172A] shadow-sm">{transferForm.department || 'Select a department'}</div>
                   </div>
                 )}
                 <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Reason for Transfer</label>
-                  <textarea rows={2} value={transferForm.transferReason} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setTransferForm((prev) => ({ ...prev, transferReason: e.target.value }))} placeholder="Optional reason..." className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-600 focus:border-[#2563EB] outline-none resize-none shadow-sm transition-all placeholder:text-slate-400" />
+                  <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Reason for Transfer</label>
+                  <textarea rows={2} value={transferForm.transferReason} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setTransferForm((prev) => ({ ...prev, transferReason: e.target.value }))} placeholder="Optional reason..." className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-pmedium text-slate-600 focus:border-[#2563EB] outline-none resize-none shadow-sm transition-all placeholder:text-slate-400" />
                 </div>
               </div>
             </div>

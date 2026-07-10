@@ -16,6 +16,7 @@ import {
 import { getMyCalendar } from '@/services/calendar';
 import Skeleton from '@/components/ui/Skeleton';
 import PageFrame from '@/components/Pages/PageFrame';
+import { statusPillClass } from '../../lib/status-pill';
 
 type EventType = 'booking' | 'task' | 'ticket' | 'leave' | 'holiday';
 
@@ -415,9 +416,9 @@ function UnifiedCalendar() {
   const getPriorityBadge = (priority?: string) => {
     if (!priority) return null;
     switch (priority) {
-      case 'high': return <span className="px-2 py-0.5 bg-red-50 text-red-600 border border-red-200 rounded text-[9px] font-black uppercase">High</span>;
-      case 'medium': return <span className="px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[9px] font-black uppercase">Medium</span>;
-      case 'low': return <span className="px-2 py-0.5 bg-gray-50 text-gray-600 border border-gray-200 rounded text-[9px] font-black uppercase">Low</span>;
+      case 'high': return <span className={statusPillClass("High")}>High</span>;
+      case 'medium': return <span className={statusPillClass("Medium")}>Medium</span>;
+      case 'low': return <span className={statusPillClass("Low")}>Low</span>;
       default: return null;
     }
   };
@@ -426,16 +427,16 @@ function UnifiedCalendar() {
     if (!status) return null;
     const normalized = String(status).toLowerCase().replace(/[\s_]+/g, '-');
     switch (normalized) {
-      case 'completed': return <span className="px-2 py-0.5 bg-green-50 text-green-600 border border-green-200 rounded text-[9px] font-black uppercase">Completed</span>;
-      case 'in-progress': return <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-200 rounded text-[9px] font-black uppercase">In Progress</span>;
-      case 'pending': return <span className="px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[9px] font-black uppercase">Pending</span>;
-      case 'cancelled': return <span className="px-2 py-0.5 bg-red-50 text-red-600 border border-red-200 rounded text-[9px] font-black uppercase">Cancelled</span>;
-      case 'approved': return <span className="px-2 py-0.5 bg-green-50 text-green-600 border border-green-200 rounded text-[9px] font-black uppercase">Approved</span>;
-      case 'rejected': return <span className="px-2 py-0.5 bg-red-50 text-red-600 border border-red-200 rounded text-[9px] font-black uppercase">Rejected</span>;
-      case 'open': return <span className="px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-200 rounded text-[9px] font-black uppercase">Open</span>;
-      case 'resolved': return <span className="px-2 py-0.5 bg-green-50 text-green-600 border border-green-200 rounded text-[9px] font-black uppercase">Resolved</span>;
-      case 'booked': return <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-200 rounded text-[9px] font-black uppercase">Booked</span>;
-      case 'rescheduled': return <span className="px-2 py-0.5 bg-violet-50 text-violet-600 border border-violet-200 rounded text-[9px] font-black uppercase">Rescheduled</span>;
+      case 'completed': return <span className={statusPillClass("Completed")}>Completed</span>;
+      case 'in-progress': return <span className={statusPillClass("In Progress")}>In Progress</span>;
+      case 'pending': return <span className={statusPillClass("Pending")}>Pending</span>;
+      case 'cancelled': return <span className={statusPillClass("Cancelled")}>Cancelled</span>;
+      case 'approved': return <span className={statusPillClass("Approved")}>Approved</span>;
+      case 'rejected': return <span className={statusPillClass("Rejected")}>Rejected</span>;
+      case 'open': return <span className={statusPillClass("Open")}>Open</span>;
+      case 'resolved': return <span className={statusPillClass("Resolved")}>Resolved</span>;
+      case 'booked': return <span className={statusPillClass("Booked")}>Booked</span>;
+      case 'rescheduled': return <span className={statusPillClass("Rescheduled")}>Rescheduled</span>;
       default: return null;
     }
   };
@@ -546,7 +547,7 @@ function UnifiedCalendar() {
                     type="text" placeholder="Search events..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                   />
                 </div>
 
@@ -555,7 +556,7 @@ function UnifiedCalendar() {
                     <button
                       key={type}
                       onClick={() => setFilterType(type)}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${filterType === type
+                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${filterType === type
                           ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
                           : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
                         }`}
@@ -657,7 +658,7 @@ function UnifiedCalendar() {
                             className="p-3 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-100 cursor-pointer transition-all group"
                           >
                             <div className="flex items-start justify-between mb-1.5">
-                              <div className={`${getEventTypeColor(event.type)} px-2 py-0.5 rounded-lg border text-[8px] font-black uppercase flex items-center gap-1`}>
+                              <div className="text-[10px] font-pmedium uppercase tracking-wider text-slate-600">
                                 <Icon size={10} />
                                 {event.type}
                               </div>
@@ -691,7 +692,7 @@ function UnifiedCalendar() {
                                   </span>
                                 ))}
                                 {invites.length > 3 && (
-                                  <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-slate-500">
+                                  <span className={statusPillClass("+")}>
                                     +{invites.length - 3} more
                                   </span>
                                 )}
@@ -779,7 +780,7 @@ function UnifiedCalendar() {
                                     <p className="truncate text-xs font-bold text-slate-950">{invite.invitedName || 'Guest'}</p>
                                     {invite.invitedRole && <p className="truncate text-[11px] font-medium text-slate-500">{invite.invitedRole}</p>}
                                   </div>
-                                  <span className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-700">
+                                  <span className={statusPillClass(formatInviteStatusLabel(invite.status))}>
                                     {formatInviteStatusLabel(invite.status)}
                                   </span>
                                 </div>

@@ -3,6 +3,7 @@ import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, Plu
 import { toast } from "sonner";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import PageFrame from "../../components/Pages/PageFrame";
+import { statusPillClass } from "../../lib/status-pill";
 
 type TicketStatus =
   | "Open"
@@ -40,16 +41,6 @@ type SupportTicket = {
 type SupportPayload = {
   raised: SupportTicket[];
   history: SupportTicket[];
-};
-
-const statusPillClass: Record<TicketStatus, string> = {
-  Open: "bg-blue-100 text-blue-700",
-  "In Progress": "bg-amber-100 text-amber-700",
-  Resolved: "bg-emerald-100 text-emerald-700",
-  Closed: "bg-green-100 text-green-700",
-  Pending: "bg-slate-100 text-slate-700",
-  Escalated: "bg-red-100 text-red-700",
-  Rejected: "bg-rose-100 text-rose-700",
 };
 
 const SUPPORT_TICKETS_API = "/api/tickets/support-tickets";
@@ -315,7 +306,7 @@ export default function CustomerSupportPage() {
                     <input
                       type="text"
                       placeholder="Search tickets..."
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -329,7 +320,7 @@ export default function CustomerSupportPage() {
                     <input
                       type="text"
                       placeholder="Search tickets..."
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -349,7 +340,7 @@ export default function CustomerSupportPage() {
             ) : (
               <div className="overflow-x-auto flex-1">
                 <table className="w-full text-left border-collapse">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Ticket ID</th>
                       <th className="px-5 py-4">Issue Title</th>
@@ -363,13 +354,13 @@ export default function CustomerSupportPage() {
                   <tbody className="divide-y divide-slate-100/60">
                     {filteredList.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="text-center py-20 text-slate-400 font-semibold">No issues found.</td>
+                        <td colSpan={7} className="text-center py-20 text-slate-400 font-pmedium">No issues found.</td>
                       </tr>
                     ) : (
                       filteredList.map((ticket) => (
                         <tr key={ticket.id} className="hover:bg-slate-50/50 transition-colors group">
                           <td className="px-5 py-4 align-top whitespace-nowrap">
-                            <div className="font-black text-blue-600 bg-blue-50 px-3 py-2 rounded inline-flex items-center gap-1 border border-blue-100 whitespace-nowrap">{ticket.ticketId || "N/A"}</div>
+                            <div className="font-pmedium text-slate-600 inline-flex items-center gap-1 whitespace-nowrap">{ticket.ticketId || "N/A"}</div>
                           </td>
                           <td className="px-5 py-4 align-top">
                             <div className="font-pmedium text-[#0F172A] text-[13px] truncate max-w-[200px]">{ticket.title}</div>
@@ -377,7 +368,7 @@ export default function CustomerSupportPage() {
                           <td className="px-5 py-4 align-top text-xs font-pmedium text-slate-600 whitespace-nowrap">{formatDate(ticket.requestedAt)}</td>
                           <td className="px-5 py-4 align-top text-xs font-pmedium text-slate-600 whitespace-nowrap">{ticket.resolvedByName || "-"}</td>
                           <td className="px-5 py-4 align-top text-center">
-                            <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider whitespace-nowrap ${statusPillClass[ticket.status] || "bg-slate-100 text-slate-700"}`}>{ticket.status}</span>
+                            <span className={statusPillClass(ticket.status)}>{ticket.status}</span>
                           </td>
                           <td className="px-5 py-4 align-top text-xs font-pmedium text-slate-600 whitespace-nowrap">{ticket.acceptedByName || "-"}</td>
                           <td className="px-5 py-4 align-top text-center whitespace-nowrap">
@@ -434,7 +425,7 @@ export default function CustomerSupportPage() {
                     value={title}
                     onChange={(event) => setTitle(event.target.value)}
                     placeholder="e.g. Platform Issue"
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
                     required
                   />
                 </div>
@@ -446,7 +437,7 @@ export default function CustomerSupportPage() {
                     onChange={(event) => setDescription(event.target.value)}
                     rows={5}
                     placeholder="Describe the issue in detail"
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400"
                     required
                   />
                 </div>
@@ -465,7 +456,7 @@ export default function CustomerSupportPage() {
                     value={pageUrl}
                     onChange={(event) => setPageUrl(event.target.value)}
                     placeholder="e.g. /extra-common-modules/assets"
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
                   />
                   <p className="text-[10px] font-medium text-slate-400">Paste the page you were on when the issue happened, so our team can see exactly what you saw.</p>
                 </div>
@@ -473,7 +464,7 @@ export default function CustomerSupportPage() {
                   <label htmlFor="issue-image" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Image Upload</label>
                   <label
                     htmlFor="issue-image"
-                    className="w-full border-2 border-dashed border-slate-200 rounded-lg p-4 flex items-center justify-center gap-2 text-[12px] font-semibold text-slate-500 cursor-pointer hover:border-[#2563EB] hover:bg-blue-50/50 transition-colors"
+                    className="w-full border-2 border-dashed border-slate-200 rounded-lg p-4 flex items-center justify-center gap-2 text-[12px] font-pmedium text-slate-500 cursor-pointer hover:border-[#2563EB] hover:bg-blue-50/50 transition-colors"
                   >
                     <Upload size={16} />
                     {imageFile ? imageFile.name : "Choose an image file"}
@@ -540,7 +531,7 @@ export default function CustomerSupportPage() {
                   <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Requested At</p><p className="text-[13px] font-bold text-[#0F172A]">{formatDate(selectedTicket.requestedAt)}</p></div>
                   <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Accepted By</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.acceptedByName || "-"}</p></div>
                   <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Resolved By</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.resolvedByName || "-"}</p></div>
-                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Status</p><span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ${statusPillClass[selectedTicket.status]}`}>{selectedTicket.status}</span></div>
+                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Status</p><span className={statusPillClass(selectedTicket.status)}>{selectedTicket.status}</span></div>
                 </div>
 
                 <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-4 space-y-1">
@@ -640,7 +631,7 @@ export default function CustomerSupportPage() {
                     onChange={(event) => setFollowUpDescription(event.target.value)}
                     rows={4}
                     placeholder="Explain what is still pending or unresolved."
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400"
                   />
                 </div>
               </div>

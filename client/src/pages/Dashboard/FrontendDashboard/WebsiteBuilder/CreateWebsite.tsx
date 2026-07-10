@@ -2599,8 +2599,10 @@ const CreateWebsite = () => {
               onSubmit={(e) => e.preventDefault()}
               className="min-w-0 w-full"
             >
-          <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 min-w-0 overflow-hidden">
-            <p className="text-sm font-semibold text-slate-800">Website Pages</p>
+          <div className="mb-4 min-w-0 overflow-hidden">
+            <div className="border-b-default border-borderGray py-4">
+              <span className="text-subtitle font-pmedium">Website Pages</span>
+            </div>
             <div className="mt-2 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               {pageNavFields.map((item, index) => {
                 const tabSlug = String(watch(`pageNavItems.${index}.slug`) || "").trim().toLowerCase();
@@ -2643,11 +2645,11 @@ const CreateWebsite = () => {
             {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
               .trim()
               .toLowerCase() === "products" ? (
-              <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3 min-w-0 overflow-hidden">
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-slate-800">Products Page Tabs</p>
+              <div className="mt-4 min-w-0 overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b-default border-borderGray py-4">
+                  <span className="text-subtitle font-pmedium">Products Page Settings</span>
                   {productsPageNavIndex >= 0 ? (
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <div>
                       <Controller
                         name={`pageNavItems.${productsPageNavIndex}.enabled`}
                         control={control}
@@ -2790,7 +2792,11 @@ const CreateWebsite = () => {
                     </div>
                     {productPageFields[activeProductPageTab] ? (
                       <div className="mt-3 grid grid-cols-1 gap-3">
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div>
+                          <div className="border-b-default border-borderGray py-4">
+                            <span className="text-subtitle font-pmedium">Product Page Details</span>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2">
                           <Controller
                             name={`productDropdownPages.${activeProductPageTab}.name`}
                             control={control}
@@ -2805,9 +2811,10 @@ const CreateWebsite = () => {
                               <TextField {...field} size="small" label="Product Page Route Slug" fullWidth />
                             )}
                           />
+                          </div>
                         </div>
 
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div>
                           <div className="py-2 border-b-default border-borderGray">
                             <span className="text-subtitle font-pmedium">Product Page Hero</span>
                           </div>
@@ -2901,7 +2908,7 @@ const CreateWebsite = () => {
                           </div>
                         </div>
 
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div>
                           <div className="py-2 border-b-default border-borderGray">
                             <span className="text-subtitle font-pmedium">Lead Form Behavior</span>
                           </div>
@@ -2954,7 +2961,7 @@ const CreateWebsite = () => {
                           </div>
                         </div>
 
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div>
                           <div className="py-2 border-b-default border-borderGray">
                             <span className="text-subtitle font-pmedium">
                               Page Content Template (Synced with Home)
@@ -3037,7 +3044,7 @@ const CreateWebsite = () => {
                                 {productFields.map((field, index) => (
                                   <div
                                     key={`products-synced-${field.id}`}
-                                    className="rounded-xl border border-borderGray bg-white p-4"
+                                    className="border-t border-borderGray pt-4 first:border-0 first:pt-0"
                                   >
                                     <div className="mb-3 flex items-center justify-between">
                                       <span className="font-pmedium">Product {index + 1}</span>
@@ -3137,7 +3144,7 @@ const CreateWebsite = () => {
                         </div>
 
                         {/* FAQ is now global — edit from the Home/Products section */}
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div>
                           <div className="flex items-center justify-between py-2 border-b border-slate-200 mb-2">
                             <span className="text-sm font-semibold text-slate-700">FAQ (Frequently Asked Questions)</span>
                           </div>
@@ -3145,7 +3152,7 @@ const CreateWebsite = () => {
                         </div>
 
                         {/* Inclusions for this product page */}
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                        <div>
                           <div className="flex items-center justify-between mb-3 border-b border-slate-200 pb-2">
                             <span className="text-sm font-semibold text-slate-700">Product Page Inclusions</span>
                             <span className="text-xs text-slate-400">Toggle per amenity</span>
@@ -3225,10 +3232,11 @@ const CreateWebsite = () => {
             {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
               .trim()
               .toLowerCase() === "about-us" ? (
-              <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
-                <p className="text-sm font-semibold text-slate-800">About Page</p>
+              <div className="mt-4">
+                <div className="flex items-center justify-between gap-3 border-b-default border-borderGray py-4">
+                  <span className="text-subtitle font-pmedium">About Us Hero Section</span>
                 {aboutPageNavIndex >= 0 ? (
-                  <div className="mb-2 mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div>
                     <Controller
                       name={`pageNavItems.${aboutPageNavIndex}.enabled`}
                       control={control}
@@ -3245,8 +3253,9 @@ const CreateWebsite = () => {
                     />
                   </div>
                 ) : null}
+                </div>
                 <div className="mt-3 grid grid-cols-1 gap-3">
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div>
                     <Controller
                       name="aboutPageIntro"
                       control={control}
@@ -3262,16 +3271,18 @@ const CreateWebsite = () => {
                     />
                   </div>
 
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs font-semibold text-slate-700">
+                  <div>
+                    <div className="border-b-default border-borderGray py-4">
+                    <span className="text-subtitle font-pmedium">
                       Company Overview (Synced From Home About)
-                    </p>
+                    </span>
+                    </div>
                     <p className="mt-1 text-xs text-slate-500">
                       Same about paragraphs are shared with Home section.
                     </p>
                     <div className="mt-3 grid grid-cols-1 gap-3">
                       {aboutFields.map((field, index) => (
-                        <div key={`about-sync-${field.id}`} className="rounded-md border border-slate-200 bg-white p-3">
+                        <div key={`about-sync-${field.id}`}>
                           <Controller
                             name={`about.${index}.text`}
                             control={control}
@@ -3354,7 +3365,7 @@ const CreateWebsite = () => {
                       />
                     )}
                   />
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div>
                     <div className="py-2 border-b-default border-borderGray">
                       <span className="text-subtitle font-pmedium">Founders Section</span>
                     </div>
@@ -3363,7 +3374,7 @@ const CreateWebsite = () => {
                     </p>
                     <div className="mt-2 grid grid-cols-1 gap-4">
                       {founderFields.map((field, index) => (
-                        <div key={field.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                        <div key={field.id} className="border-t border-borderGray pt-4 first:border-0 first:pt-0">
                           <div className="mb-3 flex items-center justify-between">
                             <span className="text-sm font-semibold text-slate-700">Founder {index + 1}</span>
                             {founderFields.length > 1 ? (
@@ -3447,7 +3458,7 @@ const CreateWebsite = () => {
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <div>
                     <div className="py-2 border-b-default border-borderGray">
                       <span className="text-subtitle font-pmedium">Our Team Section</span>
                     </div>
@@ -3468,7 +3479,7 @@ const CreateWebsite = () => {
                     </div>
                     <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                       {aboutImageCardFields.map((field, index) => (
-                        <div key={field.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                        <div key={field.id} className="border-t border-borderGray pt-4 first:border-0 first:pt-0">
                           <div className="mb-4">
                             <Controller
                               name={`aboutPageImageCards.${index}.image`}
@@ -3520,7 +3531,7 @@ const CreateWebsite = () => {
                         onClick={() =>
                           appendAboutImageCard({ title: "", description: "", image: null })
                         }
-                        className="w-fit rounded-md bg-white px-3 py-2 text-sm font-semibold text-primary md:col-span-2 xl:col-span-3"
+                        className="w-fit px-3 py-2 text-sm font-semibold text-primary md:col-span-2 xl:col-span-3"
                       >
                         + Add Team Member / Highlight
                       </button>
@@ -3533,10 +3544,11 @@ const CreateWebsite = () => {
             {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
               .trim()
               .toLowerCase() === "gallery" ? (
-              <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
-                <p className="text-sm font-semibold text-slate-800">Gallery Page</p>
+              <div className="mt-4">
+                <div className="flex items-center justify-between gap-3 border-b-default border-borderGray py-4">
+                  <span className="text-subtitle font-pmedium">Gallery Hero Section</span>
                 {galleryPageNavIndex >= 0 ? (
-                  <div className="mb-2 mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div>
                     <Controller
                       name={`pageNavItems.${galleryPageNavIndex}.enabled`}
                       control={control}
@@ -3553,6 +3565,7 @@ const CreateWebsite = () => {
                     />
                   </div>
                 ) : null}
+                </div>
                 <div className="mt-3 grid grid-cols-1 gap-3">
                   <Controller
                     name="galleryPageHeading"
@@ -3567,7 +3580,7 @@ const CreateWebsite = () => {
                       />
                     )}
                   />
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div>
                     <div className="py-2 border-b-default border-borderGray">
                       <span className="text-subtitle font-pmedium">Gallery Images (Synced)</span>
                     </div>
@@ -3598,10 +3611,11 @@ const CreateWebsite = () => {
             {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
               .trim()
               .toLowerCase() === "partner" ? (
-              <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
-                <p className="text-sm font-semibold text-slate-800">Partner Page</p>
+              <div className="mt-4">
+                <div className="flex items-center justify-between gap-3 border-b-default border-borderGray py-4">
+                  <span className="text-subtitle font-pmedium">Partner Page Section</span>
                 {partnerPageNavIndex >= 0 ? (
-                  <div className="mb-2 mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div>
                     <Controller
                       name={`pageNavItems.${partnerPageNavIndex}.enabled`}
                       control={control}
@@ -3618,6 +3632,7 @@ const CreateWebsite = () => {
                     />
                   </div>
                 ) : null}
+                </div>
                 <div className="mt-3 grid grid-cols-1 gap-3">
                   <Controller
                     name="partnerPageHeading"
@@ -3670,13 +3685,11 @@ const CreateWebsite = () => {
             {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
               .trim()
               .toLowerCase() === "careers" ? (
-              <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
-                <p className="text-sm font-semibold text-slate-800">Careers Page</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  Job openings marked as "Posted" in Recruitment will appear on this page automatically.
-                </p>
+              <div className="mt-4">
+                <div className="flex items-center justify-between gap-3 border-b-default border-borderGray py-4">
+                  <span className="text-subtitle font-pmedium">Careers Hero Section</span>
                 {careersPageNavIndex >= 0 ? (
-                  <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div>
                     <Controller
                       name={`pageNavItems.${careersPageNavIndex}.enabled`}
                       control={control}
@@ -3693,6 +3706,10 @@ const CreateWebsite = () => {
                     />
                   </div>
                 ) : null}
+                </div>
+                <p className="mt-1 text-xs text-slate-500">
+                  Job openings marked as "Posted" in Recruitment will appear on this page automatically.
+                </p>
                 <div className="mt-3 grid grid-cols-1 gap-3">
                   <Controller
                     name="careersPageHeading"
@@ -3722,13 +3739,15 @@ const CreateWebsite = () => {
                       />
                     )}
                   />
-                  <div className="rounded-lg border border-slate-200 bg-white p-3">
-                    <p className="text-xs font-semibold text-slate-700">Apply Now Form Layout</p>
+                  <div>
+                    <div className="border-b-default border-borderGray py-4">
+                      <span className="text-subtitle font-pmedium">Apply Now Form Layout</span>
+                    </div>
                     <p className="mt-0.5 text-[10px] text-slate-500">
                       Fixed fields stay in place. Custom fields can be reordered and appear after Upload CV.
                     </p>
                     <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
-                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <div>
                         <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                           Default Fields
                         </p>
@@ -3743,7 +3762,7 @@ const CreateWebsite = () => {
                           ))}
                         </div>
                       </div>
-                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <div>
                         <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                           Custom Fields
                         </p>
@@ -3753,12 +3772,14 @@ const CreateWebsite = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs font-semibold text-slate-700">Additional Form Fields</p>
+                  <div>
+                    <div className="border-b-default border-borderGray py-4">
+                      <span className="text-subtitle font-pmedium">Additional Form Fields</span>
+                    </div>
                     <p className="mt-0.5 text-[10px] text-slate-500">
                       These appear on the Apply Now form after the Resume upload and stay enabled.
                     </p>
-                    <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                    <div className="mt-3">
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
                         Added Fields Preview
                       </p>
@@ -3786,7 +3807,7 @@ const CreateWebsite = () => {
                       {careersFieldItems.map((field: any, index: number) => (
                         <div
                           key={field.fieldKey}
-                          className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-2 md:flex-row md:items-center"
+                          className="flex flex-col gap-2 border-t border-borderGray py-3 first:border-0 md:flex-row md:items-center"
                         >
                           <span className="inline-flex w-fit rounded bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                             {String(field.type || "text")}
@@ -3858,10 +3879,11 @@ const CreateWebsite = () => {
             {String(watch(`pageNavItems.${activeMainPageTab}.slug`) || "")
               .trim()
               .toLowerCase() === "contact-us" ? (
-              <div className="mt-4 rounded-lg border border-slate-200 bg-white p-3">
-                <p className="text-sm font-semibold text-slate-800">Contact Page</p>
+              <div className="mt-4">
+                <div className="flex items-center justify-between gap-3 border-b-default border-borderGray py-4">
+                  <span className="text-subtitle font-pmedium">Contact Hero Section</span>
                 {contactPageNavIndex >= 0 ? (
-                  <div className="mb-2 mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div>
                     <Controller
                       name={`pageNavItems.${contactPageNavIndex}.enabled`}
                       control={control}
@@ -3878,6 +3900,7 @@ const CreateWebsite = () => {
                     />
                   </div>
                 ) : null}
+                </div>
                 <div className="mt-3 grid grid-cols-1 gap-3">
                   <Controller
                     name="contactPageHeading"
@@ -3906,7 +3929,7 @@ const CreateWebsite = () => {
                     )}
                   />
 
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div>
                     <div className="py-2 border-b-default border-borderGray">
                       <span className="text-subtitle font-pmedium">
                         Contact Details (Synced with Home)
@@ -3982,7 +4005,7 @@ const CreateWebsite = () => {
                     />
                   </div>
 
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div>
                     <div className="py-2 border-b-default border-borderGray">
                       <span className="text-subtitle font-pmedium">Contact Person (Optional)</span>
                     </div>

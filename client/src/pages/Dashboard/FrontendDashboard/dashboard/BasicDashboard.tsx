@@ -119,8 +119,8 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
   const orgStats = useMemo(() => {
     const ov = orgOverview as any;
     return {
-      members: ov?.metrics?.totalMembers ?? 0,
-      departments: Array.isArray(ov?.departments) ? ov.departments.length : 0,
+      activeMembers: ov?.metrics?.activeMembers ?? 0,
+      totalMembers: ov?.metrics?.totalMembers ?? 0,
     };
   }, [orgOverview]);
 
@@ -200,7 +200,7 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
       <WidgetSection layout={4} title="Overview" border normalCase>
         <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} currently in`} color="#80bf01" route="/visitors/visitor-management" />
         <StatCard icon={UserPlus} label="Website Leads" value={leadStats.total} sub={`${leadStats.newLeads} new`} color="#1E3D73" route="/company-settings/website-builder/leads" />
-        <StatCard icon={Users} label="Team Members" value={orgStats.members} sub={`${orgStats.departments} departments`} color="#0891b2" route="/company-settings/organization-management" />
+        <StatCard icon={Users} label="Active Members" value={orgStats.activeMembers} sub={`${orgStats.totalMembers} total members`} color="#0891b2" route="/company-settings/organization-management" />
         <StatCard icon={Eye} label="All-Time Visitors" value={visitorStats.totalCount} sub="Total logged visitors" color="#7c3aed" route="/visitors/visitor-management" />
       </WidgetSection>
 

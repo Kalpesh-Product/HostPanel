@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import type { ElementType, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Card from "../../../components/Card";
 import PageFrame from "../../../components/Pages/PageFrame";
 import PrimaryButton from "../../../components/PrimaryButton";
@@ -156,6 +157,7 @@ const DEFAULT_SECTION_ROUTES: Record<string, string> = {
   "maintenance-repair-logs": "/maintenance/repair-logs",
   "amc-maintenance-scheduler": "/maintenance/amc-scheduler",
   "tech-website-builder": "/company-settings/website-builder",
+  "website-review": "/company-settings/website-builder/dynamic/reviews",
   "it-repair-logs": "/it/repair-logs",
   "it-system-access": "/it/system-access",
 };
@@ -186,6 +188,7 @@ const ICON_BY_ID: Record<string, ElementType> = {
   "website-builder": Globe,
   "wono-nomad": ShieldCheck,
   "website-leads": NotebookText,
+  "website-review": CheckCircle2,
   "organization-management": Building,
   "module-management": Boxes,
   "access-grants": UserCog,
@@ -252,36 +255,59 @@ const normalizeModuleToken = (value = "") =>
     .toLowerCase()
     .replace(/[_\s]+/g, "-");
 
-const LockedModuleCard = ({
+const CompactAddOnCard = ({
   title,
   icon,
-  sectionLabel,
+  locked = false,
+  route,
+  state,
   onClick,
 }: {
   title: string;
   icon?: ReactNode;
-  sectionLabel: string;
+  locked?: boolean;
+  route?: string;
+  state?: Record<string, unknown>;
   onClick?: () => void;
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className="relative flex h-60 w-full flex-col items-center justify-center rounded-2xl bg-white p-6 text-center shadow-md transition-all hover:shadow-lg"
-  >
-    {icon ? (
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 text-3xl">
-        {icon}
+}) => {
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    if (locked) {
+      onClick?.();
+      return;
+    }
+    if (onClick) {
+      onClick();
+      return;
+    }
+    if (route) {
+      navigate(route, state ? { state } : undefined);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={`relative flex min-h-[104px] w-full flex-col items-center justify-center rounded-xl border border-slate-200 bg-white px-2.5 py-3 text-center shadow-sm transition-all hover:border-slate-300 hover:shadow-md ${
+        locked ? "cursor-not-allowed" : "cursor-pointer"
+      }`}
+    >
+      <div className="flex min-w-0 flex-col items-center gap-2">
+        {icon ? (
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[17px] text-slate-700">
+            {icon}
+          </div>
+        ) : null}
+        <span className="w-full break-words text-[10px] font-semibold leading-[1.25] text-slate-800 sm:text-[11px]">
+          {title}
+        </span>
       </div>
-    ) : null}
-    <h3 className="text-base font-bold text-gray-700">{title}</h3>
-    <div className="mt-3 flex items-center gap-2 text-sm font-semibold text-[#1E3D73]">
-      <Lock size={14} />
-      <span>Locked</span>
-    </div>
-    <p className="mt-3 text-xs text-slate-500">{sectionLabel}</p>
-    <div className="pointer-events-none absolute inset-0 rounded-2xl bg-white/45" />
-  </button>
-);
+      {locked ? <Lock size={13} className="absolute right-2.5 top-2.5 text-slate-500" /> : null}
+    </button>
+  );
+};
 
 const AddModulesPage = () => {
   const { auth } = useAuth();
@@ -755,7 +781,7 @@ const AddModulesPage = () => {
       .map((item) =>
         buildCard(
           String(item?.id || "").trim() === "website-leads"
-            ? { ...item, label: "Leads Management" }
+            ? { ...item, label: "Website Leads" }
             : item,
           "extra-common-modules",
           "Extra Common Modules",
@@ -789,7 +815,16 @@ const AddModulesPage = () => {
         .filter(Boolean) as AddOnModuleCard[];
       if (!deptCards.length) return null;
       return { key: deptKey, label: deptLabel, cards: deptCards };
-    }).filter(Boolean) as Array<{ key: string; label: string; cards: AddOnModuleCard[] }>;
+    })
+      .filter(Boolean)
+      .sort((a, b) => {
+        const enabledDelta =
+          b.cards.filter((card) => card.isEnabled).length - a.cards.filter((card) => card.isEnabled).length;
+        if (enabledDelta !== 0) return enabledDelta;
+        const cardDelta = b.cards.length - a.cards.length;
+        if (cardDelta !== 0) return cardDelta;
+        return a.label.localeCompare(b.label);
+      }) as Array<{ key: string; label: string; cards: AddOnModuleCard[] }>;
 
     if (deptGroups.length) {
       groups.push({
@@ -888,10 +923,18 @@ const AddModulesPage = () => {
                       {group.roman ? `${group.roman}. ` : ""}
                       {group.label}
                     </h3>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      {(group.key === "department-accesses"
+                        ? (group.departments || []).flatMap((department) => department.cards)
+                        : group.cards || []
+                      ).filter((card) => card.isEnabled).length} enabled &middot;{" "}
+                      {(group.key === "department-accesses"
+                        ? (group.departments || []).flatMap((department) => department.cards)
+                        : group.cards || []
+                      ).filter((card) => !card.isEnabled).length} locked
                       {group.key === "department-accesses"
-                        ? `${group.departments?.length || 0} departments`
-                        : `${group.cards?.length || 0} modules`}
+                        ? ` · ${group.departments?.length || 0} departments`
+                        : ""}
                     </p>
                   </div>
                   <ChevronDown
@@ -905,33 +948,27 @@ const AddModulesPage = () => {
                   {group.key !== "department-accesses" ? (
                     <div className="space-y-5">
                       {(() => {
-                        const enabledCards = (group.cards || []).filter((card) => card.isEnabled);
-                        const disabledCards = (group.cards || []).filter((card) => !card.isEnabled);
+                        const enabledCards = [...(group.cards || [])]
+                          .filter((card) => card.isEnabled)
+                          .sort((a, b) => a.title.localeCompare(b.title));
+                        const disabledCards = [...(group.cards || [])]
+                          .filter((card) => !card.isEnabled)
+                          .sort((a, b) => a.title.localeCompare(b.title));
                         return (
                           <>
                             <div className="space-y-3">
                               <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-600">
                                 Enabled
                               </p>
-                              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
                                 {enabledCards.map((card) => (
                                   <div key={card.id}>
-                                    {card.route ? (
-                                      <Card
-                                        title={card.title}
-                                        icon={card.icon}
-                                        route={card.route}
-                                        fullHeight
-                                      />
-                                    ) : (
-                                      <Card
-                                        title={card.title}
-                                        icon={card.icon}
-                                        route="#"
-                                        fullHeight
-                                        interactive={false}
-                                      />
-                                    )}
+                                    <CompactAddOnCard
+                                      title={card.title}
+                                      icon={card.icon}
+                                      route={card.route}
+                                      state={{ fromSection: "add-ons" }}
+                                    />
                                   </div>
                                 ))}
                               </div>
@@ -940,15 +977,15 @@ const AddModulesPage = () => {
                             {disabledCards.length > 0 ? (
                               <div className="space-y-3">
                                 <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                                  Disabled
+                                  Locked
                                 </p>
-                                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
                                   {disabledCards.map((card) => (
                                     <div key={card.id}>
-                                      <LockedModuleCard
+                                      <CompactAddOnCard
                                         title={card.title}
                                         icon={card.icon}
-                                        sectionLabel={card.topLevelGroupLabel}
+                                        locked
                                         onClick={
                                           card.upgradeLocked && upgradePlanCards.length > 0
                                             ? () => setIsUpgradeModalOpen(true)
@@ -985,8 +1022,9 @@ const AddModulesPage = () => {
                               <h4 className="text-sm font-bold uppercase tracking-wide text-slate-700">
                                 {department.label}
                               </h4>
-                              <p className="mt-1 text-xs text-slate-500">
-                                {department.cards.length} modules
+                              <p className="mt-1 text-[11px] text-slate-500">
+                                {department.cards.filter((card) => card.isEnabled).length} enabled &middot;{" "}
+                                {department.cards.filter((card) => !card.isEnabled).length} locked
                               </p>
                             </div>
                             <ChevronDown
@@ -999,33 +1037,27 @@ const AddModulesPage = () => {
                             <div className="border-t border-slate-200 px-4 py-4">
                               <div className="space-y-5">
                                 {(() => {
-                                  const enabledCards = department.cards.filter((card) => card.isEnabled);
-                                  const disabledCards = department.cards.filter((card) => !card.isEnabled);
+                                  const enabledCards = [...department.cards]
+                                    .filter((card) => card.isEnabled)
+                                    .sort((a, b) => a.title.localeCompare(b.title));
+                                  const disabledCards = [...department.cards]
+                                    .filter((card) => !card.isEnabled)
+                                    .sort((a, b) => a.title.localeCompare(b.title));
                                   return (
                                     <>
                                       <div className="space-y-3">
                                         <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-600">
                                           Enabled
                                         </p>
-                                        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
                                           {enabledCards.map((card) => (
                                             <div key={card.id}>
-                                              {card.route ? (
-                                                <Card
-                                                  title={card.title}
-                                                  icon={card.icon}
-                                                  route={card.route}
-                                                  fullHeight
-                                                />
-                                              ) : (
-                                                <Card
-                                                  title={card.title}
-                                                  icon={card.icon}
-                                                  route="#"
-                                                  fullHeight
-                                                  interactive={false}
-                                                />
-                                              )}
+                                              <CompactAddOnCard
+                                                title={card.title}
+                                                icon={card.icon}
+                                                route={card.route}
+                                                state={{ fromSection: "add-ons" }}
+                                              />
                                             </div>
                                           ))}
                                         </div>
@@ -1034,15 +1066,15 @@ const AddModulesPage = () => {
                                       {disabledCards.length > 0 ? (
                                         <div className="space-y-3">
                                           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                                            Disabled
+                                            Locked
                                           </p>
-                                          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
                                             {disabledCards.map((card) => (
                                               <div key={card.id}>
-                                                <LockedModuleCard
+                                                <CompactAddOnCard
                                                   title={card.title}
                                                   icon={card.icon}
-                                                  sectionLabel={card.subgroupLabel || department.label}
+                                                  locked
                                                   onClick={
                                                     card.upgradeLocked && upgradePlanCards.length > 0
                                                       ? () => setIsUpgradeModalOpen(true)

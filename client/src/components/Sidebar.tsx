@@ -248,7 +248,11 @@ const departmentModules: NavNode[] = [
     label: "Tech Department",
     icon: Laptop,
     defaultOpen: false,
-    children: [{ id: "tech-website-builder", label: "Website Builder", icon: Globe, route: "/company-settings/website-builder" }],
+    children: [
+      { id: "tech-website-builder", label: "Website Builder", icon: Globe, route: "/company-settings/website-builder" },
+      { id: "website-leads", label: "Website Leads", icon: NotebookText, route: "/company-settings/website-builder/leads" },
+      { id: "website-review", label: "Website Review", icon: CheckCircle2, route: "/company-settings/website-builder/dynamic/reviews" },
+    ],
   },
   {
     id: "it-department",
@@ -283,6 +287,7 @@ const ROUTE_BY_ID: Record<string, string> = {
   "website-builder": "/company-settings/website-builder",
   "wono-nomad": "/company-settings/wono-nomad",
   "website-leads": "/company-settings/website-builder/leads",
+  "website-review": "/company-settings/website-builder/dynamic/reviews",
   "organization-management": "/company-settings/organization-management",
   "access-grants": "/company-settings/access-grants",
   "unit-settings": "/company-settings/unit-settings",
@@ -347,6 +352,7 @@ const ICON_BY_ID: Record<string, ElementType> = {
   "website-builder": Globe,
   "wono-nomad": ShieldCheck,
   "website-leads": NotebookText,
+  "website-review": CheckCircle2,
   "organization-management": Building,
   "module-management": Boxes,
   "access-grants": UserCog,
@@ -1072,7 +1078,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
     let sortedItems = sortEnabledFirst(mappedItems);
     sortedItems = sortedItems.map((item) => {
       if (item.id === "website-leads")
-        return { ...item, label: "Leads Management", icon: Magnet };
+        return { ...item, label: "Website Leads", icon: NotebookText };
       if (item.id === "resource-pricing")
         return { ...item, label: "Resource & Pricing" };
       return item;
@@ -1353,7 +1359,10 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
                       onClick={() =>
                         setOpenSections((current) => ({
                           ...current,
-                          [section.key]: !(current?.[section.key] ?? section.key === "common-modules"),
+                          [section.key]: !(
+                            current?.[section.key] ??
+                            (planLabel === "basic" || section.key === "common-modules")
+                          ),
                         }))
                       }
                       className="w-full mb-2 px-3 flex items-center justify-between text-left"
@@ -1361,13 +1370,15 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
                       <span className="text-[12px] font-pbold text-gray-500 tracking-wider uppercase">
                         {section.title}
                       </span>
-                      {openSections?.[section.key] ?? section.key === "common-modules" ? (
+                      {openSections?.[section.key] ??
+                      (planLabel === "basic" || section.key === "common-modules") ? (
                         <ChevronDown size={14} className="text-gray-400" />
                       ) : (
                         <ChevronRight size={14} className="text-gray-400" />
                       )}
                     </button>
-                    {(openSections?.[section.key] ?? section.key === "common-modules") ? (
+                    {(openSections?.[section.key] ??
+                      (planLabel === "basic" || section.key === "common-modules")) ? (
                       <div className="space-y-1">
                         {section.items.map((item) => (
                           <NavGroup

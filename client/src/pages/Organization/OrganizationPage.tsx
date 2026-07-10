@@ -39,6 +39,7 @@ import {
   writeStoredOwnerAccessState,
 } from '../../lib/owner-access';
 import { getWorkspaceCount } from '../../utils/workspacePlanAccess';
+import { statusPillClass } from '../../lib/status-pill';
 
 // sessionStorage only — see client/src/lib/auth-session.ts for why localStorage
 // (shared across tabs) must not be used as a fallback for the cached user.
@@ -982,12 +983,12 @@ export function OrganizationPage() {
 
   const getRoleBadge = (role) => {
     switch (normalizeRoleValue(role)) {
-      case 'owner': return <span className="px-3 py-1 bg-[#111827] text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Crown size={12}/> Founder</span>;
-      case 'super-admin': return <span className="px-3 py-1 bg-[#2563EB]/10 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Crown size={12}/> Super Admin</span>;
-      case 'admin-manager': return <span className="px-3 py-1 bg-cyan-50 text-cyan-700 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Shield size={12}/> Admin Manager</span>;
-      case 'admin': return <span className="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Shield size={12}/>  Admin</span>;
-      case 'manager': return <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Briefcase size={12}/> Manager</span>;
-      case 'employee': return <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Users size={12}/> Employee</span>;
+      case 'owner': return <span className={statusPillClass("Founder")}>Founder</span>;
+      case 'super-admin': return <span className={statusPillClass("Super Admin")}>Super Admin</span>;
+      case 'admin-manager': return <span className={statusPillClass("Admin Manager")}>Admin Manager</span>;
+      case 'admin': return <span className={statusPillClass("Admin")}>Admin</span>;
+      case 'manager': return <span className={statusPillClass("Manager")}>Manager</span>;
+      case 'employee': return <span className={statusPillClass("Employee")}>Employee</span>;
       default: return null;
     }
   };
@@ -995,19 +996,19 @@ export function OrganizationPage() {
   const getStatusBadge = (status) => {
     switch ((status || '').toLowerCase()) {
       case 'joined':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50"><UserCheck size={12}/>Joined</span>;
+        return <span className={statusPillClass("Joined")}>Joined</span>;
       case 'accepted':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50"><UserCheck size={12}/>Accepted</span>;
+        return <span className={statusPillClass("Accepted")}>Accepted</span>;
       case 'registered':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50"><UserCheck size={12}/>Registered</span>;
+        return <span className={statusPillClass("Registered")}>Registered</span>;
       case 'pending':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50"><Clock size={12}/>Pending</span>;
+        return <span className={statusPillClass("Pending")}>Pending</span>;
       case 'invited':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50"><Mail size={12}/>Invited</span>;
+        return <span className={statusPillClass("Invited")}>Invited</span>;
       case 'disabled':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-rose-600 bg-rose-50"><Ban size={12}/>Disabled</span>;
+        return <span className={statusPillClass("Disabled")}>Disabled</span>;
       default:
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-100">{status || 'Unknown'}</span>;
+        return <span className={statusPillClass(status || 'Unknown')}>{status || 'Unknown'}</span>;
     }
   };
 
@@ -1187,7 +1188,7 @@ export function OrganizationPage() {
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
-                  className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
                     statusFilter === status
                       ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
                       : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
@@ -1204,7 +1205,7 @@ export function OrganizationPage() {
                   type="text" placeholder="Search platform users..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                 />
               </div>
               <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
@@ -1212,7 +1213,7 @@ export function OrganizationPage() {
                   <select
                     value={deptRoleFilter}
                     onChange={(e) => setDeptRoleFilter(e.target.value)}
-                    className="pl-1 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[9px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none"
+                    className="pl-1 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[9px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none"
                   >
                     <option value="all">All</option>
                     <option disabled className="text-slate-300">── DEPARTMENTS ──</option>
@@ -1257,7 +1258,7 @@ export function OrganizationPage() {
           {/* TABLE */}
           <div className="overflow-x-auto flex-1">
           <table className="w-full text-left">
-            <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+            <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
               <tr>
                 <th className="px-5 py-4 text-left">Employee ID</th>
                 <th className="px-5 py-4 text-left">Platform User</th>
@@ -1287,24 +1288,24 @@ export function OrganizationPage() {
                   return (
                   <tr key={member.id} className={`hover:bg-slate-50/50 transition-colors group ${normalizedRole === 'owner' ? 'bg-slate-50/50' : member.status === 'disabled' ? 'bg-slate-50/50 opacity-75' : ''}`}>
                     <td className="px-5 py-4">
-                      <span className="font-bold text-slate-800 text-[12px]">{member.employeeId || '—'}</span>
+                      <span className="font-pmedium text-slate-800 text-[12px]">{member.employeeId || '—'}</span>
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-bold shadow-sm shrink-0 ${normalizedRole === 'owner' ? 'bg-[#111827] text-white' : 'bg-[#2563EB] text-white'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-pmedium shadow-sm shrink-0 ${normalizedRole === 'owner' ? 'bg-[#111827] text-white' : 'bg-[#2563EB] text-white'}`}>
                           {getInitials(member.name)}
                         </div>
-                        <span className="font-semibold text-slate-800 text-[12px]">{member.name}</span>
+                        <span className="font-pmedium text-slate-800 text-[12px]">{member.name}</span>
                       </div>
                     </td>
                     <td className="px-5 py-4">
-                      <span className="text-[11px] font-medium text-slate-500">{member.email}</span>
+                      <span className="text-[11px] font-pmedium text-slate-500">{member.email}</span>
                     </td>
                     <td className="px-5 py-4">{getRoleBadge(member.role)}</td>
                     <td className="px-5 py-4">
                       <div className="flex flex-wrap gap-1.5 max-w-56">
                         {departmentBadges.map((dept, i) => (
-                          <span key={i} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[9px] font-bold tracking-wide">{normalizeDepartmentLabel(dept)}</span>
+                          <span key={i} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[9px] font-pmedium tracking-wide">{normalizeDepartmentLabel(dept)}</span>
                         ))}
                       </div>
                     </td>
@@ -1320,8 +1321,7 @@ export function OrganizationPage() {
 
                         if (memberStatus === 'invited' || memberStatus === 'invite_sent') {
                           return (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50">
-                              <Clock size={12} /> Access Pending
+                            <span className={statusPillClass("Access Pending")}>Access Pending
                             </span>
                           );
                         }
@@ -1335,7 +1335,7 @@ export function OrganizationPage() {
                                   <span className="absolute left-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow translate-x-0" />
                                 </span>
                               </label>
-                              <span className="text-[10px] font-bold text-amber-600">Access Pending</span>
+                              <span className="text-[10px] font-pmedium text-amber-600">Access Pending</span>
                             </div>
                           );
                         }
@@ -1349,7 +1349,7 @@ export function OrganizationPage() {
                                   <span className="absolute left-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow translate-x-5" />
                                 </span>
                               </label>
-                              <span className="text-[10px] font-bold text-blue-600">Access Pending</span>
+                              <span className="text-[10px] font-pmedium text-blue-600">Access Pending</span>
                             </div>
                           );
                         }
@@ -1368,7 +1368,7 @@ export function OrganizationPage() {
                             : 'bg-rose-500';
 
                         if (isOwner) {
-                          return <span className="text-[10px] font-bold text-slate-400">Founder</span>;
+                          return <span className="text-[10px] font-pmedium text-slate-400">Founder</span>;
                         }
 
                         const isAccessSaving = accessTogglePendingMemberId === member.id;
@@ -1388,7 +1388,7 @@ export function OrganizationPage() {
                                 </span>
                               </span>
                             </label>
-                            <span className={`text-[10px] font-bold ${isToggleLocked ? 'text-slate-500' : isAccessEnabled ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            <span className={`text-[10px] font-pmedium ${isToggleLocked ? 'text-slate-500' : isAccessEnabled ? 'text-emerald-600' : 'text-rose-600'}`}>
                               {isProtectedSelf
                                 ? 'Self Protected'
                                 : isAccessEnabled
@@ -1402,7 +1402,7 @@ export function OrganizationPage() {
                   </tr>
                 )})}
                 {filteredTeamMembers.length === 0 && (
-                  <tr><td colSpan={7} className="text-center py-20 text-slate-400 font-semibold"><Shield size={32} className="mx-auto mb-3 opacity-50"/>No platform users found.</td></tr>
+                  <tr><td colSpan={7} className="text-center py-20 text-slate-400 font-pmedium"><Shield size={32} className="mx-auto mb-3 opacity-50"/>No platform users found.</td></tr>
                 )}
               </tbody>
             </table>
@@ -1417,13 +1417,13 @@ export function OrganizationPage() {
                 These users are no longer counted in this workspace and are shown here only for record keeping.
               </p>
             </div>
-            <span className="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+            <span className={statusPillClass(filteredTransferredTeamMembers.length)}>
               {filteredTransferredTeamMembers.length} Recorded
             </span>
           </div>
           <div className="overflow-x-auto flex-1">
             <table className="w-full text-left">
-              <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+              <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                 <tr>
                   <th className="px-5 py-4">User</th>
                   <th className="px-5 py-4">Previous Role</th>
@@ -1437,14 +1437,14 @@ export function OrganizationPage() {
                   <tr key={`transferred-${member.id}`} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-black font-bold text-sm shadow-sm bg-slate-400">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-black font-pmedium text-sm shadow-sm bg-slate-400">
                           {member.name?.charAt(0) ?? '?'}
                         </div>
                         <div>
-                          <div className="font-bold text-slate-900">{member.name}</div>
-                          <div className="text-[12px] font-medium text-slate-500 mt-0.5">{member.email}</div>
+                          <div className="font-pmedium text-slate-900">{member.name}</div>
+                          <div className="text-[12px] font-pmedium text-slate-500 mt-0.5">{member.email}</div>
                           {member.employeeId ? (
-                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">
+                            <div className="text-[10px] font-pmedium uppercase tracking-widest text-slate-400 mt-1">
                               {member.employeeId}
                             </div>
                           ) : null}
@@ -1455,7 +1455,7 @@ export function OrganizationPage() {
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1.5 max-w-62.5">
                         {((member as TeamMember & { previousDepartments?: string[] }).previousDepartments || member.departmentNames || []).map((dept, index) => (
-                          <span key={`${member.id}-${dept}-${index}`} className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold tracking-wide">
+                          <span key={`${member.id}-${dept}-${index}`} className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-[10px] font-pmedium tracking-wide">
                             {normalizeDepartmentLabel(dept)}
                           </span>
                         ))}
@@ -1463,24 +1463,24 @@ export function OrganizationPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="space-y-1">
-                        <div className="font-bold text-slate-900">{member.transferredToWorkspaceName || 'Linked Unit'}</div>
-                        <div className="text-[12px] font-medium text-slate-500">
+                        <div className="font-pmedium text-slate-900">{member.transferredToWorkspaceName || 'Linked Unit'}</div>
+                        <div className="text-[12px] font-pmedium text-slate-500">
                           {member.transferredToWorkspaceLocation || 'Location not set'}
                         </div>
                         {((member as TeamMember & { nextRole?: string }).nextRole) ? (
-                          <div className="text-[10px] font-black uppercase tracking-widest text-[#2563EB]">
+                          <div className="text-[10px] font-pmedium uppercase tracking-widest text-[#2563EB]">
                             Now {(member as TeamMember & { nextRole?: string }).nextRole!.replace(/_/g, ' ')}
                           </div>
                         ) : null}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-[13px] font-medium text-slate-500">
+                    <td className="px-6 py-4 text-[13px] font-pmedium text-slate-500">
                       {formatTransferDate((member as TeamMember & { transferredAt?: string }).transferredAt)}
                     </td>
                   </tr>
                 ))}
                 {filteredTransferredTeamMembers.length === 0 && (
-                  <tr><td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-bold"><ArrowLeft size={32} className="mx-auto mb-3 opacity-30 rotate-45"/>No transferred users recorded for this unit.</td></tr>
+                  <tr><td colSpan={5} className="px-6 py-16 text-center text-slate-400 font-pmedium"><ArrowLeft size={32} className="mx-auto mb-3 opacity-30 rotate-45"/>No transferred users recorded for this unit.</td></tr>
                 )}
               </tbody>
             </table>
@@ -1528,17 +1528,17 @@ export function OrganizationPage() {
                 
                 <div className="mt-auto pt-2.5 border-t border-slate-100 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"><Briefcase size={12}/> Manager</span>
+                    <span className={statusPillClass("Manager")}>Manager</span>
                     <span className={`text-[11px] font-bold px-2 py-1 rounded-md ${dept.managerName ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
                       {dept.managerName || 'Unassigned'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"><Users size={12}/> Team Size</span>
+                    <span className={statusPillClass("Team Size")}>Team Size</span>
                     <span className="font-bold text-slate-800 text-[11px]">{dept.employeeCount} <span className="text-slate-400 text-[10px] font-medium">Staff</span></span>
                   </div>
                     <div className="space-y-2">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"><Users size={12}/> Selected Members</span>
+                      <span className={statusPillClass("Selected Members")}>Selected Members</span>
                       <div className="flex flex-wrap gap-1.5">
                         {(dept.employees || []).slice(0, 3).map((employee) => (
                           <span key={employee.id} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[9px] font-bold tracking-wide">
@@ -1546,7 +1546,7 @@ export function OrganizationPage() {
                           </span>
                         ))}
                       {(dept.employees || []).length > 3 && (
-                        <span className="px-1.5 py-0.5 bg-blue-50 text-[#2563EB] rounded-md text-[9px] font-bold tracking-wide">
+                        <span className={statusPillClass("+")}>
                           +{(dept.employees || []).length - 3} more
                         </span>
                       )}
@@ -1650,7 +1650,7 @@ export function OrganizationPage() {
             </div>
             <div className="overflow-x-auto flex-1">
               <table className="w-full text-left">
-                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-5 py-4">Employee Info</th>
                     <th className="px-5 py-4">Employee ID</th>
@@ -1664,30 +1664,30 @@ export function OrganizationPage() {
                     <tr key={emp.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-[10px] shadow-sm bg-gradient-to-br from-[#2563EB] to-blue-700">
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-pmedium text-[10px] shadow-sm bg-gradient-to-br from-[#2563EB] to-blue-700">
                             {getInitials(emp.name)}
                           </div>
-                          <div className="font-bold text-[11px] text-slate-900">{emp.name}</div>
+                          <div className="font-pmedium text-[11px] text-slate-900">{emp.name}</div>
                         </div>
                       </td>
                       <td className="px-5 py-4">
                         {emp.employeeId ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded-lg bg-blue-50 text-[#2563EB] text-[10px] font-black tracking-widest uppercase">
+                          <span className={statusPillClass(emp.employeeId)}>
                             {emp.employeeId}
                           </span>
                         ) : (
-                          <span className="text-[12px] font-medium text-slate-300">—</span>
+                          <span className="text-[12px] font-pmedium text-slate-300">—</span>
                         )}
                       </td>
                       <td className="px-5 py-4">{getRoleBadge(emp.role)}</td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2 text-[12px] text-slate-600"><Mail size={14} className="text-slate-400"/> {emp.email}</div>
                       </td>
-                      <td className="px-5 py-4 text-[12px] font-medium text-slate-500">{formatJoinedDate((emp as any).joinedAt)}</td>
+                      <td className="px-5 py-4 text-[12px] font-pmedium text-slate-500">{formatJoinedDate((emp as any).joinedAt)}</td>
                     </tr>
                   ))}
                   {(selectedDepartment?.employees?.length ?? 0) === 0 && (
-                    <tr><td colSpan={5} className="text-center py-20 text-slate-400 font-semibold"><Users size={32} className="mx-auto mb-3 opacity-30"/>No personnel assigned.</td></tr>
+                    <tr><td colSpan={5} className="text-center py-20 text-slate-400 font-pmedium"><Users size={32} className="mx-auto mb-3 opacity-30"/>No personnel assigned.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -1697,13 +1697,13 @@ export function OrganizationPage() {
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 bg-slate-50/50 flex items-center justify-between">
               <h3 className="text-[13px] font-bold text-slate-900">Transferred From This Department</h3>
-                <span className="px-3 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest">
+                <span className={statusPillClass((selectedDepartment as any)?.transferredEmployees?.length || 0)}>
                 {(selectedDepartment as any)?.transferredEmployees?.length || 0} Recorded
               </span>
             </div>
             <div className="overflow-x-auto flex-1">
               <table className="w-full text-left">
-                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-5 py-4">Employee</th>
                     <th className="px-5 py-4">Previous Role</th>
@@ -1716,25 +1716,25 @@ export function OrganizationPage() {
                     <tr key={`dept-transfer-${emp.id}`} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-[10px] shadow-sm bg-slate-400">
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-pmedium text-[10px] shadow-sm bg-slate-400">
                             {getInitials(emp.name)}
                           </div>
                           <div>
-                            <div className="font-bold text-[11px] text-slate-900">{emp.name}</div>
-                            <div className="text-[10px] font-medium text-slate-500">{emp.email}</div>
+                            <div className="font-pmedium text-[11px] text-slate-900">{emp.name}</div>
+                            <div className="text-[10px] font-pmedium text-slate-500">{emp.email}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-5 py-4">{getRoleBadge(emp.role)}</td>
                       <td className="px-5 py-4">
-                        <div className="font-bold text-[11px] text-slate-900">{emp.transferredToWorkspaceName || 'Linked Unit'}</div>
-                        <div className="text-[10px] font-medium text-slate-500">{emp.transferredToWorkspaceLocation || 'Location not set'}</div>
+                        <div className="font-pmedium text-[11px] text-slate-900">{emp.transferredToWorkspaceName || 'Linked Unit'}</div>
+                        <div className="text-[10px] font-pmedium text-slate-500">{emp.transferredToWorkspaceLocation || 'Location not set'}</div>
                       </td>
-                      <td className="px-5 py-4 text-[12px] font-medium text-slate-500">{formatTransferDate(emp.transferredAt)}</td>
+                      <td className="px-5 py-4 text-[12px] font-pmedium text-slate-500">{formatTransferDate(emp.transferredAt)}</td>
                     </tr>
                   ))}
                   {(!selectedDepartment.transferredEmployees || selectedDepartment.transferredEmployees.length === 0) && (
-                    <tr><td colSpan={4} className="text-center py-20 text-slate-400 font-semibold"><Users size={32} className="mx-auto mb-3 opacity-30"/>No transferred records for this department yet.</td></tr>
+                    <tr><td colSpan={4} className="text-center py-20 text-slate-400 font-pmedium"><Users size={32} className="mx-auto mb-3 opacity-30"/>No transferred records for this department yet.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -1772,12 +1772,12 @@ export function OrganizationPage() {
               </div>
               <div className="grid grid-cols-2 gap-5">
                 <div className="space-y-1.5 col-span-2">
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Full Name *</label>
-                  <input type="text" placeholder="John Doe" value={employeeFormData.name} onChange={(e) => setEmployeeFormData({ ...employeeFormData, name: e.target.value })} className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
+                  <label className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest">Full Name *</label>
+                  <input type="text" placeholder="John Doe" value={employeeFormData.name} onChange={(e) => setEmployeeFormData({ ...employeeFormData, name: e.target.value })} className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Email Address *</label>
-                  <input type="email" placeholder="john@company.com" value={employeeFormData.email} onChange={(e) => setEmployeeFormData({ ...employeeFormData, email: e.target.value })} className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
+                  <label className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest">Email Address *</label>
+                  <input type="email" placeholder="john@company.com" value={employeeFormData.email} onChange={(e) => setEmployeeFormData({ ...employeeFormData, email: e.target.value })} className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
                 </div>
               </div>
             </div>
@@ -2094,17 +2094,17 @@ export function OrganizationPage() {
             <div className="p-5 sm:p-6 space-y-5 overflow-y-auto max-h-[58vh] bg-white">
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Full Name *</label>
-                  <input type="text" placeholder="Enter full name" value={teamMemberFormData.name} onChange={(e) => setTeamMemberFormData({ ...teamMemberFormData, name: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Full Name *</label>
+                  <input type="text" placeholder="Enter full name" value={teamMemberFormData.name} onChange={(e) => setTeamMemberFormData({ ...teamMemberFormData, name: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Work Email *</label>
-                  <input type="email" placeholder="Enter work email" value={teamMemberFormData.email} onChange={(e) => setTeamMemberFormData({ ...teamMemberFormData, email: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Work Email *</label>
+                  <input type="email" placeholder="Enter work email" value={teamMemberFormData.email} onChange={(e) => setTeamMemberFormData({ ...teamMemberFormData, email: e.target.value })} className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Platform Role *</label>
+                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Platform Role *</label>
                 <select
                   value={teamMemberFormData.role}
                   onChange={(e) =>
@@ -2120,7 +2120,7 @@ export function OrganizationPage() {
                     })
                   }
                   disabled={isBasicPlanWorkspace}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
                 >
                    <option value="employee" disabled={isBasicPlanWorkspace}>Department Employee</option>
                    <option value="manager" disabled={isBasicPlanWorkspace}>Department Manager</option>
@@ -2140,7 +2140,7 @@ export function OrganizationPage() {
 
               {teamMemberFormData.role !== 'super-admin' ? (
                 <div className="space-y-3 pt-2">
-                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest flex items-center justify-between">
+                  <label className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest flex items-center justify-between">
                     Assign Department
                     <span className="text-[#2563EB] bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">{teamMemberFormData.departments.length} Selected</span>
                   </label>
