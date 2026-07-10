@@ -189,8 +189,12 @@ const AgTableComponent = ({
         headerCheckboxSelection: checkAll,
         checkboxSelection: true,
         width: 50,
+        headerClass: "font-pmedium",
       },
-      ...columns,
+      ...columns.map((column) => ({
+        ...column,
+        headerClass: column.headerClass || "font-pmedium",
+      })),
     ];
   }, [columns, enableCheckbox, checkAll]);
 

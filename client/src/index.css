@@ -91,8 +91,25 @@
   
 
 }
-.ag-header-cell-label {
-  font-weight: bold !important;
+
+/* Semibold treatment for repeated module labels, sub-tabs, and table headers. */
+.font-bold.uppercase.tracking-widest,
+.font-bold.uppercase.tracking-wider,
+.font-pbold.font-bold.uppercase.tracking-widest,
+.font-pbold.font-bold.uppercase.tracking-wider,
+.font-pbold.font-medium.uppercase.tracking-widest,
+.font-pbold.font-medium.uppercase.tracking-wider,
+button[class*="font-pbold"][class*="uppercase"][class*="tracking-widest"],
+button[class*="font-pbold"][class*="uppercase"][class*="tracking-wider"],
+a[class*="font-pbold"][class*="uppercase"][class*="tracking-widest"],
+a[class*="font-pbold"][class*="uppercase"][class*="tracking-wider"],
+.MuiTab-root,
+.MuiTableCell-head,
+thead th,
+.ag-header-cell-label,
+.ag-header-cell-text {
+  font-family: Poppins-SemiBold !important;
+  font-weight: 600 !important;
 }
 
 .MuiTab-root.Mui-selected {

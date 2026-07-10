@@ -74,7 +74,7 @@ const TabLayout = ({
             tab.locked ? (
               <span
                 key={`${tab.path}-${index}`}
-                className="flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all inline-flex items-center justify-center gap-1 text-slate-400 bg-slate-50 cursor-not-allowed"
+                className="flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all inline-flex items-center justify-center gap-1 text-slate-400 bg-slate-50 cursor-not-allowed"
                 title="You don't have permission for this tab."
                 style={{
                   minWidth: isMobile ? "70%" : `${tabPercent}%`,
@@ -91,8 +91,8 @@ const TabLayout = ({
                   textDecoration: "none",
                   minWidth: isMobile ? "70%" : `${tabPercent}%`,
                 })}
-                className={({ isActive }) =>
-                  `flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all text-center ${
+              className={({ isActive }) =>
+                  `flex-1 rounded-xl px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all text-center ${
                     isActive
                       ? "bg-[#2563EB] text-white shadow-sm"
                       : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"

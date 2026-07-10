@@ -69,7 +69,7 @@ const formatDate = (value?: string | null) => {
 
 export default function CustomerSupportPage() {
   const axios = useAxiosPrivate();
-  const [activeTab, setActiveTab] = useState<"raised" | "history">("raised");
+  const [activeTab, setActiveTab] = useState<"raised" | "resolved">("raised");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -100,7 +100,7 @@ export default function CustomerSupportPage() {
 
   const filteredList = useMemo(() => {
     let list = currentList;
-    if (statusFilter !== "All") {
+    if (activeTab === "raised" && statusFilter !== "All") {
       list = list.filter(t => t.status === statusFilter);
     }
     if (searchQuery.trim()) {
@@ -113,7 +113,7 @@ export default function CustomerSupportPage() {
       );
     }
     return list;
-  }, [currentList, searchQuery, statusFilter]);
+  }, [activeTab, currentList, searchQuery, statusFilter]);
 
   const loadTickets = useCallback(async () => {
     try {
@@ -181,7 +181,7 @@ export default function CustomerSupportPage() {
       await loadTickets();
       setIsDetailsModalOpen(false);
       setSelectedTicket(null);
-      setActiveTab("history");
+      setActiveTab("resolved");
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to close ticket.");
     } finally {
@@ -231,33 +231,7 @@ export default function CustomerSupportPage() {
             </div>
           </div>
 
-          {/* 2. MAIN TABS */}
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            <button
-              type="button"
-              onClick={() => setActiveTab("raised")}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
-                activeTab === "raised"
-                  ? "bg-[#2563EB] text-white shadow-sm"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              Issues Raised
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("history")}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
-                activeTab === "history"
-                  ? "bg-[#2563EB] text-white shadow-sm"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              Issues History
-            </button>
-          </div>
-
-          {/* 3. STAT CARDS */}
+          {/* 2. STAT CARDS */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
               <div className="min-w-0">
@@ -289,10 +263,37 @@ export default function CustomerSupportPage() {
             </div>
           </div>
 
+          {/* 3. MAIN TABS */}
+          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setActiveTab("raised")}
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+                activeTab === "raised"
+                  ? "bg-[#2563EB] text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              Issues Raised
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("resolved")}
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+                activeTab === "resolved"
+                  ? "bg-[#2563EB] text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              Issue Resolved
+            </button>
+          </div>
+
           {/* 4. DATA PANEL */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
             {/* Toolbar */}
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+              {activeTab === "raised" ? (
                 <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                   {['All', 'Open', 'In Progress', 'Resolved', 'Closed'].map((status) => (
                     <button
@@ -307,25 +308,41 @@ export default function CustomerSupportPage() {
                     </button>
                   ))}
                 </div>
-              <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-                <div className="relative flex-1 min-w-[180px]">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                  <input
-                    type="text"
-                    placeholder="Search tickets..."
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+              ) : (
+                <div className="w-full xl:max-w-md">
+                  <div className="relative w-full">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                    <input
+                      type="text"
+                      placeholder="Search tickets..."
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="btn-pill bg-[#2563EB] text-white px-4 py-2.5 flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
-                >
-                  <Plus size={13} strokeWidth={3} />Raise Issue
-                </button>
-              </div>
+              )}
+              {activeTab === "raised" ? (
+                <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                  <div className="relative flex-1 min-w-[180px]">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                    <input
+                      type="text"
+                      placeholder="Search tickets..."
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="btn-pill bg-[#2563EB] text-white px-4 py-2.5 flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                  >
+                    <Plus size={13} strokeWidth={3} />Raise Issue
+                  </button>
+                </div>
+              ) : null}
             </div>
             {isLoading ? (
               <div className="p-4 text-sm font-bold text-slate-500">Loading tickets...</div>

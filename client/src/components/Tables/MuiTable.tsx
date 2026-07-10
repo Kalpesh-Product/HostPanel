@@ -41,7 +41,8 @@ const MuiTable = ({
                     key={column.id}
                     align={column.align || "left"}
                     style={{
-                      fontWeight: "bold",
+                      fontFamily: "Poppins-SemiBold",
+                      fontWeight: 600,
                       minWidth: column.minWidth,
                       width: column.width,
                     }}
