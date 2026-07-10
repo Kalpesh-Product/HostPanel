@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { Lock } from "lucide-react";
 import { getProfileTabItemsForPlan } from "./profileAccess";
+import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 
 const readWorkspacePlan = (): string => {
   try {
@@ -15,7 +17,30 @@ const readWorkspacePlan = (): string => {
 
 const ProfileLayout = () => {
   const location = useLocation();
-  const profileTabs = getProfileTabItemsForPlan(readWorkspacePlan());
+  const axiosPrivate = useAxiosPrivate();
+  // localStorage.workspace_setup is only written once, at initial
+  // workspace-setup time — it never reflects a plan change made later from
+  // master panel. Use it as the instant-first-paint fallback only; the live
+  // fetch below (same endpoint Sidebar.tsx polls) overrides it once it
+  // resolves, so tabs unlock correctly after an upgrade instead of staying
+  // gated on "basic" forever.
+  const [plan, setPlan] = useState<string>(readWorkspacePlan());
+
+  useEffect(() => {
+    let mounted = true;
+    axiosPrivate
+      .get("/api/workspaces/module-access-map")
+      .then((res) => {
+        const selectedPlan = res?.data?.data?.selectedPlan;
+        if (mounted && selectedPlan) setPlan(selectedPlan);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [axiosPrivate]);
+
+  const profileTabs = getProfileTabItemsForPlan(plan);
   const showTabs = location.pathname !== "/profile" && !location.pathname.includes("budget/");
   const activeTabId = profileTabs.find((tab) => location.pathname.includes(tab.id))?.id;
 
