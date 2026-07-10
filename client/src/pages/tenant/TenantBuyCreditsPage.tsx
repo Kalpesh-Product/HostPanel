@@ -215,7 +215,7 @@ export default function TenantBuyCreditsPage() {
         </div>
         {canManageTenant && (
           <button onClick={() => setShowNewRequestForm(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-xs font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-800">
+            className="btn-pill inline-flex items-center gap-2 bg-slate-900 px-5 py-3 text-white shadow-sm transition-colors hover:bg-slate-800">
             <Plus size={16} /> New Credit Request
           </button>
         )}
@@ -303,7 +303,7 @@ export default function TenantBuyCreditsPage() {
                       <div className="flex flex-col items-end gap-2">
                         {needsPayment && !isPaying && (
                           <button disabled={isSubmitting} onClick={() => { setPayingRequestId(request.id); setPaymentProofFile(null); setTransactionId(''); }}
-                            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">
+                            className="btn-pill inline-flex items-center gap-1.5 bg-slate-900 px-4 py-2.5 text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">
                             Upload Payment Proof <ExternalLink size={14} />
                           </button>
                         )}
@@ -321,15 +321,15 @@ export default function TenantBuyCreditsPage() {
                               className="w-full rounded-lg border-2 border-transparent bg-white px-3 py-2 text-[11px] font-pmedium text-slate-900 outline-none focus:border-[#2563EB]" />
                             <div className="flex gap-2">
                               <button type="button" disabled={isSubmitting} onClick={() => { setPayingRequestId(null); setPaymentProofFile(null); setTransactionId(''); }}
-                                className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-slate-600 hover:bg-slate-50 disabled:opacity-60">Cancel</button>
+                                className="btn-pill flex-1 border border-slate-200 bg-white px-3 py-2 text-slate-600 hover:bg-slate-50 disabled:opacity-60">Cancel</button>
                               <button type="button" disabled={isSubmitting || !paymentProofFile} onClick={() => handlePayRequest(request, paymentProofFile)}
-                                className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">Submit</button>
+                                className="btn-pill flex-1 bg-blue-600 px-3 py-2 text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">Submit</button>
                             </div>
                           </div>
                         )}
                         {showInvoice && (
                           <button disabled={isSubmitting} onClick={() => window.open(request.invoiceFileUrl, '_blank')}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-pbold uppercase tracking-widest text-slate-900 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
+                            className="btn-pill inline-flex items-center gap-1.5 border border-slate-200 bg-white px-4 py-2.5 text-slate-900 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
                             View Invoice <ExternalLink size={14} />
                           </button>
                         )}
@@ -396,9 +396,9 @@ export default function TenantBuyCreditsPage() {
             </div>
             <div className="flex gap-3 border-t border-slate-100 bg-slate-50 px-6 py-5">
               <button type="button" onClick={() => setShowNewRequestForm(false)} disabled={isSubmitting}
-                className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Cancel</button>
+                className="btn-pill flex-1 border border-slate-200 bg-white px-4 py-3 text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Cancel</button>
               <button type="submit" disabled={isSubmitting}
-                className="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-xs font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">
+                className="btn-pill flex-1 bg-blue-600 px-4 py-3 text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">
                 {isSubmitting ? 'Submitting...' : 'Submit Request'}
               </button>
             </div>

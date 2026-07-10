@@ -319,7 +319,7 @@ export default function WorkspaceSettingsPage() {
                   <button
                     type="button"
                     onClick={() => navigate("/company-settings/workspace-management")}
-                    className="inline-flex h-8.5 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-bold text-slate-700 transition hover:bg-slate-50 whitespace-nowrap"
+                    className="btn-pill inline-flex h-8.5 items-center justify-center gap-2 border border-slate-200 bg-white px-3 text-slate-700 transition hover:bg-slate-50 whitespace-nowrap"
                   >
                     <PanelsTopLeft className="h-4 w-4" />
                     OPEN MANAGEMENT
@@ -470,7 +470,7 @@ export default function WorkspaceSettingsPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1e4fd1] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="btn-pill inline-flex h-11 items-center justify-center gap-2 bg-[#2563EB] px-5 text-white shadow-sm transition hover:bg-[#1e4fd1] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
                   {isSubmitting ? "Verifying..." : "Continue"}

@@ -244,6 +244,16 @@ const EditNomadListing = () => {
   return (
     <div className="p-4">
       <PageFrame>
+        <div className="mb-4 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
+          <div>
+            <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
+              Edit Nomad Listing
+            </h2>
+            <p className="text-xs font-pmedium text-slate-500 mt-1">
+              Update the listing's company details, inclusions, pricing, and gallery images.
+            </p>
+          </div>
+        </div>
         <form
           ref={formRef}
           encType="multipart/form-data"
@@ -595,14 +605,14 @@ const EditNomadListing = () => {
             <button
               type="submit"
               disabled={isSaving}
-              className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="btn-pill px-8 py-2.5 bg-[#2563EB] text-white shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isSaving ? "Submitting..." : "Submit"}
             </button>
             <button
               type="button"
               onClick={resetFormToEmpty}
-              className="px-8 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50"
+              className="btn-pill px-8 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
             >
               Reset
             </button>

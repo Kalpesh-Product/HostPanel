@@ -1916,7 +1916,7 @@ export function TasksPage() {
                   </div>
                   <button
                     onClick={() => setIsAssignModalOpen(true)}
-                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                    className="btn-pill bg-[#2563EB] text-white px-4 py-2.5 flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
                     <Plus size={13} strokeWidth={3} /> ASSIGN TASK
                   </button>
@@ -2047,7 +2047,7 @@ export function TasksPage() {
                           </div>
                           <button
                             onClick={() => setViewingTask(task)}
-                            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
+                            className="btn-pill px-4 py-2 bg-white border border-slate-200 text-slate-700 shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
                           >
                             <Eye size={14} strokeWidth={2} /> View
                           </button>
@@ -2073,7 +2073,7 @@ export function TasksPage() {
                       type="button"
                       onClick={handleLoadMoreTasks}
                       disabled={isLoadingMore}
-                      className="rounded-xl border border-blue-100 bg-blue-50 px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-[#2563EB] shadow-sm transition-all hover:border-blue-200 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="btn-pill border border-blue-100 bg-blue-50 px-5 py-2.5 text-[#2563EB] shadow-sm transition-all hover:border-blue-200 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isLoadingMore ? 'Loading...' : 'Load More Tasks'}
                     </button>
@@ -2243,8 +2243,8 @@ export function TasksPage() {
                   </div>
 
                   <div className="pt-4 sm:pt-6 flex gap-3 sm:gap-4 border-t border-slate-200/60 flex-col-reverse sm:flex-row">
-                    <button type="button" onClick={() => setIsAssignModalOpen(false)} className="w-full sm:flex-1 py-3 sm:py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">CANCEL</button>
-                    <button disabled={isSaving} type="submit" className="w-full sm:flex-[2] py-3 sm:py-3.5 bg-[#2563EB] text-white rounded-xl font-bold shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                    <button type="button" onClick={() => setIsAssignModalOpen(false)} className="btn-pill w-full sm:flex-1 py-3 sm:py-3.5 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all">CANCEL</button>
+                    <button disabled={isSaving} type="submit" className="btn-pill w-full sm:flex-[2] py-3 sm:py-3.5 bg-[#2563EB] text-white shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
                       {isSaving ? 'CREATING...' : 'CREATE TASK'} <Plus size={16} strokeWidth={2.5} />
                     </button>
                   </div>
@@ -2396,7 +2396,7 @@ export function TasksPage() {
                                 : {},
                             )}
                             disabled={isSaving}
-                            className="w-full py-3 sm:py-3.5 rounded-xl font-bold text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="btn-pill w-full py-3 sm:py-3.5 transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                           >
                             {isSaving ? 'STARTING...' : 'Accept & Start'}
                           </button>
@@ -2405,7 +2405,7 @@ export function TasksPage() {
                         <button
                           onClick={() => handleAcceptTask()}
                           disabled={isSaving}
-                          className="w-full mb-4 py-3 sm:py-3.5 rounded-xl font-bold text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="btn-pill w-full mb-4 py-3 sm:py-3.5 transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                           {isSaving ? 'STARTING...' : 'Accept & Start Task'}
                         </button>
@@ -2460,7 +2460,7 @@ export function TasksPage() {
                         <button
                           onClick={handleMarkCompleted}
                           disabled={isSaving}
-                          className="w-full py-3 sm:py-3.5 rounded-xl font-bold text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                          className="w-full py-3 sm:py-3.5 btn-pill transition-all flex justify-center items-center gap-2 shadow-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                           {isSaving ? 'UPDATING...' : 'Mark As Completed'}
                         </button>
@@ -2525,7 +2525,7 @@ export function TasksPage() {
                         placeholder="Tag someone (@) or type a message..."
                         className="w-full bg-white border border-slate-200 rounded-xl pl-4 pr-24 py-3 sm:py-3.5 text-[13px] sm:text-[14px] font-medium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none transition-all shadow-sm placeholder:text-slate-400"
                       />
-                      <button onClick={handleAddComment} className="absolute right-2 top-1.5 sm:top-2 bg-slate-900 hover:bg-black text-white px-4 py-1.5 sm:py-2 rounded-lg text-[11px] sm:text-[12px] font-bold transition-colors shadow-sm tracking-wider uppercase">
+                      <button onClick={handleAddComment} className="btn-pill absolute right-2 top-1.5 sm:top-2 bg-slate-900 hover:bg-black text-white px-4 py-1.5 sm:py-2 transition-colors shadow-sm">
                         Post
                       </button>
                     </div>

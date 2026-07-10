@@ -400,7 +400,7 @@ export default function SystemAccessManagementPage() {
             <button
               type="button"
               onClick={() => openModal()}
-              className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
+              className="btn-pill inline-flex items-center justify-center gap-1.5 bg-[#2563EB] px-4 py-2.5 text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
             >
               <Key className="w-4 h-4" />
               Provision Access
@@ -490,7 +490,7 @@ export default function SystemAccessManagementPage() {
                         <button
                           type="button"
                           onClick={() => openModal(asset)}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-blue-600 hover:bg-blue-600 hover:text-white transition-colors"
+                          className="btn-pill inline-flex items-center gap-1.5 border border-blue-200 bg-blue-50 px-3 py-2 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors"
                         >
                           <Key size={12} /> Assign
                         </button>
@@ -669,11 +669,11 @@ export default function SystemAccessManagementPage() {
 
                   <div className="flex gap-3 pt-2">
                     <button type="button" disabled={isSaving} onClick={() => setIsModalOpen(false)}
-                      className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-bold text-slate-700 shadow-sm">
+                      className="btn-pill flex-1 border border-slate-200 bg-white py-4 text-slate-700 shadow-sm">
                       Cancel
                     </button>
                     <button type="submit" disabled={isSaving || !assignmentForm.assetId || !assignmentForm.targetDepartment || (assignmentForm.targetAudience === "employee" && !assignmentForm.targetEmployeeId) || (assignmentForm.targetAudience === "role" && !assignmentForm.targetRole)}
-                      className="inline-flex items-center justify-center gap-1.5 flex-1 rounded-2xl bg-blue-600 py-4 font-black text-white shadow-sm disabled:bg-slate-300">
+                      className="btn-pill inline-flex items-center justify-center gap-1.5 flex-1 bg-blue-600 py-4 text-white shadow-sm disabled:bg-slate-300">
                       {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                       {isSaving ? "Saving..." : "Confirm Access"}
                     </button>

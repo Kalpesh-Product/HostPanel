@@ -283,7 +283,7 @@ export default function ChatWidgetPreview() {
                                     <button
                                         type="button"
                                         onClick={handleContactSupport}
-                                        className="mt-3 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 shadow-lg cursor-pointer animate-in zoom-in-95 duration-300"
+                                        className="btn-pill mt-3 w-full bg-blue-600 px-4 py-3 text-white hover:bg-blue-700 shadow-lg cursor-pointer animate-in zoom-in-95 duration-300"
                                     >
                                         Contact Customer Support
                                     </button>
@@ -322,7 +322,7 @@ export default function ChatWidgetPreview() {
                             By chatting, you agree to our Site Terms, Acceptable Use Policy, and Responsible AI Policy. Wono handles your information as described in the Wono Privacy Notice. Inputs you provide and output you generate through this Wono chatbot are licensed to Wono as posted content and submitted material under the Site Terms.
                         </p>
                         <div className="mt-6 flex justify-end">
-                            <button type="button" onClick={() => setShowDisclaimer(false)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 cursor-pointer">
+                            <button type="button" onClick={() => setShowDisclaimer(false)} className="btn-pill bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 cursor-pointer">
                                 Close
                             </button>
                         </div>

@@ -19,8 +19,8 @@ const GroupedButton = ({
     <div>
       <button
         type={type ?? "button"}
-        className={`rounded-md bg-primary px-8 py-2 text-white ${
-          fontSize ? fontSize : "text-content"
+        className={`btn-pill bg-primary px-8 py-2 text-white ${
+          fontSize ?? ""
         } ${externalStyles ?? ""}`}
         onClick={handleSubmit}
       >

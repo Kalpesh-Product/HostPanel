@@ -715,7 +715,7 @@ export default function TenantMeetingRoomBookingPage() {
                       </div>
                       <div className="px-4 pb-4">
                         <button onClick={() => handleOpenBooking(room)}
-                          className="w-full px-4 py-2.5 rounded-xl bg-slate-900 text-white font-pbold text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5">
+                          className="btn-pill w-full px-4 py-2.5 bg-slate-900 text-white hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5">
                           <Plus size={12} /> Book Room
                         </button>
                       </div>
@@ -893,9 +893,9 @@ export default function TenantMeetingRoomBookingPage() {
 
             <div className="p-5 md:p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
               <button onClick={handleCloseBooking} type="button" disabled={isSubmitting}
-                className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pbold text-[10px] hover:bg-slate-100 transition-all">CANCEL</button>
+                className="btn-pill flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition-all">CANCEL</button>
               <button type="submit" disabled={isSubmitting || selectedRoomConflictBookings.length > 0}
-                className="flex-1 py-2.5 bg-slate-900 text-white rounded-xl font-pbold text-[10px] hover:bg-slate-800 transition-all disabled:opacity-50">
+                className="btn-pill flex-1 py-2.5 bg-slate-900 text-white hover:bg-slate-800 transition-all disabled:opacity-50">
                 {isSubmitting ? 'BOOKING...' : selectedRoomConflictBookings.length > 0 ? 'SLOT UNAVAILABLE' : 'CONFIRM BOOKING'}
               </button>
             </div>

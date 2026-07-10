@@ -15,7 +15,7 @@ const Unauthorized = () => {
         <div className="mt-6 flex flex-col gap-3">
           <button type="button"
             onClick={() => navigate("/app/company-settings")}
-            className="bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-6 rounded-lg transition"
+            className="btn-pill bg-gray-500 hover:bg-gray-600 text-white py-2 px-6 transition"
           >
             Go Back
           </button>

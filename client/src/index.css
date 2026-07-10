@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  /* Single source of truth for button shape + typography across the app.
+     Every button (shared components + page-level buttons) uses .btn-pill —
+     edit this class to restyle all buttons at once. */
+  .btn-pill {
+    @apply rounded-full font-pmedium text-[10.5px] uppercase tracking-widest;
+  }
+}
+
 @layer utilities {
 
   body {

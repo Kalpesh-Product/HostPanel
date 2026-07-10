@@ -436,7 +436,7 @@ export default function AMCMaintenanceSchedulerPage() {
                 <button
                   type="button"
                   onClick={handleOpenCreate}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
+                  className="btn-pill inline-flex items-center justify-center gap-1.5 bg-[#2563EB] px-4 py-2.5 text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
                 >
                   <Plus className="w-4 h-4" />
                   Add AMC Schedule
@@ -507,7 +507,7 @@ export default function AMCMaintenanceSchedulerPage() {
                             <button
                               type="button"
                               onClick={() => handleSelectSchedule(s)}
-                              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                              className="btn-pill border border-slate-200 bg-white px-3 py-1.5 text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
                             >
                               View
                             </button>
@@ -635,7 +635,7 @@ export default function AMCMaintenanceSchedulerPage() {
                 <button
                   type="button"
                   onClick={handleCloseDetail}
-                  className="px-4 py-2 text-xs font-black uppercase tracking-wider text-slate-600 hover:text-slate-900 transition-colors"
+                  className="px-4 py-2 text-xs font-pmedium uppercase tracking-widest text-slate-600 hover:text-slate-900 transition-colors"
                 >
                   Close
                 </button>
@@ -645,7 +645,7 @@ export default function AMCMaintenanceSchedulerPage() {
                     type="button"
                     onClick={() => handleComplete(selectedSchedule)}
                     disabled={isUpdating}
-                    className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
+                    className="btn-pill inline-flex items-center gap-1.5 px-5 py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
                   >
                     {isUpdating ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -693,7 +693,7 @@ export default function AMCMaintenanceSchedulerPage() {
                     Create a preventive servicing schedule for an asset
                   </p>
                 </div>
-                <button type="button" onClick={handleCloseCreate} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100">
+                <button type="button" onClick={handleCloseCreate} className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white p-2 text-slate-500 transition-all hover:bg-slate-100">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -849,14 +849,14 @@ export default function AMCMaintenanceSchedulerPage() {
                     <button
                       type="button"
                       onClick={handleCloseCreate}
-                      className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3 font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 text-xs uppercase tracking-wider"
+                      className="btn-pill flex items-center gap-2 border border-slate-200 bg-white px-6 py-3 text-slate-700 shadow-sm transition-all hover:bg-slate-50"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={isSaving}
-                      className="inline-flex items-center gap-1.5 px-6 py-3 bg-blue-600 text-white rounded-2xl text-xs font-black uppercase tracking-wider hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm transition-colors"
+                      className="btn-pill inline-flex items-center gap-1.5 px-6 py-3 bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm transition-colors"
                     >
                       {isSaving ? (
                         <Loader2 className="w-4 h-4 animate-spin" />

@@ -139,7 +139,7 @@ export default function NomadListingsOverview() {
                   type="button"
                   disabled={isRequesting}
                   onClick={() => requestCompaniesListing()}
-                  className="bg-[#2563EB] text-white px-4 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+                  className="btn-pill bg-[#2563EB] text-white px-4 py-2 shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-all whitespace-nowrap"
                 >
                   {isRequesting ? "Sending..." : "Request to be listed"}
                 </button>
@@ -232,7 +232,7 @@ export default function NomadListingsOverview() {
                   <button
                     type="button"
                     onClick={handleAddClick}
-                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
+                    className="btn-pill bg-[#2563EB] text-white px-4 py-2.5 flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
                   >
                     Add Product
                   </button>

@@ -143,7 +143,7 @@ const PlanCard = ({
         <button
           type="button"
           onClick={onSecondaryAction}
-        className="mt-3 h-11 rounded-full text-[20px] font-bold border transition-colors bg-[#dce3ed] text-[#0f1b35] border-[#d2dbe8]"
+        className="mt-3 h-11 rounded-full text-[20px] font-pmedium border transition-colors bg-[#dce3ed] text-[#0f1b35] border-[#d2dbe8]"
         >
           {secondaryActionLabel}
         </button>
@@ -673,7 +673,7 @@ const FinalizeSetupPage: React.FC = () => {
               type="button"
               onClick={handleCompleteSetup}
               disabled={isSubmitting}
-              className="h-10 w-full sm:w-auto px-7 rounded-xl bg-[#2d67f0] hover:bg-[#2558d5] transition-colors text-white text-[13px] font-semibold inline-flex items-center justify-center gap-2"
+              className="h-10 w-full sm:w-auto px-7 rounded-full bg-[#2d67f0] hover:bg-[#2558d5] transition-colors text-white text-[10px] font-pmedium inline-flex items-center justify-center gap-2"
             >
               {isSubmitting ? "Saving..." : "Finish"} <ArrowRight size={16} />
             </button>

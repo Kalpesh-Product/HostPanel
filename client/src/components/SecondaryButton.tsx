@@ -29,10 +29,10 @@ const SecondaryButton = ({
       whileTap={{ scale: 0.9 }}
       disabled={disabled || isLoading}
       type={type ?? "button"}
-      className={`flex items-center justify-center gap-2 px-8 py-2 ${
+      className={`btn-pill flex items-center justify-center gap-2 px-8 py-2 ${
         disabled || isLoading ? "bg-gray-400" : "bg-borderGray"
-      } motion-preset-slide-up-sm rounded-md text-black ${
-        fontSize ? fontSize : "text-content leading-5"
+      } motion-preset-slide-up-sm text-black ${
+        fontSize ?? ""
       } ${externalStyles ?? ""}`}
       onClick={onClick ?? handleSubmit}
     >

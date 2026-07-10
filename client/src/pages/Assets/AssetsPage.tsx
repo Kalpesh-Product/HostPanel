@@ -474,14 +474,14 @@ function AssetsSkeleton() {
                               <button
                                 type="button"
                                 // onClick={handleExportPDF}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                className="group relative p-2.5 rounded-full bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileDown size={16} className="text-red-500"/>
                                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
                               </button>
                               <button
                                 type="button"
                                 // onClick={handleExportExcel}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                className="group relative p-2.5 rounded-full bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileSpreadsheet size={16} className="text-emerald-500"/>
                                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
                               </button>
@@ -557,7 +557,7 @@ function AssetsSkeleton() {
                   </div>
                   <button
                     onClick={() => { setAssetForm({ ...INITIAL_ASSET_FORM, department: defaultDepartment, assignedTo: defaultDepartment }); setIsAddModalOpen(true); }}
-                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                    className="btn-pill bg-[#2563EB] text-white px-4 py-2.5 flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
                     <Plus size={13} strokeWidth={3} /> ADD ASSET
                   </button>
@@ -676,13 +676,13 @@ function AssetsSkeleton() {
                             });
                             setShowTransferDialog(true);
                           }}
-                          className="px-4 py-2 bg-slate-50 border border-slate-200 text-indigo-600 rounded-xl font-bold text-[10px] uppercase shadow-sm hover:shadow-md hover:border-indigo-200 hover:bg-white transition-all flex items-center gap-1.5"
+                          className="btn-pill px-4 py-2 bg-slate-50 border border-slate-200 text-indigo-600 shadow-sm hover:shadow-md hover:border-indigo-200 hover:bg-white transition-all flex items-center gap-1.5"
                         >
                           <ArrowRightLeft size={13} strokeWidth={2} /> Transfer
                         </button>
                         <button
                           onClick={() => setViewingAsset(asset)}
-                          className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
+                          className="btn-pill px-4 py-2 bg-white border border-slate-200 text-slate-700 shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
                         >
                           <Eye size={14} strokeWidth={2} /> View
                         </button>
@@ -867,8 +867,8 @@ function AssetsSkeleton() {
               </div>
 
               <div className="pt-4 sm:pt-6 flex gap-3 sm:gap-4 border-t border-slate-200/60 flex-col-reverse sm:flex-row">
-                <button type="button" onClick={() => setIsAddModalOpen(false)} className="w-full sm:flex-1 py-3 sm:py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">Cancel</button>
-                <button type="submit" disabled={isSaving} className="w-full sm:flex-[2] py-3 sm:py-3.5 bg-[#2563EB] text-white rounded-xl font-bold shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase disabled:cursor-not-allowed disabled:opacity-70">{isSaving ? 'Saving...' : 'Create Asset'}</button>
+                <button type="button" onClick={() => setIsAddModalOpen(false)} className="btn-pill w-full sm:flex-1 py-3 sm:py-3.5 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all">Cancel</button>
+                <button type="submit" disabled={isSaving} className="btn-pill w-full sm:flex-[2] py-3 sm:py-3.5 bg-[#2563EB] text-white shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all disabled:cursor-not-allowed disabled:opacity-70">{isSaving ? 'Saving...' : 'Create Asset'}</button>
               </div>
             </form>
           </div>
@@ -959,7 +959,7 @@ function AssetsSkeleton() {
             </div>
 
             <div className="p-4 sm:p-6 border-t border-slate-100 bg-white shrink-0">
-              <button onClick={() => setViewingAsset(null)} className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold shadow-md hover:bg-slate-800 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">CLOSE DETAILS</button>
+              <button onClick={() => setViewingAsset(null)} className="btn-pill w-full py-3.5 bg-slate-900 text-white shadow-md hover:bg-slate-800 transition-all">CLOSE DETAILS</button>
             </div>
           </div>
         </div>
@@ -1030,8 +1030,8 @@ function AssetsSkeleton() {
             </div>
 
             <div className="p-4 sm:p-6 border-t border-slate-100 bg-white shrink-0 flex gap-3">
-              <button onClick={() => setShowTransferDialog(false)} className="flex-1 py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">Cancel</button>
-              <button onClick={handleTransferAsset} disabled={isSaving} className="flex-1 py-3.5 bg-indigo-600 text-white rounded-xl font-bold shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:bg-indigo-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase disabled:cursor-not-allowed disabled:opacity-70">{isSaving ? 'Saving...' : 'Confirm'}</button>
+              <button onClick={() => setShowTransferDialog(false)} className="btn-pill flex-1 py-3.5 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all">Cancel</button>
+              <button onClick={handleTransferAsset} disabled={isSaving} className="btn-pill flex-1 py-3.5 bg-indigo-600 text-white shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:bg-indigo-700 transition-all disabled:cursor-not-allowed disabled:opacity-70">{isSaving ? 'Saving...' : 'Confirm'}</button>
             </div>
           </div>
         </div>

@@ -703,37 +703,37 @@ export default function TenantBookingHistoryPage() {
                     </td>
                     <td className="px-6 py-5 align-top text-right">
                       <div className="flex flex-wrap justify-end gap-2">
-                        <button onClick={() => setSelectedBooking(booking)} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">
+                        <button onClick={() => setSelectedBooking(booking)} className="btn-pill inline-flex items-center gap-1.5 border border-slate-200 bg-white px-3 py-2 text-slate-600 shadow-sm transition-colors hover:bg-slate-50">
                           <Eye size={14} /> View
                         </button>
                         {inviteDisplayStatus === 'pending' && (
                           <>
-                            <button disabled={isSaving || areInviteActionsDisabled} onClick={() => handleAcceptInvite(booking)} className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60">
+                            <button disabled={isSaving || areInviteActionsDisabled} onClick={() => handleAcceptInvite(booking)} className="btn-pill inline-flex items-center gap-1.5 border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-700 shadow-sm transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60">
                               <Send size={14} /> Accept
                             </button>
-                            <button disabled={isSaving || areInviteActionsDisabled} onClick={() => handleRejectInvite(booking)} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
+                            <button disabled={isSaving || areInviteActionsDisabled} onClick={() => handleRejectInvite(booking)} className="btn-pill inline-flex items-center gap-1.5 border border-slate-200 bg-white px-3 py-2 text-slate-600 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">
                               <XCircle size={14} /> Decline
                             </button>
                           </>
                         )}
                         {inviteDisplayStatus === 'cancelled' && (
                           <>
-                            <button disabled className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-slate-400 opacity-80"><Send size={14} /> Accept</button>
-                            <button disabled className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-slate-400 opacity-80"><XCircle size={14} /> Decline</button>
+                            <button disabled className="btn-pill inline-flex cursor-not-allowed items-center gap-1.5 border border-slate-200 bg-slate-100 px-3 py-2 text-slate-400 opacity-80"><Send size={14} /> Accept</button>
+                            <button disabled className="btn-pill inline-flex cursor-not-allowed items-center gap-1.5 border border-slate-200 bg-slate-100 px-3 py-2 text-slate-400 opacity-80"><XCircle size={14} /> Decline</button>
                           </>
                         )}
                         {canRescheduleOrCancel && (
                           <>
-                            <button disabled={isSaving} onClick={() => openRescheduleModal(booking)} className="inline-flex items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-blue-700 shadow-sm transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60">
+                            <button disabled={isSaving} onClick={() => openRescheduleModal(booking)} className="btn-pill inline-flex items-center gap-1.5 border border-blue-200 bg-blue-50 px-3 py-2 text-blue-700 shadow-sm transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60">
                               <Edit2 size={14} /> Reschedule
                             </button>
-                            <button disabled={isSaving} onClick={() => openCancelModal(booking)} className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-red-600 shadow-sm transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60">
+                            <button disabled={isSaving} onClick={() => openCancelModal(booking)} className="btn-pill inline-flex items-center gap-1.5 border border-red-200 bg-white px-3 py-2 text-red-600 shadow-sm transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60">
                               <XCircle size={14} /> Cancel
                             </button>
                           </>
                         )}
                         {canExtendBooking && (
-                          <button disabled={isSaving} onClick={() => openExtendModal(booking)} className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-indigo-700 shadow-sm transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60">
+                          <button disabled={isSaving} onClick={() => openExtendModal(booking)} className="btn-pill inline-flex items-center gap-1.5 border border-indigo-200 bg-indigo-50 px-3 py-2 text-indigo-700 shadow-sm transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60">
                             <RefreshCw size={14} /> Extend Meeting
                           </button>
                         )}
@@ -834,8 +834,8 @@ export default function TenantBookingHistoryPage() {
               <textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} rows={3}
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition-colors focus:border-[#2563EB]" placeholder="Reason for cancellation" />
               <div className="flex gap-3">
-                <button onClick={() => setCancelModal(null)} className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Back</button>
-                <button disabled={isSaving} onClick={handleCancelBooking} className="flex-1 rounded-xl bg-red-600 px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60">Confirm Cancel</button>
+                <button onClick={() => setCancelModal(null)} className="btn-pill flex-1 border border-slate-200 bg-white px-3 py-2 text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Back</button>
+                <button disabled={isSaving} onClick={handleCancelBooking} className="btn-pill flex-1 bg-red-600 px-3 py-2 text-white shadow-sm transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60">Confirm Cancel</button>
               </div>
             </div>
           </div>
@@ -950,8 +950,8 @@ export default function TenantBookingHistoryPage() {
               <div className={`rounded-xl border p-3 text-xs font-pmedium md:col-span-2 ${rescheduleAvailability.available ? 'border-emerald-100 bg-emerald-50 text-emerald-800' : 'border-rose-100 bg-rose-50 text-rose-800'}`}>{rescheduleAvailability.reason}</div>
             </div>
             <div className="flex gap-3 border-t border-slate-100 bg-slate-50 px-4 py-3">
-              <button onClick={closeRescheduleModal} type="button" className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Back</button>
-              <button disabled={isSaving || !rescheduleAvailability.available} type="submit" className="flex-1 rounded-xl bg-[#2563EB] px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">Save Changes</button>
+              <button onClick={closeRescheduleModal} type="button" className="btn-pill flex-1 border border-slate-200 bg-white px-3 py-2 text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Back</button>
+              <button disabled={isSaving || !rescheduleAvailability.available} type="submit" className="btn-pill flex-1 bg-[#2563EB] px-3 py-2 text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">Save Changes</button>
             </div>
           </form>
         </div>
@@ -1001,8 +1001,8 @@ export default function TenantBookingHistoryPage() {
               <div className={`rounded-xl border p-3 text-xs font-pmedium md:col-span-2 ${extendAvailability.available ? 'border-emerald-100 bg-emerald-50 text-emerald-800' : 'border-rose-100 bg-rose-50 text-rose-800'}`}>{extendAvailability.reason}</div>
             </div>
             <div className="flex gap-3 border-t border-slate-100 bg-slate-50 px-4 py-3">
-              <button onClick={closeExtendModal} type="button" className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Back</button>
-              <button disabled={isSaving || !extendAvailability.available} type="submit" className="flex-1 rounded-xl bg-indigo-600 px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60">Extend Meeting</button>
+              <button onClick={closeExtendModal} type="button" className="btn-pill flex-1 border border-slate-200 bg-white px-3 py-2 text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Back</button>
+              <button disabled={isSaving || !extendAvailability.available} type="submit" className="btn-pill flex-1 bg-indigo-600 px-3 py-2 text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60">Extend Meeting</button>
             </div>
           </form>
         </div>

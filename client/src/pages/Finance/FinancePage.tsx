@@ -583,9 +583,9 @@ export function FinancePage() {
             </div>
             {viewingRequest.status === 'Pending' && (
               <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 justify-end">
-                <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Discuss')} className="px-5 py-2.5 bg-slate-200 text-slate-700 rounded-2xl font-bold text-xs uppercase hover:bg-slate-300 transition-colors">Discuss</button>
-                <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Rejected')} className="px-5 py-2.5 bg-red-100 text-red-600 rounded-2xl font-bold text-xs uppercase hover:bg-red-200 transition-colors">Reject</button>
-                <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Approved')} className="px-5 py-2.5 bg-[#2563EB] text-white rounded-2xl font-bold text-xs uppercase hover:bg-blue-700 transition-colors shadow-sm">Approve</button>
+                <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Discuss')} className="btn-pill px-5 py-2.5 bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors">Discuss</button>
+                <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Rejected')} className="btn-pill px-5 py-2.5 bg-red-100 text-red-600 hover:bg-red-200 transition-colors">Reject</button>
+                <button disabled={isSavingDecision} onClick={() => handleAction(viewingRequest.type, viewingRequest.id, 'Approved')} className="btn-pill px-5 py-2.5 bg-[#2563EB] text-white hover:bg-blue-700 transition-colors shadow-sm">Approve</button>
               </div>
             )}
           </div>

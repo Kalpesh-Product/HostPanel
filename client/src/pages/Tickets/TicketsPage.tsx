@@ -57,7 +57,7 @@ function RepairLogModal({ open, onClose }: any) {
         <p className="text-slate-500 text-xs mb-4 leading-relaxed">
           The Repair Log workflow is currently disabled in frontend-only preview mode. Real-time updates and maintenance tracking will be enabled upon backend connection.
         </p>
-        <button onClick={onClose} className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-black transition-colors w-full">
+        <button onClick={onClose} className="btn-pill px-4 py-2 bg-slate-900 text-white hover:bg-black transition-colors w-full">
           Close
         </button>
       </div>
@@ -2031,7 +2031,7 @@ export function TicketsPage() {
                   </div>
                   <button
                     onClick={() => { setTicketForm(initialForm); setIsCreateModalOpen(true); }}
-                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                    className="btn-pill bg-[#2563EB] text-white px-4 py-2.5 flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                   >
                     <Plus size={13} strokeWidth={3} /> RAISE TICKET
                   </button>
@@ -2100,7 +2100,7 @@ export function TicketsPage() {
                         <td className="px-5 sm:px-6 py-4 sm:py-5 align-top text-center">
                           <button
                             onClick={() => setViewingTicket(ticket)}
-                            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5 mx-auto"
+                            className="btn-pill px-4 py-2 bg-white border border-slate-200 text-slate-700 shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5 mx-auto"
                           >
                             <Eye size={14} strokeWidth={2} /> View
                           </button>
@@ -2166,7 +2166,7 @@ export function TicketsPage() {
                           </div>
                           <button
                             onClick={() => setViewingTicket(ticket)}
-                            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
+                            className="btn-pill px-4 py-2 bg-white border border-slate-200 text-slate-700 shadow-sm hover:shadow-md hover:border-blue-200 hover:text-[#2563EB] transition-all flex items-center gap-1.5"
                           >
                             <Eye size={14} strokeWidth={2} /> View
                           </button>
@@ -2213,98 +2213,109 @@ export function TicketsPage() {
                 <button onClick={() => setIsCreateModalOpen(false)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm"><X size={18} strokeWidth={2.5} /></button>
               </div>
 
-              <form onSubmit={handleCreateTicket} className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-1 space-y-6 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-5 bg-blue-50/50 p-4 sm:p-5 rounded-2xl sm:rounded-[20px] border border-blue-100">
-                  {requiresAssetSnapshotDepartment(ticketForm.department) && (
-                    <div className="space-y-1.5 sm:col-span-2">
-                      <label className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Related Asset *</label>
-                      <select
+              <form onSubmit={handleCreateTicket} className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                  <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                    <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building2 size={16} /></span>
+                    <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Routing & Assignment</span>
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {requiresAssetSnapshotDepartment(ticketForm.department) && (
+                      <div className="flex flex-col gap-1 sm:col-span-2">
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Related Asset <span className="text-red-400">*</span></label>
+                        <select
+                          required
+                          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer"
+                          value={ticketForm.assetId}
+                          onChange={(e) => {
+                            const nextAssetId = e.target.value;
+                            setTicketForm({
+                              ...ticketForm,
+                              assetId: nextAssetId,
+                            });
+                          }}
+                        >
+                          <option value="">Select Asset</option>
+                          {assetOptions.map((asset) => (
+                            <option key={asset.recordId || asset.id || asset.assetCode} value={asset.recordId || asset.id || asset.assetCode}>
+                              {asset.assetName || asset.name} ({asset.assetCode || asset.id}){asset.department ? ` - ${asset.department}` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        {selectedTicketAsset ? (
+                          <p className="text-[10px] font-medium text-slate-400">
+                            {selectedTicketAsset.assetName || selectedTicketAsset.name} will be tagged on this ticket and the repair log.
+                          </p>
+                        ) : (
+                          <p className="text-[10px] font-medium text-slate-400">
+                            Select the assigned asset only for IT or Maintenance issue reports.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Due Date <span className="text-red-400">*</span></label>
+                      <input
                         required
-                        className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer shadow-sm transition-all"
-                        value={ticketForm.assetId}
-                        onChange={(e) => {
-                          const nextAssetId = e.target.value;
-                          setTicketForm({
-                            ...ticketForm,
-                            assetId: nextAssetId,
-                          });
-                        }}
-                      >
-                        <option value="">Select Asset</option>
-                        {assetOptions.map((asset) => (
-                          <option key={asset.recordId || asset.id || asset.assetCode} value={asset.recordId || asset.id || asset.assetCode}>
-                            {asset.assetName || asset.name} ({asset.assetCode || asset.id}){asset.department ? ` - ${asset.department}` : ''}
-                          </option>
-                        ))}
-                      </select>
-                      {selectedTicketAsset ? (
-                        <p className="text-[11px] text-blue-700 font-semibold">
-                          {selectedTicketAsset.assetName || selectedTicketAsset.name} will be tagged on this ticket and the repair log.
-                        </p>
-                      ) : (
-                        <p className="text-[11px] text-blue-700 font-semibold">
-                          Select the assigned asset only for IT or Maintenance issue reports.
-                        </p>
-                      )}
+                        type="date"
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                        value={ticketForm.dueDate}
+                        onChange={(e) => setTicketForm({ ...ticketForm, dueDate: e.target.value })}
+                      />
                     </div>
-                  )}
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Due Date *</label>
-                    <input
-                      required
-                      type="date"
-                      className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none shadow-sm transition-all"
-                      value={ticketForm.dueDate}
-                      onChange={(e) => setTicketForm({ ...ticketForm, dueDate: e.target.value })}
-                    />
-                  </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Target Department <span className="text-red-400">*</span></label>
+                      <select required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={ticketForm.department} onChange={e => {
+                        const nextDepartment = e.target.value;
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Target Department *</label>
-                    <select required className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer shadow-sm transition-all" value={ticketForm.department} onChange={e => {
-                      const nextDepartment = e.target.value;
-
-                      setTicketForm({
-                        ...ticketForm,
-                        department: nextDepartment,
-                        assetId: requiresAssetSnapshotDepartment(nextDepartment) ? ticketForm.assetId : '',
-                        assignee: '',
-                        assigneeUserId: '',
-                      });
-                    }}>
-                      <option value="">Select Dept</option>
-                      {ticketCreateDepartments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Direct Assignee (Optional)</label>
-                    <select className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer shadow-sm disabled:opacity-50 transition-all" disabled={!ticketForm.department} value={ticketForm.assigneeUserId || ''} onChange={e => {
-                      const selected = assigneeOptions.find(option => option.userId === e.target.value || option.id === e.target.value) || null;
-                      setTicketForm({
-                        ...ticketForm,
-                        assignee: selected?.name || '',
-                        assigneeUserId: selected?.userId || '',
-                      });
-                    }}>
-                      {!isSpecialRoutingDepartment(ticketForm.department) && <option value="">Dept General Queue</option>}
-                      {assigneeOptions.map(option => <option key={option.id} value={option.userId || option.id}>{option.label}</option>)}
-                    </select>
+                        setTicketForm({
+                          ...ticketForm,
+                          department: nextDepartment,
+                          assetId: requiresAssetSnapshotDepartment(nextDepartment) ? ticketForm.assetId : '',
+                          assignee: '',
+                          assigneeUserId: '',
+                        });
+                      }}>
+                        <option value="">Select Dept</option>
+                        {ticketCreateDepartments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1 sm:col-span-2">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Direct Assignee (Optional)</label>
+                      <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:opacity-50" disabled={!ticketForm.department} value={ticketForm.assigneeUserId || ''} onChange={e => {
+                        const selected = assigneeOptions.find(option => option.userId === e.target.value || option.id === e.target.value) || null;
+                        setTicketForm({
+                          ...ticketForm,
+                          assignee: selected?.name || '',
+                          assigneeUserId: selected?.userId || '',
+                        });
+                      }}>
+                        {!isSpecialRoutingDepartment(ticketForm.department) && <option value="">Dept General Queue</option>}
+                        {assigneeOptions.map(option => <option key={option.id} value={option.userId || option.id}>{option.label}</option>)}
+                      </select>
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Priority *</label>
-                  <select className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer shadow-sm transition-all" value={ticketForm.priority} onChange={e => setTicketForm({ ...ticketForm, priority: e.target.value })}>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                  <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><AlertCircle size={16} /></span>
+                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Issue Details</span>
+                </h4>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Priority <span className="text-red-400">*</span></label>
+                  <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={ticketForm.priority} onChange={e => setTicketForm({ ...ticketForm, priority: e.target.value })}>
                     <option value="Low">Low</option>
                     <option value="Medium">Medium</option>
                     <option value="High">High</option>
                   </select>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Issue Title *</label>
-                  <input required type="text" placeholder="e.g. Server configuration needs approval" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none shadow-sm transition-all placeholder:text-slate-400" value={ticketForm.title} onChange={e => setTicketForm({ ...ticketForm, title: e.target.value })} />
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Issue Title <span className="text-red-400">*</span></label>
+                  <input required type="text" placeholder="e.g. Server configuration needs approval" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={ticketForm.title} onChange={e => setTicketForm({ ...ticketForm, title: e.target.value })} />
                   {ticketForm.department ? (
                     <div className="rounded-2xl border border-blue-100 bg-white shadow-sm overflow-hidden">
                       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-blue-50/40">
@@ -2356,30 +2367,31 @@ export function TicketsPage() {
                   ) : null}
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Detailed Description</label>
-                  <textarea required rows={4} placeholder="Provide issue details..." className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-600 focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none resize-none shadow-sm transition-all placeholder:text-slate-400" value={ticketForm.description} onChange={e => setTicketForm({ ...ticketForm, description: e.target.value })} />
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Detailed Description</label>
+                  <textarea required rows={4} placeholder="Provide issue details..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400" value={ticketForm.description} onChange={e => setTicketForm({ ...ticketForm, description: e.target.value })} />
+                </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Attachments</label>
-                  <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-white hover:bg-slate-50 hover:border-[#2563EB] transition-colors cursor-pointer group">
-                    <div className="w-12 h-12 bg-blue-50 rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                      <Paperclip className="text-[#2563EB]" size={20} />
-                    </div>
-                    <p className="text-[12px] sm:text-[13px] font-bold text-[#0F172A]">Upload screenshot or document</p>
-                    <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1">PNG, JPG or PDF up to 10MB</p>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                  <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                    <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Paperclip size={16} /></span>
+                    <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Attachments</span>
+                  </h4>
+                  <div className="w-full border-2 border-dashed border-slate-200 rounded-lg p-4 flex items-center justify-center gap-2 text-[12px] font-semibold text-slate-500 cursor-pointer hover:border-[#2563EB] hover:bg-blue-50/50 transition-colors">
+                    <Paperclip size={16} />
+                    Upload screenshot or document (PNG, JPG or PDF up to 10MB)
                   </div>
                 </div>
 
-                <div className="pt-4 sm:pt-6 flex gap-3 border-t border-slate-200/60 flex-col-reverse sm:flex-row">
-                  <button type="button" onClick={() => setIsCreateModalOpen(false)} className="w-full sm:flex-1 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">CANCEL</button>
+                <div className="pt-1 flex gap-3 flex-col-reverse sm:flex-row">
+                  <button type="button" onClick={() => setIsCreateModalOpen(false)} className="flex-1 px-6 py-2 bg-white border border-slate-200 text-slate-600 btn-pill hover:bg-slate-50 transition-all">Cancel</button>
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className="w-full sm:flex-[2] py-3 bg-[#2563EB] text-white rounded-xl font-bold shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="flex-1 px-6 py-2 bg-[#2563EB] text-white btn-pill shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                   >
-                    {isSaving ? 'SUBMITTING...' : 'SUBMIT TICKET'} <Plus size={16} strokeWidth={2.5} />
+                   <Plus size={16} strokeWidth={2.5} /> {isSaving ? 'Submitting...' : 'Submit Ticket'} 
                   </button>
                 </div>
               </form>
@@ -2542,7 +2554,7 @@ export function TicketsPage() {
                           ),
                       )}
                       disabled={isSaving}
-                      className="w-full py-3 sm:py-3.5 rounded-xl font-bold text-[11px] sm:text-[12px] uppercase tracking-wider transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="btn-pill w-full py-3 sm:py-3.5 transition-all flex justify-center items-center gap-2 shadow-sm bg-[#2563EB] text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {isSaving ? 'STARTING...' : 'Accept Ticket'}
                     </button>
@@ -2553,7 +2565,7 @@ export function TicketsPage() {
                       <h4 className="font-bold text-amber-900 text-[14px]">Acknowledge Ticket</h4>
                       <p className="text-[11px] text-amber-700 font-medium mt-0.5">Accepting this will move it to "In Progress".</p>
                     </div>
-                    <button onClick={() => handleAcceptTicket()} className="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold text-[11px] tracking-wider transition-colors shadow-sm w-full sm:w-auto uppercase">
+                    <button onClick={() => handleAcceptTicket()} className="btn-pill px-5 py-3 bg-amber-500 hover:bg-amber-600 text-white transition-colors shadow-sm w-full sm:w-auto">
                       ACCEPT TICKET
                     </button>
                   </div>
@@ -2566,7 +2578,7 @@ export function TicketsPage() {
                       <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">Update Progress</h3>
                       <p className="text-[12px] text-slate-500 font-medium mt-0.5">Is the issue completely fixed?</p>
                     </div>
-                    <button onClick={() => handleUpdateStatus('Resolved')} className="w-full sm:w-auto px-6 py-3.5 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-all flex items-center justify-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white shadow-sm">
+                    <button onClick={() => handleUpdateStatus('Resolved')} className="btn-pill w-full sm:w-auto px-6 py-3.5 transition-all flex items-center justify-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white shadow-sm">
                       <CheckCircle2 size={16} strokeWidth={2.5} /> Resolve Issue
                     </button>
                   </div>
@@ -2583,8 +2595,8 @@ export function TicketsPage() {
                       value={resolutionMessage} onChange={e => setResolutionMessage(e.target.value)}
                     />
                     <div className="flex flex-col-reverse sm:flex-row gap-3">
-                      <button onClick={() => setShowResolvePrompt(false)} className="px-5 py-3 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-slate-50 w-full sm:w-auto">Cancel</button>
-                      <button onClick={confirmResolution} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-[11px] uppercase tracking-wider shadow-[0_4px_12px_rgba(5,150,105,0.2)] transition-all">
+                      <button onClick={() => setShowResolvePrompt(false)} className="btn-pill px-5 py-3 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 w-full sm:w-auto">Cancel</button>
+                      <button onClick={confirmResolution} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white btn-pill shadow-[0_4px_12px_rgba(5,150,105,0.2)] transition-all">
                         CONFIRM RESOLUTION
                       </button>
                     </div>
@@ -2598,7 +2610,7 @@ export function TicketsPage() {
                       <h4 className="font-bold text-red-900 text-[14px]">Issue Not Fixed?</h4>
                       <p className="text-[11px] text-red-700 font-medium mt-0.5">Re-open this loop with a linked follow-up ticket.</p>
                     </div>
-                    <button onClick={handleRaiseFollowUp} className="px-5 py-3 bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white rounded-xl font-bold text-[11px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
+                    <button onClick={handleRaiseFollowUp} className="px-5 py-3 bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white btn-pill transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
                       <Reply size={14} strokeWidth={2.5} /> Raise Follow-up
                     </button>
                   </div>
@@ -2610,7 +2622,7 @@ export function TicketsPage() {
                       <h4 className="font-bold text-slate-900 text-[14px]">Close Ticket</h4>
                       <p className="text-[11px] text-slate-600 font-medium mt-0.5">Mark this resolved ticket as formally closed.</p>
                     </div>
-                    <button onClick={() => handleUpdateStatus('Closed')} className="px-5 py-3 bg-slate-900 border border-slate-900 text-white hover:bg-black rounded-xl font-bold text-[11px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
+                    <button onClick={() => handleUpdateStatus('Closed')} className="btn-pill px-5 py-3 bg-slate-900 border border-slate-900 text-white hover:bg-black transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
                       <CheckSquare size={14} strokeWidth={2.5} /> Close Ticket
                     </button>
                   </div>
@@ -2640,7 +2652,7 @@ export function TicketsPage() {
                     {!hasLinkedRepairLog ? (
                       <button
                         onClick={() => handleOpenRepairLog(viewingTicket)}
-                        className="px-5 py-3 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto bg-cyan-600 hover:bg-cyan-700 text-white"
+                        className="btn-pill px-5 py-3 transition-colors shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto bg-cyan-600 hover:bg-cyan-700 text-white"
                       >
                         <Wrench size={14} strokeWidth={2.5} /> Open Repair Log
                       </button>

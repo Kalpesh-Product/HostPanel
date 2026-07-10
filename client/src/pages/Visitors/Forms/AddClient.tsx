@@ -178,14 +178,14 @@ const AddClient = () => {
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="flex-1 py-3.5 bg-white border border-slate-200 rounded-2xl font-black text-[13px] text-slate-600 hover:bg-slate-50 transition-all"
+              className="btn-pill flex-1 py-3.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="flex-1 py-3.5 bg-[#2563EB] text-white rounded-2xl font-black text-[13px] uppercase tracking-wider shadow-lg shadow-blue-200 hover:bg-blue-600 transition-all disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none active:scale-[0.98]"
+              className="btn-pill flex-1 py-3.5 bg-[#2563EB] text-white shadow-lg shadow-blue-200 hover:bg-blue-600 transition-all disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none active:scale-[0.98]"
             >
               {isPending ? 'Adding…' : clientType === 'company' ? 'Add Company Client' : 'Add Client'}
             </button>

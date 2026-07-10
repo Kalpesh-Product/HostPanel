@@ -1247,9 +1247,7 @@ export function OrganizationPage() {
                     setShowTeamMemberModal(true);
                   }}
                   disabled={!canAddUserOnCurrentPlan}
-                  className={`bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap ${
-                    !canAddUserOnCurrentPlan ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}>
+                  className={`btn-pill bg-[#2563EB] text-white px-4 py-2.5 flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap ${ !canAddUserOnCurrentPlan ? 'opacity-50 cursor-not-allowed' : '' }`}>
                   <Plus size={13} strokeWidth={3} /> ADD USER
                 </button>
               </div>
@@ -1508,7 +1506,7 @@ export function OrganizationPage() {
               <button
                 type="button"
                 onClick={() => openDepartmentModal(null)}
-                className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                className="btn-pill bg-[#2563EB] text-white px-4 py-2.5 flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
               >
                 <Plus size={13} strokeWidth={3} /> CREATE DEPARTMENT
               </button>
@@ -1567,7 +1565,7 @@ export function OrganizationPage() {
       {/* ========================================== */}
       {activeTab === 'departments' && view === 'detail' && selectedDepartment && (
         <div className="animate-in slide-in-from-bottom-4 duration-300">
-          <button onClick={() => setView('list')} className="mb-4 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-xl font-bold text-[11px] transition-all flex items-center gap-2 shadow-sm">
+          <button onClick={() => setView('list')} className="btn-pill mb-4 px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm">
             <ArrowLeft size={16} /> Directory
           </button>
 
@@ -1586,7 +1584,7 @@ export function OrganizationPage() {
                 {canAssignManagerByAccess ? (
                   <button
                     onClick={() => setShowAssignManagerModal(true)}
-                    className="flex-1 md:flex-none px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-[12px] transition-all shadow-sm hover:bg-slate-50"
+                    className="btn-pill flex-1 md:flex-none px-4 py-2 bg-white border border-slate-200 text-slate-700 transition-all shadow-sm hover:bg-slate-50"
                   >
                     Assign Manager
                   </button>
@@ -1594,7 +1592,7 @@ export function OrganizationPage() {
                 <button
                   onClick={() => setShowEmployeeModal(true)}
                   disabled={!canInviteUsersByAccess}
-                  className="flex-1 md:flex-none px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white rounded-xl font-bold text-[12px] transition-all shadow-sm shadow-blue-200 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="btn-pill flex-1 md:flex-none px-4 py-2 bg-[#2563EB] hover:bg-blue-700 text-white transition-all shadow-sm shadow-blue-200 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <UserPlus size={16}/> Add Employee
                 </button>
@@ -1633,7 +1631,7 @@ export function OrganizationPage() {
                         <button
                           type="button"
                           onClick={() => handleRemoveActingManager(assignment.assignedUserId)}
-                          className="px-3 py-1.5 rounded-xl bg-red-50 text-red-600 text-[11px] font-black uppercase tracking-widest hover:bg-red-100 transition-colors"
+                          className="btn-pill px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                         >
                           Remove
                         </button>
@@ -1784,8 +1782,8 @@ export function OrganizationPage() {
               </div>
             </div>
             <div className="p-5 sm:p-6 border-t border-slate-100 flex gap-3">
-              <button onClick={() => setShowEmployeeModal(false)} disabled={isAddingEmployee} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors disabled:opacity-50">Cancel</button>
-              <button onClick={handleAddEmployee} disabled={!employeeFormData.name || !employeeFormData.email || isAddingEmployee} className="flex-1 py-3 bg-[#2563EB] text-white rounded-xl font-bold text-sm shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
+              <button onClick={() => setShowEmployeeModal(false)} disabled={isAddingEmployee} className="btn-pill flex-1 py-3 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50">Cancel</button>
+              <button onClick={handleAddEmployee} disabled={!employeeFormData.name || !employeeFormData.email || isAddingEmployee} className="btn-pill flex-1 py-3 bg-[#2563EB] text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
                 {isAddingEmployee ? (
                   <>
                     <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
@@ -1933,7 +1931,7 @@ export function OrganizationPage() {
                   <button
                     type="button"
                     onClick={handleCreateDepartmentForFounder}
-                    className="mt-3 rounded-xl bg-[#2563EB] px-4 py-2 text-xs font-black uppercase tracking-wider text-white hover:bg-blue-700"
+                    className="btn-pill mt-3 bg-[#2563EB] px-4 py-2 text-white hover:bg-blue-700"
                   >
                     Create Department
                   </button>
@@ -1951,14 +1949,14 @@ export function OrganizationPage() {
                   setShowDepartmentModal(false);
                   setExpandedDepartmentKey('');
                 }}
-                className="w-full sm:w-auto px-5 py-3 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors shadow-sm"
+                className="btn-pill w-full sm:w-auto px-5 py-3 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateDepartmentForFounder}
                 disabled={!canManageDepartments || !canCreateDepartmentByAccess}
-                className="w-full sm:w-auto px-5 py-3 bg-[#2563EB] text-white rounded-xl font-bold text-sm shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                className="btn-pill w-full sm:w-auto px-5 py-3 bg-[#2563EB] text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >
                 Create Department
               </button>
@@ -2051,7 +2049,7 @@ export function OrganizationPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveActingManager(member.userId || member.id)}
-                                  className="ml-auto px-3 py-2 rounded-xl bg-red-50 text-red-600 text-[11px] font-black uppercase tracking-widest hover:bg-red-100 transition-colors"
+                                  className="btn-pill ml-auto px-3 py-2 bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                                 >
                                   Remove
                                 </button>
@@ -2060,7 +2058,7 @@ export function OrganizationPage() {
                                   type="button"
                                   onClick={() => handleAssignActingManager(member)}
                                   disabled={!canAssignActingManagerByAccess}
-                                  className="ml-auto px-3 py-2 rounded-xl bg-[#2563EB] text-white text-[11px] font-black uppercase tracking-widest hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="btn-pill ml-auto px-3 py-2 bg-[#2563EB] text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   Assign
                                 </button>
@@ -2182,7 +2180,7 @@ export function OrganizationPage() {
             </div>
 
             <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-100 flex gap-2.5 shrink-0">
-              <button onClick={() => setShowTeamMemberModal(false)} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[12px] hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
+              <button onClick={() => setShowTeamMemberModal(false)} className="btn-pill flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">Cancel</button>
               <button
                 onClick={handleSendInvite}
                 disabled={
@@ -2193,7 +2191,7 @@ export function OrganizationPage() {
                   (teamMemberFormData.role !== 'super-admin' && teamMemberFormData.departments.length === 0) ||
                   (teamMemberFormData.role === 'super-admin' && !canInviteSuperAdmin)
                 }
-                className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[12px] shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                className="btn-pill flex-1 py-2.5 bg-[#2563EB] text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               >
                 {isSendingInvite ? (
                   <>

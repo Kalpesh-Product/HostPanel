@@ -289,7 +289,7 @@ function CandidateDetailModal({
             <button
               onClick={() => onSendEmail(candidate)}
               disabled={busyId === candidate.id}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white rounded-xl text-xs font-semibold transition-all shadow-sm h-10 disabled:opacity-60"
+              className="btn-pill flex items-center gap-2 px-4 py-2 bg-white text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white transition-all shadow-sm h-10 disabled:opacity-60"
             >
               <Mail size={14} /> {busyId === candidate.id ? "SENDING..." : "SEND EMAIL"}
             </button>
@@ -458,21 +458,21 @@ function CandidateDetailModal({
               <button
                 onClick={() => candidate.id && onReject(candidate.id)}
                 disabled={busyId === candidate.id}
-                className="flex-1 py-4 bg-white border border-red-200 text-red-600 rounded-4xl font-semibold hover:bg-red-50 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                className="btn-pill flex-1 py-4 bg-white border border-red-200 text-red-600 hover:bg-red-50 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 <XCircle size={18} /> REJECT CANDIDATE
               </button>
               <button
                 onClick={() => candidate.id && onAccept(candidate.id)}
                 disabled={busyId === candidate.id}
-                className="flex-1 py-4 bg-[#2563EB] text-white rounded-4xl font-semibold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                className="btn-pill flex-1 py-4 bg-[#2563EB] text-white shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 <CheckCircle2 size={18} /> ACCEPT FOR SCREENING
               </button>
             </>
           ) : (
             <div className="flex gap-4 w-full">
-              <button onClick={onClose} className="flex-1 py-4 bg-blue-600 text-white border border-slate-200 rounded-2xl font-semibold transition-all">
+              <button onClick={onClose} className="btn-pill flex-1 py-4 bg-blue-600 text-white border border-slate-200 transition-all">
                 CLOSE PROFILE
               </button>
               {candidate.status === "Selected" && (
@@ -723,14 +723,14 @@ function AddCandidateModal({
           </FormSection>
         </div>
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-100">
-          <button type="button" onClick={onClose} className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">
+          <button type="button" onClick={onClose} className="btn-pill px-6 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">
             Cancel
           </button>
           <button
             type="button"
             disabled={isSaving || !form.fullName || !form.email || !form.mobileNumber || !form.position}
             onClick={onSave}
-            className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+            className="btn-pill px-8 py-2.5 bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
           >
             {isSaving ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
             {isSaving ? "Saving..." : "Add to Pipeline"}
@@ -853,14 +853,14 @@ function AddJobModal({ open, onClose, onSave, form, setForm, departments, mode =
           </FormSection>
         </div>
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-100">
-          <button type="button" onClick={onClose} className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">
+          <button type="button" onClick={onClose} className="btn-pill px-6 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">
             Cancel
           </button>
           <button
             type="button"
             disabled={!form.title || !form.department}
             onClick={onSave}
-            className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+            className="btn-pill px-8 py-2.5 bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
           >
             <Briefcase size={14} />
             {mode === "edit" ? "Update Job" : "Publish to Website"}
@@ -1553,7 +1553,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                   mode !== "careers" && (
                     <button
                       onClick={() => setIsCandidateModalOpen(true)}
-                      className="px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                      className="btn-pill px-4 py-2.5 bg-[#2563EB] text-white flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                     >
                       <Plus size={13} strokeWidth={2.5} /> ADD CANDIDATE
                     </button>
@@ -1562,7 +1562,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                   <div className="flex flex-wrap gap-2 justify-end">
                       <button
                         onClick={openCreateJobModal}
-                        className="px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                        className="btn-pill px-4 py-2.5 bg-[#2563EB] text-white flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                       >
                       <Plus size={13} strokeWidth={2.5} /> PUBLISH JOB
                     </button>
@@ -1649,7 +1649,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                             <div className="flex items-center justify-center gap-2">
                               <button
                                 onClick={() => setViewingCandidate(can)}
-                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] hover:border-blue-300 rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5"
+                                className="btn-pill px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] hover:border-blue-300 transition-all shadow-sm flex items-center gap-1.5"
                               >
                                 <FileText size={11} /> {can.status === "Applied" ? "Review" : "Profile"}
                               </button>
@@ -1745,7 +1745,7 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
                             <button
                               type="button"
                               onClick={() => openEditJobModal(job)}
-                              className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                              className="btn-pill inline-flex items-center gap-1.5 border border-slate-200 bg-white px-2.5 py-1 text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
                             >
                               <AlignLeft size={12} />
                               Edit

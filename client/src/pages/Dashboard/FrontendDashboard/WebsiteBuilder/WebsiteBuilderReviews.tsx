@@ -420,10 +420,10 @@ export default function WebsiteBuilderReviews() {
                   {(selectedReview.status || "pending") === "pending" && (
                     <>
                       <button type="button" onClick={() => handleStatusChange(selectedReview._id, "approved")}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-emerald-700"
+                        className="btn-pill inline-flex items-center gap-1.5 bg-emerald-600 px-4 py-2 text-white transition hover:bg-emerald-700"
                       ><CheckCircle2 size={12} /> Approve</button>
                       <button type="button" onClick={() => handleStatusChange(selectedReview._id, "rejected")}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-rose-700"
+                        className="btn-pill inline-flex items-center gap-1.5 bg-rose-600 px-4 py-2 text-white transition hover:bg-rose-700"
                       ><X size={12} /> Reject</button>
                     </>
                   )}
@@ -455,7 +455,7 @@ export default function WebsiteBuilderReviews() {
                 </p>
                 <div className="flex items-center gap-2.5">
                   <button type="button" onClick={() => setConfirmAction(null)}
-                    className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[11px] font-bold uppercase tracking-widest text-slate-600 transition hover:bg-slate-50"
+                    className="btn-pill flex-1 border border-slate-200 bg-white px-4 py-2.5 text-slate-600 transition hover:bg-slate-50"
                   >Cancel</button>
                   <button type="button" onClick={confirmStatusChange}
                     className={`flex-1 rounded-xl px-4 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white transition ${

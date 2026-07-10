@@ -229,7 +229,7 @@ export default function TenantTicketsPage() {
             </div>
           </div>
           <button onClick={() => setShowCreateForm(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-xs font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-800">
+            className="btn-pill inline-flex items-center gap-2 bg-slate-900 px-5 py-3 text-white shadow-sm transition-colors hover:bg-slate-800">
             <Plus size={16} /> Raise Ticket
           </button>
         </div>
@@ -299,7 +299,7 @@ export default function TenantTicketsPage() {
                       {normalizeText(ticket.status || 'Open')}
                     </span>
                     <button onClick={() => setSelectedTicket(ticket)}
-                      className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">
+                      className="btn-pill inline-flex items-center gap-1 border border-slate-200 bg-white px-3 py-2 text-slate-600 shadow-sm transition-colors hover:bg-slate-50">
                       View <ChevronRight size={12} />
                     </button>
                   </div>
@@ -342,7 +342,7 @@ export default function TenantTicketsPage() {
                     <div className="flex flex-wrap gap-2">
                       {issueSuggestions.map((suggestion) => (
                         <button key={suggestion.id} type="button" onClick={() => setFormData((prev) => ({ ...prev, title: suggestion.title, category: suggestion.category || prev.category }))}
-                          className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-xs font-pmedium text-blue-700 hover:bg-blue-100 transition-colors">
+                          className="btn-pill border border-blue-200 bg-white px-3 py-2 text-blue-700 hover:bg-blue-100 transition-colors">
                           {suggestion.title}
                         </button>
                       ))}
@@ -396,9 +396,9 @@ export default function TenantTicketsPage() {
               </div>
               <div className="flex gap-3 border-t border-slate-100 bg-slate-50 px-6 py-5">
                 <button type="button" onClick={() => setShowCreateForm(false)} disabled={isSubmitting}
-                  className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-pbold uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Cancel</button>
+                  className="btn-pill flex-1 border border-slate-200 bg-white px-4 py-3 text-slate-600 shadow-sm transition-colors hover:bg-slate-50">Cancel</button>
                 <button type="submit" disabled={isSubmitting}
-                  className="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-xs font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                  className="btn-pill flex-1 bg-blue-600 px-4 py-3 text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
                   {isSubmitting ? 'Creating...' : 'Create Ticket'}
                 </button>
               </div>
@@ -463,7 +463,7 @@ export default function TenantTicketsPage() {
                 </div>
               </div>
               <div className="border-t border-slate-100 bg-slate-50 px-6 py-5">
-                <button onClick={() => setSelectedTicket(null)} className="w-full rounded-xl bg-slate-900 px-4 py-3 text-xs font-pbold uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-slate-800">Close</button>
+                <button onClick={() => setSelectedTicket(null)} className="btn-pill w-full bg-slate-900 px-4 py-3 text-white shadow-sm transition-colors hover:bg-slate-800">Close</button>
               </div>
             </div>
           </div>

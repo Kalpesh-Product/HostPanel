@@ -915,14 +915,14 @@ export function BillingPaymentsPage() {
               <button
                                 type="button"
                                 // onClick={handleExportPDF}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                className="group relative p-2.5 rounded-full bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileDown size={16} className="text-red-500"/>
                                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
                               </button>
                               <button
                                 type="button"
                                 // onClick={handleExportExcel}
-                                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+                                className="group relative p-2.5 rounded-full bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm">
                                 <FileSpreadsheet size={16} className="text-emerald-500"/>
                                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
                               </button>
@@ -935,7 +935,7 @@ export function BillingPaymentsPage() {
               <button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-700 text-[10px] font-bold uppercase tracking-wider"
+                className="btn-pill px-3 py-1.5 bg-white border border-rose-200 text-rose-700"
               >
                 Retry
               </button>
@@ -1056,7 +1056,7 @@ export function BillingPaymentsPage() {
                           <td className="px-6 py-5 text-center">
                             <button
                               onClick={() => setViewingTenantBill(bill)}
-                              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm flex items-center gap-1 mx-auto"
+                              className="btn-pill px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm flex items-center gap-1 mx-auto"
                             >
                               <Eye size={10} /> View
                             </button>
@@ -1100,7 +1100,7 @@ export function BillingPaymentsPage() {
                           <td className="px-6 py-5 text-center">
                             <button
                               onClick={() => setViewingBooking(booking)}
-                              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm flex items-center gap-1 mx-auto"
+                              className="btn-pill px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm flex items-center gap-1 mx-auto"
                             >
                               <Eye size={10} /> View
                             </button>
@@ -1152,7 +1152,7 @@ export function BillingPaymentsPage() {
                             <td className="px-6 py-5 text-center">
                               <button
                                 onClick={() => setViewingEmployee(emp)}
-                                className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm flex items-center gap-1 mx-auto"
+                                className="btn-pill px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm flex items-center gap-1 mx-auto"
                               >
                                 <Eye size={10} /> View
                               </button>
@@ -1199,7 +1199,7 @@ export function BillingPaymentsPage() {
                           <td className="px-6 py-5 text-center">
                             <button
                               onClick={() => setViewingExtraCredit(cr)}
-                              className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm flex items-center gap-1 mx-auto"
+                              className="btn-pill px-3 py-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm flex items-center gap-1 mx-auto"
                             >
                               <Eye size={10} /> View
                             </button>
@@ -1318,7 +1318,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleMarkTenantPaid(viewingTenantBill)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-green-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-green-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="btn-pill px-5 py-2.5 bg-green-600 text-white shadow-sm hover:bg-green-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <CheckCircle2 size={12} /> {isProcessingAction ? 'Processing...' : 'Mark Paid'}
                 </button>
@@ -1328,7 +1328,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleGenerateTenantInvoice(viewingTenantBill)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="btn-pill px-5 py-2.5 bg-blue-600 text-white shadow-sm hover:bg-blue-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <FileText size={12} /> {isProcessingAction ? 'Processing...' : 'Generate Invoice'}
                 </button>
@@ -1338,7 +1338,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleSendTenantInvoice(viewingTenantBill)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-indigo-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="btn-pill px-5 py-2.5 bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <Send size={12} /> {isProcessingAction ? 'Processing...' : 'Send Invoice'}
                 </button>
@@ -1347,7 +1347,7 @@ export function BillingPaymentsPage() {
                 <button
                   type="button"
                   onClick={() => window.open(viewingTenantBill.invoiceFileUrl, '_blank', 'noopener,noreferrer')}
-                  className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                  className="btn-pill px-5 py-2.5 bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
                 >
                   <FileText size={12} /> View Invoice
                 </button>
@@ -1357,7 +1357,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleResetTenantInvoice(viewingTenantBill)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-white border border-red-200 text-red-600 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-red-50 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="btn-pill px-5 py-2.5 bg-white border border-red-200 text-red-600 shadow-sm hover:bg-red-50 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <XCircle size={12} /> Reset
                 </button>
@@ -1429,7 +1429,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleGenerateBookingInvoice(viewingBooking)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="btn-pill px-5 py-2.5 bg-blue-600 text-white shadow-sm hover:bg-blue-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <FileText size={12} /> {isProcessingAction ? 'Processing...' : 'Generate Invoice'}
                 </button>
@@ -1439,7 +1439,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleSendBookingInvoice(viewingBooking)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-indigo-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="btn-pill px-5 py-2.5 bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <Send size={12} /> {isProcessingAction ? 'Processing...' : 'Send Invoice'}
                 </button>
@@ -1448,7 +1448,7 @@ export function BillingPaymentsPage() {
                 <button
                   type="button"
                   onClick={() => window.open(viewingBooking.invoiceFileUrl, '_blank', 'noopener,noreferrer')}
-                  className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                  className="btn-pill px-5 py-2.5 bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
                 >
                   <FileText size={12} /> View Invoice
                 </button>
@@ -1458,7 +1458,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleResetBookingInvoice(viewingBooking)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-white border border-red-200 text-red-600 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-red-50 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="btn-pill px-5 py-2.5 bg-white border border-red-200 text-red-600 shadow-sm hover:bg-red-50 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <XCircle size={12} /> Reset
                 </button>
@@ -1507,7 +1507,7 @@ export function BillingPaymentsPage() {
                       <button
                         type="button"
                         onClick={() => window.open(viewingEmployee.payslip.fileUrl || viewingEmployee.payslip.payslipUrl || viewingEmployee.payslip.url, '_blank', 'noopener,noreferrer')}
-                        className="mt-1 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                        className="btn-pill mt-1 px-4 py-2 bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
                       >
                         <FileText size={12} /> View Payslip
                       </button>
@@ -1522,7 +1522,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleMarkPayrollPaid(viewingEmployee)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-green-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-green-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="btn-pill px-5 py-2.5 bg-green-600 text-white shadow-sm hover:bg-green-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <CheckCircle2 size={12} /> {isProcessingAction ? 'Processing...' : 'Mark Paid'}
                 </button>
@@ -1532,7 +1532,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleGeneratePayslip(viewingEmployee)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="btn-pill px-5 py-2.5 bg-blue-600 text-white shadow-sm hover:bg-blue-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <FileText size={12} /> {isProcessingAction ? 'Processing...' : 'Generate Payslip'}
                 </button>
@@ -1542,7 +1542,7 @@ export function BillingPaymentsPage() {
                   type="button"
                   onClick={() => handleSendPayrollPayslip(viewingEmployee)}
                   disabled={isProcessingAction}
-                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-indigo-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                  className="btn-pill px-5 py-2.5 bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                 >
                   <Send size={12} /> {isProcessingAction ? 'Processing...' : 'Send Payslip'}
                 </button>
@@ -1608,7 +1608,7 @@ export function BillingPaymentsPage() {
                     type="button"
                     onClick={() => handleCreditFinanceAction(viewingExtraCredit, 'COMPLETED')}
                     disabled={isProcessingAction}
-                    className="px-5 py-2.5 bg-green-600 text-white rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-green-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                    className="btn-pill px-5 py-2.5 bg-green-600 text-white shadow-sm hover:bg-green-700 transition-all disabled:opacity-60 flex items-center gap-1.5"
                   >
                     <CheckCircle2 size={12} /> {isProcessingAction ? 'Processing...' : 'Mark Completed'}
                   </button>
@@ -1616,7 +1616,7 @@ export function BillingPaymentsPage() {
                     type="button"
                     onClick={() => handleCreditFinanceAction(viewingExtraCredit, 'REJECTED')}
                     disabled={isProcessingAction}
-                    className="px-5 py-2.5 bg-white border border-red-200 text-red-600 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-red-50 transition-all disabled:opacity-60 flex items-center gap-1.5"
+                    className="btn-pill px-5 py-2.5 bg-white border border-red-200 text-red-600 shadow-sm hover:bg-red-50 transition-all disabled:opacity-60 flex items-center gap-1.5"
                   >
                     <XCircle size={12} /> Reject
                   </button>
@@ -1626,7 +1626,7 @@ export function BillingPaymentsPage() {
                 <button
                   type="button"
                   onClick={() => window.open(viewingExtraCredit.invoiceFileUrl, '_blank', 'noopener,noreferrer')}
-                  className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                  className="btn-pill px-5 py-2.5 bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50 transition-all flex items-center gap-1.5"
                 >
                   <FileText size={12} /> View Invoice
                 </button>

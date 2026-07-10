@@ -1308,7 +1308,7 @@ export default function AdministrationTenantCompaniesPage() {
                       <td className="px-3 py-4 text-center"><span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${getStatusBadge(company.status)}`}>{company.status}</span></td>
                       <td className="px-3 py-4">
                         <div className="flex items-center justify-center gap-1.5">
-                          <button onClick={() => { setViewingCompany(company); setActiveDetailTab('summary'); setAgreementFiles([]); }} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-all shadow-sm" title="View Details"><Eye size={14} /></button>
+                          <button onClick={() => { setViewingCompany(company); setActiveDetailTab('summary'); setAgreementFiles([]); }} className="p-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-full transition-all shadow-sm" title="View Details"><Eye size={14} /></button>
                         </div>
                       </td>
                     </tr>
@@ -1344,7 +1344,7 @@ export default function AdministrationTenantCompaniesPage() {
                 onClick={() => handleExportCompaniesReport('PDF')}
                 disabled={Boolean(isExportingReport)}
                 title="Export PDF"
-                className="px-3 py-2 bg-white text-[#f10505] rounded-xl font-black text-[9px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1 disabled:cursor-not-allowed disabled:opacity-60"
+                className="btn-pill px-3 py-2 bg-white text-[#f10505] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <FileDown size={12} /> {isExportingReport === 'PDF' ? '...' : ''}
                 
@@ -1354,12 +1354,12 @@ export default function AdministrationTenantCompaniesPage() {
                 onClick={() => handleExportCompaniesReport('Excel')}
                 disabled={Boolean(isExportingReport)}
                 title="Export Excel"
-                className="px-3 py-2 bg-[#ffffff] text-[#1fd628] rounded-xl font-black text-[9px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1 disabled:cursor-not-allowed disabled:opacity-60"
+                className="px-3 py-2 bg-[#ffffff] text-[#1fd628] btn-pill border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <FileSpreadsheet size={12} /> {isExportingReport === 'Excel' ? '...' : ''}
                 
               </button>
-                  <button onClick={() => { setViewingCompany(null); setSelectedEmployee(null); setEditingEmployee(null); setAgreementFiles([]); }} className="rounded-xl border border-slate-200 bg-red-500 p-1.5 text-white transition-colors hover:bg-red-600">
+                  <button onClick={() => { setViewingCompany(null); setSelectedEmployee(null); setEditingEmployee(null); setAgreementFiles([]); }} className="rounded-full border border-slate-200 bg-red-500 p-1.5 text-white transition-colors hover:bg-red-600">
                     <X size={16} />
                   </button>
                 </div>
@@ -1527,7 +1527,7 @@ export default function AdministrationTenantCompaniesPage() {
                             <input type="file" multiple accept=".pdf,.doc,.docx,image/png,image/jpeg,image/jpg" className="hidden" onChange={handleAgreementFilesChange} />
                           </label>
                           <button type="button" onClick={handleUploadAgreementDocuments} disabled={!agreementFiles.length || isAgreementUploading}
-                            className="rounded-xl bg-blue-600 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="btn-pill bg-blue-600 px-3 py-1.5 text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                           >{isAgreementUploading ? 'Uploading...' : 'Upload'}</button>
                         </div>
                       </div>
@@ -1565,7 +1565,7 @@ export default function AdministrationTenantCompaniesPage() {
                   <div className="space-y-3">
                     <div className="mb-2 flex items-center justify-between">
                       <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">Managed Employees</h3>
-                      <button onClick={() => openAddEmployeeModal(viewingCompany)} className="flex items-center gap-1.5 rounded-xl bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-600 transition-all hover:bg-blue-100">
+                      <button onClick={() => openAddEmployeeModal(viewingCompany)} className="btn-pill flex items-center gap-1.5 bg-blue-50 px-3 py-1.5 text-blue-600 transition-all hover:bg-blue-100">
                         <Plus size={12} /> Add Employee
                       </button>
                     </div>
@@ -1606,15 +1606,15 @@ export default function AdministrationTenantCompaniesPage() {
                                   </div>
 
                                   <div className="flex flex-wrap justify-start gap-1.5 lg:justify-end">
-                                    <button onClick={() => setSelectedEmployee(employee)} className="rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">View Profile</button>
+                                    <button onClick={() => setSelectedEmployee(employee)} className="btn-pill border border-slate-200 bg-white px-2 py-1.5 text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">View Profile</button>
                                     {employee.status === 'Active' && !isManager && (
-                                      <button onClick={() => handleAssignManager(employee.id!)} className="rounded-xl border border-blue-200 bg-blue-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-blue-700 transition-colors hover:bg-blue-100">Set Manager</button>
+                                      <button onClick={() => handleAssignManager(employee.id!)} className="btn-pill border border-blue-200 bg-blue-50 px-2 py-1.5 text-blue-700 transition-colors hover:bg-blue-100">Set Manager</button>
                                     )}
                                     {employee.status === 'Active' && isManager && (
                                       <span className="inline-flex items-center rounded-xl border border-blue-200 bg-blue-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-blue-700">Current Manager</span>
                                     )}
                                     {employee.status === 'Active' && (
-                                      <button onClick={() => handleDeactivateEmployee(employee.id!)} className="rounded-xl border border-red-200 bg-red-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-red-600 transition-colors hover:bg-red-100 hover:text-red-700">Deactivate</button>
+                                      <button onClick={() => handleDeactivateEmployee(employee.id!)} className="btn-pill border border-red-200 bg-red-50 px-2 py-1.5 text-red-600 transition-colors hover:bg-red-100 hover:text-red-700">Deactivate</button>
                                     )}
                                   </div>
                                 </div>
@@ -1776,7 +1776,7 @@ export default function AdministrationTenantCompaniesPage() {
                   <h3 className="mt-0.5 text-xl font-black text-slate-900">{selectedEmployee.name}</h3>
                   <p className="mt-0.5 text-xs font-bold text-slate-500">{selectedEmployee.designation || 'Tenant Employee'}</p>
                 </div>
-                <button onClick={() => { setSelectedEmployee(null); setEditingEmployee(null); }} className="rounded-xl border border-slate-200 bg-white p-1.5 text-slate-400 transition-colors hover:bg-slate-100"><X size={16} /></button>
+                <button onClick={() => { setSelectedEmployee(null); setEditingEmployee(null); }} className="rounded-full border border-slate-200 bg-white p-1.5 text-slate-400 transition-colors hover:bg-slate-100"><X size={16} /></button>
               </div>
 
               <div className="grid gap-3 p-4 md:grid-cols-2">
@@ -1791,13 +1791,13 @@ export default function AdministrationTenantCompaniesPage() {
               </div>
 
               <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-white p-4">
-                <button onClick={() => openEditEmployeeModal(selectedEmployee)} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-blue-600 transition-all hover:bg-blue-100">Edit</button>
+                <button onClick={() => openEditEmployeeModal(selectedEmployee)} className="btn-pill border border-blue-200 bg-blue-50 px-3 py-1.5 text-blue-600 transition-all hover:bg-blue-100">Edit</button>
                 <button onClick={() => { if (selectedEmployee?.status === 'Active') handleDeactivateEmployee(selectedEmployee.id!); }}
                   disabled={selectedEmployee?.status !== 'Active'}
-                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-red-600 transition-all hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="btn-pill border border-red-200 bg-red-50 px-3 py-1.5 text-red-600 transition-all hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >Deactivate</button>
-                <button onClick={() => handleDeleteEmployee(selectedEmployee.id!)} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-amber-700 transition-all hover:bg-amber-100">Delete</button>
-                <button onClick={() => { setSelectedEmployee(null); setEditingEmployee(null); }} className="rounded-xl bg-slate-900 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-slate-800">Close</button>
+                <button onClick={() => handleDeleteEmployee(selectedEmployee.id!)} className="btn-pill border border-amber-200 bg-amber-50 px-3 py-1.5 text-amber-700 transition-all hover:bg-amber-100">Delete</button>
+                <button onClick={() => { setSelectedEmployee(null); setEditingEmployee(null); }} className="btn-pill bg-slate-900 px-3 py-1.5 text-white transition-all hover:bg-slate-800">Close</button>
               </div>
             </div>
           </div>
@@ -1808,7 +1808,7 @@ export default function AdministrationTenantCompaniesPage() {
             <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-100 p-5">
                 <h3 className="text-lg font-black text-slate-900">Edit Employee</h3>
-                <button onClick={closeEditEmployeeModal} className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100"><X size={18} /></button>
+                <button onClick={closeEditEmployeeModal} className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100"><X size={18} /></button>
               </div>
               <form onSubmit={handleEmployeeEditSave} className="space-y-4 p-6">
                 <div>
@@ -1830,7 +1830,7 @@ export default function AdministrationTenantCompaniesPage() {
                     <option value="Manager">Manager</option>
                   </select>
                 </div>
-                <button type="submit" className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white transition-all hover:bg-blue-700"><Save size={16} /> Save Employee</button>
+                <button type="submit" className="btn-pill mt-4 flex w-full items-center justify-center gap-2 bg-blue-600 py-3 text-white transition-all hover:bg-blue-700"><Save size={16} /> Save Employee</button>
               </form>
             </div>
           </div>
@@ -1841,7 +1841,7 @@ export default function AdministrationTenantCompaniesPage() {
             <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-100 p-4">
                 <h3 className="flex items-center gap-2 text-base font-black text-slate-900"><RefreshCw size={16} className="text-blue-600" /> Renew Contract</h3>
-                <button onClick={closeRenewModal} className="rounded-xl p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
+                <button onClick={closeRenewModal} className="rounded-full p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
               </div>
               <form onSubmit={handleRenewSave} className="space-y-4 p-4">
                 <div className="flex items-start gap-1.5 rounded-xl bg-blue-50 p-2.5 text-[10px] font-bold text-blue-800">
@@ -1860,7 +1860,7 @@ export default function AdministrationTenantCompaniesPage() {
                   <label className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500">Add More Credits</label>
                   <input type="number" className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-bold outline-none" value={renewForm.addCredits} onChange={(event) => setRenewForm({ ...renewForm, addCredits: event.target.value })} min="0" step="100" />
                 </div>
-                <button type="submit" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white transition-all hover:bg-blue-700"><Save size={14} /> Update Contract</button>
+                <button type="submit" className="btn-pill mt-3 flex w-full items-center justify-center gap-2 bg-blue-600 py-2.5 text-white transition-all hover:bg-blue-700"><Save size={14} /> Update Contract</button>
               </form>
             </div>
           </div>
@@ -1871,7 +1871,7 @@ export default function AdministrationTenantCompaniesPage() {
             <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-100 p-4">
                 <h3 className="text-base font-black text-slate-900">Add Employee</h3>
-                <button onClick={closeAddEmployeeModal} className="rounded-xl p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
+                <button onClick={closeAddEmployeeModal} className="rounded-full p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
               </div>
               <form onSubmit={handleAddEmployee} className="space-y-3 p-4">
                 <div>
@@ -1897,7 +1897,7 @@ export default function AdministrationTenantCompaniesPage() {
                     <option value="Manager">Manager</option>
                   </select>
                 </div>
-                <button type="submit" className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white transition-all hover:bg-blue-700"><Mail size={14} /> Send Invite Link</button>
+                <button type="submit" className="btn-pill mt-3 flex w-full items-center justify-center gap-2 bg-blue-600 py-2.5 text-white transition-all hover:bg-blue-700"><Mail size={14} /> Send Invite Link</button>
               </form>
             </div>
           </div>
@@ -1908,7 +1908,7 @@ export default function AdministrationTenantCompaniesPage() {
             <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 p-4">
                 <h3 className="flex items-center gap-2 text-base font-black text-slate-900"><Edit size={16} className="text-amber-500" /> Edit Company Record</h3>
-                <button onClick={closeEditModal} className="rounded-xl border border-slate-200 bg-white p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
+                <button onClick={closeEditModal} className="rounded-full border border-slate-200 bg-white p-1 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
               </div>
               <form onSubmit={handleEditSave} className="flex-1 overflow-y-auto p-4">
                 <div className="grid gap-4">
@@ -1937,7 +1937,7 @@ export default function AdministrationTenantCompaniesPage() {
                             <button
                               type="button"
                               onClick={() => { setShowCustomSector(true); updateEditSection('customerDetails', 'sector', ''); }}
-                              className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
+                              className="text-[10px] font-pmedium text-indigo-600 hover:text-indigo-800 transition-colors"
                             >
                               + Add custom sector
                             </button>
@@ -2038,8 +2038,8 @@ export default function AdministrationTenantCompaniesPage() {
                 </div>
 
                 <div className="mt-4 flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
-                  <button type="button" onClick={closeEditModal} className="rounded-xl px-4 py-2 text-xs font-bold text-slate-600 transition-all hover:bg-slate-100">Cancel</button>
-                  <button type="submit" disabled={isSaving} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                  <button type="button" onClick={closeEditModal} className="btn-pill px-4 py-2 text-slate-600 transition-all hover:bg-slate-100">Cancel</button>
+                  <button type="submit" disabled={isSaving} className="btn-pill inline-flex items-center gap-2 bg-blue-600 px-4 py-2 text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
                     <Save size={14} /> Save Changes
                   </button>
                 </div>

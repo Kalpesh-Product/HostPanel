@@ -551,9 +551,7 @@ function DepartmentCheckboxDropdown({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className={`w-full px-3 py-2 flex items-center justify-between gap-3 rounded-lg border bg-white text-left text-[12px] font-semibold outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${
-          error ? "border-red-300 bg-red-50 text-red-600" : "border-slate-200/60 text-[#0F172A]"
-        }`}
+        className={`btn-pill w-full px-3 py-2 flex items-center justify-between gap-3 border bg-white text-left outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${ error ? "border-red-300 bg-red-50 text-red-600" : "border-slate-200/60 text-[#0F172A]" }`}
       >
         <span>{buttonLabel}</span>
         <ChevronDown size={14} className={`shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
@@ -1772,7 +1770,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
             <button
               type="button"
               onClick={() => { resetAddForm(); setShowAddForm(false); }}
-              className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-[#2563EB] transition-colors w-fit"
+              className="flex items-center gap-1.5 text-[10px] font-pmedium text-slate-500 hover:text-[#2563EB] transition-colors w-fit"
             >
               <ArrowLeft size={14} /> Back
             </button>
@@ -2189,14 +2187,14 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   <button
                     type="button"
                     onClick={() => { resetAddForm(); setShowAddForm(false); }}
-                    className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+                    className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 btn-pill hover:bg-slate-50 transition-all"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={addFormSubmitting}
-                    className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                    className="px-8 py-2.5 bg-[#2563EB] text-white btn-pill shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                   >
                     {addFormSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                     {addFormSubmitting ? "Saving..." : "Save & Invite"}
@@ -2261,7 +2259,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     {/* Add Employee button */}
                     <button
                       onClick={() => { setIsAddModalOpen(true); resetAddForm(); }}
-                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                      className="btn-pill bg-[#2563EB] text-white px-4 py-2.5 flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                     >
                       <UserPlus size={13} strokeWidth={2.5} /> ADD EMPLOYEE
                     </button>
@@ -2272,7 +2270,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 <div className="px-3 sm:px-4 lg:px-5 py-2 border-b border-slate-100/40 bg-white flex items-center gap-1.5 overflow-x-auto">
                   <button
                     onClick={() => setStatusFilter("all")}
-                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-[10px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
                       statusFilter === "all"
                         ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
                         : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
@@ -2284,7 +2282,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                     <button
                       key={opt.key}
                       onClick={() => setStatusFilter(opt.key)}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
+                      className={`px-3 py-1.5 rounded-lg text-[10px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
                         statusFilter === opt.key
                           ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
                           : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
@@ -2563,7 +2561,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 <button
                   key={tab}
                   onClick={() => setViewTab(tab)}
-                  className={`px-4 py-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${
+                  className={`px-4 py-3 text-[10px] font-pmedium uppercase tracking-widest border-b-2 transition-all ${
                     viewTab === tab ? "text-[#2563EB] border-[#2563EB]" : "text-slate-400 border-transparent hover:text-slate-600"
                   }`}
                 >
@@ -2619,11 +2617,11 @@ export default function HREmployeeManagementPage(): React.ReactElement {
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
               <button
                 onClick={handleDownloadEmployeeReport}
-                className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all flex items-center gap-1.5"
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-600 btn-pill hover:bg-slate-50 transition-all flex items-center gap-1.5"
               >
                 <Download size={13} /> Download Report
               </button>
-              <button onClick={() => setViewingEmployee(null)} className="px-4 py-2 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-blue-700 transition-all">
+              <button onClick={() => setViewingEmployee(null)} className="px-4 py-2 bg-[#2563EB] text-white btn-pill hover:bg-blue-700 transition-all">
                 Close
               </button>
             </div>
@@ -2905,8 +2903,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
 
             </div>
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-3">
-              <button onClick={() => { setIsEditModalOpen(false); setEditingEmployee(null); setEditFormErrors({}); setEditFormSubmitting(false); }} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Cancel</button>
-              <button onClick={handleSaveEdit} disabled={editFormSubmitting} className="px-6 py-2 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-blue-700 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
+              <button onClick={() => { setIsEditModalOpen(false); setEditingEmployee(null); setEditFormErrors({}); setEditFormSubmitting(false); }} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 btn-pill hover:bg-slate-50 transition-all">Cancel</button>
+              <button onClick={handleSaveEdit} disabled={editFormSubmitting} className="px-6 py-2 bg-[#2563EB] text-white btn-pill hover:bg-blue-700 transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
                 {editFormSubmitting ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                 {editFormSubmitting ? "Saving..." : "Save Changes"}
               </button>
@@ -3351,7 +3349,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                 <button
                   type="button"
                   onClick={() => { resetAddForm(); setIsAddModalOpen(false); }}
-                  className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+                  className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 btn-pill hover:bg-slate-50 transition-all"
                 >
                   Cancel
                 </button>
@@ -3359,7 +3357,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   type="button"
                   disabled={addFormSubmitting}
                   onClick={() => { void submitAddForm(true); }}
-                  className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                  className="px-8 py-2.5 bg-blue-600 text-white btn-pill shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
                 >
                   {addFormSubmitting ? <Loader2 size={14} className="animate-spin" /> : <MailOpen size={14} />}
                   {addFormSubmitting ? "Saving..." : "Save & Invite"}
@@ -3424,8 +3422,8 @@ export default function HREmployeeManagementPage(): React.ReactElement {
               ))}
             </div>
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-3">
-              <button onClick={() => setManagingAccessFor(null)} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Cancel</button>
-              <button onClick={handleSaveAccess} disabled={isSavingAccess} className="px-6 py-2 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center gap-1.5">
+              <button onClick={() => setManagingAccessFor(null)} className="px-4 py-2 bg-white border border-slate-200 text-slate-600 btn-pill hover:bg-slate-50 transition-all">Cancel</button>
+              <button onClick={handleSaveAccess} disabled={isSavingAccess} className="px-6 py-2 bg-[#2563EB] text-white btn-pill hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center gap-1.5">
                 {isSavingAccess ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
                 {isSavingAccess ? "Saving..." : "Save Access"}
               </button>
@@ -3470,7 +3468,7 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                       ))}
                     </div>
                   )}
-                  <button onClick={() => { setIsBulkUploadModalOpen(false); setBulkImportSummary(null); }} className="w-full py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-blue-700 transition-all">
+                  <button onClick={() => { setIsBulkUploadModalOpen(false); setBulkImportSummary(null); }} className="w-full py-2.5 bg-[#2563EB] text-white btn-pill hover:bg-blue-700 transition-all">
                     Done
                   </button>
                 </div>
@@ -3482,10 +3480,10 @@ export default function HREmployeeManagementPage(): React.ReactElement {
                   </div>
                   {bulkImportError && <p className="text-[11px] font-medium text-red-500">{bulkImportError}</p>}
                   <div className="flex gap-3">
-                    <button onClick={() => { setBulkSpreadsheetName(""); setBulkSpreadsheetRows([]); }} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">
+                    <button onClick={() => { setBulkSpreadsheetName(""); setBulkSpreadsheetRows([]); }} className="flex-1 py-2.5 bg-white border border-slate-200 text-slate-600 btn-pill hover:bg-slate-50 transition-all">
                       Change File
                     </button>
-                    <button onClick={handleBulkImport} disabled={isBulkImporting || bulkSpreadsheetRows.length === 0} className="flex-1 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5">
+                    <button onClick={handleBulkImport} disabled={isBulkImporting || bulkSpreadsheetRows.length === 0} className="flex-1 py-2.5 bg-[#2563EB] text-white btn-pill hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5">
                       {isBulkImporting ? <Loader2 size={13} className="animate-spin" /> : <UploadCloud size={13} />}
                       {isBulkImporting ? "Importing..." : `Import ${bulkSpreadsheetRows.length} Rows`}
                     </button>

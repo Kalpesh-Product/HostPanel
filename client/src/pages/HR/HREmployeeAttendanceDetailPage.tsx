@@ -315,7 +315,7 @@ export default function HREmployeeAttendanceDetailPage() {
             <button
               type="button"
               onClick={() => navigate(-1)}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[11px] font-black uppercase tracking-widest text-slate-600 shadow-sm transition-colors hover:bg-slate-50"
+              className="btn-pill inline-flex items-center gap-2 border border-slate-200 bg-white px-4 py-2 text-slate-600 shadow-sm transition-colors hover:bg-slate-50"
             >
               <ArrowLeft size={14} />
               Back

@@ -457,13 +457,13 @@ export function DepartmentInventoryPage() {
             <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
               <button
                 onClick={handleBulkUploadClick}
-                className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:text-[#2563EB] hover:border-[#2563EB] transition-all whitespace-nowrap"
+                className="btn-pill px-4 py-2.5 bg-white border border-gray-200 text-gray-700 flex items-center gap-1.5 shadow-sm hover:text-[#2563EB] hover:border-[#2563EB] transition-all whitespace-nowrap"
               >
                 <UploadCloud size={14} strokeWidth={2.5} /> BULK UPLOAD
               </button>
               <button
                 onClick={() => setIsUpdateModalOpen(true)}
-                className="px-4 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:text-[#2563EB] hover:border-[#2563EB] transition-all whitespace-nowrap"
+                className="btn-pill px-4 py-2.5 bg-white border border-gray-200 text-gray-700 flex items-center gap-1.5 shadow-sm hover:text-[#2563EB] hover:border-[#2563EB] transition-all whitespace-nowrap"
               >
                 <RefreshCw size={14} strokeWidth={2.5} /> UPDATE STOCK
               </button>
@@ -472,7 +472,7 @@ export function DepartmentInventoryPage() {
                   setNewItem({ name: '', trackingType: 'Consumable', category: categories[0] || 'Office Supplies', department: deptLabel, quantity: '' });
                   setIsAddModalOpen(true);
                 }}
-                className="bg-[#2563EB] text-white px-4 py-2.5 rounded-xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
+                className="btn-pill bg-[#2563EB] text-white px-4 py-2.5 flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
               >
                 <Plus size={14} strokeWidth={3} /> ADD NEW ITEM
               </button>
@@ -523,13 +523,13 @@ export function DepartmentInventoryPage() {
               <div className="flex bg-white border border-slate-200 p-1 rounded-xl w-full md:w-auto shadow-sm">
                 <button
                   onClick={() => setActiveTab('inventory')}
-                  className={`flex-1 px-5 py-2 rounded-lg text-[10px] font-black uppercase whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${activeTab === 'inventory' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                  className={`flex-1 px-5 py-2 rounded-lg text-[10px] font-pmedium uppercase whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${activeTab === 'inventory' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
                 >
                   <Package size={12} /> Live Inventory
                 </button>
                 <button
                   onClick={() => setActiveTab('allocations')}
-                  className={`flex-1 px-5 py-2 rounded-lg text-[10px] font-black uppercase whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${activeTab === 'allocations' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
+                  className={`flex-1 px-5 py-2 rounded-lg text-[10px] font-pmedium uppercase whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${activeTab === 'allocations' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
                 >
                   <History size={12} /> Allocation History
                 </button>
@@ -712,13 +712,13 @@ export function DepartmentInventoryPage() {
               </div>
             </div>
             <div className="p-6 sm:p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
-              <button onClick={() => setIsAddModalOpen(false)} className="flex-1 py-4 bg-white border border-slate-200 rounded-2xl font-black text-slate-500 hover:text-slate-900 transition-all">
+              <button onClick={() => setIsAddModalOpen(false)} className="btn-pill flex-1 py-4 bg-white border border-slate-200 text-slate-500 hover:text-slate-900 transition-all">
                 CANCEL
               </button>
               <button
                 onClick={handleAddItem}
                 disabled={!newItem.name || !newItem.quantity || isSaving}
-                className="flex-1 py-4 bg-[#2563EB] text-white rounded-2xl font-black shadow-lg shadow-blue-200 disabled:bg-slate-300 disabled:shadow-none hover:bg-blue-700 transition-all"
+                className="btn-pill flex-1 py-4 bg-[#2563EB] text-white shadow-lg shadow-blue-200 disabled:bg-slate-300 disabled:shadow-none hover:bg-blue-700 transition-all"
               >
                 {isSaving ? 'SAVING...' : 'SUBMIT ENTRY'}
               </button>
@@ -766,11 +766,11 @@ export function DepartmentInventoryPage() {
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Action</label>
                   <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1">
                     <button type="button" onClick={() => setUpdateStock({ ...updateStock, actionType: 'increase' })}
-                      className={`flex-1 py-3 rounded-xl text-[11px] font-black transition-all ${updateStock.actionType === 'increase' ? 'bg-white shadow-sm text-green-600 border border-slate-200' : 'text-slate-400'}`}>
+                      className={`flex-1 py-3 rounded-full text-[10px] font-pmedium transition-all ${updateStock.actionType === 'increase' ? 'bg-white shadow-sm text-green-600 border border-slate-200' : 'text-slate-400'}`}>
                       + ADD
                     </button>
                     <button type="button" onClick={() => setUpdateStock({ ...updateStock, actionType: 'decrease' })}
-                      className={`flex-1 py-3 rounded-xl text-[11px] font-black transition-all ${updateStock.actionType === 'decrease' ? 'bg-white shadow-sm text-red-600 border border-slate-200' : 'text-slate-400'}`}>
+                      className={`flex-1 py-3 rounded-full text-[10px] font-pmedium transition-all ${updateStock.actionType === 'decrease' ? 'bg-white shadow-sm text-red-600 border border-slate-200' : 'text-slate-400'}`}>
                       - REMOVE
                     </button>
                   </div>
@@ -801,13 +801,13 @@ export function DepartmentInventoryPage() {
               </div>
             </div>
             <div className="p-6 sm:p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
-              <button onClick={() => setIsUpdateModalOpen(false)} className="flex-1 py-4 bg-white border border-slate-200 rounded-2xl font-black text-slate-500 hover:text-slate-900 transition-all">
+              <button onClick={() => setIsUpdateModalOpen(false)} className="btn-pill flex-1 py-4 bg-white border border-slate-200 text-slate-500 hover:text-slate-900 transition-all">
                 CANCEL
               </button>
-              <button
+<button
                 onClick={handleUpdateStock}
                 disabled={!updateStock.itemId || !updateStock.quantity || isSaving}
-                className="flex-1 py-4 bg-slate-800 text-white rounded-2xl font-black shadow-lg shadow-slate-200 disabled:bg-slate-300 disabled:shadow-none hover:bg-slate-900 transition-all"
+                className="btn-pill flex-1 py-4 bg-slate-800 text-white shadow-lg shadow-slate-200 disabled:bg-slate-300 disabled:shadow-none hover:bg-slate-900 transition-all"
               >
                 {isSaving ? 'UPDATING...' : 'UPDATE STOCK'}
               </button>
@@ -839,14 +839,14 @@ export function DepartmentInventoryPage() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={downloadBulkTemplate}
-                  className="flex-1 py-4 bg-white border border-slate-200 rounded-2xl font-black text-slate-700 hover:text-[#2563EB] hover:border-[#2563EB] transition-all flex items-center justify-center gap-2"
+                  className="btn-pill flex-1 py-4 bg-white border border-slate-200 text-slate-700 hover:text-[#2563EB] hover:border-[#2563EB] transition-all flex items-center justify-center gap-2"
                 >
                   <Download size={16} strokeWidth={2.5} /> Download Template
                 </button>
                 <button
                   onClick={() => bulkUploadInputRef.current?.click()}
                   disabled={isSaving}
-                  className="flex-1 py-4 bg-[#2563EB] text-white rounded-2xl font-black shadow-lg shadow-blue-200 disabled:bg-slate-300 disabled:shadow-none hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                  className="btn-pill flex-1 py-4 bg-[#2563EB] text-white shadow-lg shadow-blue-200 disabled:bg-slate-300 disabled:shadow-none hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
                 >
                   <UploadCloud size={16} strokeWidth={2.5} /> {isSaving ? 'Importing...' : 'Choose File'}
                 </button>
@@ -879,7 +879,7 @@ export function DepartmentInventoryPage() {
               )}
             </div>
             <div className="p-6 sm:p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
-              <button onClick={() => setIsBulkUploadOpen(false)} className="flex-1 py-4 bg-white border border-slate-200 rounded-2xl font-black text-slate-500 hover:text-slate-900 transition-all">
+              <button onClick={() => setIsBulkUploadOpen(false)} className="btn-pill flex-1 py-4 bg-white border border-slate-200 text-slate-500 hover:text-slate-900 transition-all">
                 CLOSE
               </button>
             </div>

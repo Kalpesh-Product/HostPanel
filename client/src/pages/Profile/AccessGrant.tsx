@@ -1450,7 +1450,7 @@ export default function AccessGrantsPage() {
                       setShowTransferWarning(false);
                       setShowTransferDialog(true);
                     }}
-                    className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
+                    className="btn-pill bg-[#2563EB] text-white px-4 py-2.5 flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
                   >
                     <ArrowRightLeft size={13} strokeWidth={2.5} />
                     Transfer Founder
@@ -1710,7 +1710,7 @@ export default function AccessGrantsPage() {
                       <button
                         onClick={roleActionWarning.type === 'promote' ? handlePromote : handleDemote}
                         disabled={isSaving || !canEditAccessGrants || (roleActionWarning.type === 'demote' && isDemoteDisabled)}
-                        className={`px-4 py-2 text-white rounded-lg font-semibold transition-colors text-sm shadow-sm disabled:opacity-60 ${roleActionWarning.type === 'promote' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600'}`}
+                        className={`px-4 py-2 text-white rounded-lg font-pmedium transition-colors text-sm shadow-sm disabled:opacity-60 ${roleActionWarning.type === 'promote' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-500 hover:bg-amber-600'}`}
                       >
                         {isSaving ? 'Saving...' : roleActionWarning.type === 'promote' ? 'Confirm Promote' : 'Confirm Demote'}
                       </button>
@@ -2076,7 +2076,7 @@ export default function AccessGrantsPage() {
                   type="button"
                   disabled={isSaving || !canManageModuleAccess}
                   onClick={handleSaveMemberAccess}
-                  className="rounded-lg bg-[#2563EB] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                  className="btn-pill bg-[#2563EB] px-3.5 py-1.5 text-white hover:bg-blue-700 disabled:opacity-60"
                 >
                   {isSaving ? 'Saving...' : 'Save Access'}
                 </button>
@@ -2168,7 +2168,7 @@ export default function AccessGrantsPage() {
                   <button
                     onClick={handleConfirmWorkspaceLink}
                     disabled={isSaving}
-                    className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
+                    className="btn-pill bg-[#2563EB] px-4 py-2 text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
                   >
                     {isSaving ? 'Saving...' : 'Add Access'}
                   </button>
@@ -2367,7 +2367,7 @@ export default function AccessGrantsPage() {
                 <button
                   onClick={handleConfirmWorkspaceTransfer}
                   disabled={isSaving}
-                  className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
+                  className="btn-pill bg-[#2563EB] px-4 py-2 text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
                 >
                   {isSaving ? 'Saving...' : `Transfer as ${selectedTransferRole.label}`}
                 </button>
@@ -2456,7 +2456,7 @@ export default function AccessGrantsPage() {
                 <button
                   onClick={handleTransferOwnership}
                   disabled={isSaving || !canEditAccessGrants || eligibleOwnershipCandidates.length === 0}
-                  className="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors text-sm disabled:opacity-60"
+                  className="btn-pill px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-60"
                 >
                   {isSaving ? 'Saving...' : showTransferWarning ? 'Confirm Transfer' : 'Review Transfer'}
                 </button>

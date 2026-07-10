@@ -317,7 +317,7 @@ const CompanyProfile = () => {
                       type="button"
                       onClick={handleUpload}
                       disabled={uploading}
-                      className="inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                      className="btn-pill inline-flex items-center gap-2 bg-[#2563EB] px-3 py-1.5 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
                       {uploading ? "Uploading..." : "Save Image"}
                     </button>

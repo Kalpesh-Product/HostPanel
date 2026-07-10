@@ -401,7 +401,7 @@ export function InventoryPage() {
                 setAddStockData({ name: '', category: 'Physical', trackingType: 'Consumable', department: defaultDepartment, quantity: '' });
                 setIsAddStockOpen(true);
               }}
-              className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
+              className="btn-pill bg-[#2563EB] text-white px-4 py-2.5 flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
             >
               <Plus size={13} strokeWidth={3} /> ADD INVENTORY
             </button>
@@ -521,14 +521,14 @@ export function InventoryPage() {
                             setTransferData({ targetDepartment: '', quantity: '' });
                             setIsTransferStockOpen(true);
                           }}
-                          className="flex-1 py-2 bg-white border border-[#2563EB] text-[#2563EB] rounded-xl text-[11px] hover:bg-blue-50 font-bold transition-all shadow-sm flex items-center justify-center gap-1.5"
+                          className="btn-pill flex-1 py-2 bg-white border border-[#2563EB] text-[#2563EB] hover:bg-blue-50 transition-all shadow-sm flex items-center justify-center gap-1.5"
                         >
                           <ArrowRightLeft size={13} /> Transfer
                         </button>
                       )}
                       <button
                         onClick={() => setViewingItem(item)}
-                        className="flex-1 py-2 bg-slate-900 border border-slate-900 rounded-xl text-white font-bold hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                        className="btn-pill flex-1 py-2 bg-slate-900 border border-slate-900 text-white hover:bg-slate-800 transition-all flex items-center justify-center gap-1.5 shadow-sm"
                       >
                         <Eye size={14} /> View
                       </button>
@@ -645,13 +645,13 @@ export function InventoryPage() {
               </div>
 
               <div className="p-4 sm:p-6 border-t border-slate-100 bg-white shrink-0 flex gap-3">
-                <button onClick={() => setIsAddStockOpen(false)} className="flex-1 py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">
+                <button onClick={() => setIsAddStockOpen(false)} className="btn-pill flex-1 py-3.5 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all">
                   Cancel
                 </button>
                 <button
                   onClick={handleCreateStock}
                   disabled={isTransferring || !addStockData.name || !addStockData.quantity || !addStockData.department}
-                  className="flex-1 py-3.5 bg-[#2563EB] text-white rounded-xl font-bold shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase disabled:cursor-not-allowed disabled:opacity-70"
+                  className="btn-pill flex-1 py-3.5 bg-[#2563EB] text-white shadow-[0_4px_12px_rgba(37,99,235,0.2)] hover:bg-blue-700 transition-all disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {isTransferring ? 'Saving...' : 'Create Inventory'}
                 </button>
@@ -725,13 +725,13 @@ export function InventoryPage() {
               </div>
 
               <div className="p-4 sm:p-6 border-t border-slate-100 bg-white shrink-0 flex gap-3">
-                <button onClick={() => setIsTransferStockOpen(false)} className="flex-1 py-3.5 bg-white text-slate-600 border border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase">
+                <button onClick={() => setIsTransferStockOpen(false)} className="btn-pill flex-1 py-3.5 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all">
                   Cancel
                 </button>
                 <button
                   onClick={handleTransferStock}
                   disabled={isTransferring || !transferData.targetDepartment || !transferData.quantity || parseInt(transferData.quantity) > activeInventoryItem.availableQuantity || parseInt(transferData.quantity) <= 0}
-                  className="flex-1 py-3.5 bg-indigo-600 text-white rounded-xl font-bold shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:bg-indigo-700 transition-all text-[11px] sm:text-[12px] tracking-wider uppercase disabled:cursor-not-allowed disabled:opacity-70"
+                  className="btn-pill flex-1 py-3.5 bg-indigo-600 text-white shadow-[0_4px_12px_rgba(79,70,229,0.25)] hover:bg-indigo-700 transition-all disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {isTransferring ? 'Transferring...' : 'Confirm Transfer'}
                 </button>

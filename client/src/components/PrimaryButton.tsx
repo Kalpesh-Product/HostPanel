@@ -39,10 +39,10 @@ const PrimaryButton = ({
       whileTap={{ scale: 0.9 }}
       disabled={disabled || isBusy}
       type={type ?? "button"}
-      className={` flex items-center justify-center gap-2 ${
+      className={`btn-pill flex items-center justify-center gap-2 ${
         disabled || isBusy ? "cursor-not-allowed bg-slate-300" : "bg-[#2563EB] hover:bg-blue-700"
-      } motion-preset-slide-up-sm rounded-xl text-white font-semibold transition ${
-        fontSize ? fontSize : "text-sm leading-5"
+      } motion-preset-slide-up-sm text-white transition ${
+        fontSize ?? ""
       } ${externalStyles ?? ""} ${padding ? padding : "px-8 py-2"} ${className ?? ""}`}
       onClick={onClick ?? handleSubmit}
     >

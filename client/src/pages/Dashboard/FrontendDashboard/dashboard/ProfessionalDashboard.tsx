@@ -180,7 +180,7 @@ const ProfessionalDashboard = ({ onUpgradeClick }: ProfessionalDashboardProps) =
 
       {/* Upgrade nudge — opens modal for Custom plan */}
       <div
-        className="flex items-center gap-3 p-4 rounded-xl border-2 border-violet-300/50 bg-violet-50 cursor-pointer hover:bg-violet-100 transition-colors"
+        className="flex items-center gap-3 p-4 rounded-xl border-2 border-blue-300/50 bg-blue-50 cursor-pointer hover:bg-blue-100 transition-colors"
         onClick={onUpgradeClick}
       >
         <Zap size={18} className="text-blue-600 flex-shrink-0" />

@@ -2855,7 +2855,7 @@ export default function TenantCompaniesPage() {
               <div className="flex flex-wrap items-center gap-1 w-10px xl:w-auto">
                 <button
                   onClick={openAddCompanyModal}
-                  className="px-4 py-2.5 bg-[#2563EB] text-white rounded-xl font-black text-[10px] hover:bg-blue-700 shadow-sm transition-all flex items-end justify-center gap-1.5"
+                  className="btn-pill px-4 py-2.5 bg-[#2563EB] text-white hover:bg-blue-700 shadow-sm transition-all flex items-end justify-center gap-1.5"
                 >
                   <Plus size={14} /> ADD TENANT COMPANY
                 </button>
@@ -3043,14 +3043,14 @@ export default function TenantCompaniesPage() {
                                     <button
                                       type="button"
                                       onClick={() => handleCreditRequestAction(request, 'APPROVED_AWAITING_PAYMENT')}
-                                      className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-green-700 transition-all hover:bg-green-100"
+                                      className="btn-pill border border-green-200 bg-green-50 px-3 py-2 text-green-700 transition-all hover:bg-green-100"
                                     >
                                       Approve
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => handleCreditRequestAction(request, 'REJECTED')}
-                                      className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-rose-700 transition-all hover:bg-rose-100"
+                                      className="btn-pill border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 transition-all hover:bg-rose-100"
                                     >
                                       Reject
                                     </button>
@@ -3060,7 +3060,7 @@ export default function TenantCompaniesPage() {
                                   <button
                                     type="button"
                                     onClick={() => handleCreditRequestAction(request, 'PAYMENT_CONFIRMED')}
-                                    className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-blue-700 transition-all hover:bg-blue-100"
+                                    className="btn-pill border border-blue-200 bg-blue-50 px-3 py-2 text-blue-700 transition-all hover:bg-blue-100"
                                   >
                                     Verify payment
                                   </button>
@@ -3069,7 +3069,7 @@ export default function TenantCompaniesPage() {
                                   <button
                                     type="button"
                                     onClick={() => handleCreditRequestAction(request, 'COMPLETED')}
-                                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-700 transition-all hover:bg-emerald-100"
+                                    className="btn-pill border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-700 transition-all hover:bg-emerald-100"
                                   >
                                     Add credits
                                   </button>
@@ -3115,14 +3115,14 @@ export default function TenantCompaniesPage() {
                     <button
                       type="button"
                       onClick={downloadBulkTemplate}
-                      className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[11px] font-bold uppercase tracking-widest text-slate-700 transition-all hover:border-slate-300 hover:bg-white"
+                      className="btn-pill flex items-center justify-center gap-2 border border-slate-200 bg-slate-50 px-4 py-3 text-slate-700 transition-all hover:border-slate-300 hover:bg-white"
                     >
                       <Download size={14} /> Download template
                     </button>
                     <button
                       type="button"
                       onClick={() => bulkUploadInputRef.current?.click()}
-                      className="flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-[11px] font-bold uppercase tracking-widest text-blue-700 transition-all hover:border-blue-300 hover:bg-blue-100"
+                      className="btn-pill flex items-center justify-center gap-2 border border-blue-200 bg-blue-50 px-4 py-3 text-blue-700 transition-all hover:border-blue-300 hover:bg-blue-100"
                     >
                       <UploadCloud size={14} /> Choose file
                     </button>
@@ -3187,14 +3187,14 @@ export default function TenantCompaniesPage() {
                       <button
                         type="button"
                         onClick={() => { setIsBulkUploadOpen(false); setBulkUploadError(''); setBulkUploadSummary(null); setBulkUploadFileName(''); }}
-                        className="flex-1 rounded-xl bg-slate-100 px-4 py-2.5 text-[11px] font-bold uppercase tracking-widest text-slate-700 transition-all hover:bg-slate-200"
+                        className="btn-pill flex-1 bg-slate-100 px-4 py-2.5 text-slate-700 transition-all hover:bg-slate-200"
                       >
                         Close
                       </button>
                       <button
                         type="button"
                         onClick={() => bulkUploadInputRef.current?.click()}
-                        className="flex-1 rounded-xl bg-blue-600 px-4 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white transition-all hover:bg-blue-700"
+                        className="btn-pill flex-1 bg-blue-600 px-4 py-2.5 text-white transition-all hover:bg-blue-700"
                       >
                         Select file
                       </button>
@@ -4149,8 +4149,8 @@ export default function TenantCompaniesPage() {
                   )}
 
                   <div className="order-11 sticky bottom-0 bg-white border-t border-slate-100 p-3 sm:p-4 flex gap-3">
-                    <button type="button" onClick={() => { setActiveModal(null); setSelectedTenant(null); setCompanyForm(initialCompanyForm); setAgreementFiles([]); setFormError(''); }} className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl font-bold text-[11px] hover:bg-slate-200 transition-all">CANCEL</button>
-                    <button type="submit" disabled={!canSaveTenantCompany || isSaving || billingSummary.hasValidationError || isContractDurationInvalid} className="flex-[2] py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[11px] shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
+                    <button type="button" onClick={() => { setActiveModal(null); setSelectedTenant(null); setCompanyForm(initialCompanyForm); setAgreementFiles([]); setFormError(''); }} className="btn-pill flex-1 py-2.5 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all">CANCEL</button>
+                    <button type="submit" disabled={!canSaveTenantCompany || isSaving || billingSummary.hasValidationError || isContractDurationInvalid} className="btn-pill flex-[2] py-2.5 bg-[#2563EB] text-white shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-60">
                       SUBMIT &amp; SEND TO FINANCE <Save size={14} />
                     </button>
                   </div>
@@ -4182,7 +4182,7 @@ export default function TenantCompaniesPage() {
                 onClick={() => handleExportCompaniesReport('PDF')}
                 disabled={Boolean(isExportingReport)}
                 title="Export PDF"
-                className="px-4 py-2.5 bg-white text-[#f10505] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+                className="btn-pill px-4 py-2.5 bg-white text-[#f10505] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <FileDown size={14} /> {isExportingReport === 'PDF' ? 'Exporting...' : ''}
                 
@@ -4363,7 +4363,7 @@ export default function TenantCompaniesPage() {
                             <input type="file" multiple accept=".pdf,.doc,.docx,image/png,image/jpeg,image/jpg" className="hidden" onChange={handleAgreementFilesChange} />
                           </label>
                           <button type="button" onClick={handleUploadAgreementDocuments} disabled={!agreementFiles.length || isAgreementUploading}
-                            className="rounded-xl bg-blue-600 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="btn-pill bg-blue-600 px-3 py-1.5 text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                           >{isAgreementUploading ? 'Uploading...' : 'Upload'}</button>
                         </div>
                       </div>
@@ -4401,7 +4401,7 @@ export default function TenantCompaniesPage() {
                   <div className="space-y-3">
                     <div className="mb-2 flex items-center justify-between">
                       <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">Managed Employees</h3>
-                      <button onClick={() => setEmployeeModalOpen(true)} className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-600 transition-all hover:bg-blue-100">
+                      <button onClick={() => setEmployeeModalOpen(true)} className="btn-pill flex items-center gap-1.5 bg-blue-50 px-3 py-1.5 text-blue-600 transition-all hover:bg-blue-100">
                         <Plus size={12} /> Add Employee
                       </button>
                     </div>
@@ -4442,15 +4442,15 @@ export default function TenantCompaniesPage() {
                                   </div>
 
                                   <div className="flex flex-wrap justify-start gap-1.5 lg:justify-end">
-                                    <button onClick={() => setSelectedEmployee(employee)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">View Profile</button>
+                                    <button onClick={() => setSelectedEmployee(employee)} className="btn-pill border border-slate-200 bg-white px-2 py-1.5 text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700">View Profile</button>
                                     {employee.status === 'Active' && !isManager && (
-                                      <button onClick={() => handleAssignManager(employee.id)} className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-blue-700 transition-colors hover:bg-blue-100">Set Manager</button>
+                                      <button onClick={() => handleAssignManager(employee.id)} className="btn-pill border border-blue-200 bg-blue-50 px-2 py-1.5 text-blue-700 transition-colors hover:bg-blue-100">Set Manager</button>
                                     )}
                                     {employee.status === 'Active' && isManager && (
                                       <span className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-blue-700">Current Manager</span>
                                     )}
                                     {employee.status === 'Active' && (
-                                      <button onClick={() => handleDeactivateEmployee(employee.id)} className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wider text-red-600 transition-colors hover:bg-red-100 hover:text-red-700">Deactivate</button>
+                                      <button onClick={() => handleDeactivateEmployee(employee.id)} className="btn-pill border border-red-200 bg-red-50 px-2 py-1.5 text-red-600 transition-colors hover:bg-red-100 hover:text-red-700">Deactivate</button>
                                     )}
                                   </div>
                                 </div>
@@ -4661,9 +4661,9 @@ export default function TenantCompaniesPage() {
                       </div>
                       <div className="flex justify-end gap-2 pt-2">
                         <button type="button" onClick={() => { setEmployeeModalOpen(false); setEmployeeForm({ name: '', email: '', phone: '', designation: '' }); }}
-                          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold text-slate-600 transition-all hover:bg-slate-50">Cancel</button>
+                          className="btn-pill border border-slate-200 bg-white px-4 py-2 text-slate-600 transition-all hover:bg-slate-50">Cancel</button>
                         <button type="submit" disabled={isSaving}
-                          className="rounded-xl bg-blue-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
+                          className="btn-pill bg-blue-600 px-4 py-2 text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">
                           {isSaving ? 'Adding...' : 'Add Employee'}
                         </button>
                       </div>
@@ -4696,13 +4696,13 @@ export default function TenantCompaniesPage() {
                     </div>
 
                     <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-white p-4">
-                      <button onClick={() => { setEditingEmployee(selectedEmployee); setEmployeeEditForm({ name: selectedEmployee?.name || '', phone: selectedEmployee?.phone || '', designation: selectedEmployee?.designation || '', role: selectedEmployee?.role || 'Employee' }); }} className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-blue-600 transition-all hover:bg-blue-100">Edit</button>
+                      <button onClick={() => { setEditingEmployee(selectedEmployee); setEmployeeEditForm({ name: selectedEmployee?.name || '', phone: selectedEmployee?.phone || '', designation: selectedEmployee?.designation || '', role: selectedEmployee?.role || 'Employee' }); }} className="btn-pill border border-blue-200 bg-blue-50 px-3 py-1.5 text-blue-600 transition-all hover:bg-blue-100">Edit</button>
                       <button onClick={() => { if (selectedEmployee?.status === 'Active') handleDeactivateEmployee(selectedEmployee.id); }}
                         disabled={selectedEmployee?.status !== 'Active'}
-                        className="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-red-600 transition-all hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="btn-pill border border-red-200 bg-red-50 px-3 py-1.5 text-red-600 transition-all hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                       >Deactivate</button>
-                      <button onClick={() => handleDeleteEmployee(selectedEmployee.id)} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-amber-700 transition-all hover:bg-amber-100">Delete</button>
-                      <button onClick={() => { setSelectedEmployee(null); setEditingEmployee(null); }} className="rounded-xl bg-slate-900 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-slate-800">Close</button>
+                      <button onClick={() => handleDeleteEmployee(selectedEmployee.id)} className="btn-pill border border-amber-200 bg-amber-50 px-3 py-1.5 text-amber-700 transition-all hover:bg-amber-100">Delete</button>
+                      <button onClick={() => { setSelectedEmployee(null); setEditingEmployee(null); }} className="btn-pill bg-slate-900 px-3 py-1.5 text-white transition-all hover:bg-slate-800">Close</button>
                     </div>
                   </div>
                 </div>
@@ -4735,7 +4735,7 @@ export default function TenantCompaniesPage() {
                           <option value="Manager">Manager</option>
                         </select>
                       </div>
-                      <button type="submit" disabled={isSaving} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white transition-all hover:bg-blue-700"><Save size={16} /> Save Employee</button>
+                      <button type="submit" disabled={isSaving} className="btn-pill mt-4 flex w-full items-center justify-center gap-2 bg-blue-600 py-3 text-white transition-all hover:bg-blue-700"><Save size={16} /> Save Employee</button>
                     </form>
                   </div>
                 </div>

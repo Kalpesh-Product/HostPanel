@@ -941,17 +941,17 @@ export function HRExitManagementPage() {
             </div>
 
             <div className="flex shrink-0 gap-3 border-t border-slate-100 bg-slate-50 p-6">
-              <button type="button" onClick={() => setViewingRequest(null)} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-semibold text-slate-600 transition hover:bg-slate-100">Close</button>
-              <button type="button" onClick={() => handleExportRequestReport(viewingRequest, "PDF")} disabled={Boolean(isExportingReport)} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">EXPORT PDF</button>
-              <button type="button" onClick={() => handleExportRequestReport(viewingRequest, "Excel")} disabled={Boolean(isExportingReport)} className="flex-1 rounded-2xl bg-[#2563EB] py-4 font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">EXPORT EXCEL</button>
+              <button type="button" onClick={() => setViewingRequest(null)} className="btn-pill flex-1 border border-slate-200 bg-white py-4 text-slate-600 transition hover:bg-slate-100">Close</button>
+              <button type="button" onClick={() => handleExportRequestReport(viewingRequest, "PDF")} disabled={Boolean(isExportingReport)} className="btn-pill flex-1 border border-slate-200 bg-white py-4 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">EXPORT PDF</button>
+              <button type="button" onClick={() => handleExportRequestReport(viewingRequest, "Excel")} disabled={Boolean(isExportingReport)} className="btn-pill flex-1 bg-[#2563EB] py-4 text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">EXPORT EXCEL</button>
               {viewingRequest.status === "pending" && (
                 <>
-                  <button type="button" onClick={() => { setRejectingRequest(viewingRequest); setViewingRequest(null); }} className="flex-1 rounded-2xl border border-red-200 bg-white py-4 font-semibold text-red-600 transition hover:bg-red-50">Reject Request</button>
-                  <button type="button" onClick={() => handleApproveRequest(viewingRequest)} className="flex-1 rounded-2xl bg-[#2563EB] py-4 font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700">Approve & Start Notice</button>
+                  <button type="button" onClick={() => { setRejectingRequest(viewingRequest); setViewingRequest(null); }} className="btn-pill flex-1 border border-red-200 bg-white py-4 text-red-600 transition hover:bg-red-50">Reject Request</button>
+                  <button type="button" onClick={() => handleApproveRequest(viewingRequest)} className="btn-pill flex-1 bg-[#2563EB] py-4 text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700">Approve & Start Notice</button>
                 </>
               )}
               {viewingRequest.status === "approved" && (
-                <button type="button" onClick={() => openManageChecklist(viewingRequest)} className="flex-1 rounded-2xl bg-green-600 py-4 font-semibold text-white shadow-lg shadow-green-200 transition hover:bg-green-700">Open Checklist</button>
+                <button type="button" onClick={() => openManageChecklist(viewingRequest)} className="btn-pill flex-1 bg-green-600 py-4 text-white shadow-lg shadow-green-200 transition hover:bg-green-700">Open Checklist</button>
               )}
             </div>
           </div>
@@ -1015,8 +1015,8 @@ export function HRExitManagementPage() {
             </div>
 
             <div className="flex shrink-0 gap-4 border-t border-slate-100 bg-slate-50 p-6">
-              <button type="button" onClick={() => setManagingExit(null)} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-semibold text-slate-600 transition hover:bg-slate-100">Save Progress & Close</button>
-              <button type="button" onClick={handleCompleteExit} disabled={!managingExit.canComplete} className="flex-1 rounded-2xl bg-green-600 py-4 font-semibold text-white shadow-lg shadow-green-200 transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">
+              <button type="button" onClick={() => setManagingExit(null)} className="btn-pill flex-1 border border-slate-200 bg-white py-4 text-slate-600 transition hover:bg-slate-100">Save Progress & Close</button>
+              <button type="button" onClick={handleCompleteExit} disabled={!managingExit.canComplete} className="btn-pill flex-1 bg-green-600 py-4 text-white shadow-lg shadow-green-200 transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">
                 <UserMinus size={18} className="mr-2 inline-block" /> Complete Exit
               </button>
             </div>
@@ -1056,8 +1056,8 @@ export function HRExitManagementPage() {
               </div>
             </div>
             <div className="flex gap-4 border-t border-slate-100 bg-slate-50 p-6">
-              <button type="button" onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="flex-1 rounded-2xl border border-slate-200 bg-white py-4 font-semibold text-slate-600 transition hover:bg-slate-100">Cancel</button>
-              <button type="button" disabled={!rejectReason.trim()} onClick={handleRejectSubmit} className="flex-1 rounded-2xl bg-red-600 py-4 font-semibold text-white shadow-lg shadow-red-200 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">Confirm Rejection</button>
+              <button type="button" onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="btn-pill flex-1 border border-slate-200 bg-white py-4 text-slate-600 transition hover:bg-slate-100">Cancel</button>
+              <button type="button" disabled={!rejectReason.trim()} onClick={handleRejectSubmit} className="btn-pill flex-1 bg-red-600 py-4 text-white shadow-lg shadow-red-200 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none">Confirm Rejection</button>
             </div>
           </div>
         </div>

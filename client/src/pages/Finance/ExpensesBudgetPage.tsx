@@ -1217,7 +1217,7 @@ export function ExpensesBudgetPage() {
               <button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-700 text-[10px] font-bold uppercase tracking-wider"
+                className="btn-pill px-3 py-1.5 bg-white border border-rose-200 text-rose-700"
               >
                 Retry
               </button>
@@ -1346,7 +1346,7 @@ export function ExpensesBudgetPage() {
                             </td>
                             <td className="px-6 py-5 text-center">{getStatusBadge(budget.status)}</td>
                             <td className="px-6 py-5 text-center">
-                              <button onClick={() => setViewingBudget(budget)} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-lg text-[9px] sm:text-[10px] font-black uppercase transition-all shadow-sm flex items-center gap-1 mx-auto">
+                              <button onClick={() => setViewingBudget(budget)} className="btn-pill px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm flex items-center gap-1 mx-auto">
                                 <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">View</span>
                               </button>
                             </td>
@@ -1392,7 +1392,7 @@ export function ExpensesBudgetPage() {
                           </td>
                           <td className="px-6 py-5 text-center">{getStatusBadge(extra.status)}</td>
                           <td className="px-6 py-5 text-center">
-                            <button onClick={() => setViewingExtra(extra)} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 rounded-lg text-[9px] sm:text-[10px] font-black uppercase transition-all shadow-sm flex items-center gap-1 mx-auto">
+                            <button onClick={() => setViewingExtra(extra)} className="btn-pill px-3 sm:px-4 py-1.5 sm:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-all shadow-sm flex items-center gap-1 mx-auto">
                               <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">Review</span>
                             </button>
                           </td>
@@ -1446,7 +1446,7 @@ export function ExpensesBudgetPage() {
                               <button
                                 type="button"
                                 onClick={() => setViewingExpense(log)}
-                                className="px-2 sm:px-3 py-1 sm:py-1.5 bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 rounded-lg text-[9px] sm:text-[10px] font-black uppercase transition-all flex items-center gap-1 shadow-sm"
+                                className="btn-pill px-2 sm:px-3 py-1 sm:py-1.5 bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200 transition-all flex items-center gap-1 shadow-sm"
                               >
                                 <Eye size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">View Details</span>
                               </button>
@@ -1454,7 +1454,7 @@ export function ExpensesBudgetPage() {
                                 <button
                                   type="button"
                                   onClick={() => window.open(log.invoiceUrl, '_blank', 'noopener,noreferrer')}
-                                  className="px-2 sm:px-3 py-1 sm:py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-[9px] sm:text-[10px] font-black uppercase transition-all flex items-center gap-1 shadow-sm"
+                                  className="btn-pill px-2 sm:px-3 py-1 sm:py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-all flex items-center gap-1 shadow-sm"
                                 >
                                   <FileText size={10} className="sm:w-3 sm:h-3" /> <span className="hidden sm:inline">Invoice</span>
                                 </button>
@@ -1622,7 +1622,7 @@ export function ExpensesBudgetPage() {
                                               <button
                                                 type="button"
                                                 onClick={() => openExpenseDetails(expense, m, eIdx, viewingBudget.department)}
-                                                className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-blue-200 bg-white px-2 py-1 text-[9px] font-black uppercase tracking-widest text-blue-700 shadow-sm transition-colors hover:bg-blue-50"
+                                                className="btn-pill inline-flex shrink-0 items-center gap-1 border border-blue-200 bg-white px-2 py-1 text-blue-700 shadow-sm transition-colors hover:bg-blue-50"
                                               >
                                                 <Eye size={11} /> Details
                                               </button>
@@ -1704,16 +1704,16 @@ export function ExpensesBudgetPage() {
 
             {viewingBudget.status === 'Pending Review' ? (
               <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
-                <button onClick={() => { setRejectingRequest({ ...viewingBudget, modalType: 'estimated' }); setViewingExpense(null); setViewingBudget(null); }} className="flex-1 py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-black hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                <button onClick={() => { setRejectingRequest({ ...viewingBudget, modalType: 'estimated' }); setViewingExpense(null); setViewingBudget(null); }} className="btn-pill flex-1 py-3.5 bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 transition-all flex items-center justify-center gap-2">
                   <XCircle size={14} /> REJECT REQUEST
                 </button>
-                <button onClick={() => handleApproveEstimated(viewingBudget)} className="flex-[2] py-3.5 bg-green-600 text-white rounded-xl font-black shadow-lg shadow-green-200 hover:bg-green-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                <button onClick={() => handleApproveEstimated(viewingBudget)} className="btn-pill flex-[2] py-3.5 bg-green-600 text-white shadow-lg shadow-green-200 hover:bg-green-700 transition-all flex items-center justify-center gap-2">
                   APPROVE BUDGET <CheckCircle2 size={14} />
                 </button>
               </div>
             ) : (
               <div className="px-6 sm:px-8 py-5 bg-white border-t border-gray-100 flex justify-end shrink-0">
-                <button onClick={() => { setViewingExpense(null); setViewingBudget(null); }} className="px-8 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-black hover:bg-gray-200 transition-all text-sm">CLOSE</button>
+                <button onClick={() => { setViewingExpense(null); setViewingBudget(null); }} className="btn-pill px-8 py-3.5 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all">CLOSE</button>
               </div>
             )}
           </div>
@@ -1807,7 +1807,7 @@ export function ExpensesBudgetPage() {
                         type="button"
                         onClick={() => handleMarkPaidForExpense(viewingExpense)}
                         disabled={isUpdatingExpense}
-                        className="inline-flex items-center gap-2 rounded-xl bg-blue-100 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-blue-700 hover:bg-blue-200 transition-all disabled:opacity-60"
+                        className="btn-pill inline-flex items-center gap-2 bg-blue-100 px-4 py-3 text-blue-700 hover:bg-blue-200 transition-all disabled:opacity-60"
                       >
                         <CheckCircle2 size={14} />
                         {isUpdatingExpense ? 'Marking...' : 'Mark Paid'}
@@ -1861,16 +1861,16 @@ export function ExpensesBudgetPage() {
 
             {viewingExtra.status === 'Pending Review' ? (
               <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100 flex gap-3 sm:gap-4 shrink-0">
-                <button onClick={() => { setRejectingRequest({ ...viewingExtra, modalType: 'extra' }); setViewingExtra(null); }} className="flex-1 py-3 sm:py-3.5 bg-white border-2 border-red-200 text-red-600 rounded-xl font-black hover:bg-red-50 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                <button onClick={() => { setRejectingRequest({ ...viewingExtra, modalType: 'extra' }); setViewingExtra(null); }} className="btn-pill flex-1 py-3 sm:py-3.5 bg-white border-2 border-red-200 text-red-600 hover:bg-red-50 transition-all flex items-center justify-center gap-2">
                   <XCircle size={14} className="sm:w-4 sm:h-4" /> REJECT
                 </button>
-                <button onClick={handleApproveExtra} className="flex-[2] py-3 sm:py-3.5 bg-green-600 text-white rounded-xl font-black shadow-md shadow-green-200 hover:bg-green-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                <button onClick={handleApproveExtra} className="btn-pill flex-[2] py-3 sm:py-3.5 bg-green-600 text-white shadow-md shadow-green-200 hover:bg-green-700 transition-all flex items-center justify-center gap-2">
                   APPROVE <CheckCircle2 size={14} className="sm:w-4 sm:h-4" />
                 </button>
               </div>
             ) : (
               <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100 shrink-0">
-                <button onClick={() => setViewingExtra(null)} className="w-full py-3 sm:py-3.5 bg-white border border-gray-200 text-gray-700 rounded-xl font-black hover:bg-gray-100 transition-all text-xs sm:text-sm">CLOSE</button>
+                <button onClick={() => setViewingExtra(null)} className="btn-pill w-full py-3 sm:py-3.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 transition-all">CLOSE</button>
               </div>
             )}
           </div>
@@ -1893,7 +1893,7 @@ export function ExpensesBudgetPage() {
               <FileText size={40} className="mx-auto text-[#2563EB] mb-4 w-10 h-10 sm:w-12 sm:h-12" />
               <p className="font-bold text-gray-900 mb-2 text-sm sm:text-base">{viewingInvoice.invoice}</p>
               <p className="text-[10px] sm:text-xs font-bold text-gray-500 mb-6">PO: {viewingInvoice.refPoId}</p>
-              <button className="w-full py-3 sm:py-3.5 bg-blue-50 text-[#2563EB] border border-blue-200 rounded-xl font-black text-xs sm:text-sm hover:bg-blue-100 transition-all flex items-center justify-center gap-2">
+              <button className="btn-pill w-full py-3 sm:py-3.5 bg-blue-50 text-[#2563EB] border border-blue-200 hover:bg-blue-100 transition-all flex items-center justify-center gap-2">
                 <DownloadCloud size={14} className="sm:w-4 sm:h-4" /> DOWNLOAD
               </button>
             </div>
@@ -1925,8 +1925,8 @@ export function ExpensesBudgetPage() {
               </div>
 
               <div className="flex gap-3 sm:gap-4 pt-2">
-                <button type="button" onClick={() => setRejectingRequest(null)} className="flex-1 py-3 sm:py-3.5 bg-gray-100 text-gray-700 rounded-xl font-black hover:bg-gray-200 transition-all text-xs sm:text-sm">Cancel</button>
-                <button type="submit" className="flex-[2] py-3 sm:py-3.5 bg-red-600 text-white rounded-xl font-black shadow-lg shadow-red-200 hover:bg-red-700 transition-all text-xs sm:text-sm flex items-center justify-center gap-2">
+                <button type="button" onClick={() => setRejectingRequest(null)} className="btn-pill flex-1 py-3 sm:py-3.5 bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all">Cancel</button>
+                <button type="submit" className="btn-pill flex-[2] py-3 sm:py-3.5 bg-red-600 text-white shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-2">
                   Confirm
                 </button>
               </div>

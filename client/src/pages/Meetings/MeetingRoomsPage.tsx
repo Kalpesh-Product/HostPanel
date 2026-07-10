@@ -982,7 +982,7 @@ function ClientDetailsTab({
           type="button"
           disabled={isConfirming}
           onClick={handleConfirmClient}
-          className="w-full py-3 bg-[#2563EB] text-white rounded-xl font-black text-[12px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/25 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
+            className="w-full py-3 bg-[#2563EB] text-white btn-pill shadow-lg shadow-[#2563EB]/25 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
         >
           {isConfirming
             ? 'Saving…'
@@ -997,7 +997,7 @@ function ClientDetailsTab({
         <button
           type="button"
           onClick={() => setActiveDialogTab('booking')}
-          className="w-full py-3 bg-[#2563EB] text-white rounded-xl font-black text-[12px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/25 hover:bg-blue-600 transition-all active:scale-[0.98]"
+          className="w-full py-3 bg-[#2563EB] text-white btn-pill shadow-lg shadow-[#2563EB]/25 hover:bg-blue-600 transition-all active:scale-[0.98]"
         >
           Continue to Booking Details →
         </button>
@@ -1324,7 +1324,7 @@ function ExternalBookingDialog({
                       type="button"
                       disabled={isDisabled}
                       onClick={() => !isDisabled && setActiveDialogTab(tab)}
-                      className={`flex-1 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all
+                      className={`flex-1 py-2.5 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all
                         ${isActive ? 'bg-[#2563EB] text-white shadow-sm' : ''}
                         ${!isActive && !isDisabled ? 'text-[#0F172A] hover:bg-slate-200/70 hover:text-slate-900' : ''}
                         ${isDisabled ? 'text-slate-300 cursor-not-allowed' : ''}
@@ -1647,7 +1647,7 @@ function ExternalBookingDialog({
                                             setBookingForm((f) => ({ ...f, startTime: slot.startTime, endTime: slot.endTime }));
                                             setBookingErrors((prev) => { const n = { ...prev }; delete n.startTime; delete n.endTime; return n; });
                                           }}
-                                          className="px-2.5 py-1 rounded-full bg-white border border-red-200 text-[11px] font-bold text-red-700 hover:bg-red-100 transition-colors"
+                                          className="btn-pill px-2.5 py-1 bg-white border border-red-200 text-red-700 hover:bg-red-100 transition-colors"
                                         >
                                           {formatTime12h(slot.startTime)} — {formatTime12h(slot.endTime)}
                                         </button>
@@ -1734,7 +1734,7 @@ function ExternalBookingDialog({
                             key={mode}
                             type="button"
                             onClick={() => setBookingForm((f) => ({ ...f, paymentMode: mode }))}
-                            className={`flex-1 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all
+                            className={`flex-1 py-2 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all
                               ${bookingForm.paymentMode === mode
                                 ? 'bg-[#2563EB] text-white shadow-sm'
                                 : 'text-[#0F172A] hover:bg-slate-200/70 hover:text-slate-900'}
@@ -1761,7 +1761,7 @@ function ExternalBookingDialog({
                             key={status}
                             type="button"
                             onClick={() => setBookingForm((f) => ({ ...f, paymentStatus: status }))}
-                            className={`flex-1 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all
+                            className={`flex-1 py-2 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all
                               ${bookingForm.paymentStatus === status
                                 ? 'bg-[#2563EB] text-white shadow-sm'
                                 : 'text-[#0F172A] hover:bg-slate-200/70 hover:text-slate-900'}
@@ -1811,7 +1811,7 @@ function ExternalBookingDialog({
                               key={t}
                               type="button"
                               onClick={() => setBookingForm((f) => ({ ...f, discountType: t }))}
-                              className={`px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all
+                              className={`px-3 py-1.5 rounded-lg text-[10px] font-pmedium uppercase tracking-widest transition-all
                                 ${bookingForm.discountType === t
                                   ? 'bg-[#2563EB] text-white shadow-sm'
                                   : 'text-[#0F172A] hover:bg-slate-200/70'}
@@ -1902,7 +1902,7 @@ function ExternalBookingDialog({
                 type="button"
                 disabled={isSaving}
                 onClick={handleClose}
-                className="flex-1 py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-600 hover:text-[#0F172A] transition-all shadow-sm disabled:opacity-50"
+                className="btn-pill flex-1 py-3.5 bg-white border border-slate-200 text-slate-600 hover:text-[#0F172A] transition-all shadow-sm disabled:opacity-50"
               >
                 Close
               </button>
@@ -1923,7 +1923,7 @@ function ExternalBookingDialog({
                   Object.values(bookingErrors).some(Boolean)
                 }
                 onClick={handleDialogSubmit}
-                className="flex-1 py-3.5 bg-[#2563EB] text-white rounded-xl font-black text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
+                className="flex-1 py-3.5 bg-[#2563EB] text-white btn-pill shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
               >
                 {isSaving ? 'Saving...' : 'Confirm Booking'}
               </button>
@@ -3721,7 +3721,7 @@ export function MeetingRoomsPage() {
                       setNewBooking((prev) => ({ ...prev, floor: '', wing: '', roomType: '', roomName: '' }));
                       setShowBookingDialog(true);
                     }}
-                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
+                    className="btn-pill w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
                   >
                     <Plus size={14} strokeWidth={3} /> BOOK A ROOM
                   </button>
@@ -3729,7 +3729,7 @@ export function MeetingRoomsPage() {
                 {mainBookingTab === 'internal_booking' && (
                   <button
                     onClick={() => setShowInternalBookingDialog(true)}
-                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
+                    className="btn-pill w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
                   >
                     <UserPlus size={14} strokeWidth={3} /> BOOK FOR MEMBER
                   </button>
@@ -3737,7 +3737,7 @@ export function MeetingRoomsPage() {
                 {mainBookingTab === 'external_booking' && (
                   <button
                     onClick={() => setShowNewExternalBookingDialog(true)}
-                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
+                    className="btn-pill w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
                   >
                     <Globe size={14} strokeWidth={3} /> WALK-IN BOOKING
                   </button>
@@ -3745,7 +3745,7 @@ export function MeetingRoomsPage() {
                 {mainBookingTab === 'tenant_bookings' && (
                   <button
                     onClick={() => setShowTenantBookingDialog(true)}
-                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-indigo-700 active:scale-95"
+                    className="btn-pill w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-indigo-700 active:scale-95"
                   >
                     <Building2 size={14} strokeWidth={3} /> TENANT BOOKING
                   </button>
@@ -3776,7 +3776,7 @@ export function MeetingRoomsPage() {
                     else setActiveTab('bookings');
                     setStatusFilter('all');
                   }}
-                  className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${mainBookingTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                  className={`flex-1 rounded-full px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all ${mainBookingTab === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                 >
                   {tab.label}
                 </button>
@@ -3812,7 +3812,7 @@ export function MeetingRoomsPage() {
                       <>
                         <button
                           onClick={() => { setActiveTab('my_bookings'); setStatusFilter('all'); }}
-                          className={`flex-1 min-w-0 sm:min-w-[100px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'my_bookings' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
+                          className={`flex-1 min-w-0 sm:min-w-[100px] py-2 px-2.5 sm:px-4 rounded-full text-[10px] sm:text-[13px] font-pmedium transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'my_bookings' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
                             }`}
                         >
                           {activeTab === 'my_bookings' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
@@ -3820,7 +3820,7 @@ export function MeetingRoomsPage() {
                         </button>
                         <button
                           onClick={() => { setActiveTab('invites'); setStatusFilter('all'); }}
-                          className={`flex-1 min-w-0 sm:min-w-[90px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'invites' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
+                          className={`flex-1 min-w-0 sm:min-w-[90px] py-2 px-2.5 sm:px-4 rounded-full text-[10px] sm:text-[13px] font-pmedium transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'invites' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
                             }`}
                         >
                           {activeTab === 'invites' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
@@ -3845,7 +3845,7 @@ export function MeetingRoomsPage() {
                             setActiveTab(tab);
                             setStatusFilter('all');
                           }}
-                          className={`flex-[2.2] min-w-[210px] sm:min-w-[250px] lg:min-w-[120px] py-2 px-3 sm:px-4 rounded-lg text-[11px] sm:text-[12px] lg:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap text-center ${(activeTab === 'assigned_dept_bookings' || activeTab === 'company_bookings' || activeTab === 'dept_bookings') ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
+                          className={`flex-[2.2] min-w-[210px] sm:min-w-[250px] lg:min-w-[120px] py-2 px-3 sm:px-4 rounded-full text-[10px] sm:text-[12px] lg:text-[13px] font-pmedium transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap text-center ${(activeTab === 'assigned_dept_bookings' || activeTab === 'company_bookings' || activeTab === 'dept_bookings') ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
                             }`}
                         >
                           {(activeTab === 'assigned_dept_bookings' || activeTab === 'company_bookings' || activeTab === 'dept_bookings') && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
@@ -3853,7 +3853,7 @@ export function MeetingRoomsPage() {
                         </button>
                         <button
                           onClick={() => { setActiveTab('my_bookings'); setStatusFilter('all'); }}
-                          className={`flex-1 min-w-0 sm:min-w-[100px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'my_bookings' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
+                          className={`flex-1 min-w-0 sm:min-w-[100px] py-2 px-2.5 sm:px-4 rounded-full text-[10px] sm:text-[13px] font-pmedium transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'my_bookings' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
                             }`}
                         >
                           {activeTab === 'my_bookings' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
@@ -3861,7 +3861,7 @@ export function MeetingRoomsPage() {
                         </button>
                         <button
                           onClick={() => { setActiveTab('invites'); setStatusFilter('all'); }}
-                          className={`flex-1 min-w-0 sm:min-w-[90px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'invites' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
+                          className={`flex-1 min-w-0 sm:min-w-[90px] py-2 px-2.5 sm:px-4 rounded-full text-[10px] sm:text-[13px] font-pmedium transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'invites' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
                             }`}
                         >
                           {activeTab === 'invites' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
@@ -3880,14 +3880,14 @@ export function MeetingRoomsPage() {
                     <div className="flex bg-slate-100/50 p-1 rounded-xl w-full xl:w-auto relative border border-slate-200/50 overflow-x-auto">
                       <button
                         onClick={() => { setActiveTab('bookings'); setStatusFilter('all'); }}
-                        className={`flex-1 min-w-0 sm:min-w-[100px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'bookings' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'}`}
+                        className={`flex-1 min-w-0 sm:min-w-[100px] py-2 px-2.5 sm:px-4 rounded-full text-[10px] sm:text-[13px] font-pmedium transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'bookings' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'}`}
                       >
                         {activeTab === 'bookings' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
                         BOOKINGS
                       </button>
                       <button
                         onClick={() => { setActiveTab('booking_history'); setStatusFilter('all'); }}
-                        className={`flex-1 min-w-0 sm:min-w-[120px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'booking_history' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'}`}
+                        className={`flex-1 min-w-0 sm:min-w-[120px] py-2 px-2.5 sm:px-4 rounded-full text-[10px] sm:text-[13px] font-pmedium transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'booking_history' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'}`}
                       >
                         {activeTab === 'booking_history' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
                         BOOKING HISTORY
@@ -3913,7 +3913,7 @@ export function MeetingRoomsPage() {
                       setNewBooking((prev) => ({ ...prev, floor: '', wing: '', roomType: '', roomName: '' }));
                       setShowBookingDialog(true);
                     }}
-                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
+                    className="btn-pill w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
                   >
                     <Plus size={14} strokeWidth={3} /> BOOK A ROOM
                   </button>
@@ -3921,7 +3921,7 @@ export function MeetingRoomsPage() {
                 {mainBookingTab === 'internal_booking' && (
                   <button
                     onClick={() => setShowInternalBookingDialog(true)}
-                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
+                    className="btn-pill w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
                   >
                     <UserPlus size={14} strokeWidth={3} /> BOOK FOR MEMBER
                   </button>
@@ -3929,7 +3929,7 @@ export function MeetingRoomsPage() {
                 {mainBookingTab === 'external_booking' && (
                   <button
                     onClick={() => setShowNewExternalBookingDialog(true)}
-                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
+                    className="btn-pill w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
                   >
                     <Globe size={14} strokeWidth={3} /> WALK-IN BOOKING
                   </button>
@@ -3937,7 +3937,7 @@ export function MeetingRoomsPage() {
                 {mainBookingTab === 'tenant_bookings' && (
                   <button
                     onClick={() => setShowTenantBookingDialog(true)}
-                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-indigo-700 active:scale-95"
+                    className="btn-pill w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-indigo-700 active:scale-95"
                   >
                     <Building2 size={14} strokeWidth={3} /> TENANT BOOKING
                   </button>
@@ -3982,7 +3982,7 @@ export function MeetingRoomsPage() {
                     <button
                       key={pill.key}
                       onClick={() => setStatusFilter(pill.key)}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${statusFilter === pill.key
+                      className={`px-3 py-1.5 rounded-full text-[10px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${statusFilter === pill.key
                         ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
                         : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
                         }`}
@@ -4062,15 +4062,15 @@ export function MeetingRoomsPage() {
                                     </td>
                                     <td className="px-5 py-4 text-center">
                                       <div className="flex items-center justify-center gap-1.5">
-                                        <button onClick={() => setViewingBooking(b)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-primary/10 hover:text-primary rounded-lg transition-all" title="View Details"><Eye size={15} strokeWidth={2.5} /></button>
+                                        <button onClick={() => setViewingBooking(b)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-primary/10 hover:text-primary rounded-full transition-all" title="View Details"><Eye size={15} strokeWidth={2.5} /></button>
                                         {displayStatus === 'booked' && (
-                                          <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setRescheduleInviteeIds([]); setShowRescheduleDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-purple-100 hover:text-purple-700 rounded-lg transition-all" title="Reschedule"><CalendarClock size={15} strokeWidth={2.5} /></button>
+                                          <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setRescheduleInviteeIds([]); setShowRescheduleDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-purple-100 hover:text-purple-700 rounded-full transition-all" title="Reschedule"><CalendarClock size={15} strokeWidth={2.5} /></button>
                                         )}
                                         {displayStatus === 'in progress' && (
-                                          <button onClick={() => { setExtendBooking(b); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all" title="Extend Booking"><Clock size={15} strokeWidth={2.5} /></button>
+                                          <button onClick={() => { setExtendBooking(b); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-full transition-all" title="Extend Booking"><Clock size={15} strokeWidth={2.5} /></button>
                                         )}
                                         {canCancel && (
-                                          <button onClick={() => { setBookingToCancel(b); setShowCancelDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600 rounded-lg transition-all" title="Cancel Booking"><XCircle size={15} strokeWidth={2.5} /></button>
+                                          <button onClick={() => { setBookingToCancel(b); setShowCancelDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600 rounded-full transition-all" title="Cancel Booking"><XCircle size={15} strokeWidth={2.5} /></button>
                                         )}
                                       </div>
                                     </td>
@@ -4125,15 +4125,15 @@ export function MeetingRoomsPage() {
                                   </div>
                                 </div>
                                 <div className="flex justify-end gap-2 pt-1 border-t border-slate-100">
-                                  <button onClick={() => setViewingBooking(b)} className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl shadow-sm">Details</button>
+                                  <button onClick={() => setViewingBooking(b)} className="btn-pill flex-1 py-2 bg-white border border-slate-200 text-slate-600 shadow-sm">Details</button>
                                   {displayStatus === 'booked' && (
-                                    <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setRescheduleInviteeIds([]); setShowRescheduleDialog(true); }} className="flex-1 py-2 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs rounded-xl shadow-sm">Reschedule</button>
+                                    <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setRescheduleInviteeIds([]); setShowRescheduleDialog(true); }} className="flex-1 py-2 bg-purple-50 border border-purple-200 text-purple-700 font-pmedium text-[10px] rounded-full shadow-sm">Reschedule</button>
                                   )}
                                   {displayStatus === 'in progress' && (
-                                    <button onClick={() => { setExtendBooking(b); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="flex-1 py-2 bg-amber-50 border border-amber-200 text-amber-700 font-bold text-xs rounded-xl shadow-sm">Extend</button>
+                                    <button onClick={() => { setExtendBooking(b); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="flex-1 py-2 bg-amber-50 border border-amber-200 text-amber-700 font-pmedium text-[10px] rounded-full shadow-sm">Extend</button>
                                   )}
                                   {canCancel && (
-                                    <button onClick={() => { setBookingToCancel(b); setShowCancelDialog(true); }} className="flex-1 py-2 bg-red-50 border border-red-200 text-red-600 font-bold text-xs rounded-xl shadow-sm">Cancel</button>
+                                    <button onClick={() => { setBookingToCancel(b); setShowCancelDialog(true); }} className="flex-1 py-2 bg-red-50 border border-red-200 text-red-600 font-pmedium text-[10px] rounded-full shadow-sm">Cancel</button>
                                   )}
                                 </div>
                               </div>
@@ -4214,15 +4214,15 @@ export function MeetingRoomsPage() {
                                 </td>
                                 <td className="px-5 py-4 text-center">
                                   <div className="flex items-center justify-center gap-1.5">
-                                    <button onClick={() => setViewingBooking(b)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-primary/10 hover:text-primary rounded-lg transition-all" title="View Details"><Eye size={15} strokeWidth={2.5} /></button>
+                                    <button onClick={() => setViewingBooking(b)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-primary/10 hover:text-primary rounded-full transition-all" title="View Details"><Eye size={15} strokeWidth={2.5} /></button>
                                     {canRescheduleBooking && (
                                       <>
-                                        <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setRescheduleInviteeIds(b.inviteeUserIds || []); setShowRescheduleDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-purple-100 hover:text-purple-700 rounded-lg transition-all" title="Reschedule"><CalendarClock size={15} strokeWidth={2.5} /></button>
-                                        <button onClick={() => { setBookingToCancel(b); setShowCancelDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600 rounded-lg transition-all" title="Cancel Booking"><XCircle size={15} strokeWidth={2.5} /></button>
+                                        <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setRescheduleInviteeIds(b.inviteeUserIds || []); setShowRescheduleDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-purple-100 hover:text-purple-700 rounded-full transition-all" title="Reschedule"><CalendarClock size={15} strokeWidth={2.5} /></button>
+                                        <button onClick={() => { setBookingToCancel(b); setShowCancelDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-red-100 hover:text-red-600 rounded-full transition-all" title="Cancel Booking"><XCircle size={15} strokeWidth={2.5} /></button>
                                       </>
                                     )}
                                     {canExtendBooking && (
-                                      <button onClick={() => { setExtendBooking(b); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-lg transition-all" title="Extend Booking"><Clock size={15} strokeWidth={2.5} /></button>
+                                      <button onClick={() => { setExtendBooking(b); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-amber-100 hover:text-amber-700 rounded-full transition-all" title="Extend Booking"><Clock size={15} strokeWidth={2.5} /></button>
                                     )}
                                   </div>
                                 </td>
@@ -4287,15 +4287,15 @@ export function MeetingRoomsPage() {
                             </div>
 
                             <div className="flex justify-end gap-2 pt-1 border-t border-slate-100">
-                              <button onClick={() => setViewingBooking(b)} className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl shadow-sm">Details</button>
+                              <button onClick={() => setViewingBooking(b)} className="btn-pill flex-1 py-2 bg-white border border-slate-200 text-slate-600 shadow-sm">Details</button>
                               {canRescheduleBooking && (
                                 <>
-                                  <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setRescheduleInviteeIds(b.inviteeUserIds || []); setShowRescheduleDialog(true); }} className="flex-1 py-2 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs rounded-xl shadow-sm">Reschedule</button>
-                                  <button onClick={() => { setBookingToCancel(b); setShowCancelDialog(true); }} className="flex-1 py-2 bg-red-50 border border-red-200 text-red-600 font-bold text-xs rounded-xl shadow-sm">Cancel</button>
+                                  <button onClick={() => { setRescheduleData({ ...b, startTime: b.startTime, endTime: b.endTime }); setRescheduleInviteeIds(b.inviteeUserIds || []); setShowRescheduleDialog(true); }} className="flex-1 py-2 bg-purple-50 border border-purple-200 text-purple-700 font-pmedium text-[10px] rounded-full shadow-sm">Reschedule</button>
+                                  <button onClick={() => { setBookingToCancel(b); setShowCancelDialog(true); }} className="flex-1 py-2 bg-red-50 border border-red-200 text-red-600 font-pmedium text-[10px] rounded-full shadow-sm">Cancel</button>
                                 </>
                               )}
                               {canExtendBooking && (
-                                <button onClick={() => { setExtendBooking(b); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="flex-1 py-2 bg-amber-50 border border-amber-200 text-amber-700 font-bold text-xs rounded-xl shadow-sm">Extend</button>
+                                <button onClick={() => { setExtendBooking(b); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="flex-1 py-2 bg-amber-50 border border-amber-200 text-amber-700 font-pmedium text-[10px] rounded-full shadow-sm">Extend</button>
                               )}
                             </div>
                           </div>
@@ -4356,18 +4356,18 @@ export function MeetingRoomsPage() {
                                   </td>
                                   <td className="px-5 py-4">
                                     <div className="flex justify-center gap-1.5 transition-opacity">
-                                      <button onClick={() => setViewingBooking(allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-primary/10 hover:text-primary rounded-lg transition-all" title="View Details"><Eye size={15} strokeWidth={2.5} /></button>
+                                      <button onClick={() => setViewingBooking(allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-primary/10 hover:text-primary rounded-full transition-all" title="View Details"><Eye size={15} strokeWidth={2.5} /></button>
                                       {invite.status === 'pending' && canRespond && (
                                         <>
-                                          <button onClick={() => handleInviteResponse(invite, 'accepted')} className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition-all" title="Accept"><CheckCircle2 size={15} strokeWidth={2.5} /></button>
-                                          <button onClick={() => handleInviteResponse(invite, 'rejected')} className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all" title="Reject"><XCircle size={15} strokeWidth={2.5} /></button>
+                                          <button onClick={() => handleInviteResponse(invite, 'accepted')} className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-full transition-all" title="Accept"><CheckCircle2 size={15} strokeWidth={2.5} /></button>
+                                          <button onClick={() => handleInviteResponse(invite, 'rejected')} className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-full transition-all" title="Reject"><XCircle size={15} strokeWidth={2.5} /></button>
                                         </>
                                       )}
                                       {invite.status === 'pending' && !canRespond && (
                                         <span className="px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider bg-slate-100 text-slate-500 border border-slate-200">Expired</span>
                                       )}
                                       {invite.status === 'rejected' && invite.responseReason && (
-                                        <button onClick={() => setViewingBooking(allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null)} className="p-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg transition-all" title="View Reject Reason">Reason</button>
+                                        <button onClick={() => setViewingBooking(allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null)} className="p-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-full transition-all" title="View Reject Reason">Reason</button>
                                       )}
                                     </div>
                                   </td>
@@ -4411,18 +4411,18 @@ export function MeetingRoomsPage() {
                                 </div>
                               </div>
                               <div className="flex justify-end gap-2 pt-1 border-t border-slate-100">
-                                <button onClick={() => setViewingBooking(allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null)} className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl shadow-sm">Details</button>
+                                <button onClick={() => setViewingBooking(allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null)} className="btn-pill flex-1 py-2 bg-white border border-slate-200 text-slate-600 shadow-sm">Details</button>
                                 {invite.status === 'pending' && canRespond && (
                                   <>
-                                    <button onClick={() => handleInviteResponse(invite, 'accepted')} className="flex-1 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-xs rounded-xl shadow-sm">Accept</button>
-                                    <button onClick={() => handleInviteResponse(invite, 'rejected')} className="flex-1 py-2 bg-red-50 border border-red-200 text-red-600 font-bold text-xs rounded-xl shadow-sm">Reject</button>
+                                    <button onClick={() => handleInviteResponse(invite, 'accepted')} className="flex-1 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 font-pmedium text-[10px] rounded-full shadow-sm">Accept</button>
+                                    <button onClick={() => handleInviteResponse(invite, 'rejected')} className="flex-1 py-2 bg-red-50 border border-red-200 text-red-600 font-pmedium text-[10px] rounded-full shadow-sm">Reject</button>
                                   </>
                                 )}
                                 {invite.status === 'pending' && !canRespond && (
-                                  <div className="flex-1 py-2 text-center bg-slate-50 border border-slate-200 text-slate-500 font-bold text-xs rounded-xl shadow-sm">Expired</div>
+                                  <div className="flex-1 py-2 text-center bg-slate-50 border border-slate-200 text-slate-500 font-pmedium text-[10px] rounded-full shadow-sm">Expired</div>
                                 )}
                                 {invite.status === 'rejected' && invite.responseReason && (
-                                  <button onClick={() => setViewingBooking(allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null)} className="flex-1 py-2 bg-purple-50 border border-purple-200 text-purple-700 font-bold text-xs rounded-xl shadow-sm">Reason</button>
+                                  <button onClick={() => setViewingBooking(allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null)} className="flex-1 py-2 bg-purple-50 border border-purple-200 text-purple-700 font-pmedium text-[10px] rounded-full shadow-sm">Reason</button>
                                 )}
                               </div>
                             </div>
@@ -4461,9 +4461,9 @@ export function MeetingRoomsPage() {
                   </div>
 
                   <div className="flex justify-between items-center mb-5">
-                    <button onClick={handlePrevMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"><ChevronLeft size={16} /></button>
+                    <button onClick={handlePrevMonth} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"><ChevronLeft size={16} /></button>
                     <span className="font-bold text-[12px] text-[#0F172A] tracking-wide">{monthNames[currentMonth]} {currentYear}</span>
-                    <button onClick={handleNextMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"><ChevronRight size={16} /></button>
+                    <button onClick={handleNextMonth} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"><ChevronRight size={16} /></button>
                   </div>
 
                   <div className="grid grid-cols-7 gap-1.5 mb-1.5 text-center text-[10px] font-black text-slate-400 tracking-widest">
@@ -4488,7 +4488,7 @@ export function MeetingRoomsPage() {
                           type="button"
                           title={`Bookings: ${dayBookings.length}`}
                           onClick={() => setSelectedCalendarDateKey(dateStr)}
-                          className={`aspect-square rounded-[10px] sm:rounded-xl border-2 p-1.5 sm:p-2 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm flex flex-col justify-between ${dayStyle} ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-white' : ''}`}
+                          className={`aspect-square rounded-[10px] sm:rounded-full border-2 p-1.5 sm:p-2 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm flex flex-col justify-between ${dayStyle} ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-white' : ''}`}
                         >
                           <div className="flex justify-between items-start gap-1">
                             <span className="font-black text-[11px] sm:text-[13px] leading-none">{day}</span>
@@ -4888,7 +4888,7 @@ export function MeetingRoomsPage() {
                               key={`${slot.start}-${slot.end}`}
                               type="button"
                               onClick={() => setNewBooking((prev) => ({ ...prev, startTime: slot.start, endTime: slot.end }))}
-                              className="px-3 py-1.5 rounded-full bg-white border border-red-200 text-[11px] font-bold text-red-700 hover:bg-red-100 transition-colors"
+                                  className="btn-pill px-3 py-1.5 bg-white border border-red-200 text-red-700 hover:bg-red-100 transition-colors"
                             >
                               {formatTimeOptionLabel(slot.start)} – {formatTimeOptionLabel(slot.end)}
                             </button>
@@ -4908,7 +4908,7 @@ export function MeetingRoomsPage() {
                           key={`rec-${slot.start}-${slot.end}`}
                           type="button"
                           onClick={() => setNewBooking((prev) => ({ ...prev, startTime: slot.start, endTime: slot.end }))}
-                          className="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-[11px] font-bold text-slate-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors"
+                          className="btn-pill px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-colors"
                         >
                           {formatTimeOptionLabel(slot.start)} – {formatTimeOptionLabel(slot.end)}
                         </button>
@@ -5011,7 +5011,7 @@ export function MeetingRoomsPage() {
                 <button
                   disabled={bookingStatus !== 'available' || isSavingBooking || !newBooking.purpose.trim() || !newBooking.roomType || !newBooking.roomName || !newBooking.date || !newBooking.startTime || !newBooking.endTime}
                   onClick={handleCreateBooking}
-                  className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
+                  className="btn-pill w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
                 >
                   {isSavingBooking ? 'Saving...' : 'Confirm Booking'}
                 </button>
@@ -5249,12 +5249,12 @@ export function MeetingRoomsPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                         {canRescheduleOwnBooking(viewingBooking) && (
                           <>
-                            <button onClick={() => { setRescheduleData({ ...viewingBooking, startTime: viewingBooking.startTime, endTime: viewingBooking.endTime }); setRescheduleInviteeIds(viewingBooking.inviteeUserIds || []); setShowRescheduleDialog(true); }} className="w-full py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-2"><CalendarClock size={16} /> Reschedule</button>
-                            <button onClick={() => { setBookingToCancel(viewingBooking); setShowCancelDialog(true); }} className="w-full py-3.5 bg-red-50 border border-red-200 rounded-xl font-bold text-[13px] text-red-700 hover:bg-red-100 transition-all shadow-sm flex items-center justify-center gap-2"><XCircle size={16} /> Cancel</button>
+                            <button onClick={() => { setRescheduleData({ ...viewingBooking, startTime: viewingBooking.startTime, endTime: viewingBooking.endTime }); setRescheduleInviteeIds(viewingBooking.inviteeUserIds || []); setShowRescheduleDialog(true); }} className="btn-pill w-full py-3.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center gap-2"><CalendarClock size={16} /> Reschedule</button>
+                            <button onClick={() => { setBookingToCancel(viewingBooking); setShowCancelDialog(true); }} className="w-full py-3.5 bg-red-50 border border-red-200 btn-pill text-red-700 hover:bg-red-100 transition-all shadow-sm flex items-center justify-center gap-2"><XCircle size={16} /> Cancel</button>
                           </>
                         )}
                         {canExtendOwnBooking(viewingBooking) && (
-                          <button onClick={() => { setExtendBooking(viewingBooking); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="w-full py-3.5 bg-amber-50 border border-amber-200 rounded-xl font-bold text-[13px] text-amber-700 hover:bg-amber-100 transition-all shadow-sm flex items-center justify-center gap-2 sm:col-span-2"><Clock size={16} /> Extend Booking</button>
+                            <button onClick={() => { setExtendBooking(viewingBooking); setExtendForm({ extraMinutes: '30' }); setShowExtendDialog(true); }} className="w-full py-3.5 bg-amber-50 border border-amber-200 btn-pill text-amber-700 hover:bg-amber-100 transition-all shadow-sm flex items-center justify-center gap-2 sm:col-span-2"><Clock size={16} /> Extend Booking</button>
                         )}
                       </div>
                     )}
@@ -5366,8 +5366,8 @@ export function MeetingRoomsPage() {
               </div>
 
               <div className="p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 flex gap-3 sticky bottom-0">
-                <button disabled={isSavingBooking} onClick={closeExtendDialog} className="flex-1 py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-600 hover:text-[#0F172A] transition-all shadow-sm disabled:opacity-50">Cancel</button>
-                <button disabled={!extendBookingPreview?.available || isSavingBooking} onClick={handleExtendBooking} className="flex-1 py-3.5 bg-amber-500 text-white rounded-xl font-bold text-[13px] uppercase tracking-wider shadow-lg shadow-amber-200 disabled:bg-slate-200 disabled:shadow-none hover:bg-amber-600 transition-all active:scale-[0.98]">{isSavingBooking ? 'Saving...' : 'Extend Booking'}</button>
+                <button disabled={isSavingBooking} onClick={closeExtendDialog} className="btn-pill flex-1 py-3.5 bg-white border border-slate-200 text-slate-600 hover:text-[#0F172A] transition-all shadow-sm disabled:opacity-50">Cancel</button>
+                <button disabled={!extendBookingPreview?.available || isSavingBooking} onClick={handleExtendBooking} className="flex-1 py-3.5 bg-amber-500 text-white btn-pill shadow-lg shadow-amber-200 disabled:bg-slate-200 disabled:shadow-none hover:bg-amber-600 transition-all active:scale-[0.98]">{isSavingBooking ? 'Saving...' : 'Extend Booking'}</button>
               </div>
             </motion.div>
           </div>
@@ -5422,8 +5422,8 @@ export function MeetingRoomsPage() {
                 </div>
               </div>
               <div className="p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 flex gap-3">
-                <button disabled={isSavingBooking} onClick={closeRejectInviteDialog} className="flex-1 py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-600 hover:text-[#0F172A] hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50">Keep It</button>
-                <button disabled={!inviteRejectReason.trim() || isSavingBooking} onClick={handleRejectInviteSubmit} className="flex-1 py-3.5 bg-red-600 text-white rounded-xl font-bold text-[13px] shadow-lg shadow-red-500/30 disabled:bg-slate-200 disabled:shadow-none hover:bg-red-700 transition-all active:scale-[0.98]">{isSavingBooking ? 'Saving...' : 'Reject Invite'}</button>
+                <button disabled={isSavingBooking} onClick={closeRejectInviteDialog} className="btn-pill flex-1 py-3.5 bg-white border border-slate-200 text-slate-600 hover:text-[#0F172A] hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50">Keep It</button>
+                <button disabled={!inviteRejectReason.trim() || isSavingBooking} onClick={handleRejectInviteSubmit} className="flex-1 py-3.5 bg-red-600 text-white btn-pill shadow-lg shadow-red-500/30 disabled:bg-slate-200 disabled:shadow-none hover:bg-red-700 transition-all active:scale-[0.98]">{isSavingBooking ? 'Saving...' : 'Reject Invite'}</button>
               </div>
             </motion.div>
           </div>
@@ -5479,8 +5479,8 @@ export function MeetingRoomsPage() {
                 </div>
               </div>
               <div className="p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 flex gap-3">
-                <button disabled={isSavingBooking} onClick={() => setShowCancelDialog(false)} className="flex-1 py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-600 hover:text-[#0F172A] hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50">Keep It</button>
-                <button disabled={!cancelReason.trim() || isSavingBooking} onClick={handleCancelBooking} className="flex-1 py-3.5 bg-red-600 text-white rounded-xl font-bold text-[13px] shadow-lg shadow-red-500/30 disabled:bg-slate-200 disabled:shadow-none hover:bg-red-700 transition-all active:scale-[0.98]">{isSavingBooking ? 'Saving...' : 'Cancel Meeting'}</button>
+                <button disabled={isSavingBooking} onClick={() => setShowCancelDialog(false)} className="btn-pill flex-1 py-3.5 bg-white border border-slate-200 text-slate-600 hover:text-[#0F172A] hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50">Keep It</button>
+                <button disabled={!cancelReason.trim() || isSavingBooking} onClick={handleCancelBooking} className="flex-1 py-3.5 bg-red-600 text-white btn-pill shadow-lg shadow-red-500/30 disabled:bg-slate-200 disabled:shadow-none hover:bg-red-700 transition-all active:scale-[0.98]">{isSavingBooking ? 'Saving...' : 'Cancel Meeting'}</button>
               </div>
             </motion.div>
           </div>
@@ -5733,8 +5733,8 @@ export function MeetingRoomsPage() {
                 )}
               </div>
               <div className="p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 flex gap-3 sticky bottom-0">
-                <button disabled={isSavingBooking} className="flex-1 py-3.5 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-600 hover:text-[#0F172A] transition-all shadow-sm disabled:opacity-50" onClick={() => setShowRescheduleDialog(false)}>Cancel</button>
-                <button disabled={rescheduleStatus !== 'available' || isSavingBooking} onClick={handleRescheduleBooking} className="flex-1 py-3.5 bg-[#2563EB] text-white rounded-xl font-bold text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">{isSavingBooking ? 'Saving...' : 'Update'}</button>
+                <button disabled={isSavingBooking} className="btn-pill flex-1 py-3.5 bg-white border border-slate-200 text-slate-600 hover:text-[#0F172A] transition-all shadow-sm disabled:opacity-50" onClick={() => setShowRescheduleDialog(false)}>Cancel</button>
+                <button disabled={rescheduleStatus !== 'available' || isSavingBooking} onClick={handleRescheduleBooking} className="flex-1 py-3.5 bg-[#2563EB] text-white btn-pill shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">{isSavingBooking ? 'Saving...' : 'Update'}</button>
               </div>
             </motion.div>
           </div>
@@ -5774,7 +5774,7 @@ export function MeetingRoomsPage() {
                       setExternalBookingClientTab(tab.key as any);
                       setExtClientSearch(''); setExtClientSearchResults([]); setExtClientSelected(null);
                     }}
-                      className={`flex-1 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${(externalBookingClientTab as string) === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#0F172A] hover:bg-slate-200/70 hover:text-slate-900'}`}>
+                      className={`flex-1 py-2.5 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all ${(externalBookingClientTab as string) === tab.key ? 'bg-[#2563EB] text-white shadow-sm' : 'text-[#0F172A] hover:bg-slate-200/70 hover:text-slate-900'}`}>
                       {tab.label}
                     </button>
                   ))}
@@ -6036,8 +6036,8 @@ export function MeetingRoomsPage() {
                             
                             <div className="space-y-3">
                               <div className="flex gap-2">
-                                <button type="button" onClick={() => setExternalBookingForm(f => ({ ...f, discountType: 'amount' }))} className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${externalBookingForm.discountType === 'amount' ? 'bg-[#2563EB] text-white' : 'bg-white text-slate-500 border border-slate-200'}`}>Amount</button>
-                                <button type="button" onClick={() => setExternalBookingForm(f => ({ ...f, discountType: 'percent' }))} className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${externalBookingForm.discountType === 'percent' ? 'bg-[#2563EB] text-white' : 'bg-white text-slate-500 border border-slate-200'}`}>Percent</button>
+                                <button type="button" onClick={() => setExternalBookingForm(f => ({ ...f, discountType: 'amount' }))} className={`flex-1 py-2 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all ${externalBookingForm.discountType === 'amount' ? 'bg-[#2563EB] text-white' : 'bg-white text-slate-500 border border-slate-200'}`}>Amount</button>
+                                <button type="button" onClick={() => setExternalBookingForm(f => ({ ...f, discountType: 'percent' }))} className={`flex-1 py-2 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all ${externalBookingForm.discountType === 'percent' ? 'bg-[#2563EB] text-white' : 'bg-white text-slate-500 border border-slate-200'}`}>Percent</button>
                               </div>
                               <input type="number" min="0" placeholder={externalBookingForm.discountType === 'percent' ? 'e.g. 10' : 'e.g. 500'} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-[12px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" value={externalBookingForm.discountValue} onChange={e => setExternalBookingForm(f => ({ ...f, discountValue: e.target.value }))} />
                             </div>
@@ -6078,7 +6078,7 @@ export function MeetingRoomsPage() {
                   <div className="grid grid-cols-2 gap-3">
                     {['Cash', 'GPay (UPI)'].map(mode => (
                       <button key={mode} type="button" onClick={() => setExternalBookingForm(f => ({ ...f, paymentMode: mode, transactionId: mode === 'Cash' ? '' : f.transactionId }))}
-                        className={`py-3.5 rounded-2xl border text-[11px] font-black uppercase tracking-widest transition-all ${externalBookingForm.paymentMode === mode ? 'border-[#2563EB] bg-[#2563EB] text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-[#2563EB]/50'}`}>
+                        className={`py-3.5 rounded-full border text-[10px] font-pmedium uppercase tracking-widest transition-all ${externalBookingForm.paymentMode === mode ? 'border-[#2563EB] bg-[#2563EB] text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-[#2563EB]/50'}`}>
                         {mode}
                       </button>
                     ))}
@@ -6097,7 +6097,7 @@ export function MeetingRoomsPage() {
               </div>
 
               <div className="p-4 sm:p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 shrink-0">
-                <button type="button" disabled={isSavingExternalBooking || !externalBookingForm.name || !externalBookingForm.phone || !externalBookingForm.roomName || !externalBookingForm.date || !externalBookingForm.startTime || !externalBookingForm.endTime} onClick={(e: any) => handleSubmitExternalBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
+                <button type="button" disabled={isSavingExternalBooking || !externalBookingForm.name || !externalBookingForm.phone || !externalBookingForm.roomName || !externalBookingForm.date || !externalBookingForm.startTime || !externalBookingForm.endTime} onClick={(e: any) => handleSubmitExternalBooking(e)} className="btn-pill w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
                   {isSavingExternalBooking ? 'Confirming...' : 'Collect Payment & Confirm'}
                 </button>
               </div>
@@ -6349,7 +6349,7 @@ export function MeetingRoomsPage() {
                                   key={`${slot.start}-${slot.end}`}
                                   type="button"
                                   onClick={() => setInternalBookingForm(f => ({ ...f, startTime: slot.start, endTime: slot.end }))}
-                                  className="px-3 py-1.5 rounded-full bg-white border border-red-200 text-[11px] font-bold text-red-700 hover:bg-red-100 transition-colors"
+                              className="btn-pill px-3 py-1.5 bg-white border border-red-200 text-red-700 hover:bg-red-100 transition-colors"
                                 >
                                   {formatTimeOptionLabel(slot.start)} — {formatTimeOptionLabel(slot.end)}
                                 </button>
@@ -6477,7 +6477,7 @@ export function MeetingRoomsPage() {
               </div>
 
               <div className="p-4 sm:p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 shrink-0">
-                <button type="button" disabled={isSavingInternalBooking || !internalBookingForm.bookedForUserId || !internalBookingForm.roomName || !internalBookingForm.date || !internalBookingForm.startTime || !internalBookingForm.endTime || internalBookingAvailability === 'conflict' || internalBookingAvailability === 'full' || !internalBookingTimeValidation.valid} onClick={(e: any) => handleSubmitInternalBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
+                <button type="button" disabled={isSavingInternalBooking || !internalBookingForm.bookedForUserId || !internalBookingForm.roomName || !internalBookingForm.date || !internalBookingForm.startTime || !internalBookingForm.endTime || internalBookingAvailability === 'conflict' || internalBookingAvailability === 'full' || !internalBookingTimeValidation.valid} onClick={(e: any) => handleSubmitInternalBooking(e)} className="btn-pill w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
                   {isSavingInternalBooking ? 'Booking...' : 'Confirm Internal Booking'}
                 </button>
               </div>
@@ -6783,7 +6783,7 @@ export function MeetingRoomsPage() {
               </div>
 
               <div className="p-4 sm:p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 shrink-0">
-                <button type="button" disabled={isSavingTenantBooking || !tenantBookingForm.tenantCompanyId || !tenantBookingForm.roomName || !tenantBookingForm.date || !tenantBookingForm.startTime || !tenantBookingForm.endTime} onClick={(e: any) => handleSubmitTenantBooking(e)} className="w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] rounded-xl font-black text-[12px] sm:text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
+                <button type="button" disabled={isSavingTenantBooking || !tenantBookingForm.tenantCompanyId || !tenantBookingForm.roomName || !tenantBookingForm.date || !tenantBookingForm.startTime || !tenantBookingForm.endTime} onClick={(e: any) => handleSubmitTenantBooking(e)} className="btn-pill w-full py-3.5 sm:py-4 bg-[#2563EB] text-[#ffffff] shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]">
                   {isSavingTenantBooking ? 'Booking...' : 'Confirm Tenant Booking'}
                 </button>
               </div>

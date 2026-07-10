@@ -271,7 +271,7 @@ const CreditsIndicator = ({ workspaceId, companyId }) => {
             <button
               type="button"
               disabled
-              className="mt-2 inline-flex items-center rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white opacity-60 cursor-not-allowed"
+              className="btn-pill mt-2 inline-flex items-center bg-blue-600 px-3 py-1.5 text-white opacity-60 cursor-not-allowed"
             >
               Request for {pendingRequestedCredits || 0} credits submitted
             </button>
@@ -279,7 +279,7 @@ const CreditsIndicator = ({ workspaceId, companyId }) => {
             <button
               type="button"
               onClick={() => setIsUpgradeModalOpen(true)}
-              className="mt-2 flex w-fit mx-auto items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm hover:bg-blue-700"
+              className="btn-pill mt-2 flex w-fit mx-auto items-center gap-1.5 bg-[#2563EB] px-4 py-2 text-white shadow-sm hover:bg-blue-700"
             >
               Upgrade Plan
             </button>
@@ -345,7 +345,7 @@ const CreditsIndicator = ({ workspaceId, companyId }) => {
                       type="button"
                       onClick={() => handleUpgradePlanRequest(plan.key)}
                       disabled={isUpgradeSubmitting || requestedUpgradePlan === plan.key}
-                      className="w-full rounded-full bg-[#2563EB] px-8 py-2.5 text-white font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="btn-pill w-full bg-[#2563EB] px-8 py-2.5 text-white shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {requestedUpgradePlan === plan.key
                         ? "Requested"

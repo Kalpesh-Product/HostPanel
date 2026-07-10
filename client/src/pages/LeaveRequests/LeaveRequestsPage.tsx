@@ -847,7 +847,7 @@ export function LeaveRequestsPage() {
                   {!isActingManagerView && (
                     <button
                       onClick={() => setIsApplyModalOpen(true)}
-                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                      className="btn-pill bg-[#2563EB] text-white px-4 py-2.5 flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                     >
                       <Plus size={13} strokeWidth={3} /> APPLY LEAVE
                     </button>
@@ -957,7 +957,7 @@ export function LeaveRequestsPage() {
                       <div className="flex gap-2 pt-2 border-t border-slate-100">
                         <button
                           onClick={() => { setViewingRequest(item); setIsRejecting(false); setRejectionReason(''); }}
-                          className="flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 bg-[#2563EB] text-white hover:bg-blue-700"
+                          className="btn-pill flex-1 py-2.5 transition-all shadow-sm flex items-center justify-center gap-1.5 bg-[#2563EB] text-white hover:bg-blue-700"
                         >
                           <Eye size={14} /> {activeTab === 'leave-requests' ? 'Review Request' : 'View Record'}
                         </button>
@@ -1113,8 +1113,8 @@ export function LeaveRequestsPage() {
                             value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)}
                           />
                           <div className="flex justify-end gap-2 mt-4">
-                            <button onClick={() => setIsRejecting(false)} className="px-4 py-2.5 text-[11px] sm:text-[12px] font-bold text-slate-600 hover:bg-red-100/50 rounded-xl transition-all">CANCEL</button>
-                            <button onClick={handleReject} disabled={!rejectionReason.trim() || isSavingDecision} className="px-4 py-2.5 text-[11px] sm:text-[12px] font-black text-white bg-red-600 hover:bg-red-700 rounded-xl disabled:opacity-50 shadow-sm transition-all uppercase tracking-wider">{isSavingDecision ? 'SAVING...' : 'CONFIRM REJECT'}</button>
+                            <button onClick={() => setIsRejecting(false)} className="btn-pill px-4 py-2.5 text-slate-600 hover:bg-red-100/50 transition-all">CANCEL</button>
+                            <button onClick={handleReject} disabled={!rejectionReason.trim() || isSavingDecision} className="btn-pill px-4 py-2.5 text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 shadow-sm transition-all">{isSavingDecision ? 'SAVING...' : 'CONFIRM REJECT'}</button>
                           </div>
                         </motion.div>
                       )}
@@ -1126,13 +1126,13 @@ export function LeaveRequestsPage() {
                             setIsRejecting(true);
                             if ((viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0)) setRejectionReason('Insufficient leave balance available.');
                             else if (viewingRequest.leaveType === 'Sick' && (viewingRequest.days || 0) >= 2 && !viewingRequest.medicalCertAttached) setRejectionReason('A medical certificate must be provided for extended sick leave.');
-                          }} className="w-full sm:flex-1 py-3.5 sm:py-4 bg-white border border-red-200/80 text-red-600 rounded-xl font-black hover:bg-red-50 shadow-sm transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-50">
+                          }} className="btn-pill w-full sm:flex-1 py-3.5 sm:py-4 bg-white border border-red-200/80 text-red-600 hover:bg-red-50 shadow-sm transition-all disabled:opacity-50">
                             REJECT
                           </button>
                           <button
                             onClick={handleApprove}
                             disabled={isSavingDecision || (viewingRequest.leaveType === 'Sick' && (viewingRequest.days || 0) >= 2 && !viewingRequest.medicalCertAttached) || ((viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0))}
-                            className="w-full sm:flex-[2] py-3.5 sm:py-4 bg-[#2563EB] text-white rounded-xl font-black shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
+                            className="btn-pill w-full sm:flex-[2] py-3.5 sm:py-4 bg-[#2563EB] text-white shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
                           >
                             {isSavingDecision ? 'SAVING...' : (viewingRequest.leaveType === 'Sick' && (viewingRequest.days || 0) >= 2 && !viewingRequest.medicalCertAttached) ? 'MISSING CERTIFICATE'
                             : ((viewingRequest.days || 0) > (viewingRequest.requesterBalance || 0)) ? 'INSUFFICIENT BALANCE'
@@ -1141,7 +1141,7 @@ export function LeaveRequestsPage() {
                           </button>
                         </div>
                       ) : (
-                        <button onClick={() => { setViewingRequest(null); setIsRejecting(false); }} className="w-full py-3.5 sm:py-4 bg-white border border-slate-200/60 shadow-sm text-slate-700 rounded-xl font-black hover:bg-slate-50 transition-all text-[11px] sm:text-[12px] uppercase tracking-wider">
+                        <button onClick={() => { setViewingRequest(null); setIsRejecting(false); }} className="btn-pill w-full py-3.5 sm:py-4 bg-white border border-slate-200/60 shadow-sm text-slate-700 hover:bg-slate-50 transition-all">
                           CLOSE PANEL
                         </button>
                       )}
@@ -1325,8 +1325,8 @@ export function LeaveRequestsPage() {
                         </div>
                       )}
                       <div className="flex gap-2">
-                        <button type="button" onClick={() => setIsApplyModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-black hover:bg-slate-200 transition-all text-[10px] uppercase tracking-wider">CANCEL</button>
-                        <button type="submit" disabled={!isFormValid || isSubmittingLeave} className="flex-1 py-3 bg-[#2563EB] text-white rounded-xl font-black shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider">
+                        <button type="button" onClick={() => setIsApplyModalOpen(false)} className="btn-pill flex-1 py-3 bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all">CANCEL</button>
+                        <button type="submit" disabled={!isFormValid || isSubmittingLeave} className="btn-pill flex-1 py-3 bg-[#2563EB] text-white shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed">
                           {isSubmittingLeave ? 'SUBMITTING...' : 'SUBMIT REQUEST'} <Send size={13} />
                         </button>
                       </div>

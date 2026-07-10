@@ -171,14 +171,14 @@ export function PayslipsTab() {
                       <button
                         type="button"
                         onClick={() => openPayslip(p)}
-                        className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-lg text-[10px] font-semibold uppercase transition-all flex items-center gap-1"
+                        className="btn-pill px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] transition-all flex items-center gap-1"
                       >
                         <Eye size={12} /> View
                       </button>
                       <button
                         type="button"
                         onClick={() => downloadPayslip(p)}
-                        className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] rounded-lg text-[10px] font-semibold uppercase transition-all flex items-center gap-1"
+                        className="btn-pill px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] transition-all flex items-center gap-1"
                       >
                         <Download size={12} /> PDF
                       </button>

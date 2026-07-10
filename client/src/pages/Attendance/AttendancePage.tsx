@@ -802,7 +802,7 @@ export function AttendancePage() {
                 <button
                   onClick={() => handleClockAction('in')}
                   disabled={isClockLoading || isCapturing || isTodayCompleted}
-                  className="px-5 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-xs uppercase hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
+                  className="btn-pill px-5 py-2.5 bg-[#2563EB] text-white hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
                 >
                 {isCapturing ? <><Camera size={14} className="animate-pulse" /> Opening camera...</> : isClockLoading ? <><RefreshCw size={14} className="animate-spin" /> Processing...</> : <><LogIn size={14} /> Clock In</>}
                 </button>
@@ -812,7 +812,7 @@ export function AttendancePage() {
                   <button
                     onClick={handleStartBreak}
                     disabled={isClockLoading || isTodayCompleted}
-                    className="px-4 py-2.5 bg-amber-100 text-amber-700 rounded-xl font-bold text-xs uppercase hover:bg-amber-200 transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="btn-pill px-4 py-2.5 bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     {isClockLoading ? <RefreshCw size={14} className="animate-spin" /> : <Coffee size={14} />}
                     Start Break
@@ -820,7 +820,7 @@ export function AttendancePage() {
                   <button
                     onClick={() => handleClockAction('out')}
                     disabled={isClockLoading || isCapturing || isTodayCompleted}
-                    className="px-4 py-2.5 bg-rose-100 text-rose-700 rounded-xl font-bold text-xs uppercase hover:bg-rose-200 transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="btn-pill px-4 py-2.5 bg-rose-100 text-rose-700 hover:bg-rose-200 transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     {isCapturing ? <Camera size={14} className="animate-pulse" /> : isClockLoading ? <RefreshCw size={14} className="animate-spin" /> : <LogOut size={14} />}
                     Clock Out
@@ -831,7 +831,7 @@ export function AttendancePage() {
                 <button
                   onClick={handleEndBreak}
                   disabled={isClockLoading || isTodayCompleted}
-                  className="px-4 py-2.5 bg-emerald-100 text-emerald-700 rounded-xl font-bold text-xs uppercase hover:bg-emerald-200 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="btn-pill px-4 py-2.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                   {isClockLoading ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
                   End Break
@@ -957,7 +957,7 @@ export function AttendancePage() {
                   {activeTab === 'my-attendance' && (
                     <button
                       onClick={() => handleViewMonth(selectedMonth)}
-                      className="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors flex items-center gap-1.5"
+                      className="btn-pill px-4 py-2.5 bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors flex items-center gap-1.5"
                     >
                       <Calendar size={13} /> View Month
                     </button>
@@ -1263,7 +1263,7 @@ export function AttendancePage() {
                 <button
                   type="button"
                   onClick={() => setShowClockModal(false)}
-                  className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-xs font-bold uppercase text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+                  className="btn-pill flex items-center justify-center gap-2 border border-slate-200 bg-white py-3 text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
                 >
                   <X size={14} />
                   Cancel
@@ -1272,7 +1272,7 @@ export function AttendancePage() {
                   type="button"
                   onClick={capturedSelfie ? handleSubmitClock : handleCaptureSelfie}
                   disabled={isClockLoading || !cameraReady || !capturedLocation}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] py-3 text-xs font-bold uppercase text-white shadow-sm transition-colors hover:bg-blue-700 disabled:opacity-50"
+                  className="btn-pill flex items-center justify-center gap-2 bg-[#2563EB] py-3 text-white shadow-sm transition-colors hover:bg-blue-700 disabled:opacity-50"
                 >
                   {isClockLoading
                     ? <><RefreshCw size={14} className="animate-spin" /> Processing...</>
@@ -1356,11 +1356,11 @@ export function AttendancePage() {
                   </div>
                 </div>
                 <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3 justify-end">
-                  <button type="button" onClick={() => setShowCorrectionForm(false)} className="px-5 py-2.5 bg-slate-200 text-slate-700 rounded-2xl font-bold text-xs uppercase hover:bg-slate-300 transition-colors">Cancel</button>
+                  <button type="button" onClick={() => setShowCorrectionForm(false)} className="btn-pill px-5 py-2.5 bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors">Cancel</button>
                   <button
                     type="submit"
                     disabled={isSubmittingCorrection || !correctionForm.reason.trim()}
-                    className="px-5 py-2.5 bg-[#2563EB] text-white rounded-2xl font-bold text-xs uppercase hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
+                    className="btn-pill px-5 py-2.5 bg-[#2563EB] text-white hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
                   >
                     {isSubmittingCorrection ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
                     Submit Request

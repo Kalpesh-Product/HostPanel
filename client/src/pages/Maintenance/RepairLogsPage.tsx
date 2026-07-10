@@ -377,7 +377,7 @@ export default function RepairLogsPage() {
           {error ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-bold text-red-700 flex items-center justify-between gap-4">
               <span>{error}</span>
-              <button type="button" onClick={loadLogs} className="text-xs font-black uppercase tracking-widest text-red-600 hover:text-red-700">
+              <button type="button" onClick={loadLogs} className="text-xs font-pmedium uppercase tracking-widest text-red-600 hover:text-red-700">
                 Retry
               </button>
             </div>
@@ -464,7 +464,7 @@ export default function RepairLogsPage() {
                 </div>
                 <button
                   onClick={openFormModal}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
+                  className="btn-pill inline-flex items-center justify-center gap-1.5 bg-[#2563EB] px-4 py-2.5 text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
                 >
                   <Plus size={14} />
                   Log Repair
@@ -525,7 +525,7 @@ export default function RepairLogsPage() {
                         <button
                           type="button"
                           onClick={() => setSelectedLog(log)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-700 transition hover:bg-slate-50"
+                          className="btn-pill inline-flex items-center gap-1 border border-slate-200 bg-white px-3 py-1.5 text-slate-700 transition hover:bg-slate-50"
                         >
                           View <ArrowRight size={12} />
                         </button>
@@ -625,7 +625,7 @@ export default function RepairLogsPage() {
                             type="button"
                             onClick={() => handleStatusChange(action.nextStatus)}
                             disabled={isUpdating}
-                            className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="btn-pill inline-flex items-center border border-slate-200 bg-white px-3 py-1.5 text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {isUpdating ? "Updating..." : action.label}
                           </button>
@@ -664,7 +664,7 @@ export default function RepairLogsPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedLog(null)}
-                  className="flex-1 rounded-xl border border-slate-200 bg-white py-3 text-xs font-black uppercase tracking-wider text-slate-700 transition hover:bg-slate-50"
+                  className="btn-pill flex-1 border border-slate-200 bg-white py-3 text-slate-700 transition hover:bg-slate-50"
                 >
                   Close
                 </button>
@@ -810,14 +810,14 @@ export default function RepairLogsPage() {
                   <button
                     type="button"
                     onClick={() => setIsFormOpen(false)}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-4 font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50"
+                    className="btn-pill flex flex-1 items-center justify-center gap-2 border border-slate-200 bg-white py-4 text-slate-700 shadow-sm transition-all hover:bg-slate-50"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isLoadingOptions || isSaving}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-black text-white shadow-sm transition-all hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="btn-pill flex flex-1 items-center justify-center gap-2 bg-blue-600 py-4 text-white shadow-sm transition-all hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {isSaving ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
                     {isSaving ? "Saving..." : "Submit Repair Log"}

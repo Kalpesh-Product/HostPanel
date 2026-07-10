@@ -217,7 +217,7 @@ function HandoffConfirmModal({ open, onClose, onConfirm, mode, error, submitting
                 type="button"
                 onClick={onClose}
                 disabled={submitting}
-                className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="btn-pill flex-1 border border-slate-200 bg-white px-4 py-3 text-slate-700 transition hover:bg-slate-50"
               >
                 Cancel
               </button>
@@ -225,7 +225,7 @@ function HandoffConfirmModal({ open, onClose, onConfirm, mode, error, submitting
                 type="button"
                 onClick={onConfirm}
                 disabled={submitting}
-                className="flex-[2] rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-slate-400"
+                className="btn-pill flex-[2] bg-slate-950 px-4 py-3 text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-slate-400"
               >
                 {submitting ? "Processing..." : mode === "prepare" ? "Confirm & Send to Finance" : "Send to Finance"}
               </button>
@@ -369,7 +369,7 @@ function HistoryCycleModal({ cycle, onClose, onViewEmployee }: HistoryCycleModal
               </table>
             </div>
             <div className="p-6 bg-slate-50 border-t border-slate-100/60 flex shrink-0">
-              <button onClick={onClose} className="w-full py-4 bg-white border border-slate-200 rounded-4xl font-semibold text-slate-600 hover:bg-slate-100 transition-all">
+              <button onClick={onClose} className="btn-pill w-full py-4 bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition-all">
                 CLOSE RECORD
               </button>
             </div>
@@ -562,7 +562,7 @@ function EmployeeDetailModal({
                       }
                     }}
                     disabled={!adjustment.amount || !adjustment.reason}
-                    className="w-full py-4 bg-slate-900 text-white rounded-xl font-semibold shadow-lg disabled:bg-slate-300 disabled:shadow-none hover:bg-black transition-all mt-auto"
+                    className="btn-pill w-full py-4 bg-slate-900 text-white shadow-lg disabled:bg-slate-300 disabled:shadow-none hover:bg-black transition-all mt-auto"
                   >
                     APPLY ADJUSTMENT
                   </button>
@@ -925,7 +925,7 @@ export default function HRPayrollPage() {
               <button
                 type="button"
                 onClick={() => loadPayrollData(selectedMonth, selectedYear)}
-                className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-700 text-[10px] font-bold uppercase tracking-wider"
+                className="btn-pill px-3 py-1.5 bg-white border border-rose-200 text-rose-700"
               >
                 Retry
               </button>
@@ -1047,7 +1047,7 @@ export default function HRPayrollPage() {
                       <button
                         onClick={() => openPayrollHandoffModal("prepare")}
                         disabled={!payrollMonthClosed}
-                        className="px-6 py-2.5 bg-white text-slate-900 rounded-xl font-semibold text-xs hover:bg-slate-200 transition-all flex items-center gap-2 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                        className="btn-pill px-6 py-2.5 bg-white text-slate-900 hover:bg-slate-200 transition-all flex items-center gap-2 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
                       >
                         <Calculator size={14} /> PREPARE PAYROLL (LOCK DATA)
                       </button>
@@ -1055,7 +1055,7 @@ export default function HRPayrollPage() {
                     {payrollStatus === "Prepared" && (
                       <button
                         onClick={() => openPayrollHandoffModal("send")}
-                        className="px-6 py-2.5 bg-blue-600 text-white rounded-xl font-semibold text-xs hover:bg-blue-500 shadow-lg shadow-blue-900/50 transition-all flex items-center gap-2 animate-pulse"
+                        className="btn-pill px-6 py-2.5 bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/50 transition-all flex items-center gap-2 animate-pulse"
                       >
                         <Send size={14} /> SEND TO FINANCE
                       </button>

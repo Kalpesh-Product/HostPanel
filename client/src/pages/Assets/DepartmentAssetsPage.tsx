@@ -641,13 +641,13 @@ export function DepartmentAssetsPage() {
               <p className="text-sm font-bold text-[#2563EB] uppercase tracking-widest mt-1">{deptLabel} &bull; Department Assets</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-              <button onClick={() => { setBulkUploadSummary(null); setBulkUploadFileName(''); setIsBulkUploadOpen(true); }} className="bg-white text-[#0F172A] px-5 py-3 rounded-2xl text-sm font-black flex items-center gap-2 border border-slate-200 shadow-sm hover:border-slate-300 transition-all">
+              <button onClick={() => { setBulkUploadSummary(null); setBulkUploadFileName(''); setIsBulkUploadOpen(true); }} className="btn-pill bg-white text-[#0F172A] px-5 py-3 flex items-center gap-2 border border-slate-200 shadow-sm hover:border-slate-300 transition-all">
                 <UploadCloud size={18} strokeWidth={2.75} /> BULK UPLOAD
               </button>
-              <button onClick={() => setIsAddModalOpen(true)} className="bg-white text-[#2563EB] px-5 py-3 rounded-2xl text-sm font-black flex items-center gap-2 border border-blue-200 shadow-sm hover:border-blue-300 transition-all">
+              <button onClick={() => setIsAddModalOpen(true)} className="btn-pill bg-white text-[#2563EB] px-5 py-3 flex items-center gap-2 border border-blue-200 shadow-sm hover:border-blue-300 transition-all">
                 <Box size={18} strokeWidth={2.75} /> ADD ASSET
               </button>
-              <button onClick={() => { setAssignmentData({ assetId: '', assignmentType: 'department', department: '', employee: '', quantity: '1' }); setShowAssignDialog(true); }} className="bg-[#2563EB] text-white px-5 py-3 rounded-2xl text-sm font-black flex items-center gap-2 shadow-lg shadow-blue-200 hover:scale-[1.01] transition-all">
+              <button onClick={() => { setAssignmentData({ assetId: '', assignmentType: 'department', department: '', employee: '', quantity: '1' }); setShowAssignDialog(true); }} className="btn-pill bg-[#2563EB] text-white px-5 py-3 flex items-center gap-2 shadow-lg shadow-blue-200 hover:scale-[1.01] transition-all">
                 <UserPlus size={18} strokeWidth={2.75} /> ASSIGN ASSET
               </button>
             </div>
@@ -746,7 +746,7 @@ export function DepartmentAssetsPage() {
                         <td className="px-8 py-5 text-center">
                           <div className="flex items-center justify-center gap-2">
                             {state === 'Available' ? (
-                              <button onClick={() => { setAssignmentData({ assetId: asset.id || '', assignmentType: 'department', department: '', employee: '', quantity: '1' }); setShowAssignDialog(true); }} className="px-3 py-1.5 bg-blue-50 text-[#2563EB] border border-blue-100 hover:border-blue-200 hover:bg-blue-100 rounded-full text-[10px] font-black tracking-wide transition-all shadow-sm">Assign</button>
+                              <button onClick={() => { setAssignmentData({ assetId: asset.id || '', assignmentType: 'department', department: '', employee: '', quantity: '1' }); setShowAssignDialog(true); }} className="btn-pill px-3 py-1.5 bg-blue-50 text-[#2563EB] border border-blue-100 hover:border-blue-200 hover:bg-blue-100 transition-all shadow-sm">Assign</button>
                             ) : null}
                             <button onClick={() => setViewingAsset(asset)} className="p-2 bg-white border border-gray-200 text-gray-600 hover:bg-blue-50 hover:text-[#2563EB] hover:border-blue-200 rounded-lg transition-all shadow-sm"><Eye size={16} /></button>
                           </div>
@@ -869,7 +869,7 @@ export function DepartmentAssetsPage() {
                   }) : <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-5 text-center"><p className="text-sm font-medium text-slate-500">No assets are assigned yet.</p></div>}
                 </div>
                 <div className="pt-4 mt-4 border-t border-slate-200/80 flex flex-col sm:flex-row gap-3">
-                  <button onClick={() => setShowAssignDialog(false)} className="flex-1 py-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all">Cancel</button>
+                  <button onClick={() => setShowAssignDialog(false)} className="btn-pill flex-1 py-3 border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all">Cancel</button>
                   <button disabled={!assignmentData.assetId || isSaving || ((selectedAssetRequiresEmployeeAssignment || isEmployeeAssignment) ? !assignmentData.employee : !assignmentData.department) || (!(selectedAssetRequiresEmployeeAssignment || isEmployeeAssignment) && (!assignmentData.quantity || Number(assignmentData.quantity) <= 0 || Number(assignmentData.quantity) > maxAssignableQuantity))} onClick={handleAssignAsset} className="flex-1 py-3 rounded-xl bg-[#2563EB] text-sm font-semibold text-white shadow-lg shadow-blue-200 disabled:bg-slate-300 disabled:shadow-none hover:bg-blue-700 transition-all">{isSaving ? 'Saving...' : 'Confirm'}</button>
                 </div>
               </aside>
@@ -913,8 +913,8 @@ export function DepartmentAssetsPage() {
             </div>
             <div className="px-8 pb-8 pt-2 bg-white border-t border-gray-100">
               <div className="flex flex-col sm:flex-row gap-3">
-                <button onClick={handleTransferBackToOwningDept} disabled={!canTransferBackToOwningDept || isSaving} className="flex-1 py-3 rounded-2xl bg-[#2563EB] text-white font-black shadow-lg shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-blue-700 transition-all">{isSaving ? 'Saving...' : 'Transfer Back to Owning Dept'}</button>
-                <button onClick={() => setViewingAsset(null)} className="flex-1 py-3 rounded-2xl border border-gray-200 bg-white text-gray-700 font-black hover:bg-gray-50 transition-all">Close</button>
+                <button onClick={handleTransferBackToOwningDept} disabled={!canTransferBackToOwningDept || isSaving} className="btn-pill flex-1 py-3 bg-[#2563EB] text-white shadow-lg shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-blue-700 transition-all">{isSaving ? 'Saving...' : 'Transfer Back to Owning Dept'}</button>
+                <button onClick={() => setViewingAsset(null)} className="btn-pill flex-1 py-3 border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-all">Close</button>
               </div>
             </div>
           </div>
@@ -941,8 +941,8 @@ export function DepartmentAssetsPage() {
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Optional</p><p className="mt-2 text-sm font-semibold text-slate-700">`category`, `quantity`, `ownershipType`, `rentDurationMonths`, `serialNumber`, `brandModel`, `purchaseDate`, `location`, `value`, `notes`, `status`</p></div>
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
-                <button onClick={downloadBulkTemplate} className="flex-1 py-3 rounded-2xl border border-slate-200 bg-white text-sm font-black text-slate-700 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"><Download size={16} /> Download Template</button>
-                <button onClick={() => bulkUploadInputRef.current?.click()} disabled={isSaving} className="flex-1 py-3 rounded-2xl bg-[#2563EB] text-sm font-black text-white shadow-lg shadow-blue-200 hover:bg-blue-700 disabled:bg-slate-300 disabled:shadow-none transition-all flex items-center justify-center gap-2"><UploadCloud size={16} /> {isSaving ? 'Importing...' : 'Choose File'}</button>
+                <button onClick={downloadBulkTemplate} className="btn-pill flex-1 py-3 border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"><Download size={16} /> Download Template</button>
+                <button onClick={() => bulkUploadInputRef.current?.click()} disabled={isSaving} className="btn-pill flex-1 py-3 bg-[#2563EB] text-white shadow-lg shadow-blue-200 hover:bg-blue-700 disabled:bg-slate-300 disabled:shadow-none transition-all flex items-center justify-center gap-2"><UploadCloud size={16} /> {isSaving ? 'Importing...' : 'Choose File'}</button>
               </div>
               {bulkUploadSummary && (
                 <div className="rounded-2xl border border-green-200 bg-green-50 p-4 shadow-sm">
@@ -958,7 +958,7 @@ export function DepartmentAssetsPage() {
               )}
             </div>
             <div className="p-6 bg-white border-t border-slate-100 shrink-0">
-              <button onClick={() => setIsBulkUploadOpen(false)} className="w-full py-3 rounded-2xl border border-slate-200 bg-white text-sm font-black text-slate-600 hover:bg-slate-50 transition-all">Close</button>
+              <button onClick={() => setIsBulkUploadOpen(false)} className="btn-pill w-full py-3 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-all">Close</button>
             </div>
           </div>
         </div>
@@ -1067,8 +1067,8 @@ export function DepartmentAssetsPage() {
                 </div>
               </div>
               <div className="flex gap-4 pt-4 border-t border-gray-100">
-                <button onClick={() => setIsAddModalOpen(false)} className="flex-1 py-4 bg-white border border-gray-200 rounded-2xl font-black text-gray-500 hover:text-gray-900 transition-all">CANCEL</button>
-                <button type="submit" disabled={!assetForm.name || isSaving} className="flex-1 py-4 bg-[#2563EB] text-white rounded-2xl font-black shadow-lg shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-blue-700 transition-all">{isSaving ? 'SAVING...' : 'CREATE ASSET'}</button>
+                <button onClick={() => setIsAddModalOpen(false)} className="btn-pill flex-1 py-4 bg-white border border-gray-200 text-gray-500 hover:text-gray-900 transition-all">CANCEL</button>
+                <button type="submit" disabled={!assetForm.name || isSaving} className="btn-pill flex-1 py-4 bg-[#2563EB] text-white shadow-lg shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-blue-700 transition-all">{isSaving ? 'SAVING...' : 'CREATE ASSET'}</button>
               </div>
             </form>
           </div>

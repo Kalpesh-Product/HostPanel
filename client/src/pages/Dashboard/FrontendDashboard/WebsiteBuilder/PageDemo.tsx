@@ -1619,7 +1619,7 @@ const PageDemo = () => {
                       <button
                         type="button"
                         onClick={() => goToSection(item.slug)}
-                        className="block w-full rounded px-3 py-2 text-left text-sm font-semibold text-slate-800 hover:bg-slate-100"
+                        className="btn-pill block w-full px-3 py-2 text-left text-slate-800 hover:bg-slate-100"
                       >
                         All Products
                       </button>
@@ -1722,7 +1722,7 @@ const PageDemo = () => {
                         <button
                           type="button"
                           onClick={() => goToSection(item.slug)}
-                          className="rounded px-3 py-2 text-left text-sm font-semibold text-slate-800 hover:bg-slate-100"
+                          className="btn-pill px-3 py-2 text-left text-slate-800 hover:bg-slate-100"
                         >
                           All Products
                         </button>
@@ -1929,7 +1929,7 @@ const PageDemo = () => {
                           <button
                             type="button"
                             onClick={() => handleProductCardAction(item)}
-                            className="rounded-full border border-white/60 px-6 py-2 text-[11px] font-semibold uppercase tracking-widest text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
+                            className="btn-pill border border-white/60 px-6 py-2 text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
                           >
                             Explore
                           </button>
@@ -2306,7 +2306,7 @@ const PageDemo = () => {
                               setLeadSubmitted(false);
                               setLeadForm({ fullName: "", people: "", mobile: "", email: "", startDate: "", endDate: "" });
                             }}
-                            className="rounded-full border-2 border-green-600 px-7 py-2.5 text-[13px] font-semibold uppercase tracking-wider text-green-700 transition hover:bg-green-600 hover:text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
+                            className="btn-pill border-2 border-green-600 px-7 py-2.5 text-green-700 transition hover:bg-green-600 hover:text-white font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
                           >
                             Submit Another
                           </button>
@@ -2516,7 +2516,7 @@ const PageDemo = () => {
                                       const productSlug = normalizeSlug(selectedProductPage?.slug || selectedProductPage?.name || "");
                                       navigate(`/website-preview/page/products/${productSlug}/${itemSlug}`);
                                     }}
-                                    className="rounded-full border border-white/60 px-6 py-2 text-[11px] font-semibold uppercase tracking-widest text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
+                                    className="btn-pill border border-white/60 px-6 py-2 text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
                                   >
                                     View Details
                                   </button>
@@ -2565,7 +2565,7 @@ const PageDemo = () => {
                             <button
                               type="button"
                               onClick={() => handleProductCardAction(item)}
-                              className="rounded-full border border-white/60 px-6 py-2 text-[11px] font-semibold uppercase tracking-widest text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
+                              className="btn-pill border border-white/60 px-6 py-2 text-white transition hover:bg-white hover:text-[#1a1a1a] font-['Poppins',ui-sans-serif,system-ui,sans-serif]"
                             >
                               Explore
                             </button>

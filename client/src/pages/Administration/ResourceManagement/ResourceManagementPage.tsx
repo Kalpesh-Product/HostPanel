@@ -1031,14 +1031,14 @@ function ResourceManagementPageInner() {
                 </div>
                 <button
                   onClick={handleBulkUploadClick}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 whitespace-nowrap"
+                  className="btn-pill inline-flex items-center justify-center gap-2 border border-gray-200 bg-white px-4 py-2.5 text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 whitespace-nowrap"
                 >
                   <UploadCloud size={16} />
                   
                 </button>
                 <button
                   onClick={openAddModal}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
+                  className="btn-pill inline-flex items-center justify-center gap-1.5 bg-[#2563EB] px-4 py-2.5 text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
                 >
                   <Plus size={13} strokeWidth={3} />
                   Add Resource
@@ -1524,10 +1524,10 @@ function ResourceManagementPageInner() {
                   </div>
 
                   <div className="md:col-span-2 flex gap-4 border-t border-slate-100 pt-6">
-                    <button type="button" onClick={closeEditor} className="flex-1 rounded-2xl bg-slate-100 py-4 font-black text-slate-700 transition-all hover:bg-slate-200">
+                    <button type="button" onClick={closeEditor} className="btn-pill flex-1 bg-slate-100 py-4 text-slate-700 transition-all hover:bg-slate-200">
                       Cancel
                     </button>
-                    <button type="submit" className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-black text-white shadow-sm transition-all hover:bg-blue-700">
+                    <button type="submit" className="btn-pill flex flex-1 items-center justify-center gap-2 bg-blue-600 py-4 text-white shadow-sm transition-all hover:bg-blue-700">
                       <Plus size={18} />
                       {editingResource ? 'Update Resource' : 'Save Resource'}
                     </button>
@@ -1616,7 +1616,7 @@ function ResourceManagementPageInner() {
               </div>
 
               <div className="border-t border-slate-100 bg-slate-50/30 p-6">
-                <button onClick={() => setViewingResource(null)} className="w-full rounded-2xl border border-slate-200 bg-white py-4 font-black text-slate-600 transition-all hover:bg-slate-100">
+                <button onClick={() => setViewingResource(null)} className="btn-pill w-full border border-slate-200 bg-white py-4 text-slate-600 transition-all hover:bg-slate-100">
                   Close Details
                 </button>
               </div>
@@ -1671,7 +1671,7 @@ function ResourceManagementPageInner() {
                   {deletingResource.currentlyBooked ? 'Close' : 'Cancel'}
                 </button>
                 {!deletingResource.currentlyBooked ? (
-                  <button onClick={handleDelete} className="flex-1 rounded-2xl bg-red-600 py-4 font-black text-white shadow-sm transition-all hover:bg-red-700">
+                  <button onClick={handleDelete} className="btn-pill flex-1 bg-red-600 py-4 text-white shadow-sm transition-all hover:bg-red-700">
                     Confirm Delete
                   </button>
                 ) : null}
@@ -1766,14 +1766,14 @@ function ResourceManagementPageInner() {
                 ) : null}
 
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <button type="button" onClick={downloadBulkTemplate} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm flex-1 py-3 text-sm font-black inline-flex items-center justify-center gap-2 transition-all hover:border-blue-200 hover:text-blue-600">
+                  <button type="button" onClick={downloadBulkTemplate} className="btn-pill p-2 bg-white border border-slate-200 text-slate-600 shadow-sm flex-1 py-3 inline-flex items-center justify-center gap-2 transition-all hover:border-blue-200 hover:text-blue-600">
                     <Download size={16} /> Download Template
                   </button>
                   <button
                     type="button"
                     onClick={() => bulkUploadInputRef.current?.click()}
                     disabled={isBulkImporting}
-                    className="flex-1 rounded-lg bg-blue-600 py-3 text-sm font-black text-white shadow-sm transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none inline-flex items-center justify-center gap-2"
+                    className="btn-pill flex-1 bg-blue-600 py-3 text-white shadow-sm transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none inline-flex items-center justify-center gap-2"
                   >
                     <UploadCloud size={16} /> {isBulkImporting ? 'Importing...' : 'Choose File'}
                   </button>
@@ -1822,7 +1822,7 @@ function ResourceManagementPageInner() {
               </div>
 
               <div className="flex flex-col gap-3 border-t border-slate-100 bg-white p-5 sm:flex-row">
-                <button type="button" onClick={() => setIsBulkUploadOpen(false)} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm flex-1 py-3 text-sm font-black transition-all hover:bg-slate-50">
+                <button type="button" onClick={() => setIsBulkUploadOpen(false)} className="btn-pill p-2 bg-white border border-slate-200 text-slate-600 shadow-sm flex-1 py-3 transition-all hover:bg-slate-50">
                   Close
                 </button>
               </div>

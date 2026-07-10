@@ -424,10 +424,10 @@ export default function CompanyLeads() {
                 {/* Sticky Footer */}
                 <div className="border-t border-slate-100 bg-slate-50 px-4 py-3 flex items-center justify-end gap-2 shrink-0">
                   <button type="button" onClick={() => { handleStatusChange(selectedLead._id, "Closed"); setSelectedLeadId(null); }}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-emerald-700"
+                    className="btn-pill inline-flex items-center gap-1.5 bg-emerald-600 px-4 py-2 text-white transition hover:bg-emerald-700"
                   ><CheckCircle2 size={12} /> Close Lead</button>
                   <button type="button" onClick={() => { handleStatusChange(selectedLead._id, "Rejected"); setSelectedLeadId(null); }}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-rose-700"
+                    className="btn-pill inline-flex items-center gap-1.5 bg-rose-600 px-4 py-2 text-white transition hover:bg-rose-700"
                   ><X size={12} /> Reject Lead</button>
                 </div>
 

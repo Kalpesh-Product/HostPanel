@@ -394,7 +394,7 @@ export default function LeadsManagementPage() {
               onClick={mainTab === "website-leads" ? loadWebsiteLeads : loadLeads}
               disabled={mainTab === "website-leads" ? isWebsiteLoading : isLoading}
               title="Refresh"
-              className="px-4 py-2.5 bg-white text-[#0F172A] rounded-xl font-black text-[10px] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+              className="btn-pill px-4 py-2.5 bg-white text-[#0F172A] border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <RotateCcw size={14} /> Refresh
             </button> */}
@@ -785,7 +785,7 @@ export default function LeadsManagementPage() {
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button type="button" onClick={() => { handleUpdateStage(selectedLead.id, "Converted"); }}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-emerald-700"
+                      className="btn-pill inline-flex items-center gap-1.5 bg-emerald-600 px-4 py-2 text-white transition hover:bg-emerald-700"
                     ><CheckCircle2 size={13} /> Convert Lead</button>
                   </div>
                 </div>
@@ -981,10 +981,10 @@ export default function LeadsManagementPage() {
             {/* Sticky Footer — action buttons only */}
             <div className="border-t border-slate-100 bg-slate-50 px-4 py-3 flex items-center justify-end gap-2 shrink-0">
               <button type="button" onClick={() => { handleUpdateWebsiteLeadStatus(selectedWebsiteLead._id, "Closed"); setSelectedWebsiteLeadId(null); }}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-emerald-700"
+                className="btn-pill inline-flex items-center gap-1.5 bg-emerald-600 px-4 py-2 text-white transition hover:bg-emerald-700"
               ><CheckCircle2 size={12} /> Close Lead</button>
               <button type="button" onClick={() => { handleUpdateWebsiteLeadStatus(selectedWebsiteLead._id, "Rejected"); setSelectedWebsiteLeadId(null); }}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white transition hover:bg-rose-700"
+                className="btn-pill inline-flex items-center gap-1.5 bg-rose-600 px-4 py-2 text-white transition hover:bg-rose-700"
               ><X size={12} /> Reject Lead</button>
             </div>
 

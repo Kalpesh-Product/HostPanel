@@ -389,7 +389,7 @@ export default function TenantDashboardPage() {
                 Buy new credits for this month. Your current tenant balance is {companyCreditsRemaining} credits.
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
-                <button type="button" onClick={dismissCreditAlert} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-pbold uppercase tracking-widest text-slate-600 hover:bg-slate-50">
+                <button type="button" onClick={dismissCreditAlert} className="btn-pill border border-slate-200 bg-white px-4 py-3 text-slate-600 hover:bg-slate-50">
                   Later
                 </button>
                 <Link to="/dashboard/tenant/buy-credits" className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-3 text-xs font-pbold uppercase tracking-widest text-white shadow-sm hover:bg-blue-700">

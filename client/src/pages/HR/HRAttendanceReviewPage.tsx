@@ -530,7 +530,7 @@ function CorrectionDetailModal({ record, open, onClose, onAction, acting }: Corr
                     <button
                       onClick={() => onAction(record.correctionId || record.id || "", "approved")}
                       disabled={acting}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-[11px] font-bold hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-50"
+                      className="btn-pill flex-1 flex items-center justify-center gap-1.5 bg-emerald-500 text-white px-4 py-2.5 hover:bg-emerald-600 active:scale-95 transition-all disabled:opacity-50"
                     >
                       {acting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                       Approve
@@ -544,7 +544,7 @@ function CorrectionDetailModal({ record, open, onClose, onAction, acting }: Corr
                         onAction(record.correctionId || record.id || "", "rejected", rejectionReason.trim());
                       }}
                       disabled={acting}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-rose-500 text-white px-4 py-2.5 rounded-xl text-[11px] font-bold hover:bg-rose-600 active:scale-95 transition-all disabled:opacity-50"
+                      className="btn-pill flex-1 flex items-center justify-center gap-1.5 bg-rose-500 text-white px-4 py-2.5 hover:bg-rose-600 active:scale-95 transition-all disabled:opacity-50"
                     >
                       {acting ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />}
                       Reject
@@ -994,7 +994,7 @@ export default function HRAttendanceReviewPage() {
               <button
                 key={tab.key}
                 onClick={() => { setActiveTab(tab.key); setStatusFilter("all"); setSearchQuery(""); }}
-                className={`flex-1 min-w-[120px] rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+                className={`flex-1 min-w-[120px] rounded-full px-4 py-2 text-[10px] font-pbold font-pmedium uppercase tracking-widest transition-all ${
                   activeTab === tab.key
                     ? "bg-[#2563EB] text-white shadow-sm"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -1058,7 +1058,7 @@ export default function HRAttendanceReviewPage() {
                 <button
                   type="button"
                   onClick={() => setShowGeofenceModal(true)}
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-white shadow-sm transition-colors hover:bg-blue-700"
+                  className="btn-pill inline-flex items-center gap-2 bg-[#2563EB] px-4 py-2.5 text-white shadow-sm transition-colors hover:bg-blue-700"
                 >
                   <MapPin size={13} />
                   Geofence
@@ -1072,7 +1072,7 @@ export default function HRAttendanceReviewPage() {
                 <button
                   key={pill.key}
                   onClick={() => setStatusFilter(pill.key)}
-                  className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-[10px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
                     statusFilter === pill.key
                       ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
                       : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
@@ -1349,7 +1349,7 @@ export default function HRAttendanceReviewPage() {
                     <button
                       type="button"
                       onClick={handleCheckGeofenceUrl}
-                      className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-3 py-2 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:bg-blue-700"
+                      className="btn-pill inline-flex items-center gap-2 bg-[#2563EB] px-3 py-2 text-white transition-colors hover:bg-blue-700"
                     >
                       <MapPin size={13} />
                       Check
@@ -1357,7 +1357,7 @@ export default function HRAttendanceReviewPage() {
                     <button
                       type="button"
                       onClick={handleUseCurrentLocation}
-                      className="inline-flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-[11px] font-black uppercase tracking-widest text-blue-700 transition-colors hover:bg-blue-100"
+                      className="btn-pill inline-flex items-center gap-2 border border-blue-100 bg-blue-50 px-3 py-2 text-blue-700 transition-colors hover:bg-blue-100"
                     >
                       <Navigation size={13} />
                       Use current location
@@ -1375,14 +1375,14 @@ export default function HRAttendanceReviewPage() {
                       <button
                         type="button"
                         onClick={() => adjustGeofenceRadius(-100)}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-colors hover:bg-slate-50"
+                        className="btn-pill border border-slate-200 bg-white px-3 py-2 text-slate-600 transition-colors hover:bg-slate-50"
                       >
                         -100m
                       </button>
                       <button
                         type="button"
                         onClick={() => adjustGeofenceRadius(-25)}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-colors hover:bg-slate-50"
+                        className="btn-pill border border-slate-200 bg-white px-3 py-2 text-slate-600 transition-colors hover:bg-slate-50"
                       >
                         -25m
                       </button>
@@ -1398,14 +1398,14 @@ export default function HRAttendanceReviewPage() {
                       <button
                         type="button"
                         onClick={() => adjustGeofenceRadius(25)}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-colors hover:bg-slate-50"
+                        className="btn-pill border border-slate-200 bg-white px-3 py-2 text-slate-600 transition-colors hover:bg-slate-50"
                       >
                         +25m
                       </button>
                       <button
                         type="button"
                         onClick={() => adjustGeofenceRadius(100)}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-colors hover:bg-slate-50"
+                        className="btn-pill border border-slate-200 bg-white px-3 py-2 text-slate-600 transition-colors hover:bg-slate-50"
                       >
                         +100m
                       </button>
@@ -1419,7 +1419,7 @@ export default function HRAttendanceReviewPage() {
                     <button
                       type="button"
                       onClick={() => setShowGeofenceModal(false)}
-                      className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.28em] text-slate-600 transition-colors hover:bg-slate-50"
+                      className="btn-pill flex-1 border border-slate-200 bg-white px-4 py-2.5 tracking-[0.28em] text-slate-600 transition-colors hover:bg-slate-50"
                     >
                       Close
                     </button>
@@ -1427,7 +1427,7 @@ export default function HRAttendanceReviewPage() {
                       type="button"
                       onClick={handleSaveGeofence}
                       disabled={geofenceSaving}
-                      className="flex-1 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.28em] text-white shadow-sm transition-colors hover:bg-blue-700 disabled:opacity-60"
+                      className="btn-pill flex-1 bg-[#2563EB] px-4 py-2.5 tracking-[0.28em] text-white shadow-sm transition-colors hover:bg-blue-700 disabled:opacity-60"
                     >
                       {geofenceSaving ? "Saving..." : "Save geofence"}
                     </button>

@@ -272,7 +272,7 @@ export default function HRDocumentsPage(): React.ReactElement {
     <button
       key={tab.key}
       onClick={() => { setActiveTab(tab.key); setSearchQuery(""); }}
-      className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
+      className={`flex-1 rounded-full px-4 py-2 text-[10px] font-pmedium uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
         activeTab === tab.key
           ? "bg-[#2563EB] text-white shadow-sm"
           : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -417,7 +417,7 @@ export default function HRDocumentsPage(): React.ReactElement {
                                 key={doc.id}
                                 type="button"
                                 onClick={() => setPreviewFile({ ...doc, employeeName: record.name })}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[9px] font-semibold text-slate-600 hover:bg-blue-50 hover:border-blue-300 hover:text-[#2563EB] transition-all"
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-pmedium text-slate-600 hover:bg-blue-50 hover:border-blue-300 hover:text-[#2563EB] transition-all"
                               >
                                 <FileText size={10} className="text-[#2563EB]" />
                                 <span className="truncate max-w-[100px]">{doc.name}</span>
@@ -434,7 +434,7 @@ export default function HRDocumentsPage(): React.ReactElement {
                           <button
                             type="button"
                             onClick={() => setViewingDocsFor(record)}
-                            className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] hover:border-blue-300 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5 mx-auto"
+                            className="btn-pill px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:text-[#2563EB] hover:border-blue-300 transition-all shadow-sm flex items-center gap-1.5 mx-auto"
                           >
                             <FolderClosed size={12} /> Open Folder
                           </button>
@@ -545,7 +545,7 @@ export default function HRDocumentsPage(): React.ReactElement {
               <button
                 type="button"
                 onClick={() => { setViewingDocsFor(null); setPreviewFile(null); }}
-                className="w-full py-3 bg-white border border-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest text-slate-600 hover:bg-slate-100 transition-all"
+                className="w-full py-3 bg-white border border-slate-200 btn-pill text-slate-600 hover:bg-slate-100 transition-all"
               >
                 Close
               </button>
@@ -568,7 +568,7 @@ export default function HRDocumentsPage(): React.ReactElement {
                   <button
                     type="button"
                     onClick={() => downloadDocument(previewFile.url, previewFile.name)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-xl text-[11px] font-semibold transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-full text-[10px] font-pmedium transition-all"
                   >
                     <Download size={14} /> Download
                   </button>
@@ -600,7 +600,7 @@ export default function HRDocumentsPage(): React.ReactElement {
                       <button
                         type="button"
                         onClick={() => openDocumentUrl(previewFile.url)}
-                        className="mt-5 px-4 py-2 rounded-xl bg-[#2563EB] text-white text-[11px] font-semibold hover:bg-blue-700 transition-colors"
+                        className="btn-pill mt-5 px-4 py-2 bg-[#2563EB] text-white hover:bg-blue-700 transition-colors"
                       >
                         Open in new tab
                       </button>

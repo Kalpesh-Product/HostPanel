@@ -157,7 +157,7 @@ export default function FounderWorkspaceSelectionPage() {
                 void submitSelection();
               }}
               disabled={!selectedWorkspaceId || isSubmitting}
-              className="flex w-full items-center justify-center gap-1.5 rounded-full bg-[#2563EB] py-2.5 text-xs font-black uppercase tracking-[0.11em] text-white disabled:opacity-60"
+              className="btn-pill flex w-full items-center justify-center gap-1.5 bg-[#2563EB] py-2.5 tracking-[0.11em] text-white disabled:opacity-60"
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
               {isSubmitting ? "Opening..." : "Open Unit"}

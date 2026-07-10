@@ -724,12 +724,12 @@ export default function SalesArchitecturePage() {
             </div>
             {assignableIds.length > 0 && (
               <button onClick={() => { setAssignMode("tenant"); setSelectedCompanyId(""); setIsAssignModalOpen(true); }}
-                className="px-3 py-2.5 bg-[#2563EB] text-white rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-all whitespace-nowrap"
+                className="btn-pill px-3 py-2.5 bg-[#2563EB] text-white flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-all whitespace-nowrap"
               ><ArrowRight size={14} /> Assign</button>
             )}
             {selectedResources.some((r) => r.assignmentLabel && !packageLockedIds.has(String(r.recordId || r.id))) && (
               <button onClick={releaseAssignment} disabled={saving}
-                className="px-3 py-2.5 bg-rose-600 text-white rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 shadow-sm hover:bg-rose-700 transition-all whitespace-nowrap disabled:opacity-60"
+                className="btn-pill px-3 py-2.5 bg-rose-600 text-white flex items-center gap-1.5 shadow-sm hover:bg-rose-700 transition-all whitespace-nowrap disabled:opacity-60"
               ><RotateCcw size={14} /> Release</button>
             )}
           </div>
@@ -870,7 +870,7 @@ export default function SalesArchitecturePage() {
          <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-slate-800">Tenant Space Allocation</h3>
           <button onClick={() => { setAssignMode("tenant"); setSelectedCompanyId(""); clearSelection(); setIsAssignModalOpen(true); }}
-            className="bg-[#2563EB] text-white px-4 py-2 rounded-xl font-bold text-[11px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-all"
+            className="btn-pill bg-[#2563EB] text-white px-4 py-2 flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-all"
           ><ArrowRight size={14} /> Assign Space</button>
         </div>
 
@@ -1099,7 +1099,7 @@ export default function SalesArchitecturePage() {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-slate-800">Department Space Allocation</h3>
           <button onClick={() => { setDeptAssignSelectedId(""); clearSelection(); setIsDeptAssignModalOpen(true); }}
-            className="bg-[#2563EB] text-white px-4 py-2 rounded-xl font-bold text-[11px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-all"
+            className="btn-pill bg-[#2563EB] text-white px-4 py-2 flex items-center gap-1.5 shadow-sm hover:bg-blue-700 transition-all"
           ><ArrowRight size={14} /> Assign Space</button>
         </div>
 
@@ -1333,10 +1333,10 @@ export default function SalesArchitecturePage() {
 
                 <div className="flex gap-3 pt-2 border-t border-slate-100">
                   <button onClick={() => { setIsAssignModalOpen(false); clearSelection(); }}
-                    className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all text-[10px]"
+                    className="btn-pill flex-1 py-2.5 bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all"
                   >Cancel</button>
                   <button onClick={saveAssignment} disabled={!canSave}
-                    className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-bold shadow-sm hover:bg-blue-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                    className="btn-pill flex-1 py-2.5 bg-blue-600 text-white shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:cursor-not-allowed"
                   >{saving ? "Saving..." : <><CheckCircle2 size={14} /> Confirm Allocation</>}</button>
                 </div>
               </div>
@@ -1483,7 +1483,7 @@ export default function SalesArchitecturePage() {
 
                 <div className="flex gap-3 pt-2 border-t border-slate-100">
                   <button onClick={() => { setIsDeptAssignModalOpen(false); clearSelection(); }}
-                    className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all text-[10px]"
+                    className="btn-pill flex-1 py-2.5 bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all"
                   >Cancel</button>
                   <button onClick={() => {
                     if (!deptAssignSelectedId || assignableIds.length === 0) return;
@@ -1495,7 +1495,7 @@ export default function SalesArchitecturePage() {
                     saveAssignment();
                     setIsDeptAssignModalOpen(false);
                   }} disabled={!deptAssignSelectedId || assignableIds.length === 0 || saving}
-                    className="flex-1 py-2.5 bg-amber-600 text-white rounded-xl font-bold shadow-sm hover:bg-amber-700 transition-all text-[10px] flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                    className="btn-pill flex-1 py-2.5 bg-amber-600 text-white shadow-sm hover:bg-amber-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:cursor-not-allowed"
                   >{saving ? "Saving..." : <><CheckCircle2 size={14} /> Assign to Department</>}</button>
                 </div>
               </div>

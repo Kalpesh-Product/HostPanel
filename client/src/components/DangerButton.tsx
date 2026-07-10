@@ -19,8 +19,8 @@ const DangerButton = ({
     <div>
       <button
         type={type ?? "button"}
-        className={`rounded-md bg-red-200 px-8 py-2 text-red-600 ${
-          fontSize ? fontSize : "text-content leading-5"
+        className={`btn-pill bg-red-200 px-8 py-2 text-red-600 ${
+          fontSize ?? ""
         } ${externalStyles ?? ""}`}
         onClick={handleSubmit}
       >

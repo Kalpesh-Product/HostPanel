@@ -635,7 +635,7 @@ export default function HRLeaveRequestsProcessingPage() {
               <button
                 key={tab.key}
                 onClick={() => { setActiveTab(tab.key); setStatusFilter("all"); setSearchQuery(""); }}
-                className={`flex-1 min-w-[120px] rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+                className={`flex-1 min-w-[120px] rounded-full px-4 py-2 text-[10px] font-pbold font-pmedium uppercase tracking-widest transition-all ${
                   activeTab === tab.key
                     ? "bg-[#2563EB] text-white shadow-sm"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -717,7 +717,7 @@ export default function HRLeaveRequestsProcessingPage() {
               <div className="flex bg-slate-100/50 p-1 rounded-xl w-full xl:w-auto relative border border-slate-200/50 overflow-x-auto">
                 <button
                   onClick={() => setStatusFilter("all")}
-                  className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 whitespace-nowrap ${statusFilter === "all" ? "text-[#0F172A]" : "text-slate-500 hover:text-slate-800"}`}
+                  className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-[10px] sm:text-[13px] font-pmedium transition-colors relative z-10 whitespace-nowrap ${statusFilter === "all" ? "text-[#0F172A]" : "text-slate-500 hover:text-slate-800"}`}
                 >
                   {statusFilter === "all" && <div className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
                   All <span className="ml-1 text-slate-400">{leaveRequests.length}</span>
@@ -726,7 +726,7 @@ export default function HRLeaveRequestsProcessingPage() {
                   <button
                     key={pill.key}
                     onClick={() => setStatusFilter(pill.key)}
-                    className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 whitespace-nowrap ${statusFilter === pill.key ? "text-[#0F172A]" : "text-slate-500 hover:text-slate-800"}`}
+                    className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-[10px] sm:text-[13px] font-pmedium transition-colors relative z-10 whitespace-nowrap ${statusFilter === pill.key ? "text-[#0F172A]" : "text-slate-500 hover:text-slate-800"}`}
                   >
                     {statusFilter === pill.key && <div className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
                     {pill.label} <span className="ml-1 text-slate-400">{pill.key === "pending" ? pendingRequestsCount : pill.key === "approved" ? approvedRequestsCount : rejectedRequestsCount}</span>
@@ -928,10 +928,10 @@ export default function HRLeaveRequestsProcessingPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => handleExportEmployeeReport(viewingEmployee, "PDF")} disabled={Boolean(isExportingReport)} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-2 text-[11px] font-semibold text-white hover:bg-white/20 disabled:opacity-60">
+                  <button onClick={() => handleExportEmployeeReport(viewingEmployee, "PDF")} disabled={Boolean(isExportingReport)} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-2 text-[10px] font-pmedium text-white hover:bg-white/20 disabled:opacity-60">
                     <FileText size={14} /> PDF
                   </button>
-                  <button onClick={() => handleExportEmployeeReport(viewingEmployee, "Excel")} disabled={Boolean(isExportingReport)} className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-2 text-[11px] font-semibold text-[#2563EB] hover:bg-blue-50 disabled:opacity-60">
+                  <button onClick={() => handleExportEmployeeReport(viewingEmployee, "Excel")} disabled={Boolean(isExportingReport)} className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-2 text-[10px] font-pmedium text-[#2563EB] hover:bg-blue-50 disabled:opacity-60">
                     <FileSpreadsheet size={14} /> Excel
                   </button>
                   <button onClick={() => setViewingEmployee(null)} className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center text-slate-300 hover:bg-red-500 hover:text-white transition-all">
@@ -1006,7 +1006,7 @@ export default function HRLeaveRequestsProcessingPage() {
                 </div>
               </div>
               <div className="p-4 bg-slate-50 border-t border-slate-100 shrink-0">
-                <button onClick={() => setViewingEmployee(null)} className="w-full py-3 bg-white border border-slate-200 rounded-xl font-semibold text-slate-600 hover:bg-slate-100 transition-all text-[12px]">
+                <button onClick={() => setViewingEmployee(null)} className="btn-pill w-full py-3 bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition-all">
                   CLOSE
                 </button>
               </div>
@@ -1055,7 +1055,7 @@ export default function HRLeaveRequestsProcessingPage() {
                 </div>
               </div>
               <div className="p-4 bg-slate-50 border-t border-slate-100">
-                <button onClick={() => setViewingLeaveDetail(null)} className="w-full py-3 bg-white border border-slate-200 rounded-xl font-semibold text-slate-600 hover:bg-slate-100 transition-all text-[12px]">
+                <button onClick={() => setViewingLeaveDetail(null)} className="btn-pill w-full py-3 bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition-all">
                   CLOSE
                 </button>
               </div>
@@ -1146,10 +1146,10 @@ export default function HRLeaveRequestsProcessingPage() {
               </div>
               {viewingRequest.statusCode === "pending" && (
                 <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 shrink-0">
-                  <button onClick={() => { setRejectingRequest(viewingRequest); setViewingRequest(null); }} disabled={isSavingDecision} className="flex-1 py-3 bg-white border border-red-200 text-red-600 rounded-2xl font-semibold hover:bg-red-50 transition-all flex items-center justify-center gap-2 text-[12px] disabled:opacity-50">
+                  <button onClick={() => { setRejectingRequest(viewingRequest); setViewingRequest(null); }} disabled={isSavingDecision} className="btn-pill flex-1 py-3 bg-white border border-red-200 text-red-600 hover:bg-red-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
                     <XCircle size={16} /> REJECT
                   </button>
-                  <button onClick={() => handleApproveRequest(viewingRequest)} disabled={isSavingDecision} className="flex-1 py-3 bg-[#2563EB] text-white rounded-2xl font-semibold shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-[12px] disabled:opacity-50">
+                  <button onClick={() => handleApproveRequest(viewingRequest)} disabled={isSavingDecision} className="btn-pill flex-1 py-3 bg-[#2563EB] text-white shadow-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50">
                     {isSavingDecision ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} APPROVE
                   </button>
                 </div>
@@ -1192,10 +1192,10 @@ export default function HRLeaveRequestsProcessingPage() {
                 </div>
               </div>
               <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
-                <button onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="flex-1 py-3 bg-white border border-slate-200 rounded-2xl font-semibold text-slate-600 hover:bg-slate-100 transition-all text-[12px]">
+                <button onClick={() => { setRejectingRequest(null); setRejectReason(""); }} className="btn-pill flex-1 py-3 bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition-all">
                   CANCEL
                 </button>
-                <button disabled={!rejectReason.trim() || isSavingDecision} onClick={handleRejectSubmit} className="flex-1 py-3 bg-red-600 text-white rounded-2xl font-semibold shadow-sm disabled:bg-slate-300 hover:bg-red-700 transition-all text-[12px] disabled:cursor-not-allowed">
+                <button disabled={!rejectReason.trim() || isSavingDecision} onClick={handleRejectSubmit} className="btn-pill flex-1 py-3 bg-red-600 text-white shadow-sm disabled:bg-slate-300 hover:bg-red-700 transition-all disabled:cursor-not-allowed">
                   {isSavingDecision ? <Loader2 size={16} className="animate-spin mx-auto" /> : "CONFIRM REJECTION"}
                 </button>
               </div>

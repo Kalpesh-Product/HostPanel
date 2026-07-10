@@ -214,7 +214,7 @@ function WorkspaceEditModal({
             <button
               type="submit"
               disabled={isSaving}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#2563EB] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary/95 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+              className="btn-pill inline-flex h-11 items-center justify-center gap-2 bg-[#2563EB] px-5 text-white shadow-sm transition hover:bg-primary/95 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
               {isSaving ? "Saving..." : "Save Changes"}
@@ -261,7 +261,7 @@ function CombinedDataModal({ isOpen, onClose, summary, combinedData }) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[12px] font-semibold text-slate-600 transition hover:bg-slate-50"
+            className="btn-pill border border-slate-200 bg-white px-3 py-2 text-slate-600 transition hover:bg-slate-50"
           >
             Close
           </button>
@@ -750,7 +750,7 @@ export default function WorkspaceManagementPage() {
                     <button
                       type="button"
                       onClick={() => setIsCombinedModalOpen(true)}
-                      className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                      className="btn-pill bg-[#2563EB] text-white px-4 py-2.5 flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                     >
                       <BarChart3 size={13} strokeWidth={3} />
                       VIEW DATA
@@ -812,7 +812,7 @@ export default function WorkspaceManagementPage() {
                               <button
                                 type="button"
                                 onClick={() => handleToggleWorkspace(workspace.id)}
-                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                className="btn-pill inline-flex h-9 items-center gap-1.5 border border-slate-200 bg-white px-3 text-slate-700 shadow-sm transition hover:bg-slate-50"
                               >
                                 {expandedWorkspaceId === workspace.id ? (
                                   <ChevronUp className="h-3.5 w-3.5" />
@@ -824,7 +824,7 @@ export default function WorkspaceManagementPage() {
                               <button
                                 type="button"
                                 onClick={() => handleOpenEdit(workspace)}
-                                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                                className="btn-pill inline-flex h-9 items-center gap-1.5 border border-slate-200 bg-white px-3 text-slate-700 shadow-sm transition hover:bg-slate-50"
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                                 Edit Unit

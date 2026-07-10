@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
+import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import PageFrame from "../../components/Pages/PageFrame";
@@ -321,49 +321,53 @@ export default function CustomerSupportPage() {
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
+                  className="btn-pill bg-[#2563EB] text-white px-4 py-2.5 flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
                 >
-                  Raise Issue
+                  <Plus size={13} strokeWidth={3} />Raise Issue
                 </button>
               </div>
             </div>
             {isLoading ? (
               <div className="p-4 text-sm font-bold text-slate-500">Loading tickets...</div>
             ) : (
-              <div className="w-full overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-slate-50 border-b border-slate-100">
+              <div className="overflow-x-auto flex-1">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
-                      <th className="px-4 py-3.5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-left">Ticket ID</th>
-                      <th className="px-4 py-3.5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-left">Issue Title</th>
-                      <th className="px-4 py-3.5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-left">Requested At</th>
-                      <th className="px-4 py-3.5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-left">Resolved By</th>
-                      <th className="px-4 py-3.5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-left">Status</th>
-                      <th className="px-4 py-3.5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-left">Accepted By</th>
-                      <th className="px-4 py-3.5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-left">Action</th>
+                      <th className="px-5 py-4">Ticket ID</th>
+                      <th className="px-5 py-4">Issue Title</th>
+                      <th className="px-5 py-4">Requested At</th>
+                      <th className="px-5 py-4">Resolved By</th>
+                      <th className="px-5 py-4 text-center">Status</th>
+                      <th className="px-5 py-4">Accepted By</th>
+                      <th className="px-5 py-4 text-center">Action</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100/60">
                     {filteredList.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-8 text-center text-sm font-bold text-slate-400">No issues found.</td>
+                        <td colSpan={7} className="text-center py-20 text-slate-400 font-semibold">No issues found.</td>
                       </tr>
                     ) : (
                       filteredList.map((ticket) => (
-                        <tr key={ticket.id} className="hover:bg-slate-50/70 transition-colors">
-                          <td className="px-4 py-3.5 text-[13px] font-semibold text-slate-700 border-t border-slate-100/60 whitespace-nowrap">{ticket.ticketId || "-"}</td>
-                          <td className="px-4 py-3.5 text-[13px] font-semibold text-[#0F172A] border-t border-slate-100/60"><div className="truncate max-w-[200px]">{ticket.title}</div></td>
-                          <td className="px-4 py-3.5 text-[13px] font-semibold text-slate-600 border-t border-slate-100/60 whitespace-nowrap">{formatDate(ticket.requestedAt)}</td>
-                          <td className="px-4 py-3.5 text-[13px] font-semibold text-slate-600 border-t border-slate-100/60 whitespace-nowrap">{ticket.resolvedByName || "-"}</td>
-                          <td className="px-4 py-3.5 border-t border-slate-100/60">
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ${statusPillClass[ticket.status] || "bg-slate-100 text-slate-700"}`}>{ticket.status}</span>
+                        <tr key={ticket.id} className="hover:bg-slate-50/50 transition-colors group">
+                          <td className="px-5 py-4 align-top whitespace-nowrap">
+                            <div className="font-black text-blue-600 bg-blue-50 px-3 py-2 rounded inline-flex items-center gap-1 border border-blue-100 whitespace-nowrap">{ticket.ticketId || "N/A"}</div>
                           </td>
-                          <td className="px-4 py-3.5 text-[13px] font-semibold text-slate-600 border-t border-slate-100/60 whitespace-nowrap">{ticket.acceptedByName || "-"}</td>
-                          <td className="px-4 py-3.5 border-t border-slate-100/60 whitespace-nowrap">
+                          <td className="px-5 py-4 align-top">
+                            <div className="font-pmedium text-[#0F172A] text-[13px] truncate max-w-[200px]">{ticket.title}</div>
+                          </td>
+                          <td className="px-5 py-4 align-top text-xs font-pmedium text-slate-600 whitespace-nowrap">{formatDate(ticket.requestedAt)}</td>
+                          <td className="px-5 py-4 align-top text-xs font-pmedium text-slate-600 whitespace-nowrap">{ticket.resolvedByName || "-"}</td>
+                          <td className="px-5 py-4 align-top text-center">
+                            <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider whitespace-nowrap ${statusPillClass[ticket.status] || "bg-slate-100 text-slate-700"}`}>{ticket.status}</span>
+                          </td>
+                          <td className="px-5 py-4 align-top text-xs font-pmedium text-slate-600 whitespace-nowrap">{ticket.acceptedByName || "-"}</td>
+                          <td className="px-5 py-4 align-top text-center whitespace-nowrap">
                             <button
                               type="button"
                               onClick={() => { setSelectedTicket(ticket); setIsDetailsModalOpen(true); }}
-                              className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-slate-100/70 text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 transition-all"
+                              className="btn-pill px-3 py-1.5 bg-slate-100/70 text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 transition-all"
                             >
                               View Details
                             </button>
@@ -475,7 +479,7 @@ export default function CustomerSupportPage() {
               <button
                 type="button"
                 onClick={() => { setIsCreateModalOpen(false); resetCreateForm(); }}
-                className="flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+                className="flex-1 px-6 py-2 bg-white border border-slate-200 text-slate-600 btn-pill hover:bg-slate-50 transition-all"
               >
                 Cancel
               </button>
@@ -483,7 +487,7 @@ export default function CustomerSupportPage() {
                 type="submit"
                 disabled={isSubmitting || !title.trim() || !description.trim()}
                 onClick={(e) => submitTicket(e)}
-                className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="flex-1 px-6 py-2 bg-[#2563EB] text-white btn-pill shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {isSubmitting ? "Submitting..." : "Submit Ticket"}
               </button>
@@ -564,7 +568,7 @@ export default function CustomerSupportPage() {
                     type="button"
                     onClick={() => { setIsFollowUpModalOpen(true); }}
                     disabled={isSubmitting}
-                    className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold text-[13px] text-slate-600 hover:text-[#0F172A] hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50"
+                    className="px-6 py-2 bg-white border border-slate-200 btn-pill text-slate-600 hover:text-[#0F172A] hover:bg-slate-50 transition-all shadow-sm disabled:opacity-50"
                   >
                     Follow Up
                   </button>
@@ -572,7 +576,7 @@ export default function CustomerSupportPage() {
                     type="button"
                     disabled={isSubmitting}
                     onClick={() => void closeTicket(selectedTicket)}
-                    className="px-6 py-3 bg-[#2563EB] text-white rounded-xl font-bold text-[13px] shadow-lg shadow-[#2563EB]/30 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
+                    className="px-6 py-2 bg-[#2563EB] text-white btn-pill shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
                     {isSubmitting ? "Closing..." : "Close Ticket"}
                   </button>
@@ -602,29 +606,42 @@ export default function CustomerSupportPage() {
               </button>
             </div>
 
-            <form onSubmit={submitFollowUp} className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-1 space-y-5 bg-slate-50/30">
-              <p className="text-[13px] font-semibold text-slate-500">
-                Follow-up for ticket <span className="text-[#0F172A] font-bold">{selectedTicket.ticketId || "-"}</span>.
-              </p>
-              <div className="space-y-1.5">
-                <label htmlFor="followup-description" className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Follow Up Message (Optional)</label>
-                <textarea
-                  id="followup-description"
-                  value={followUpDescription}
-                  onChange={(event) => setFollowUpDescription(event.target.value)}
-                  rows={4}
-                  placeholder="Explain what is still pending or unresolved."
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none shadow-sm transition-all resize-none placeholder:text-slate-400"
-                />
+            <form onSubmit={submitFollowUp} className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 bg-slate-50/30">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                  <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><AlertCircle size={16} /></span>
+                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Follow Up</span>
+                </h4>
+                <p className="text-[12px] font-semibold text-slate-500">
+                  Follow-up for ticket <span className="text-[#0F172A] font-bold">{selectedTicket.ticketId || "-"}</span>.
+                </p>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="followup-description" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Follow Up Message</label>
+                  <textarea
+                    id="followup-description"
+                    value={followUpDescription}
+                    onChange={(event) => setFollowUpDescription(event.target.value)}
+                    rows={4}
+                    placeholder="Explain what is still pending or unresolved."
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400"
+                  />
+                </div>
               </div>
             </form>
 
-            <div className="p-5 sm:p-6 md:p-8 bg-white border-t border-slate-100 shrink-0">
+            <div className="p-3 sm:p-4 bg-white border-t border-slate-100 shrink-0 flex gap-3">
+              <button
+                type="button"
+                onClick={() => { setIsFollowUpModalOpen(false); setFollowUpDescription(""); }}
+                className="flex-1 px-6 py-2 bg-white border border-slate-200 text-slate-600 btn-pill hover:bg-slate-50 transition-all"
+              >
+                Cancel
+              </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
                 onClick={(e) => submitFollowUp(e)}
-                className="w-full py-3 bg-[#2563EB] text-white rounded-xl font-black text-[12px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/25 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
+                className="flex-1 px-6 py-2 bg-[#2563EB] text-white btn-pill shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {isSubmitting ? "Submitting..." : "Submit Follow Up"}
               </button>

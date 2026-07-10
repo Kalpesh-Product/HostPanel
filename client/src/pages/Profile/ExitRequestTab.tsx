@@ -163,7 +163,7 @@ export function ExitRequestTab() {
           type="button"
           onClick={() => setShowForm((p) => !p)}
           disabled={!canSubmit}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-[#2563EB] px-4 py-2 text-[12px] font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+          className="btn-pill inline-flex items-center gap-1.5 bg-[#2563EB] px-4 py-2 text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
         >
           {showForm ? <X size={15} /> : <Plus size={15} />}
           {showForm ? "Cancel" : "New Exit Request"}
@@ -239,14 +239,14 @@ export function ExitRequestTab() {
               <button
                 type="button"
                 onClick={() => { setShowForm(false); setReason(""); setRequestedDocuments([]); setDocumentNotes(""); }}
-                className="h-11 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                className="btn-pill h-11 border border-slate-200 bg-white px-5 text-slate-600 transition hover:bg-slate-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSaving || !reason.trim()}
-                className="inline-flex h-11 items-center gap-2 rounded-2xl bg-[#2563EB] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className="btn-pill inline-flex h-11 items-center gap-2 bg-[#2563EB] px-5 text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
                 <Send size={15} />
                 {isSaving ? "Submitting..." : "Submit Request"}

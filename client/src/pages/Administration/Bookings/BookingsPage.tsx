@@ -2201,13 +2201,13 @@ export default function BookingsPage() {
               <button
                 type="button"
                 onClick={() => { setCancellingBooking(null); setCancelForm({ reason: '', refundType: 'Full' }); setBookingUpdateError(''); }}
-                className="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:bg-slate-100"
+                className="btn-pill px-5 py-2.5 text-slate-600 transition-all hover:bg-slate-100"
               >Keep Booking</button>
               <button
                 type="button"
                 disabled={!cancelForm.reason || savingBookingUpdate}
                 onClick={handleCancelBooking}
-                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="btn-pill inline-flex items-center gap-2 bg-red-600 px-5 py-2.5 text-white transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {savingBookingUpdate ? 'Cancelling...' : 'Confirm Cancellation'}
               </button>
@@ -2343,13 +2343,13 @@ export default function BookingsPage() {
               <button
                 type="button"
                 onClick={() => { setReschedulingBooking(null); setBookingActionMode('reschedule'); setBookingUpdateError(''); }}
-                className="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:bg-slate-100"
+                className="btn-pill px-5 py-2.5 text-slate-600 transition-all hover:bg-slate-100"
               >Cancel</button>
               <button
                 type="button"
                 disabled={!bookingActionPreview?.available || savingBookingUpdate}
                 onClick={handleRescheduleBooking}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2.5 text-sm font-bold text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="btn-pill inline-flex items-center gap-2 bg-[#2563EB] px-5 py-2.5 text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {savingBookingUpdate ? 'Updating...' : bookingActionMode === 'extend' ? 'Confirm Extension' : 'Confirm Reschedule'}
               </button>

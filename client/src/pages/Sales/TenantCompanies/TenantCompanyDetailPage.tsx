@@ -467,9 +467,9 @@ export default function TenantCompanyDetailPage() {
                 subtitle={`${employees.length} employee${employees.length !== 1 ? 's' : ''}`}
                 headerRight={<>
                   <button onClick={() => setMgrModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200/60 text-slate-700 rounded-xl text-[10px] font-bold hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"><UserCog size={12} /> Change Manager</button>
+                    className="btn-pill flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200/60 text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"><UserCog size={12} /> Change Manager</button>
                   <button onClick={() => setAddModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-[#2563EB] text-white rounded-2xl text-[10px] font-bold shadow-sm hover:bg-[#2563EB]/90 active:scale-95 transition-all"><Plus size={12} strokeWidth={3} /> Add Employee</button>
+                    className="btn-pill flex items-center gap-1.5 px-3 py-2 bg-[#2563EB] text-white shadow-sm hover:bg-[#2563EB]/90 active:scale-95 transition-all"><Plus size={12} strokeWidth={3} /> Add Employee</button>
                 </>}
               >
                 {employees.length > 0 ? (
@@ -862,9 +862,9 @@ export default function TenantCompanyDetailPage() {
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => { setAddModal(false); setAddF({ name: '', email: '', phone: '', designation: '', role: 'Employee' }); }}
-                  className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-bold text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
+                  className="btn-pill px-4 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
                 <button type="submit" disabled={isSaving}
-                  className="px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl text-[10px] font-bold shadow-sm hover:bg-[#2563EB]/90 disabled:opacity-60 transition-all">{isSaving ? 'Adding...' : 'Add Employee'}</button>
+                  className="btn-pill px-4 py-2.5 bg-[#2563EB] text-white shadow-sm hover:bg-[#2563EB]/90 disabled:opacity-60 transition-all">{isSaving ? 'Adding...' : 'Add Employee'}</button>
               </div>
             </form>
           </div>
@@ -896,13 +896,13 @@ export default function TenantCompanyDetailPage() {
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-white p-5">
               <button onClick={() => { setEditEmp(viewEmp); setEditF({ name: viewEmp?.name || '', phone: viewEmp?.phone || '', designation: viewEmp?.designation || '', role: viewEmp?.role || 'Employee' }); }}
-                className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-blue-600 hover:bg-blue-100 transition-all">Edit</button>
+                className="btn-pill px-3 py-2 bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 transition-all">Edit</button>
               <button onClick={() => hToggle(viewEmp)}
                 className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewEmp.status === 'Inactive' ? 'bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-100' : 'bg-red-50 border border-red-200 text-red-600 hover:bg-red-100'}`}>
                 {viewEmp.status === 'Inactive' ? 'Activate' : 'Deactivate'}
               </button>
               <button onClick={() => hDel(viewEmp.id)}
-                className="px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-amber-700 hover:bg-amber-100 transition-all">Delete</button>
+                className="btn-pill px-3 py-2 bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-all">Delete</button>
               <button onClick={() => setViewEmp(null)}
                 className="px-3 py-2 bg-[#0F172A] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#1e293b] transition-all">Close</button>
             </div>
@@ -939,9 +939,9 @@ export default function TenantCompanyDetailPage() {
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => { setEditEmp(null); setEditF({ name: '', phone: '', designation: '', role: 'Employee' }); }}
-                  className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-bold text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
+                  className="btn-pill px-4 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
                 <button type="submit" disabled={isSaving}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-[#2563EB] text-white rounded-2xl text-[10px] font-bold shadow-sm hover:bg-[#2563EB]/90 disabled:opacity-60 transition-all"><Save size={13} /> Save Employee</button>
+                  className="btn-pill flex items-center gap-2 px-4 py-2.5 bg-[#2563EB] text-white shadow-sm hover:bg-[#2563EB]/90 disabled:opacity-60 transition-all"><Save size={13} /> Save Employee</button>
               </div>
             </form>
           </div>
@@ -984,7 +984,7 @@ export default function TenantCompanyDetailPage() {
                     {isCurrent ? (
                       <span className="px-2 py-1 bg-[#2563EB]/10 text-[#2563EB] rounded-lg text-[8px] font-black uppercase tracking-widest">Current</span>
                     ) : (
-                      <button className="px-2 py-1 bg-[#2563EB] text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-[#2563EB]/90 transition-all">Select</button>
+                      <button className="btn-pill px-2 py-1 bg-[#2563EB] text-white hover:bg-[#2563EB]/90 transition-all">Select</button>
                     )}
                   </div>
                 );

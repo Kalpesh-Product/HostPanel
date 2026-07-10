@@ -1607,11 +1607,11 @@ export default function PricingPackagesPage() {
               <input type="text" placeholder={`Search ${activeTab === 'resource' ? 'resources' : 'packages'}...`} className="w-full px-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-medium focus:bg-white focus:border-[#2563EB] focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
             {activeTab === 'resource' ? (
-              <button onClick={openAddResourceModal} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
+              <button onClick={openAddResourceModal} className="btn-pill flex items-center justify-center gap-2 bg-[#2563EB] px-4 py-2.5 text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
                 <Plus size={16} /> ADD RESOURCE
               </button>
             ) : (
-              <button onClick={() => openPackageModal(activeTab === 'membership' ? 'Membership' : 'Tenant')} className="flex items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
+              <button onClick={() => openPackageModal(activeTab === 'membership' ? 'Membership' : 'Tenant')} className="btn-pill flex items-center justify-center gap-2 bg-[#2563EB] px-4 py-2.5 text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
                 <Plus size={16} /> ADD {activeTab === 'membership' ? 'MEMBERSHIP' : 'PACKAGE'}
               </button>
             )}
@@ -1627,7 +1627,7 @@ export default function PricingPackagesPage() {
                 <button
                   type="button"
                   onClick={clearResourceFilters}
-                  className="inline-flex items-center justify-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-slate-600 shadow-sm transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                  className="btn-pill inline-flex items-center justify-center gap-2 self-start border border-slate-200 bg-white px-4 py-2.5 text-slate-600 shadow-sm transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                 >
                   <X size={14} /> Reset Filters
                 </button>
@@ -1924,14 +1924,14 @@ export default function PricingPackagesPage() {
                 ) : null}
 
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <button type="button" onClick={downloadBulkTemplate} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm flex-1 py-3 text-sm font-black inline-flex items-center justify-center gap-2 transition-all hover:border-blue-200 hover:text-blue-600">
+                  <button type="button" onClick={downloadBulkTemplate} className="btn-pill p-2 bg-white border border-slate-200 text-slate-600 shadow-sm flex-1 py-3 inline-flex items-center justify-center gap-2 transition-all hover:border-blue-200 hover:text-blue-600">
                     <Download size={16} /> Download Template
                   </button>
                   <button
                     type="button"
                     onClick={() => bulkUploadInputRef.current?.click()}
                     disabled={isBulkImporting}
-                    className="flex-1 rounded-lg bg-blue-600 py-3 text-sm font-black text-white shadow-sm transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none inline-flex items-center justify-center gap-2"
+                    className="btn-pill flex-1 bg-blue-600 py-3 text-white shadow-sm transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none inline-flex items-center justify-center gap-2"
                   >
                     <UploadCloud size={16} /> {isBulkImporting ? 'Importing...' : 'Choose File'}
                   </button>
@@ -1946,7 +1946,7 @@ export default function PricingPackagesPage() {
               </div>
 
               <div className="flex flex-col gap-3 border-t border-slate-100 bg-white p-5 sm:flex-row">
-                <button type="button" onClick={() => setIsBulkUploadOpen(false)} className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg shadow-sm flex-1 py-3 text-sm font-black transition-all hover:bg-slate-50">
+                <button type="button" onClick={() => setIsBulkUploadOpen(false)} className="btn-pill p-2 bg-white border border-slate-200 text-slate-600 shadow-sm flex-1 py-3 transition-all hover:bg-slate-50">
                   Close
                 </button>
               </div>
@@ -1986,7 +1986,7 @@ export default function PricingPackagesPage() {
                     </ul>
                   </div>
                 ) : null}
-                <button type="button" onClick={() => setBulkUploadSummary(null)} className="w-full rounded-xl bg-blue-600 py-2.5 text-[11px] font-bold text-white transition-all hover:bg-blue-700">CLOSE</button>
+                <button type="button" onClick={() => setBulkUploadSummary(null)} className="btn-pill w-full bg-blue-600 py-2.5 text-white transition-all hover:bg-blue-700">CLOSE</button>
               </div>
             </div>
           </div>
@@ -3062,9 +3062,9 @@ export default function PricingPackagesPage() {
 
                 <div className="sticky bottom-0 bg-white border-t border-slate-100 p-3 sm:p-4">
                   <div className="flex flex-col gap-2 sm:flex-row">
-                    <button type="button" onClick={closeModal} className="flex-1 rounded-xl bg-blue-600 py-2.5 text-[11px] font-bold text-white transition-all hover:bg-blue-700">{isViewingPackage || isViewingResource ? 'CLOSE DETAILS' : 'CANCEL'}</button>
+                    <button type="button" onClick={closeModal} className="btn-pill flex-1 bg-blue-600 py-2.5 text-white transition-all hover:bg-blue-700">{isViewingPackage || isViewingResource ? 'CLOSE DETAILS' : 'CANCEL'}</button>
                     {!isViewingPackage && !isViewingResource ? (
-                      <button type="submit" className="flex-1 flex items-center justify-center gap-3 rounded-xl bg-[#2563EB] py-2.5 text-[11px] font-bold text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
+                      <button type="submit" className="btn-pill flex-1 flex items-center justify-center gap-3 bg-[#2563EB] py-2.5 text-white shadow-md shadow-blue-200 transition-all hover:bg-blue-700">
                         <Save size={14} />
                         {modalKind === 'resource' && modalMode === 'add' ? 'CREATE RESOURCE' : isTenantPackageRateEdit ? 'SAVE DESK PRICES' : 'SAVE CONFIGURATION'}
                       </button>

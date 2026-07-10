@@ -171,7 +171,7 @@ const AddFieldPanel = ({ onAdd }: { onAdd: (field: any) => void }) => {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+          className="btn-pill px-4 py-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
         >
           Add Field
         </button>
@@ -232,7 +232,7 @@ const AddFieldPanel = ({ onAdd }: { onAdd: (field: any) => void }) => {
             <button
               type="button"
               onClick={handleAdd}
-              className="px-4 py-2 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all"
+              className="btn-pill px-4 py-2 bg-[#2563EB] text-white shadow-sm hover:bg-blue-700 transition-all"
             >
               Add Field
             </button>
@@ -242,7 +242,7 @@ const AddFieldPanel = ({ onAdd }: { onAdd: (field: any) => void }) => {
                 reset();
                 setOpen(false);
               }}
-              className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+              className="btn-pill px-4 py-2 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
             >
               Cancel
             </button>
@@ -2685,7 +2685,7 @@ const CreateWebsite = () => {
                     </TextField>
                     <button
                       type="button"
-                      className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+                      className="btn-pill px-3 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
                       onClick={() => {
                         const optionName = String(selectedProductPageOption || "").trim();
                         if (!optionName) return;
@@ -2731,7 +2731,7 @@ const CreateWebsite = () => {
                     </button>
                     <button
                       type="button"
-                      className="px-3 py-1.5 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all"
+                      className="btn-pill px-3 py-1.5 bg-[#2563EB] text-white shadow-sm hover:bg-blue-700 transition-all"
                       onClick={() => {
                         const newPageNumber = (values?.productDropdownPages || []).length + 1;
                         const newName = `Product ${newPageNumber}`;
@@ -3808,7 +3808,7 @@ const CreateWebsite = () => {
                               type="button"
                               disabled={index === 0}
                               onClick={() => moveCareersField(index, index - 1)}
-                              className="px-2 py-1 bg-white border border-slate-200 text-slate-600 rounded-lg font-bold text-[10px] hover:bg-slate-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              className="btn-pill px-2 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                               aria-label={`Move ${field.label || field.type} up`}
                             >
                               ↑
@@ -3817,7 +3817,7 @@ const CreateWebsite = () => {
                               type="button"
                               disabled={index === careersFieldItems.length - 1}
                               onClick={() => moveCareersField(index, index + 1)}
-                              className="px-2 py-1 bg-white border border-slate-200 text-slate-600 rounded-lg font-bold text-[10px] hover:bg-slate-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              className="btn-pill px-2 py-1 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                               aria-label={`Move ${field.label || field.type} down`}
                             >
                               ↓
@@ -3826,7 +3826,7 @@ const CreateWebsite = () => {
                           <button
                             type="button"
                             onClick={() => removeCareersField(index)}
-                            className="px-3 py-1.5 bg-white border border-slate-200 text-red-500 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+                            className="btn-pill px-3 py-1.5 bg-white border border-slate-200 text-red-500 hover:bg-slate-50 transition-all"
                           >
                             Remove
                           </button>
@@ -5098,14 +5098,14 @@ const CreateWebsite = () => {
                 <button
                   type="button"
                   onClick={openPreview}
-                  className="px-8 py-2.5 bg-green-500 border border-slate-200 text-white rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-green-600 transition-all"
+                  className="btn-pill px-8 py-2.5 bg-green-500 border border-slate-200 text-white hover:bg-green-600 transition-all"
                 >
                   Preview
                 </button>
                 <button
                   type="button"
                   onClick={resetFormToEmpty}
-                  className="px-8 py-2.5 bg-red-500 border border-slate-200 text-slate-100 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-red-600 transition-all"
+                  className="btn-pill px-8 py-2.5 bg-red-500 border border-slate-200 text-slate-100 hover:bg-red-600 transition-all"
                 >
                   Reset
                 </button>
@@ -5113,7 +5113,7 @@ const CreateWebsite = () => {
                   type="button"
                   onClick={() => setShowConfirmPopup(true)}
                   disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
-                  className="px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
+                  className="btn-pill px-8 py-2.5 bg-[#2563EB] text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all inline-flex items-center justify-center gap-2"
                 >
                   {isWebsiteSubmitting ? (
                     <>{effectiveEditMode ? "Submitting..." : "Publishing..."}</>
@@ -5183,14 +5183,14 @@ const CreateWebsite = () => {
                   type="button"
                   onClick={() => setShowConfirmPopup(false)}
                   disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
-                  className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all disabled:opacity-50"
+                  className="btn-pill px-6 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   disabled={isWebsiteSubmitting || isRedirectingAfterCreate}
-                  className="px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-bold text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                  className="btn-pill px-6 py-2.5 bg-[#2563EB] text-white shadow-sm hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                   onClick={() => {
                     if (isWebsiteSubmitting || isRedirectingAfterCreate) return;
                     setShowConfirmPopup(false);

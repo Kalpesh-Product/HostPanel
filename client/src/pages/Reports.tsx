@@ -382,12 +382,12 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
         </div>
         <div className="flex items-center gap-1.5">
           <button onClick={() => openDownloadPicker('PDF')}
-            className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
+            className="group relative p-2.5 rounded-full bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm">
             <FileDown size={16} className="text-red-500"/>
             <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
           </button>
           <button onClick={() => openDownloadPicker('Excel')}
-            className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 hover:text-emerald-600 transition-all active:scale-95 shadow-sm">
+            className="group relative p-2.5 rounded-full bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 hover:text-emerald-600 transition-all active:scale-95 shadow-sm">
             <FileSpreadsheet size={16} className="text-emerald-500"/>
             <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
           </button>
@@ -509,11 +509,11 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex justify-center gap-1.5">
-                        <button onClick={() => setViewingReport(report)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all" title="View Details">
+                        <button onClick={() => setViewingReport(report)} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-full transition-all" title="View Details">
                           <Eye size={15} strokeWidth={2.5} />
                         </button>
                         <button onClick={() => handleDownload(report)} disabled={isDownloadingReportId === report.recordId}
-                          className="p-1.5 bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-600 rounded-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed" title={`Download ${report.format}`}>
+                          className="p-1.5 bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-600 rounded-full transition-all disabled:opacity-60 disabled:cursor-not-allowed" title={`Download ${report.format}`}>
                           <Download size={15} strokeWidth={2.5} />
                         </button>
                       </div>
@@ -551,9 +551,9 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
                   <div><span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Window</span>{report.dataWindow || 'Monthly'}</div>
                 </div>
                 <div className="flex justify-end gap-2 pt-1 border-t border-slate-100">
-                  <button onClick={() => setViewingReport(report)} className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl shadow-sm">View</button>
+                  <button onClick={() => setViewingReport(report)} className="btn-pill flex-1 py-2 bg-white border border-slate-200 text-slate-600 shadow-sm">View</button>
                   <button onClick={() => handleDownload(report)} disabled={isDownloadingReportId === report.recordId}
-                    className="flex-1 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-xs rounded-xl shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed">
+                    className="flex-1 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 font-pmedium text-[10px] rounded-full shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed">
                     <Download size={12} /> {isDownloadingReportId === report.recordId ? 'Downloading...' : 'Download'}
                   </button>
                 </div>
@@ -569,7 +569,7 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
           <div className="flex flex-col items-center gap-2 border-t border-slate-100/70 bg-white/70 px-4 py-5">
             <p className="text-[12px] font-semibold text-slate-500">Showing {reports.length} of {pagination?.total || reports.length} reports.</p>
             <button type="button" onClick={handleLoadMoreReports} disabled={isLoadingMoreReports}
-              className="rounded-xl border border-blue-100 bg-blue-50 px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-[#2563EB] shadow-sm transition-all hover:border-blue-200 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60">
+              className="btn-pill border border-blue-100 bg-blue-50 px-5 py-2.5 text-[#2563EB] shadow-sm transition-all hover:border-blue-200 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60">
               {isLoadingMoreReports ? 'Loading...' : 'Load More Reports'}
             </button>
           </div>
@@ -664,12 +664,12 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
                 <div className={`grid grid-cols-1 ${isViewingExcelReport ? '' : 'sm:grid-cols-2'} gap-3`}>
                   {!isViewingExcelReport && (
                     <button onClick={() => handleViewReport(viewingReport)}
-                      className="w-full py-4 bg-white border border-slate-200 text-[#0F172A] rounded-xl font-black text-[13px] uppercase tracking-wider shadow-sm hover:bg-slate-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                      className="w-full py-4 bg-white border border-slate-200 text-[#0F172A] btn-pill shadow-sm hover:bg-slate-50 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
                       <Eye size={16} /> View
                     </button>
                   )}
                   <button onClick={() => handleDownload(viewingReport, viewingReport.format)} disabled={isDownloadingReportId === viewingReport.recordId}
-                    className="w-full py-4 bg-[#2563EB] text-white rounded-xl font-black text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 hover:bg-blue-600 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                    className="w-full py-4 bg-[#2563EB] text-white btn-pill shadow-lg shadow-[#2563EB]/30 hover:bg-blue-600 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
                     <Download size={16} /> {isDownloadingReportId === viewingReport.recordId ? 'Downloading...' : `Download ${viewingReport.format}`}
                   </button>
                 </div>
@@ -725,15 +725,15 @@ export function ReportsPage({ embedded = false }: ReportsPageProps = {}) {
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Format</label>
                   <div className="grid grid-cols-2 gap-2">
                     <button onClick={() => setDownloadPickerFormat('PDF')}
-                      className={`py-2.5 rounded-xl border font-black text-xs uppercase tracking-widest transition-all ${downloadPickerFormat === 'PDF' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-slate-200 text-slate-600'}`}>PDF</button>
+                      className={`py-2.5 rounded-full border font-pmedium text-[10px] uppercase tracking-widest transition-all ${downloadPickerFormat === 'PDF' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-slate-200 text-slate-600'}`}>PDF</button>
                     <button onClick={() => setDownloadPickerFormat('Excel')}
-                      className={`py-2.5 rounded-xl border font-black text-xs uppercase tracking-widest transition-all ${downloadPickerFormat === 'Excel' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600'}`}>Excel</button>
+                      className={`py-2.5 rounded-full border font-pmedium text-[10px] uppercase tracking-widest transition-all ${downloadPickerFormat === 'Excel' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-600'}`}>Excel</button>
                   </div>
                 </div>
               </div>
               <div className="p-6 md:p-7 bg-slate-50/50 border-t border-slate-100/60 sticky bottom-0">
                 <button onClick={handlePickerDownload} disabled={!selectedDepartmentReportId || isLoadingDepartmentReports || Boolean(isDownloadingReportId)}
-                  className="w-full py-4 bg-[#2563EB] text-white rounded-xl font-black text-[13px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/30 hover:bg-blue-600 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                  className="w-full py-4 bg-[#2563EB] text-white btn-pill shadow-lg shadow-[#2563EB]/30 hover:bg-blue-600 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
                   <Download size={16} /> {isDownloadingReportId ? 'Downloading...' : `Download ${downloadPickerFormat}`}
                 </button>
               </div>

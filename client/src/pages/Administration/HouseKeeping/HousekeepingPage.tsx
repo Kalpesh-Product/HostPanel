@@ -721,28 +721,28 @@ function HousekeepingPageInner() {
                 </div>
                 <button
                   onClick={() => setIsStaffListOpen(true)}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 whitespace-nowrap"
+                  className="btn-pill inline-flex items-center justify-center gap-2 border border-gray-200 bg-white px-4 py-2.5 text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 whitespace-nowrap"
                 >
                   <Eye size={16} />
                   Show Staff
                 </button>
                 <button
                   onClick={() => { setStaffForm(staffFormState()); setIsStaffModalOpen(true); }}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 whitespace-nowrap"
+                  className="btn-pill inline-flex items-center justify-center gap-2 border border-gray-200 bg-white px-4 py-2.5 text-slate-700 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 whitespace-nowrap"
                 >
                   <Users size={16} />
                   Add Staff
                 </button>
                 <button
                   onClick={() => { setBulkUploadMessage(''); setBulkUploadFile(null); setIsBulkUploadModalOpen(true); }}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 whitespace-nowrap"
+                  className="btn-pill inline-flex items-center justify-center gap-2 border border-gray-200 bg-white px-4 py-2.5 text-slate-700 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 whitespace-nowrap"
                 >
                   <Upload size={16} />
                   Bulk Upload
                 </button>
                 <button
                   onClick={() => { setEditingTask(null); setTaskForm(taskFormState()); setIsTaskModalOpen(true); }}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#2563EB] px-4 py-2.5 text-[10px] font-bold text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
+                  className="btn-pill inline-flex items-center justify-center gap-1.5 bg-[#2563EB] px-4 py-2.5 text-white shadow-sm transition-all hover:bg-blue-700 active:scale-95 whitespace-nowrap"
                 >
                   <Plus size={13} strokeWidth={3} />
                   Add Scheduled Task
@@ -858,8 +858,8 @@ function HousekeepingPageInner() {
                 </div>
 
                 <div className="flex gap-4 border-t border-slate-100 px-6 py-6 lg:px-8">
-                  <button type="button" onClick={() => { setIsTaskModalOpen(false); setEditingTask(null); setTaskForm(taskFormState()); }} className="flex-1 rounded-2xl bg-slate-100 py-4 font-black text-slate-700 transition-all hover:bg-slate-200">Cancel</button>
-                  <button type="submit" className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-black text-white shadow-sm transition-all hover:bg-blue-700"><Plus size={18} />{editingTask ? 'Update Task' : 'Save Task'}</button>
+                  <button type="button" onClick={() => { setIsTaskModalOpen(false); setEditingTask(null); setTaskForm(taskFormState()); }} className="btn-pill flex-1 bg-slate-100 py-4 text-slate-700 transition-all hover:bg-slate-200">Cancel</button>
+                  <button type="submit" className="btn-pill flex flex-1 items-center justify-center gap-2 bg-blue-600 py-4 text-white shadow-sm transition-all hover:bg-blue-700"><Plus size={18} />{editingTask ? 'Update Task' : 'Save Task'}</button>
                 </div>
               </form>
             </div>
@@ -901,8 +901,8 @@ function HousekeepingPageInner() {
                   </div>
                 </div>
                 <div className="flex gap-4 border-t border-slate-100 px-6 py-6 lg:px-8">
-                  <button type="button" onClick={() => { setIsStaffModalOpen(false); setStaffForm(staffFormState()); }} className="flex-1 rounded-2xl bg-slate-100 py-4 font-black text-slate-700 transition-all hover:bg-slate-200">Cancel</button>
-                  <button type="submit" className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-black text-white shadow-sm transition-all hover:bg-blue-700"><Users size={18} /> Save Staff</button>
+                  <button type="button" onClick={() => { setIsStaffModalOpen(false); setStaffForm(staffFormState()); }} className="btn-pill flex-1 bg-slate-100 py-4 text-slate-700 transition-all hover:bg-slate-200">Cancel</button>
+                  <button type="submit" className="btn-pill flex flex-1 items-center justify-center gap-2 bg-blue-600 py-4 text-white shadow-sm transition-all hover:bg-blue-700"><Users size={18} /> Save Staff</button>
                 </div>
               </form>
             </div>
@@ -968,7 +968,7 @@ function HousekeepingPageInner() {
                   {/* <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800">
                     Download the workbook template, fill only the required fields shown in the <strong>Instructions</strong> sheet, then upload the completed file here.
                   </div> */}
-                  <button type="button" onClick={downloadBulkTemplate} className="w-full rounded-2xl border bg-blue-600 bg-slate-100 px-5 py-4 text-sm font-black text-slate-700 transition-all hover:bg-slate-200 flex items-center justify-center gap-2">
+                  <button type="button" onClick={downloadBulkTemplate} className="btn-pill w-full border bg-blue-600 bg-slate-100 px-5 py-4 text-slate-700 transition-all hover:bg-slate-200 flex items-center justify-center gap-2">
                     <Download size={16} /> Download Template
                   </button>
                   <div className="space-y-2">
@@ -983,8 +983,8 @@ function HousekeepingPageInner() {
                   </div>
                 </div>
                 <div className="flex gap-4 border-t border-slate-100 px-6 py-6 lg:px-8">
-                  <button type="button" onClick={() => setIsBulkUploadModalOpen(false)} className="flex-1 rounded-2xl bg-slate-100 py-4 font-black text-slate-700 transition-all hover:bg-slate-200">Cancel</button>
-                  <button type="submit" disabled={isBulkUploading} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-black text-white shadow-sm transition-all hover:bg-blue-700 disabled:opacity-60">
+                  <button type="button" onClick={() => setIsBulkUploadModalOpen(false)} className="btn-pill flex-1 bg-slate-100 py-4 text-slate-700 transition-all hover:bg-slate-200">Cancel</button>
+                  <button type="submit" disabled={isBulkUploading} className="btn-pill flex flex-1 items-center justify-center gap-2 bg-blue-600 py-4 text-white shadow-sm transition-all hover:bg-blue-700 disabled:opacity-60">
                     {isBulkUploading ? 'Importing...' : 'Import Workbook'}
                   </button>
                 </div>
@@ -1018,7 +1018,7 @@ function HousekeepingPageInner() {
               </div>
               <div className="flex gap-4 border-t border-slate-100 bg-slate-50/30 px-6 py-5">
                 <button onClick={() => { setAssigningTask(null); setTaskForm(taskFormState()); }} className="flex-1 rounded-2xl bg-white py-4 font-black text-slate-500 transition-all hover:text-slate-900">Cancel</button>
-                <button disabled={!taskForm.assigneeEmployeeProfileId} onClick={assignTask} className="flex-1 rounded-2xl bg-red-600 py-4 font-black text-white shadow-sm transition-all hover:bg-red-700 disabled:bg-slate-300 disabled:shadow-none">Assign</button>
+                <button disabled={!taskForm.assigneeEmployeeProfileId} onClick={assignTask} className="btn-pill flex-1 bg-red-600 py-4 text-white shadow-sm transition-all hover:bg-red-700 disabled:bg-slate-300 disabled:shadow-none">Assign</button>
               </div>
             </div>
           </div>
@@ -1140,7 +1140,7 @@ function AutoTasks({ tasks, onAssign, onDone }: AutoTasksProps) {
                 <button onClick={() => onAssign(task)} className="rounded-xl bg-slate-100 p-3 text-slate-600 transition-all hover:bg-blue-100 hover:text-blue-700" title="Assign Staff">
                   <User size={18} />
                 </button>
-                <button onClick={() => onDone(task)} className="flex items-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-xs font-black text-white shadow-md shadow-green-200 transition-all hover:bg-green-700">
+                <button onClick={() => onDone(task)} className="btn-pill flex items-center gap-2 bg-green-600 px-5 py-3 text-white shadow-md shadow-green-200 transition-all hover:bg-green-700">
                   <CheckCircle2 size={16} /> Mark Done
                 </button>
               </div>

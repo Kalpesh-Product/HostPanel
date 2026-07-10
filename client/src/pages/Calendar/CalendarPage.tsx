@@ -534,7 +534,7 @@ function UnifiedCalendar() {
                 <button onClick={() => changeMonth('next')} className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
                   <ChevronRight size={18} className="text-slate-500" />
                 </button>
-                <button onClick={() => setCurrentDate(new Date())} className="px-4 py-2 bg-[#2563EB] text-white rounded-2xl text-[10px] font-bold hover:bg-blue-700 transition-colors">
+                <button onClick={() => setCurrentDate(new Date())} className="btn-pill px-4 py-2 bg-[#2563EB] text-white hover:bg-blue-700 transition-colors">
                   Today
                 </button>
               </div>
