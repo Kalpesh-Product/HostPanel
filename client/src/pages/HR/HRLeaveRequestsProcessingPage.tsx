@@ -601,7 +601,7 @@ export default function HRLeaveRequestsProcessingPage() {
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Leave Request Processing
               </h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Review, approve or reject employee leave requests efficiently.
               </p>
             </div>
@@ -657,21 +657,21 @@ export default function HRLeaveRequestsProcessingPage() {
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-blue-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">On Leave Today</p>
+                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">On Leave Today</p>
                 <p className="text-[15px] font-black text-slate-900">{currentLeaves.length}</p>
               </div>
               <div className="p-2 rounded-2xl bg-blue-50 text-blue-600 shrink-0"><CalendarClock size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Employees</p>
+                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Total Employees</p>
                 <p className="text-[15px] font-black text-slate-900">{employeeRoster.length}</p>
               </div>
               <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><Users size={16} /></div>
             </div>
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Approved</p>
+                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Approved</p>
                 <p className="text-[15px] font-black text-slate-900">{approvedRequestsCount}</p>
               </div>
               <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><CheckCircle2 size={16} /></div>

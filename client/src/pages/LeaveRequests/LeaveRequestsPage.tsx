@@ -711,7 +711,7 @@ export function LeaveRequestsPage() {
                 <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                   Leave Management
                 </h2>
-                <p className="text-xs font-medium text-slate-500 mt-1">
+                <p className="text-xs font-pmedium text-slate-500 mt-1">
                   {isActingManagerView ? 'Review and action leave requests for this department.' : 'Review leave flow and apply for your own leave.'}
                 </p>
               </div>

@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import React, { useEffect, useState } from "react";
 import {
   ArrowRight,
@@ -680,8 +681,8 @@ const FinalizeSetupPage: React.FC = () => {
         </div>
       </main>
 
-      {isUpgradeModalOpen && !isAdditionalWorkspaceMode ? (
-        <div className="fixed inset-0 z-50 bg-[#0f172a]/45 backdrop-blur-[2px] px-4 py-6 flex items-center justify-center overflow-hidden">
+      {isUpgradeModalOpen && !isAdditionalWorkspaceMode ? createPortal(
+        <div className="fixed inset-0 z-[1400] bg-[#0f172a]/45 backdrop-blur-[2px] px-4 py-6 flex items-center justify-center overflow-hidden">
           <div className="w-full max-w-fit max-h-[90vh] overflow-y-auto rounded-[32px] bg-[linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] shadow-[0_20px_80px_rgba(15,23,42,0.28)] p-5 sm:p-6 border border-[#dbe5f2] my-auto">
             <div className="flex items-start justify-between gap-4 mb-5">
               <div>
@@ -750,7 +751,7 @@ const FinalizeSetupPage: React.FC = () => {
             </div>
           </div>
         </div>
-      ) : null}
+      , document.body) : null}
 
       {showSuccessPopup ? (
         <div className="fixed inset-0 z-[60] pointer-events-none flex items-center justify-center px-4 backdrop-blur-[6px]">

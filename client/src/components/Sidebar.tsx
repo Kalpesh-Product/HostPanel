@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
 import type { ElementType } from "react";
 import {
@@ -158,7 +159,7 @@ const readWorkspaceSetup = (): WorkspaceSetupState => {
 
 const companySettingsData: NavNode[] = [
   { id: "website-builder", label: "Website Builder", icon: Globe, route: "/company-settings/website-builder" },
-  { id: "wono-nomad", label: "Wono Nomad", icon: ShieldCheck, route: "/company-settings/wono-nomad" },
+  { id: "wono-nomad", label: "Wono Nomads", icon: ShieldCheck, route: "/company-settings/wono-nomad" },
   { id: "organization-management", label: "Organization Management", icon: Building, route: "/company-settings/organization-management" },
   { id: "module-management", label: "Module Management", icon: Boxes, disabled: true },
   { id: "access-grants", label: "Access Grants", icon: UserCog, route: "/company-settings/access-grants" },
@@ -169,9 +170,9 @@ const companySettingsData: NavNode[] = [
 ];
 
 const keyAppsData: NavNode[] = [
-  { id: "visitor-management", label: "Visitor Management", icon: ContactRound, route: "/visitors/visitor-management", disabled: false },
   { id: "website-builder", label: "Website Builder", icon: Globe, route: "/company-settings/website-builder", disabled: false },
-  { id: "wono-nomad", label: "Wono Nomad", icon: ShieldCheck, route: "/company-settings/wono-nomad", disabled: false },
+  { id: "wono-nomad", label: "Wono Nomads", icon: ShieldCheck, route: "/company-settings/wono-nomad", disabled: false },
+  { id: "visitor-management", label: "Visitor Management", icon: ContactRound, route: "/visitors/visitor-management", disabled: false },
 ];
 
 const departmentModules: NavNode[] = [
@@ -1206,23 +1207,25 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
               ? (() => {
                 const hasKeyApps = mappedSections.some(s => s.key === "key-apps");
                 const hasDeptAccess = mappedSections.some(s => s.key === "department-accesses");
-                const sections = mappedSections.map(s => {
-                  if (s.key === "key-apps") {
-                    return { ...s, items: [...s.items, ...keyAppsItems.filter(k => k.route && !s.items.some(ex => ex.id === k.id))] };
-                  }
-                  if (s.key === "department-accesses") {
-                    return { ...s, items: [...s.items, ...departmentItems.filter(d => d.route || (d.children?.length && !s.items.some(ex => ex.id === d.id)))] };
-                  }
-                  return s;
-                });
+                const sections = mappedSections
+                  .filter(s => planLabel !== "basic" || s.key !== "department-accesses")
+                  .map(s => {
+                    if (s.key === "key-apps") {
+                      return { ...s, items: [...s.items, ...keyAppsItems.filter(k => k.route && !s.items.some(ex => ex.id === k.id))] };
+                    }
+                    if (s.key === "department-accesses") {
+                      return { ...s, items: [...s.items, ...departmentItems.filter(d => d.route || (d.children?.length && !s.items.some(ex => ex.id === d.id)))] };
+                    }
+                    return s;
+                  });
                 if (!hasKeyApps) sections.push({ key: "key-apps", title: "Key Apps", items: keyAppsItems });
-                if (!hasDeptAccess) sections.push({ key: "department-accesses", title: "Department Accesses", items: departmentItems });
+                if (!hasDeptAccess && planLabel !== "basic") sections.push({ key: "department-accesses", title: "Department Accesses", items: departmentItems });
                 return sections;
               })()
               : [
                 { key: "company-settings", title: "Company Settings", items: companySettingsItems },
                 { key: "key-apps", title: "Key Apps", items: keyAppsItems },
-                { key: "department-accesses", title: "Department Accesses", items: departmentItems },
+                ...(planLabel !== "basic" ? [{ key: "department-accesses", title: "Department Accesses", items: departmentItems }] : []),
               ];
 
             // Recursively splits a node tree into its locked and unlocked halves,
@@ -1270,33 +1273,22 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
             });
 
             const addonsItems: NavNode[] = [];
-            rawSections.forEach((s) => {
-              const split = sectionSplits.get(s.key);
-              if (!split || !split.locked.length) return;
+            if (planLabel !== "basic") {
+              rawSections.forEach((s) => {
+                const split = sectionSplits.get(s.key);
+                if (!split || !split.locked.length) return;
 
-              if (s.key === "key-apps") {
-                // Key Apps has no group wrapper outside Add-ons (its items sit
-                // directly under the "Key Apps" section header) — wrap its
-                // locked leaves in a synthetic "Key Apps" group node so it
-                // shows as its own dropdown inside Add-ons too, exactly like a
-                // locked department does.
-                addonsItems.push({ id: "key-apps", label: "Key Apps", icon: Boxes, defaultOpen: true, children: split.locked });
-                return;
-              }
-              if (s.key === "department-accesses") {
-                // Wrap all locked department dropdowns under a single
-                // "Department" group inside Add-ons (outside Add-ons each
-                // department sits directly under the "Department Accesses"
-                // section header — Add-ons uses its own "Department"
-                // sub-dropdown instead, one level deeper).
-                addonsItems.push({ id: "department-accesses", label: "Department", icon: Building, defaultOpen: true, children: split.locked });
-                return;
-              }
-              // Every other section (Common Modules, Extra Common Modules,
-              // Founder Core Modules) also renders flat outside Add-ons —
-              // wrap it the same way as Key Apps for consistency.
-              addonsItems.push({ id: s.key, label: s.title, icon: Boxes, defaultOpen: true, children: split.locked });
-            });
+                if (s.key === "key-apps") {
+                  addonsItems.push({ id: "key-apps", label: "Key Apps", icon: Boxes, defaultOpen: true, children: split.locked });
+                  return;
+                }
+                if (s.key === "department-accesses") {
+                  addonsItems.push({ id: "department-accesses", label: "Department", icon: Building, defaultOpen: true, children: split.locked });
+                  return;
+                }
+                addonsItems.push({ id: s.key, label: s.title, icon: Boxes, defaultOpen: true, children: split.locked });
+              });
+            }
 
             const cleanedSections = rawSections
               .map((s) => {
@@ -1312,28 +1304,49 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
 
             // if Key Apps/departments have locked items but there is no existing add-ons section, create it
             if (
+              planLabel !== "basic" &&
               addonsItems.length > 0 &&
               !cleanedSections.some((s) => s.key === "add-ons")
             ) {
               cleanedSections.push({ key: "add-ons", title: "Add-ons", items: addonsItems });
             }
 
-            // Re-order so Add-ons appears last (after Key Apps + Departments + other modules)
-            // while keeping the locked/unlocked split logic intact.
-            const reordered = [...cleanedSections].sort((a, b) => {
-              const aIsAddons = a.key === "add-ons";
-              const bIsAddons = b.key === "add-ons";
-              if (aIsAddons && !bIsAddons) return 1;
-              if (!aIsAddons && bIsAddons) return -1;
-              return 0;
-            });
+            // Re-order so Add-ons appears right after Founder Core Modules
+            // (and before Department Accesses), while keeping the
+            // locked/unlocked split logic intact.
+            const SECTION_ORDER = [
+              "common-modules",
+              "extra-common-modules",
+              "company-settings",
+              "key-apps",
+              "founder-core-modules",
+              "add-ons",
+              "department-accesses",
+            ];
+            const orderIndex = (key: string) => {
+              const index = SECTION_ORDER.indexOf(key);
+              return index === -1 ? SECTION_ORDER.length : index;
+            };
+            const reordered = [...cleanedSections].sort(
+              (a, b) => orderIndex(a.key) - orderIndex(b.key),
+            );
 
             return reordered;
           })().map((section) => (
 
 
               <div key={section.key}>
-                {!collapsed ? (
+                {section.key === "add-ons" ? (
+                  // Add-Ons is a page now — one click opens the grouped
+                  // locked-modules listing instead of expanding a tree here.
+                  <NavGroup
+                    item={{ id: "add-ons", label: "Add-Ons", icon: Boxes, route: "/module-sections/add-ons" }}
+                    collapsed={collapsed}
+                    pathname={location.pathname}
+                    onNavigate={onNavigate}
+                    sectionKey="add-ons"
+                  />
+                ) : !collapsed ? (
                   <>
                     <button
                       type="button"
@@ -1393,6 +1406,18 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
             ))
         )}
 
+        {planLabel === "basic" && (
+          <div className="space-y-1 px-1">
+            <NavGroup
+              item={{ id: "add-ons", label: "Add-Ons", icon: Boxes, route: "/module-sections/add-ons" }}
+              collapsed={collapsed}
+              pathname={location.pathname}
+              onNavigate={onNavigate}
+              sectionKey="add-ons"
+            />
+          </div>
+        )}
+
         <div>
           {!collapsed ? (
             <div className="flex items-center justify-center px-3 mb-2">
@@ -1427,8 +1452,8 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
         </div>
       </div>
 
-      {isUpgradeModalOpen ? (
-        <div className="fixed inset-0 z-50 bg-[#0f172a]/45 backdrop-blur-[2px] px-4 py-6 flex items-center justify-center">
+      {isUpgradeModalOpen ? createPortal(
+        <div className="fixed inset-0 z-[1400] bg-[#0f172a]/45 backdrop-blur-[2px] px-4 py-6 flex items-center justify-center">
           <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] border border-[#dbe5f2] shadow-[0_20px_80px_rgba(15,23,42,0.28)] p-5 sm:p-6">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
@@ -1504,7 +1529,7 @@ export default function Sidebar({ onCloseDrawer }: SidebarProps) {
             </div>
           </div>
         </div>
-      ) : null}
+      , document.body) : null}
     </div>
   );
 }

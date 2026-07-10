@@ -18,8 +18,10 @@ const SECTION_LABELS = {
   extraCommon: "Extra Common Modules",
   keyApps: "Key Apps",
   founderCore: "Founder Core Modules",
+  addOns: "Add-Ons",
   departmentAccesses: "Department Accesses",
   tenantPortal: "Tenant Portal",
+  profile: "Profile",
   general: "General",
 } as const;
 
@@ -39,6 +41,10 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
   {
     pattern: "/module-sections/founder-core-modules",
     crumbs: [{ label: SECTION_LABELS.founderCore }],
+  },
+  {
+    pattern: "/module-sections/add-ons",
+    crumbs: [{ label: SECTION_LABELS.addOns }],
   },
   {
     pattern: "/module-sections/department-accesses",
@@ -153,9 +159,52 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
   },
   {
     pattern: "/extra-common-modules/tasks",
+    fromSection: "extra-common-modules",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/module-sections/extra-common-modules" },
+      { label: "Tasks" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/tasks",
     crumbs: [
       { label: SECTION_LABELS.common, path: "/module-sections/common-modules" },
       { label: "Tasks" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/assets",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/module-sections/extra-common-modules" },
+      { label: "Assets" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/inventory",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/module-sections/extra-common-modules" },
+      { label: "Inventory" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/department-inventory",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/module-sections/extra-common-modules" },
+      { label: "Department Inventory" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/finance-management",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/module-sections/extra-common-modules" },
+      { label: "Finance Management" },
+    ],
+  },
+  {
+    pattern: "/extra-common-modules/reports",
+    crumbs: [
+      { label: SECTION_LABELS.extraCommon, path: "/module-sections/extra-common-modules" },
+      { label: "Reports" },
     ],
   },
   {
@@ -185,7 +234,41 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     pattern: "/company-settings/wono-nomad",
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
-      { label: "Wono Nomad" },
+      { label: "Wono Nomads" },
+    ],
+  },
+  {
+    pattern: "/company-settings/nomad-listings/add",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Wono Nomads", path: "/company-settings/wono-nomad" },
+      { label: "Nomad Listings", path: "/company-settings/nomad-listings" },
+      { label: "Add Listing" },
+    ],
+  },
+  {
+    pattern: "/company-settings/nomad-listings/:listingId",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Wono Nomads", path: "/company-settings/wono-nomad" },
+      { label: "Nomad Listings", path: "/company-settings/nomad-listings" },
+      { label: "Edit Listing" },
+    ],
+  },
+  {
+    pattern: "/company-settings/nomad-listings",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Wono Nomads", path: "/company-settings/wono-nomad" },
+      { label: "Nomad Listings" },
+    ],
+  },
+  {
+    pattern: "/company-settings/reviews",
+    crumbs: [
+      { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Wono Nomads", path: "/company-settings/wono-nomad" },
+      { label: "Reviews" },
     ],
   },
   {
@@ -209,6 +292,7 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     pattern: "/company-settings/website-builder/dynamic/leads",
     crumbs: [
       { label: SECTION_LABELS.keyApps, path: "/module-sections/key-apps" },
+      { label: "Website Builder", path: "/company-settings/website-builder" },
       { label: "Website Leads" },
     ],
   },
@@ -612,10 +696,49 @@ const BREADCRUMB_MATCHERS: BreadcrumbMatcher[] = [
     ],
   },
   {
+    pattern: "/profile",
+    crumbs: [{ label: SECTION_LABELS.profile }],
+  },
+  {
     pattern: "/profile/company-profile",
     crumbs: [
-      { label: SECTION_LABELS.general },
-      { label: "Profile" },
+      { label: SECTION_LABELS.profile, path: "/profile" },
+      { label: "Company Profile" },
+    ],
+  },
+  {
+    pattern: "/profile/my-profile",
+    crumbs: [
+      { label: SECTION_LABELS.profile, path: "/profile" },
+      { label: "My Profile" },
+    ],
+  },
+  {
+    pattern: "/profile/change-password",
+    crumbs: [
+      { label: SECTION_LABELS.profile, path: "/profile" },
+      { label: "Change Password" },
+    ],
+  },
+  {
+    pattern: "/profile/assigned-assets",
+    crumbs: [
+      { label: SECTION_LABELS.profile, path: "/profile" },
+      { label: "Assigned Assets" },
+    ],
+  },
+  {
+    pattern: "/profile/payslips",
+    crumbs: [
+      { label: SECTION_LABELS.profile, path: "/profile" },
+      { label: "Payslips" },
+    ],
+  },
+  {
+    pattern: "/profile/exit-request",
+    crumbs: [
+      { label: SECTION_LABELS.profile, path: "/profile" },
+      { label: "Exit Request" },
     ],
   },
 ];
@@ -652,7 +775,21 @@ const BreadCrumbComponent = () => {
     return true;
   });
 
-  const breadcrumbs = matchedConfig?.crumbs || buildFallbackCrumbs(location.pathname);
+  let breadcrumbs = matchedConfig?.crumbs || buildFallbackCrumbs(location.pathname);
+
+  // Modules opened from the Add-Ons page keep Add-Ons as their back link
+  // instead of the module's home-section trail. Not on the Add-Ons page
+  // itself, where that would duplicate its own crumb.
+  if (
+    (location.state as Record<string, unknown>)?.fromSection === "add-ons" &&
+    breadcrumbs.length > 0 &&
+    location.pathname !== "/module-sections/add-ons"
+  ) {
+    breadcrumbs = [
+      { label: SECTION_LABELS.addOns, path: "/module-sections/add-ons" },
+      { label: breadcrumbs[breadcrumbs.length - 1].label },
+    ];
+  }
 
   const breadcrumbsToRender = breadcrumbs.map((crumb, index) => {
     const isLast = index === breadcrumbs.length - 1 || !crumb.path;
@@ -701,6 +838,7 @@ const BreadCrumbComponent = () => {
           "& .MuiBreadcrumbs-ol": {
             fontSize: "1rem !important",
             color: "#1E3D73",
+            fontFamily: "Poppins-SemiBold, sans-serif",
           },
           "& .MuiBreadcrumbs-li": {
             fontSize: "0.9rem !important",
@@ -708,9 +846,11 @@ const BreadCrumbComponent = () => {
           "& .MuiBreadcrumbs-li .MuiTypography-root": {
             fontSize: "0.9rem !important",
             color: "#1E3D73 !important",
+            fontFamily: "Poppins-SemiBold, sans-serif !important",
           },
           "& .MuiBreadcrumbs-separator": {
             margin: "0 1rem",
+            fontFamily: "Poppins-SemiBold, sans-serif",
           },
         }}
       >

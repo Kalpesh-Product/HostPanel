@@ -2771,7 +2771,7 @@ export default function TenantCompaniesPage() {
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Sales Tenant Companies
               </h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">Manage client contracts, allocations and company profiles.</p>
+              <p className="text-xs font-pmedium text-slate-500 mt-1">Manage client contracts, allocations and company profiles.</p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
               <button

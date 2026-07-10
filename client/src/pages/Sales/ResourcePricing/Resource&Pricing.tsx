@@ -1503,7 +1503,7 @@ export default function PricingPackagesPage() {
             <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
               Resource &amp; Pricing
             </h2>
-            <p className="text-xs font-medium text-slate-500 mt-1">Manage resources, pricing, credits, and membership packages.</p>
+            <p className="text-xs font-pmedium text-slate-500 mt-1">Manage resources, pricing, credits, and membership packages.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             
@@ -1567,21 +1567,21 @@ export default function PricingPackagesPage() {
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-indigo-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Membership Packages</p>
+              <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest mb-1">Membership Packages</p>
               <p className="text-[15px] font-black text-slate-900">{membershipPackages.length}</p>
             </div>
             <div className="p-2 rounded-2xl bg-indigo-50 text-indigo-600 shrink-0"><CreditCard size={16} /></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-emerald-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tenant Packages</p>
+              <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Tenant Packages</p>
               <p className="text-[15px] font-black text-slate-900">{tenantPackages.length}</p>
             </div>
             <div className="p-2 rounded-2xl bg-emerald-50 text-emerald-600 shrink-0"><Building2 size={16} /></div>
           </div>
           <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md border-l-4 border-l-amber-500">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Recommended</p>
+              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Recommended</p>
               <p className="text-[15px] font-black text-slate-900">{packages.filter((item) => item.isRecommended).length}</p>
             </div>
             <div className="p-2 rounded-2xl bg-amber-50 text-amber-600 shrink-0"><Tag size={16} /></div>

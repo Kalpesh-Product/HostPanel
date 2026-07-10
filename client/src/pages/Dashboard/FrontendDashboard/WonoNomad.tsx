@@ -1,36 +1,30 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
-
-const cards = [
-  { title: "Nomad Listings", path: "nomad-listings" },
-  { title: "Reviews", path: "reviews" },
-];
+import { MdOutlineTravelExplore, MdOutlineRateReview } from "react-icons/md";
+import Card from "../../../components/Card";
+import PageFrame from "../../../components/Pages/PageFrame";
 
 const WonoNomad = () => {
-  const navigate = useNavigate();
-
   return (
-    <div className="p-6">
-      <h1 className="text-title font-pmedium text-primary uppercase mb-6">
-        Wono Nomad
-      </h1>
+    <div className="p-4 flex flex-col gap-4">
+      <PageFrame>
+        <div className="flex flex-col gap-5">
+          <h2 className="text-title font-pmedium text-primary uppercase">
+            Wono Nomads
+          </h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {cards.map((card) => (
-          <div
-            key={card.title}
-            className="cursor-pointer border border-gray-200 rounded-2xl p-6 shadow hover:shadow-lg transition bg-white"
-            onClick={() => navigate(`/company-settings/${card.path}`)}
-          >
-            <h2 className="text-subtitle font-pmedium text-gray-800">
-              {card.title}
-            </h2>
-            <p className="text-sm font-pregular text-gray-500 mt-2">
-              Go to {card.title} section
-            </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card
+              icon={<MdOutlineTravelExplore />}
+              title="Nomad Listings"
+              route="/company-settings/nomad-listings"
+            />
+            <Card
+              icon={<MdOutlineRateReview />}
+              title="Reviews"
+              route="/company-settings/reviews"
+            />
           </div>
-        ))}
-      </div>
+        </div>
+      </PageFrame>
     </div>
   );
 };

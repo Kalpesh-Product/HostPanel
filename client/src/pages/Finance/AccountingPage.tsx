@@ -695,7 +695,7 @@ export default function AccountingPage(): React.ReactElement {
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Accounting
               </h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">Core Module | Ledger, department budgets & P&amp;L reports</p>
+              <p className="text-xs font-pmedium text-slate-500 mt-1">Core Module | Ledger, department budgets & P&amp;L reports</p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-2 bg-white border border-gray-200 px-4 py-2.5 rounded-xl shadow-sm">

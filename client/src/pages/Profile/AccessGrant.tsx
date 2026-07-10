@@ -1338,14 +1338,14 @@ export default function AccessGrantsPage() {
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Access Grants
               </h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">
+              <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Manage user roles and module access for {workspace?.workspaceName || 'this unit'}.
               </p>
             </div>
           </div>
 
           {/* 2. MAIN TABS — role filter pill nav */}
-          <div className="flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
             {ROLE_FILTERS.map((role) => (
               <button
                 key={role}
@@ -1424,7 +1424,7 @@ export default function AccessGrantsPage() {
                     placeholder="Search by name, email, or dept..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                    className="w-full pl-9 pr- py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                   />
                 </div>
 
@@ -1488,9 +1488,10 @@ export default function AccessGrantsPage() {
                         ? user.departments.filter(Boolean)
                         : [];
                       const hasAllDepartmentsAccess =
-                        (user.roleGroup === 'Founder' || user.roleGroup === 'Super-Admin') &&
-                        (normalizedDepartments.length === 0 ||
-                          (workspaceDepartmentCount > 0 && normalizedDepartments.length >= workspaceDepartmentCount));
+                        user.roleGroup === 'Super-Admin' ||
+                        (user.roleGroup === 'Founder' &&
+                          (normalizedDepartments.length === 0 ||
+                            (workspaceDepartmentCount > 0 && normalizedDepartments.length >= workspaceDepartmentCount)));
                       const departmentBadges = hasAllDepartmentsAccess
                         ? ['All Departments']
                         : (normalizedDepartments.length > 0 ? normalizedDepartments : [user.department]).filter(Boolean);
@@ -1578,7 +1579,7 @@ export default function AccessGrantsPage() {
               <div className="p-2.5 sm:p-3 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-400">Access Control</p>
-                  <h2 className="text-[13px] sm:text-sm font-semibold text-white mt-1">
+                  <h2 className="text-[13px] sm:text-sm font-pmedium text-white mt-1">
                     {canEditAccessGrants ? 'Manage Access' : 'View Access'} - {selectedUser.name}
                   </h2>
                 </div>
@@ -1595,16 +1596,16 @@ export default function AccessGrantsPage() {
               </div>
 
               <div className="p-2.5 sm:p-3 space-y-2.5 bg-gradient-to-b from-slate-50 to-white">
-                <div className="grid gap-3 md:grid-cols-[1.25fr_0.75fr]">
-                    <div className="w-10 h-10 bg-gradient-to-br from-[#2563EB] to-[#1e40af] rounded-full flex items-center justify-center text-white font-semibold text-xs">
-                      {getInitials(selectedUser.name)}
-                    </div>
-                  <div className="flex-1">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-[#2563EB] to-[#1e40af] rounded-full flex items-center justify-center text-white font-semibold text-xs shrink-0">
+                    {getInitials(selectedUser.name)}
+                  </div>
+                  <div>
                     <div className="font-semibold text-slate-900 text-sm">{selectedUser.name}</div>
                     <div className="text-xs text-slate-500">{selectedUser.email}</div>
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex items-center gap-2 mt-1">
                       {getRoleBadge(selectedUser.roleGroup)}
-                      <span className="text-xs text-slate-400">• {selectedUser.department}</span>
+                      <span className="text-xs text-slate-400">• {selectedUser.roleGroup === 'Super-Admin' ? 'All Departments' : selectedUser.department}</span>
                     </div>
                   </div>
                 </div>
@@ -2379,7 +2380,7 @@ export default function AccessGrantsPage() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-[2rem] max-w-md w-full overflow-hidden">
               <div className="p-5 sm:p-6 bg-[#1E293B]">
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <h2 className="text-lg font-pmedium text-white flex items-center gap-2">
                   <AlertCircle className="w-5 h-5 text-amber-400" />
                   Transfer Founder Access
                 </h2>
@@ -2387,7 +2388,7 @@ export default function AccessGrantsPage() {
               <div className="p-5 sm:p-6 space-y-4">
                 {!showTransferWarning ? (
                   <>
-                    <p className="text-slate-500 text-sm">
+                    <p className="text-slate-500 text-sm font-pmedium">
                       You are about to transfer workspace founder access to a Super-Admin. This will move founder access to the selected account and refresh your current session.
                     </p>
 

@@ -148,7 +148,7 @@ const tenantNavNodes: NavNode[] = [
 ];
 
 const generalData: NavNode[] = [
-  { id: "tenant-profile", label: "Profile", icon: User, route: "/profile/my-profile" },
+  { id: "tenant-profile", label: "Profile", icon: User, route: "/profile/company-profile" },
   { id: "logout", label: "Sign Out", icon: LogOut, isRed: true },
 ];
 

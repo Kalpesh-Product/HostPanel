@@ -897,7 +897,7 @@ export function BillingPaymentsPage() {
               <h2 className="text-title font-pmedium text-primary uppercase flex items-center gap-1.5">
                 Billing & Payments
               </h2>
-              <p className="text-xs font-medium text-slate-500 mt-1">Core Module | Invoicing, payroll & payment management</p>
+              <p className="text-xs font-pmedium text-slate-500 mt-1">Core Module | Invoicing, payroll & payment management</p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="flex items-center gap-2 bg-white border border-gray-200 px-4 py-2.5 rounded-xl shadow-sm">

@@ -97,6 +97,7 @@ import FounderWorkspaceSelectionPage from "../pages/LoginPage/FounderWorkspaceSe
 import CompanyReviews from "../pages/Dashboard/FrontendDashboard/CompanyReviews";
 import WonoNomad from "../pages/Dashboard/FrontendDashboard/WonoNomad";
 import ModuleCardsLanding from "../pages/Dashboard/FrontendDashboard/ModuleCardsLanding";
+import AddModulesPage from "../pages/Dashboard/FrontendDashboard/AddModulesPage";
 import CreateWorkspacePage from "../pages/WorkspaceSetup/CreateWorkspacePage";
 import SetupModulesPage from "../pages/WorkspaceSetup/SetupModulesPage";
 import FinalizeSetupPage from "../pages/WorkspaceSetup/FinalizeSetupPage";
@@ -392,7 +393,7 @@ export const routes = createBrowserRouter([
                       { path: "booking-history", element: <TenantBookingHistoryPage /> },
                       { path: "buy-credits", element: <TenantBuyCreditsPage /> },
                       { path: "tickets", element: <TenantTicketsPage /> },
-                      { path: "profile", element: <Navigate to="/profile/my-profile" replace /> },
+                      { path: "profile", element: <Navigate to="/profile/company-profile" replace /> },
                     ],
                   },
                 ],
@@ -551,6 +552,10 @@ export const routes = createBrowserRouter([
                 element: <ModuleCardsLanding section="key-apps" />,
               },
               {
+                path: "add-modules",
+                element: <AddModulesPage />,
+              },
+              {
                 path: "module-sections/:sectionId/:departmentId",
                 element: <ModuleCardsLanding />,
               },
@@ -630,6 +635,10 @@ export const routes = createBrowserRouter([
                 path: "profile",
                 element: <ProfileLayout />,
                 children: [
+                  {
+                    index: true,
+                    element: <ModuleCardsLanding section="profile" />,
+                  },
                   {
                     path: "my-profile",
                     element: <UserDetails />,

@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -286,8 +287,8 @@ const CreditsIndicator = ({ workspaceId, companyId }) => {
         </>
       )}
 
-      {isUpgradeModalOpen && (
-        <div className="fixed inset-0 z-50 bg-[#0f172a]/45 backdrop-blur-[2px] px-4 py-6 flex items-center justify-center">
+      {isUpgradeModalOpen && createPortal(
+        <div className="fixed inset-0 z-[1400] bg-[#0f172a]/45 backdrop-blur-[2px] px-4 py-6 flex items-center justify-center">
           <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-[linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] border border-[#dbe5f2] shadow-[0_20px_80px_rgba(15,23,42,0.28)] p-5 sm:p-6">
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
@@ -358,7 +359,7 @@ const CreditsIndicator = ({ workspaceId, companyId }) => {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 };
