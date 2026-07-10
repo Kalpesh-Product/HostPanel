@@ -422,12 +422,12 @@ export default function AccessGrantsPage() {
   const navigate = useNavigate();
   const axiosPrivate = useAxiosPrivate();
   const { auth, setAuth } = useAuth();
+  const isReadOnlySession = Boolean(auth?.impersonation);
   const currentUser = (auth?.user ?? null) as Record<string, any> | null;
   const currentRole = normalizeRole(String(currentUser?.workspaceMembership?.role || currentUser?.role || ''));
   const canEditAccessGrants = currentRole === 'owner' || currentRole === 'founder';
   const canManageModuleAccess =
     currentRole === 'owner' || currentRole === 'founder' || currentRole === 'super_admin';
-  const isReadOnlySession = Boolean(auth?.impersonation);
 
   const [selectedRole, setSelectedRole] = useState('All Roles');
   const [searchQuery, setSearchQuery] = useState('');
@@ -881,7 +881,6 @@ export default function AccessGrantsPage() {
   };
 
   const handleSaveMemberAccess = async () => {
-    if (isReadOnlySession) return;
     if (!memberAccessTarget) return;
     if (!canManageModuleAccess) {
       toast.error('Only founder or super-admin can manage module access.');
@@ -1043,7 +1042,6 @@ export default function AccessGrantsPage() {
   };
 
   const handlePromote = async () => {
-    if (isReadOnlySession) return;
     if (!canEditAccessGrants) {
       toast.error('Only the workspace founder can change access grants.');
       return;
@@ -1108,7 +1106,6 @@ export default function AccessGrantsPage() {
   };
 
   const handleDemote = async () => {
-    if (isReadOnlySession) return;
     if (!canEditAccessGrants) {
       toast.error('Only the workspace founder can change access grants.');
       return;
@@ -1186,7 +1183,6 @@ export default function AccessGrantsPage() {
   };
 
   const handleTransferOwnership = async () => {
-    if (isReadOnlySession) return;
     if (!canEditAccessGrants) {
       toast.error('Only the workspace founder can transfer founder access.');
       return;
@@ -1224,7 +1220,6 @@ export default function AccessGrantsPage() {
   };
 
   const handleConfirmWorkspaceTransfer = async () => {
-    if (isReadOnlySession) return;
     if (!canTransferMembers || !selectedUser) {
       return;
     }
@@ -1263,7 +1258,6 @@ export default function AccessGrantsPage() {
   };
 
   const handleConfirmWorkspaceLink = async () => {
-    if (isReadOnlySession) return;
     if (!canLinkMembers || !selectedUser) {
       return;
     }
@@ -1735,9 +1729,9 @@ export default function AccessGrantsPage() {
 
                     {nextLowerRole && (
                       <button
-                        title={isReadOnlySession ? 'Read-only staff view — changes are disabled' : isDemoteDisabled ? 'Demote is disabled.' : ''}
+                        title={isDemoteDisabled ? 'Demote is disabled.' : ''}
                         onClick={handleDemote}
-                        disabled={isSaving || !canEditAccessGrants || isDemoteDisabled || isReadOnlySession}
+                        disabled={isSaving || !canEditAccessGrants || isDemoteDisabled}
                         className="w-full p-3 bg-white hover:bg-amber-50 text-left rounded-[1.1rem] transition-colors group border border-slate-100 shadow-sm disabled:opacity-60"
                       >
                         <div className="flex items-center justify-between gap-4">
@@ -1758,8 +1752,7 @@ export default function AccessGrantsPage() {
                     {nextHigherRole && (
                       <button
                         onClick={handlePromote}
-                        disabled={isSaving || !canEditAccessGrants || isReadOnlySession}
-                        title={isReadOnlySession ? 'Read-only staff view — changes are disabled' : ''}
+                        disabled={isSaving || !canEditAccessGrants}
                         className="w-full p-3 bg-white hover:bg-emerald-50 text-left rounded-[1.1rem] transition-colors group border border-slate-100 shadow-sm disabled:opacity-60"
                       >
                         <div className="flex items-center justify-between gap-4">
@@ -2082,8 +2075,7 @@ export default function AccessGrantsPage() {
                 </button>
                 <button
                   type="button"
-                  disabled={isSaving || !canManageModuleAccess || isReadOnlySession}
-                  title={isReadOnlySession ? 'Read-only staff view — changes are disabled' : undefined}
+                  disabled={isSaving || !canManageModuleAccess}
                   onClick={handleSaveMemberAccess}
                   className="rounded-lg bg-[#2563EB] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
                 >
@@ -2177,8 +2169,8 @@ export default function AccessGrantsPage() {
                   <button
                     onClick={handleConfirmWorkspaceLink}
                     disabled={isSaving || isReadOnlySession}
-                    title={isReadOnlySession ? 'Read-only staff view — changes are disabled' : undefined}
-                    className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
+                    title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined}
+                    className="btn-pill bg-[#2563EB] px-4 py-2 text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
                   >
                     {isSaving ? 'Saving...' : 'Add Access'}
                   </button>
@@ -2377,8 +2369,8 @@ export default function AccessGrantsPage() {
                 <button
                   onClick={handleConfirmWorkspaceTransfer}
                   disabled={isSaving || isReadOnlySession}
-                  title={isReadOnlySession ? 'Read-only staff view — changes are disabled' : undefined}
-                  className="rounded-lg bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
+                  title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined}
+                  className="btn-pill bg-[#2563EB] px-4 py-2 text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
                 >
                   {isSaving ? 'Saving...' : `Transfer as ${selectedTransferRole.label}`}
                 </button>
@@ -2467,8 +2459,8 @@ export default function AccessGrantsPage() {
                 <button
                   onClick={handleTransferOwnership}
                   disabled={isSaving || !canEditAccessGrants || eligibleOwnershipCandidates.length === 0 || isReadOnlySession}
-                  title={isReadOnlySession ? 'Read-only staff view — changes are disabled' : undefined}
-                  className="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors text-sm disabled:opacity-60"
+                  title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined}
+                  className="btn-pill px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-60"
                 >
                   {isSaving ? 'Saving...' : showTransferWarning ? 'Confirm Transfer' : 'Review Transfer'}
                 </button>
