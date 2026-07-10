@@ -53,8 +53,7 @@ export const chatbotFlow: ChatbotFlowItem[] = [
         question: "Are you setting up a new workspace or joining an existing team?",
         answers: [
           { text: "Setting up a new workspace", nextStepId: "new-workspace-help", response: "Great — let's get your workspace ready." },
-          { text: "Joining an existing team", nextStepId: "join-team-help", response: "Got it — let's get you connected." },
-          { text: "Not sure", isTerminal: true, response: "No problem — you'll receive an email invite from Wono to either create your own workspace or join one." }
+          { text: "Joining an existing team", nextStepId: "join-team-help", response: "Got it — let's get you connected." }
         ]
       },
       {
@@ -79,21 +78,21 @@ export const chatbotFlow: ChatbotFlowItem[] = [
     id: "login-issues",
     plans: ALL_PLANS,
     generalQuestion: "I can't log in / forgot my password",
-    initialResponse: "Let's get you back in — HostPanel uses OTP-based login, not a traditional password reset.",
+    initialResponse: "Let's get you back in — HostPanel login uses your email and password.",
     firstStepId: "login-problem",
     followUpSteps: [
       {
         id: "login-problem",
         question: "What's happening exactly?",
         answers: [
-          { text: "I don't know my password", isTerminal: true, response: "You don't need one — click 'Login with OTP' and verify with the email or mobile you registered with.", action: 'docs' },
-          { text: "OTP isn't arriving", nextStepId: "otp-troubleshoot", response: "Let's troubleshoot that." },
+          { text: "I don't know my password", isTerminal: true, response: "Click 'Forgot Password?' on the login page — we'll send an OTP to your registered email so you can set a new password.", action: 'docs' },
+          { text: "Password reset OTP isn't arriving", nextStepId: "otp-troubleshoot", response: "Let's troubleshoot that." },
           { text: "Account locked / other error", isTerminal: true, response: "That needs a closer look from our team.", action: 'support' }
         ]
       },
       {
         id: "otp-troubleshoot",
-        question: "Have you checked spam and confirmed the email/mobile is correct?",
+        question: "Have you checked spam and confirmed the email is correct?",
         answers: [
           { text: "Yes, still nothing", isTerminal: true, response: "Let's get support to resend or check your account.", action: 'support' },
           { text: "I'll check and try again", isTerminal: true, response: "Sounds good — OTPs can take up to 2 minutes to arrive." }
@@ -131,7 +130,7 @@ export const chatbotFlow: ChatbotFlowItem[] = [
         id: "basic-visitor-need",
         question: "What do you need to do?",
         answers: [
-          { text: "Log a new visitor", isTerminal: true, response: "Go to Visitor Management > Daily tab > New Entry, fill in the visitor's details, and check them in.", action: 'docs' },
+          { text: "Log a new visitor", isTerminal: true, response: "Go to Visitor Management > New Frontdesk Action > Standard Visitor, fill in the visitor's details, and check them in.", action: 'docs' },
           { text: "View visitor history", isTerminal: true, response: "Open Visitor Management > History tab to see all past check-ins.", action: 'docs' },
           { text: "I need bookings or external client tracking", isTerminal: true, response: "Those tools are part of the Professional plan.", action: 'support' }
         ]
@@ -233,19 +232,20 @@ export const chatbotFlow: ChatbotFlowItem[] = [
     ],
   },
   {
-    id: "pro-in-development",
+    id: "pro-tickets-meetings-sales",
     plans: ["professional", "custom"],
+    pageRoutes: ["/tickets", "/meetings/meeting-rooms", "/sales-crm/leads-management", "/sales-crm/tenant-companies", "/sales-crm/resource-pricing", "/sales-crm/sales-architecture"],
     generalQuestion: "Where are Tickets, Meeting Room Booking, or Sales tools?",
-    initialResponse: "These are part of Professional, but a few are still being finished on our side.",
+    initialResponse: "These are all part of Professional and available now.",
     firstStepId: "pro-dev-need",
     followUpSteps: [
       {
         id: "pro-dev-need",
         question: "Which one are you looking for?",
         answers: [
-          { text: "Tickets / support ticketing", isTerminal: true, response: "Ticketing is being finalized and will be enabled soon — for now, please use Customer Support to log any issue.", action: 'support' },
-          { text: "Meeting Room Booking", isTerminal: true, response: "Meeting Room Booking is coming soon — I can flag that you're waiting on this.", action: 'support' },
-          { text: "Sales tools (Leads / Tenant Companies / Pricing)", isTerminal: true, response: "The Sales module is still in development.", action: 'support' }
+          { text: "Tickets / support ticketing", isTerminal: true, response: "Open Tickets from the sidebar to log and track support tickets.", action: 'docs' },
+          { text: "Meeting Room Booking", isTerminal: true, response: "Open Meeting Room Booking from the sidebar to view rooms and manage bookings.", action: 'docs' },
+          { text: "Sales tools (Leads / Tenant Companies / Pricing)", isTerminal: true, response: "Sales tools are under the Sales section — Leads Management, Tenant Companies, Resource & Pricing, and Sales Architecture.", action: 'docs' }
         ]
       }
     ],
@@ -309,7 +309,7 @@ export const chatbotFlow: ChatbotFlowItem[] = [
 
 export const getPlanSummary = (plan: PlanType): string => {
   if (plan === "professional") {
-    return "You're on the Professional plan: everything in Basic, plus full Visitor Management (bookings & external clients), Calendar, Unit Settings/Management, and the Sales suite (some parts still rolling out).";
+    return "You're on the Professional plan: everything in Basic, plus full Visitor Management (bookings & external clients), Calendar, Tickets, Meeting Room Booking, Unit Settings/Management, and the Sales suite (Leads Management, Tenant Companies, Resource & Pricing, Sales Architecture).";
   }
   if (plan === "custom") {
     return "You're on the Custom plan: everything in Professional, plus whatever additional modules (e.g. Assets, HR, Finance, Maintenance, IT, Analytics) our team has enabled specifically for your workspace.";
