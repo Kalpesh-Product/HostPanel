@@ -1,19 +1,27 @@
+/**
+ * CompanySettingsDashboard — main dashboard orchestrator (/dashboard index).
+ * Picks the correct plan-tier dashboard and wires up the upgrade-plan modal.
+ */
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
+import { CircularProgress } from "@mui/material";
 import PageFrame from "../../../components/Pages/PageFrame";
 import useAuth from "../../../hooks/useAuth";
-import { useLocation } from "react-router-dom";
-
-const getGreeting = (hours: number) => {
-  if (hours < 12) return "Good Morning";
-  if (hours < 17) return "Good Afternoon";
-  if (hours < 20) return "Good Evening";
-  return "Good Night";
-};
+import useDashboardAccess from "../../../hooks/useDashboardAccess";
+import { PlanBadge } from "./dashboard/DashboardShared";
+import { getGreeting } from "./dashboard/dashboardUtils";
+import BasicDashboard from "./dashboard/BasicDashboard";
+import ProfessionalDashboard from "./dashboard/ProfessionalDashboard";
+import CustomDashboard from "./dashboard/CustomDashboard";
+import { UpgradePlanModal } from "./ModuleCardsLanding";
+import { CheckCircle2, CalendarCheck, AlertCircle } from "lucide-react";
 
 const CompanySettingsDashboard = () => {
   const { auth } = useAuth();
   const location = useLocation();
+  const access = useDashboardAccess();
   const [now, setNow] = useState(new Date());
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60_000);
@@ -21,29 +29,100 @@ const CompanySettingsDashboard = () => {
   }, []);
 
   const founderName = useMemo(() => {
-    const user = (auth?.user || {}) as {
-      firstName?: string;
-      lastName?: string;
-      name?: string;
-    };
-    const fullName = `${user.firstName || ""} ${user.lastName || ""}`.trim();
-    return fullName || user.name || "Founder";
+    const user = (auth?.user || {}) as { firstName?: string; lastName?: string; name?: string };
+    const full = `${user.firstName || ""} ${user.lastName || ""}`.trim();
+    return full || user.name || "Founder";
   }, [auth?.user]);
 
   const greeting = `${getGreeting(now.getHours())}, ${founderName}`;
-  const isCompanySettingsPage = location.pathname.startsWith("/company-settings");
-  const pageTitle = isCompanySettingsPage ? "Company Settings" : "Dashboard";
+  const todayLabel = now.toLocaleDateString("en-IN", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
+
+  const isCompanySettings = location.pathname.startsWith("/company-settings");
+  const pageTitle = isCompanySettings ? "Company Settings" : "Dashboard";
+
+  // Custom plan has no upgrade path
+  const canUpgrade = access.plan !== "custom";
+
+  if (access.isLoading) {
+    return (
+      <div className="p-4 flex flex-col gap-5">
+        <PageFrame>
+          <div className="flex items-center gap-3">
+            <CircularProgress size={20} />
+            <p className="text-content text-gray-500">Loading your dashboard…</p>
+          </div>
+        </PageFrame>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 flex flex-col gap-4">
+    <div className="p-4 flex flex-col gap-5">
+
+      {/* Greeting banner */}
       <PageFrame>
-        <div className="flex flex-col gap-5">
-          <h2 className="text-title font-pmedium text-primary uppercase">
-            {pageTitle}
-          </h2>
-          <p className="text-subtitle font-pmedium text-gray-700">{greeting}</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-title font-pmedium text-primary uppercase">{pageTitle}</h2>
+              <button
+                type="button"
+                onClick={canUpgrade ? () => setShowUpgradeModal(true) : undefined}
+                className={canUpgrade ? "cursor-pointer" : "cursor-default"}
+                title={canUpgrade ? "Click to upgrade your plan" : undefined}
+              >
+                <PlanBadge plan={access.plan} clickable={canUpgrade} />
+              </button>
+            </div>
+            <p className="text-subtitle font-pmedium text-gray-700">{greeting} 👋</p>
+            <p className="text-content text-gray-400">{todayLabel}</p>
+          </div>
+
+          {/* Live status chips */}
+          {access.plan !== "basic" && (
+            <div className="flex flex-wrap gap-2 mt-1 sm:mt-0">
+              {access.hasModule("tenant-companies-admin") && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700">
+                  <CheckCircle2 size={13} />
+                  <span className="text-small font-pmedium">Tenants Active</span>
+                </div>
+              )}
+              {access.hasModule("meeting-room-system") && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-700">
+                  <CalendarCheck size={13} />
+                  <span className="text-small font-pmedium">Bookings Active</span>
+                </div>
+              )}
+              {access.hasModule("tickets") && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-700">
+                  <AlertCircle size={13} />
+                  <span className="text-small font-pmedium">Tickets Active</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </PageFrame>
+
+      {/* Plan-tier dashboard */}
+      {access.plan === "basic" && (
+        <BasicDashboard onUpgradeClick={() => setShowUpgradeModal(true)} />
+      )}
+      {access.plan === "professional" && (
+        <ProfessionalDashboard onUpgradeClick={() => setShowUpgradeModal(true)} />
+      )}
+      {access.plan === "custom" && <CustomDashboard access={access} />}
+
+      {/* Upgrade plan modal */}
+      {showUpgradeModal && canUpgrade && (
+        <UpgradePlanModal
+          currentPlan={access.plan}
+          onClose={() => setShowUpgradeModal(false)}
+        />
+      )}
+
     </div>
   );
 };

@@ -5019,7 +5019,7 @@ export default function VisitorsManagementPage() {
                     onClick={handleProcessAction}
                     disabled={isSubmittingVisitor || isVisitorOverviewLoading || !visitorAccess.modes.standard}
                     title={!visitorAccess.modes.standard ? 'You do not have access to Standard Visitor tab.' : undefined}
-                    className="flex-[2] py-3 bg-[#2563EB] text-white rounded-xl text-xs font-black shadow-md shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:shadow-none"
+                    className="flex-1 py-3 bg-[#2563EB] text-white rounded-xl text-xs font-black shadow-md shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:shadow-none"
                   >
                     <CheckCircle2 size={18} />{isSubmittingVisitor ? 'SENDING...' : form.standardVisitorType === 'department' ? 'SEND HOST APPROVAL' : 'CHECK IN VISITOR'}
                   </button>
