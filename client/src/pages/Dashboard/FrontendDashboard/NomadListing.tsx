@@ -65,6 +65,7 @@ const NomadListing = () => {
     getValues,
     formState: { errors },
   } = useForm({
+    mode: "onChange",
     defaultValues: {
       // businessId: `BIZ_${Date.now()}`,
       companyId: companyId, // set default so RHF knows
@@ -295,10 +296,8 @@ const NomadListing = () => {
               name="ratings"
               control={control}
               rules={{
-                min: {
-                  value: 0,
-                  message: "Rating cannot be negative",
-                },
+                min: { value: 1, message: "Rating must be between 1 and 5" },
+                max: { value: 5, message: "Rating must be between 1 and 5" },
               }}
               render={({ field }) => (
                 <TextField
@@ -306,7 +305,7 @@ const NomadListing = () => {
                   size="small"
                   label="Ratings"
                   type="number"
-                  inputProps={{ min: 0 }}
+                  inputProps={{ min: 1, max: 5, step: 0.1 }}
                   error={!!errors.ratings}
                   helperText={errors?.ratings?.message}
                   fullWidth
@@ -319,12 +318,23 @@ const NomadListing = () => {
             <Controller
               name="totalReviews"
               control={control}
+              rules={{
+                min: { value: 0, message: "Total reviews cannot be negative" },
+                max: { value: 100000, message: "Total reviews cannot exceed 100,000" },
+                validate: (value) =>
+                  value === "" ||
+                  Number.isInteger(Number(value)) ||
+                  "Total reviews must be a whole number",
+              }}
               render={({ field }) => (
                 <TextField
                   {...field}
                   size="small"
                   label="Total Reviews"
                   type="number"
+                  inputProps={{ min: 0, max: 100000, step: 1 }}
+                  error={!!errors.totalReviews}
+                  helperText={errors?.totalReviews?.message}
                   fullWidth
                 />
               )}
@@ -335,8 +345,21 @@ const NomadListing = () => {
             <Controller
               name="latitude"
               control={control}
+              rules={{
+                min: { value: -90, message: "Latitude must be between -90 and 90" },
+                max: { value: 90, message: "Latitude must be between -90 and 90" },
+              }}
               render={({ field }) => (
-                <TextField {...field} size="small" label="Latitude" fullWidth />
+                <TextField
+                  {...field}
+                  size="small"
+                  label="Latitude"
+                  type="number"
+                  inputProps={{ min: -90, max: 90, step: "any" }}
+                  error={!!errors.latitude}
+                  helperText={errors?.latitude?.message}
+                  fullWidth
+                />
               )}
             />
           </div>
@@ -345,11 +368,19 @@ const NomadListing = () => {
             <Controller
               name="longitude"
               control={control}
+              rules={{
+                min: { value: -180, message: "Longitude must be between -180 and 180" },
+                max: { value: 180, message: "Longitude must be between -180 and 180" },
+              }}
               render={({ field }) => (
                 <TextField
                   {...field}
                   size="small"
                   label="Longitude"
+                  type="number"
+                  inputProps={{ min: -180, max: 180, step: "any" }}
+                  error={!!errors.longitude}
+                  helperText={errors?.longitude?.message}
                   fullWidth
                 />
               )}
@@ -475,6 +506,10 @@ const NomadListing = () => {
                   <Controller
                     name={`reviews.${index}.rating`}
                     control={control}
+                    rules={{
+                      min: { value: 1, message: "Rating must be between 1 and 5" },
+                      max: { value: 5, message: "Rating must be between 1 and 5" },
+                    }}
                     render={({ field }) => (
                       <TextField
                         {...field}
@@ -483,6 +518,8 @@ const NomadListing = () => {
                         label="Rating (1-5)"
                         fullWidth
                         inputProps={{ min: 1, max: 5 }}
+                        error={!!errors?.reviews?.[index]?.rating}
+                        helperText={errors?.reviews?.[index]?.rating?.message}
                       />
                     )}
                   />

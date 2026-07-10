@@ -8,6 +8,7 @@ import {
   editCompanyListing,
   getAllCompanyListings,
   getCompanyListings,
+  requestCompaniesListing,
 } from "../controllers/listingControllers.js";
 const router = Router();
 
@@ -16,6 +17,7 @@ router.patch("/edit-company-listing", upload.any(), editCompanyListing);
 router.patch("/activate-product", activateProduct);
 router.get("/get-companies-listings", getAllCompanyListings);
 router.get("/get-company-listings", getCompanyListings);
+router.post("/request-companies-listing", requestCompaniesListing);
 
 export default router;
 

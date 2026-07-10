@@ -63,6 +63,10 @@ const buildAuthUserPayload = (
   workspaceCount = 1,
 ) => ({
   ...user,
+  companyId: company?.companyId || user?.companyId,
+  effectiveNomadsCompanyId:
+    company?.linkedNomadsCompanyId || company?.companyId || user?.companyId,
+  companiesListingRequested: Boolean(company?.companiesListingRequestedAt),
   companyName: company?.companyName,
   logo: company?.logo,
   isWebsiteTemplate: company?.isWebsiteTemplate,
@@ -685,15 +689,23 @@ export const getWorkspaceModuleAccessMap = async (req, res, next) => {
 
     let baseModules: string[] = [];
 
-    if (roleBand === "owner" || roleBand === "super_admin") {
+    if (roleBand === "owner") {
       // Plan-gated features are capped by the workspace's own plan
-      // (enabledModuleIds) — a Basic-plan owner/super_admin should not see
+      // (enabledModuleIds) — a Basic-plan owner should not see
       // Professional-only features just because of their role. Org-management
       // / role-capability ids (invite member, access grants, departments tab,
       // etc.) are already part of every plan's default set (see
       // BASIC_DEFAULT_IDS in workspaceModuleCatalog.ts), so they stay
       // available without needing a separate always-on bypass here.
       baseModules = enabledModuleIds;
+    } else if (roleBand === "super_admin") {
+      // Unlike owner, super_admin's "full access" is an explicit, adjustable
+      // grant recorded on the member at invite time (superAdminDefaultIds in
+      // organizationControllers.ts), not a hardcoded bypass — an owner can
+      // trim it afterward via Access Grants. Leave baseModules empty so
+      // explicitGrants (below) is the sole source of truth; unioning in
+      // enabledModuleIds here would make any such removal a no-op.
+      baseModules = [];
     } else if (roleBand === "admin" || roleBand === "manager") {
       // Collect dept modules from assigned departments (WorkspaceMember.departments)
       const assignedDeptIds = Array.isArray(currentMember?.departments)

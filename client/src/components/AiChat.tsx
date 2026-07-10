@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { chatbotFlow, ChatbotAnswer } from '../utils/chatbotflow';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { chatbotFlow, ChatbotAnswer, ChatbotFlowItem, DYNAMIC_PLAN_SUMMARY, getPlanSummary } from '../utils/chatbotflow';
+import type { PlanType } from '../utils/inviteOnboarding';
+import useAxiosPrivate from '../hooks/useAxiosPrivate';
 
 type ChatMessage = {
     id: number;
@@ -7,7 +10,15 @@ type ChatMessage = {
     content: string;
 };
 
+// After this many follow-up rounds in one flow without landing on a
+// resolved answer, proactively surface Customer Support alongside the
+// question instead of only offering it on a tagged terminal answer.
+const ROUNDS_BEFORE_PROACTIVE_SUPPORT = 2;
+
 export default function ChatWidgetPreview() {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const axiosPrivate = useAxiosPrivate();
     const [showDisclaimer, setShowDisclaimer] = useState(false);
     const [showChat, setShowChat] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -15,7 +26,37 @@ export default function ChatWidgetPreview() {
     const [currentStepId, setCurrentStepId] = useState<string | null>(null);
     const [showSupportOption, setShowSupportOption] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
-    
+    const [selectedPlan, setSelectedPlan] = useState<PlanType>('basic');
+    const [roundCount, setRoundCount] = useState(0);
+
+    useEffect(() => {
+        let active = true;
+        axiosPrivate
+            .get('/api/workspaces/module-access-map')
+            .then((res) => {
+                if (!active) return;
+                const plan = res?.data?.data?.selectedPlan as PlanType | undefined;
+                if (plan === 'basic' || plan === 'professional' || plan === 'custom') {
+                    setSelectedPlan(plan);
+                }
+            })
+            .catch(() => {
+                // Keep the Basic-tier default flows if the plan can't be resolved.
+            });
+        return () => {
+            active = false;
+        };
+    }, [axiosPrivate]);
+
+    // Page-scoped flows (pageRoutes set) only show up while the host is on
+    // one of those pages, and are pinned above the general/unscoped flows.
+    const isOnMatchingPage = (item: ChatbotFlowItem) =>
+        !item.pageRoutes || item.pageRoutes.some((route) => location.pathname.startsWith(route));
+
+    const visibleFlows = chatbotFlow
+        .filter((item) => item.plans.includes(selectedPlan) && isOnMatchingPage(item))
+        .sort((a, b) => Number(Boolean(b.pageRoutes)) - Number(Boolean(a.pageRoutes)));
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -53,7 +94,8 @@ export default function ChatWidgetPreview() {
 
         setActiveFlowId(flowId);
         setShowSupportOption(false);
-        
+        setRoundCount(0);
+
         setMessages([buildMessage('user', question)]);
         
         setIsTyping(true);
@@ -79,10 +121,14 @@ export default function ChatWidgetPreview() {
         
         setTimeout(() => {
             const nextMessages: ChatMessage[] = [];
-            
-            // 2. Add Acknowledgment if provided
+
+            // 2. Add Acknowledgment if provided (resolving the dynamic plan
+            // summary marker to the caller's actual plan first)
             if (answer.response) {
-                nextMessages.push(buildMessage('assistant', answer.response, 1));
+                const responseText = answer.response === DYNAMIC_PLAN_SUMMARY
+                    ? getPlanSummary(selectedPlan)
+                    : answer.response;
+                nextMessages.push(buildMessage('assistant', responseText, 1));
             }
 
             // 3. Determine Next Step
@@ -96,6 +142,16 @@ export default function ChatWidgetPreview() {
                 if (nextStep) {
                     nextMessages.push(buildMessage('assistant', nextStep.question, 2));
                     setCurrentStepId(answer.nextStepId);
+                    // Problem is persisting across multiple rounds — offer
+                    // Customer Support alongside the next question rather
+                    // than waiting for an explicit support-tagged answer.
+                    setRoundCount(prev => {
+                        const next = prev + 1;
+                        if (next >= ROUNDS_BEFORE_PROACTIVE_SUPPORT) {
+                            setShowSupportOption(true);
+                        }
+                        return next;
+                    });
                 } else {
                     nextMessages.push(buildMessage('assistant', "I'm not sure what the next step is, but I can connect you to support.", 2));
                     setShowSupportOption(true);
@@ -124,6 +180,12 @@ export default function ChatWidgetPreview() {
         setCurrentStepId(null);
         setShowSupportOption(false);
         setIsTyping(false);
+        setRoundCount(0);
+    };
+
+    const handleContactSupport = () => {
+        setShowChat(false);
+        navigate('/company-settings/customer-support');
     };
 
     return (
@@ -160,7 +222,7 @@ export default function ChatWidgetPreview() {
                                 <p className="text-sm font-medium text-gray-700">Want help getting started?</p> 
                                 <p className="mt-0.5 mb-4 text-xs text-gray-500">Tell us a little bit about what you&apos;re looking for.</p>
                                 <div className="flex flex-col gap-2.5">
-                                    {chatbotFlow.map((item) => (
+                                    {visibleFlows.map((item) => (
                                         <button
                                             key={item.id}
                                             type="button"
@@ -192,7 +254,7 @@ export default function ChatWidgetPreview() {
                                     </div>
                                 )}
 
-                                {activeFlow && currentFollowUpStep && !showSupportOption && !isTyping ? (
+                                {activeFlow && currentFollowUpStep && !isTyping ? (
                                     <div className="mt-2 flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                         <div className="grid grid-cols-2 gap-2">
                                             {currentFollowUpStep.answers.map((answer, idx) => (
@@ -220,6 +282,7 @@ export default function ChatWidgetPreview() {
                                 {showSupportOption && !isTyping ? (
                                     <button
                                         type="button"
+                                        onClick={handleContactSupport}
                                         className="mt-3 w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 shadow-lg cursor-pointer animate-in zoom-in-95 duration-300"
                                     >
                                         Contact Customer Support

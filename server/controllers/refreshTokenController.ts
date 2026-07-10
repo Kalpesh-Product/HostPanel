@@ -20,6 +20,10 @@ const buildAuthUserPayload = (
   hasCompletedWorkspaceSetupOverride: boolean | null = null,
 ) => ({
   ...user,
+  companyId: company?.companyId || user?.companyId,
+  effectiveNomadsCompanyId:
+    company?.linkedNomadsCompanyId || company?.companyId || user?.companyId,
+  companiesListingRequested: Boolean(company?.companiesListingRequestedAt),
   companyName: company?.companyName,
   logo: company?.logo,
   isWebsiteTemplate: company?.isWebsiteTemplate,

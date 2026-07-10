@@ -1,7 +1,9 @@
 // @ts-nocheck
 import axios from "axios";
 import HostCompany from "../models/Company.js";
+import HostUser from "../models/HostUser.js";
 import { deleteFileFromS3ByUrl, uploadFileToS3 } from "../config/s3config.js";
+import { getContinentForCountry } from "../utils/countryContinent.js";
 
 export const createCompanyListing = async (req, res) => {
   try {
@@ -52,16 +54,38 @@ export const createCompanyListing = async (req, res) => {
       parsedReviews = JSON.parse(reviews);
     }
 
+    // Workspace Setup never asks the host for a continent, so most Host
+    // Company records have it blank — Nomads requires it on every listing,
+    // so derive it from country when it's missing.
+    const resolvedContinent =
+      company.companyContinent || getContinentForCountry(company.companyCountry);
+
+    if (!resolvedContinent) {
+      return res.status(400).json({
+        message:
+          "Could not determine continent for this listing — please set the company's country in Workspace Settings first.",
+      });
+    }
+
+    // If staff have already linked this Host Company to an existing Nomads
+    // company (via Transfer), new products must attach to that same Nomads
+    // company — not create a second, disconnected one under this record's
+    // own companyId.
+    const effectiveNomadsCompanyId = company.linkedNomadsCompanyId || company.companyId;
+
     const listingData = {
-      companyName: companyName,
+      // Always use the logged-in host's own registered company name —
+      // don't depend on the client sending a valid one (it was previously
+      // read from `auth.user.companyName`, which is fragile/can be blank).
+      companyName: company.companyName,
       companyTitle: companyTitle ? companyTitle : company.companyName,
       registeredEntityName: company.registeredEntityName,
-      companyId: company.companyId,
+      companyId: effectiveNomadsCompanyId,
       logo: company.logo,
       city: company.companyCity,
       state: company.companyState,
       country: company.companyCountry,
-      continent: company.companyContinent,
+      continent: resolvedContinent,
       website: company.websiteLink,
       companyType: companyType,
       ratings: ratings,
@@ -150,6 +174,25 @@ export const createCompanyListing = async (req, res) => {
 
       if (response.status !== 201) {
         return res.status(400).json({ message: "Failed to add listing" });
+      }
+
+      // Nomads' create-company endpoint doesn't accept an initial isActive
+      // flag — it always creates the product active. Products added by hosts
+      // must start inactive until master panel staff review and activate
+      // them, so immediately deactivate it as a follow-up call.
+      const newBusinessId = response.data?.company?.businessId;
+      if (newBusinessId) {
+        try {
+          await axios.patch(
+            "https://wononomadsbe.vercel.app/api/company/activate-product",
+            { businessId: newBusinessId, status: false },
+          );
+        } catch (deactivateErr) {
+          console.error(
+            "⚠️ Failed to auto-deactivate new listing:",
+            deactivateErr.response?.data || deactivateErr.message,
+          );
+        }
       }
     } catch (err) {
       throw err.response?.data || err.message;
@@ -411,6 +454,52 @@ export const getCompanyListings = async (req, res) => {
     return res.json(response.data);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+// Host asks master panel staff to create a matching Companies-page entry
+// for the listing(s) they've already added themselves — reviewed manually,
+// never auto-matched (company names aren't unique enough to trust).
+export const requestCompaniesListing = async (req, res) => {
+  try {
+    const authedUser = await HostUser.findById(req.user)
+      .select("companyId company")
+      .lean()
+      .exec();
+
+    if (!authedUser) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const company =
+      (authedUser.companyId &&
+        (await HostCompany.findOne({ companyId: authedUser.companyId }))) ||
+      (authedUser.company && (await HostCompany.findById(authedUser.company)));
+
+    if (!company) {
+      return res.status(404).json({ message: "Company not found" });
+    }
+
+    if (company.linkedNomadsCompanyId) {
+      return res.status(400).json({
+        message: "This company is already linked to an existing Companies entry.",
+      });
+    }
+
+    if (company.companiesListingRequestedAt) {
+      return res.status(200).json({
+        message: "A request is already pending review by our team.",
+      });
+    }
+
+    company.companiesListingRequestedAt = new Date();
+    await company.save();
+
+    return res.status(200).json({
+      message: "Request sent — our team will review and get back to you.",
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 

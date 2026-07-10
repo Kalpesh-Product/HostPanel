@@ -139,6 +139,21 @@ const hostCompanySchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Set by master panel staff via the "Transfer" action when this Host
+    // Company's Nomads listing already exists under a different (Companies
+    // page) company — points at that Nomads companyId instead of this
+    // record's own.
+    linkedNomadsCompanyId: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    // Set when the host requests staff to create a matching Companies-page
+    // entry for the listing(s) they've already added themselves.
+    companiesListingRequestedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true, collection: "hostleadcompanies" },
 );
