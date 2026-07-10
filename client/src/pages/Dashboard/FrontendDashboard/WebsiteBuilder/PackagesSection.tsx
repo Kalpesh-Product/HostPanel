@@ -22,7 +22,7 @@ const PackagesSection = ({ control, register }) => {
               <button
                 type="button"
                 onClick={() => remove(index)}
-                className="text-sm text-red-600"
+                className="text-red-500 hover:text-red-700 text-xs font-semibold transition-all"
               >
                 Remove
               </button>
@@ -84,7 +84,7 @@ const PackagesSection = ({ control, register }) => {
               images: [],
             })
           }
-          className="text-sm text-primary"
+          className="text-[#2563EB] text-sm font-semibold hover:underline inline-flex items-center gap-1 transition-all"
         >
           + Add item
         </button>

@@ -40,9 +40,9 @@ const PrimaryButton = ({
       disabled={disabled || isBusy}
       type={type ?? "button"}
       className={` flex items-center justify-center gap-2 ${
-        disabled || isBusy ? "cursor-not-allowed bg-gray-400" : "bg-primary"
-      } motion-preset-slide-up-sm rounded-md text-white ${
-        fontSize ? fontSize : "text-content leading-5"
+        disabled || isBusy ? "cursor-not-allowed bg-slate-300" : "bg-[#2563EB] hover:bg-blue-700"
+      } motion-preset-slide-up-sm rounded-xl text-white font-semibold transition ${
+        fontSize ? fontSize : "text-sm leading-5"
       } ${externalStyles ?? ""} ${padding ? padding : "px-8 py-2"} ${className ?? ""}`}
       onClick={onClick ?? handleSubmit}
     >

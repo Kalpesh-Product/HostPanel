@@ -13,6 +13,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   BUSINESS_TYPE_TO_VERTICAL_KEY,
 } from "../../../../constants/verticalConfig";
+import { toast } from "sonner";
 
 const normalizeVerticalKey = (value: unknown) => {
   const raw = String(value || "").trim().toLowerCase();
@@ -417,7 +418,20 @@ const WebsiteBuilderTypeActions = ({ type = "dynamic" }) => {
             )}
             <Card icon={<SiGoogleadsense />} title="Website Leads" route={leadsRoute} />
             <Card icon={<MdOutlineRateReview />} title="Website Review" route={reviewsRoute} />
-            <Card icon={<MdOutlineWorkHistory />} title="Careers" route={careersRoute} />
+            <Card 
+              icon={<MdOutlineWorkHistory />} 
+              title="Careers" 
+              route={careersRoute}
+              locked={!hasExistingWebsite}
+              lockReason="Please create your website first"
+              onClick={() => {
+                if (!hasExistingWebsite) {
+                  toast.error("Please create your website first to unlock the Careers page settings.");
+                } else {
+                  navigate(careersRoute);
+                }
+              }}
+            />
           </div>
         </div>
       </PageFrame>

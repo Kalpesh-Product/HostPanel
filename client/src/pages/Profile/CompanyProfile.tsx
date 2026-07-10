@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
-import { TextField } from "@mui/material";
-import { CheckCircle2, X } from "lucide-react";
+import { Building2, CheckCircle2, X } from "lucide-react";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import useAuth from "../../hooks/useAuth";
-import PageFrame from "../../components/Pages/PageFrame";
 import { toast } from "sonner";
 import PrimaryButton from "../../components/PrimaryButton";
 import { PLAN_UI_DATA } from "../WorkspaceSetup/workspaceSetupPlans";
@@ -69,7 +67,7 @@ const CompanyProfile = () => {
     reset(defaults);
   }, [defaults, reset]);
 
-  const fields = [
+  const companyFields = [
     { name: "workspaceName", label: "Unit Name" },
     { name: "businessName", label: "Company Name" },
     { name: "brandName", label: "Brand Name" },
@@ -79,6 +77,7 @@ const CompanyProfile = () => {
     { name: "businessTypes", label: "Types of Vertical" },
     { name: "selectedPlan", label: "Selected Plan" },
   ];
+
   const selectedPlan = String(workspace?.selectedPlan || "").toLowerCase();
   const upgradePlanOptions =
     selectedPlan === "basic"
@@ -258,103 +257,123 @@ const CompanyProfile = () => {
   }, [requestedUpgradePlan, selectedPlan]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <span className="text-title font-pmedium text-primary uppercase">
-          Company Profile
-        </span>
+    <div className="border-default border-borderGray rounded-xl bg-white p-4">
+      <div className="flex items-center justify-between pb-4">
+        <span className="text-title font-pmedium text-primary uppercase">Company Profile</span>
       </div>
-
-      <div className="flex items-center gap-8 w-full border-2 border-gray-200 p-4 rounded-xl">
-        <div className="flex gap-6 items-center w-full flex-col md:flex-row">
-          <button
-            type="button"
-            onClick={() => document.getElementById("companyLogoUpload")?.click()}
-            className="w-40 h-40 rounded-full border border-gray-200 bg-white overflow-hidden flex items-center justify-center"
-            title="Upload company logo"
-          >
-            {currentLogoUrl ? (
-              <img
-                src={currentLogoUrl}
-                alt="Company logo"
-                className="w-full h-full object-contain p-2"
-              />
-            ) : (
-              <span className="text-[#1976d2] text-sm font-medium px-4 text-center">
-                Upload Logo
-              </span>
-            )}
-          </button>
-
-          <div className="md:w-96 flex flex-col gap-2">
-            <span className="text-title">
-              {workspace?.businessName || auth?.user?.companyName || "Company"}
-            </span>
-            <span className="text-subtitle">Company Logo</span>
-            <div className="flex items-center gap-2">
-              <label htmlFor="companyLogoUpload" className="text-primary cursor-pointer underline">
-                Change Logo
-              </label>
+      <div className="space-y-5 text-slate-900">
+      <section className="overflow-hidden rounded-[2.5rem] border border-white/80 bg-white/90 shadow-[0_24px_80px_rgba(15,23,42,0.1)] backdrop-blur">
+        <div className="p-6 sm:p-8 lg:p-10">
+          <div className="flex flex-wrap items-start gap-6">
+            <div className="relative">
               <button
                 type="button"
-                onClick={handleUpload}
-                disabled={uploading || !file}
-                className={`px-4 py-2 rounded-md text-white ${
-                  uploading || !file ? "bg-gray-400" : "bg-primary hover:scale-[1.03] transition"
-                }`}
+                onClick={() => document.getElementById("companyLogoUpload")?.click()}
+                className="flex h-24 w-24 items-center justify-center rounded-[1.75rem] border-2 border-dashed border-slate-200 bg-slate-50 overflow-hidden transition hover:border-blue-300 hover:bg-blue-50"
+                title="Upload company logo"
               >
-                {uploading ? "Uploading..." : "Save Image"}
+                {currentLogoUrl ? (
+                  <img
+                    src={currentLogoUrl}
+                    alt="Company logo"
+                    className="w-full h-full object-contain p-2"
+                  />
+                ) : (
+                  <div className="text-center">
+                    <Building2 size={28} className="mx-auto text-slate-400" />
+                    <span className="text-[9px] font-semibold text-slate-500 mt-1 block">Upload Logo</span>
+                  </div>
+                )}
               </button>
+              <input
+                id="companyLogoUpload"
+                type="file"
+                accept=".png,.jpg,.jpeg,.webp"
+                className="hidden"
+                onChange={handleFileChange}
+              />
             </div>
-            <input
-              id="companyLogoUpload"
-              type="file"
-              accept=".png,.jpg,.jpeg,.webp"
-              className="hidden"
-              onChange={handleFileChange}
-            />
+
+            <div className="min-w-0 flex-1">
+              
+              <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+                {workspace?.businessName || auth?.user?.companyName || "Company"}
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                Company information, branding, and workspace details are managed here.
+              </p>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {file ? (
+                  <>
+                    <label
+                      htmlFor="companyLogoUpload"
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold text-blue-700 transition hover:bg-blue-100"
+                    >
+                      Change Image
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleUpload}
+                      disabled={uploading}
+                      className="inline-flex items-center gap-2 rounded-full bg-[#2563EB] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    >
+                      {uploading ? "Uploading..." : "Save Image"}
+                    </button>
+                  </>
+                ) : (
+                  <label
+                    htmlFor="companyLogoUpload"
+                    className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-slate-600 transition hover:border-blue-200 hover:text-blue-600"
+                  >
+                    Change Logo
+                  </label>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <PageFrame>
-        <div className="mb-8">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-subtitle font-pmedium">Company Information</span>
-            {upgradePlanOptions.length > 0 ? (
-              <PrimaryButton
-                title="Upgrade Plan?"
-                handleSubmit={() => setIsUpgradeModalOpen(true)}
-              />
-            ) : null}
+      <section className="rounded-[2rem] border border-white/80 bg-white/90 p-5 shadow-[0_18px_55px_rgba(15,23,42,0.08)] backdrop-blur sm:p-6">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            {/* <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-blue-600">Company Information</p> */}
+            <h2 className="mt-1 text-xl font-pmedium text-slate-900">Unit & Company Information</h2>
+            <p className="mt-1 text-sm leading-6 text-slate-500">Read-only company information synced from your workspace setup.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            {fields.map((fieldConfig) => (
-              <div key={fieldConfig.name}>
-                <Controller
-                  name={fieldConfig.name}
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      size="small"
-                      fullWidth
-                      label={fieldConfig.label}
-                      InputLabelProps={{ shrink: true }}
-                      disabled
-                    />
-                  )}
-                />
-              </div>
-            ))}
+          {upgradePlanOptions.length > 0 ? (
+            <PrimaryButton
+              title="Upgrade Plan?"
+              handleSubmit={() => setIsUpgradeModalOpen(true)}
+            />
+          ) : null}
+        </div>
+
+        <div className="pt-5">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {companyFields.map((fieldConfig) => {
+              const value = workspace?.[fieldConfig.name]
+                ? Array.isArray(workspace[fieldConfig.name])
+                  ? (workspace[fieldConfig.name] as string[]).join(", ")
+                  : String(workspace[fieldConfig.name] || "")
+                : "-";
+
+              return (
+                <div key={fieldConfig.name} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">{fieldConfig.label}</p>
+                  <p className="mt-1 text-[13px] font-semibold text-slate-900 break-words">{value}</p>
+                </div>
+              );
+            })}
           </div>
           {requestedUpgradePlan ? (
-            <p className="text-center mt-3 text-[13px] font-medium text-[#2d67f0]">
+            <p className="text-center mt-4 text-[13px] font-medium text-[#2d67f0]">
               Request sent for {requestedUpgradePlan.toUpperCase()} plan.
             </p>
           ) : null}
         </div>
-      </PageFrame>
+      </section>
 
       {isUpgradeModalOpen ? (
         <div className="fixed inset-0 z-50 bg-[#0f172a]/45 backdrop-blur-[2px] px-4 py-6 flex items-center justify-center">
@@ -435,7 +454,8 @@ const CompanyProfile = () => {
         </div>
       ) : null}
     </div>
+  </div>
   );
-};
+  };
 
 export default CompanyProfile;
