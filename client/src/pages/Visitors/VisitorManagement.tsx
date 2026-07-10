@@ -3078,11 +3078,11 @@ export default function VisitorsManagementPage() {
 
   const buildBadgeDetails = (visitor = {}) => ({
     badgeNo: String(visitor?.badgeNo || 'N/A'),
-    visitorName: String(visitor?.name || visitor?.fullName || 'Visitor'),
+    visitorName: String(visitor?.name || visitor?.fullName || [visitor?.firstName, visitor?.lastName].filter(Boolean).join(' ').trim() || 'Visitor'),
     visitorCompany: String(visitor?.company || 'Individual'),
     purpose: String(visitor?.purpose || 'General visit'),
     host: String(visitor?.host || visitor?.hostName || 'Frontdesk'),
-    checkIn: String(visitor?.checkIn || formatTimeLabel(visitor?.checkInAt) || formatTimeLabel(new Date())),
+    checkIn: String(visitor?.checkIn || formatTimeLabel(visitor?.checkInAt) || '--:--'),
     visitDate: String(visitor?.date || formatDisplayDate(visitor?.createdAt || new Date()) || ''),
     note: String(visitor?.notes || 'Host has been notified via email and SMS.'),
   });
@@ -3103,8 +3103,10 @@ export default function VisitorsManagementPage() {
     const printHtml = `
       <html>
         <head>
-          <title>Visitor Badge - ${badgeNo}</title>
+          <title></title>
           <style>
+            @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+            @page { margin: 30px 0 0 0; }
             * { box-sizing: border-box; }
             html, body { margin: 0; padding: 0; }
             body {
@@ -3129,10 +3131,10 @@ export default function VisitorsManagementPage() {
               color: #ffffff;
               padding: 14px 16px;
             }
-            .header h1 { margin: 0; font-size: 18px; line-height: 1.15; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; text-align: center; }
+            .header h1 { margin: 0; font-size: 18px; line-height: 1.15; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; text-align: center; }
             .content { padding: 14px 16px 16px 16px; }
-            .name { margin: 0 0 2px 0; font-size: 20px; font-weight: 800; line-height: 1.2; color: #111827; text-align: center; }
-            .company { margin: 0 0 12px 0; color: #6b7280; font-size: 11px; font-weight: 700; text-align: center; }
+            .name { margin: 0 0 2px 0; font-size: 20px; font-weight: 500; line-height: 1.2; color: #111827; text-align: center; }
+            .company { margin: 0 0 12px 0; color: #6b7280; font-size: 11px; font-weight: 500; text-align: center; }
             .grid {
               display: grid;
               grid-template-columns: 1fr 1fr;
@@ -3142,15 +3144,13 @@ export default function VisitorsManagementPage() {
               padding: 10px 12px;
               background: #f9fafb;
             }
-            .field-label { margin: 0; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: #9ca3af; font-weight: 800; }
-            .field-value { margin: 2px 0 0 0; font-size: 12px; font-weight: 700; color: #1f2937; word-break: break-word; }
+            .field-label { margin: 0; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: #9ca3af; font-weight: 500; }
+            .field-value { margin: 2px 0 0 0; font-size: 12px; font-weight: 500; color: #1f2937; word-break: break-word; }
             .span-2 { grid-column: span 2; }
-            .print-hint { max-width: 350px; margin: 10px auto 0 auto; font-size: 11px; color: #475569; text-align: center; }
             @media print {
               html, body { width: 100%; height: 100%; }
               body { background: #ffffff !important; padding: 0; }
               .sheet { box-shadow: none; border-color: #dbeafe; }
-              .print-hint { display: none; }
             }
           </style>
         </head>
@@ -3169,7 +3169,6 @@ export default function VisitorsManagementPage() {
               </div>
             </div>
           </div>
-          <p class="print-hint">For exact colors, keep "Background graphics" enabled in the print dialog.</p>
           <script>window.onload = function () { window.focus(); window.print(); };</script>
         </body>
       </html>
@@ -3412,26 +3411,26 @@ export default function VisitorsManagementPage() {
                           </div>
                         </td>
                         <td className="px-5 py-4 align-top">
-                          <div className="font-bold text-[#0F172A] text-[13px] whitespace-nowrap truncate max-w-[180px]">{vis.name}</div>
-                          <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5 flex items-center gap-1 whitespace-nowrap">
+                          <div className="font-pmedium text-[#0F172A] text-[13px] whitespace-nowrap truncate max-w-[180px]">{vis.name}</div>
+                          <div className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-0.5 flex items-center gap-1 whitespace-nowrap">
                             <Building size={10} /> {vis.company}
                           </div>
                         </td>
                         <td className="px-5 py-4 align-top">
-                          <div className="font-bold text-[#0F172A] text-[13px] flex items-center gap-1.5 whitespace-nowrap">
+                          <div className="font-pmedium text-[#0F172A] text-[13px] flex items-center gap-1.5 whitespace-nowrap">
                             <CalendarDays size={14} className="text-slate-400" /> {vis.date || formatDisplayDate(vis.createdAt)}
                           </div>
                         </td>
                         <td className="px-5 py-4 align-top">
-                          <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 font-bold text-[10px] uppercase rounded mb-1">{vis.purpose}</span>
+                          <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 font-pmedium text-[10px] uppercase rounded mb-1">{vis.purpose}</span>
                         </td>
                         <td className="px-5 py-4 align-top">
-                          <div className="text-xs font-semibold text-slate-600 flex items-center gap-1 whitespace-nowrap">
-                            <User size={12} /> <span className="font-bold text-[#0F172A] truncate max-w-[150px]">{vis.host}</span>
+                          <div className="text-xs font-pmedium text-slate-600 flex items-center gap-1 whitespace-nowrap">
+                            <User size={12} /> <span className="font-pmedium text-[#0F172A] truncate max-w-[150px]">{vis.host}</span>
                           </div>
                         </td>
                         <td className="px-5 py-4 align-top">
-                          <div className="flex items-center gap-2 font-bold text-[#0F172A] text-[13px] whitespace-nowrap">
+                          <div className="flex items-center gap-2 font-pmedium text-[#0F172A] text-[13px] whitespace-nowrap">
                             <span className="text-emerald-600">{vis.checkIn || formatTimeLabel(vis.checkInAt) || '--:--'}</span>
                             <span className="text-slate-300">-</span>
                             <span className={(vis.checkOut || '--:--') === '--:--' ? 'text-slate-400' : 'text-[#0F172A]'}>{vis.checkOut || formatTimeLabel(vis.checkOutAt) || '--:--'}</span>
@@ -3439,7 +3438,7 @@ export default function VisitorsManagementPage() {
                         </td>
                         <td className="px-5 py-4 align-top">
                           <div className="flex flex-col items-start gap-0.5">
-                            <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${getStatusBadge(vis.status)}`}>
+                            <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider border ${getStatusBadge(vis.status)}`}>
                               {vis.status}
                             </span>
                           </div>
@@ -3470,7 +3469,7 @@ export default function VisitorsManagementPage() {
                               )}
                             </div>
                             {isCheckedIn ? (
-                              <button type="button" disabled title="Upgrade plan to access this feature." className="px-2.5 py-1 bg-slate-100 border border-slate-200 text-slate-400 rounded-lg text-[9px] font-black uppercase transition-all inline-flex items-center gap-1 shadow-sm whitespace-nowrap cursor-not-allowed">
+                              <button type="button" disabled title="Upgrade plan to access this feature." className="px-2.5 py-1 bg-slate-100 border border-slate-200 text-slate-400 rounded-lg text-[9px] font-pmedium uppercase transition-all inline-flex items-center gap-1 shadow-sm whitespace-nowrap cursor-not-allowed">
                                 <Lock size={11} /> Convert to Client
                               </button>
                             ) : null}
@@ -3500,11 +3499,11 @@ export default function VisitorsManagementPage() {
                       </div>
                       <div>
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <h3 className="font-black text-[#0F172A] text-[15px]">{bkg.resource}</h3>
+                          <h3 className="font-pmedium text-[#0F172A] text-[15px]">{bkg.resource}</h3>
                           <div className="flex items-center gap-1.5">
-                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase border ${getStatusBadge(bkg.status)}`}>{bkg.status}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-pmedium uppercase border ${getStatusBadge(bkg.status)}`}>{bkg.status}</span>
                             {bkg.isExtended && (
-                              <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase border bg-purple-50 text-purple-700 border-purple-200 flex items-center gap-1">
+                              <span className="px-1.5 py-0.5 rounded text-[8px] font-pmedium uppercase border bg-purple-50 text-purple-700 border-purple-200 flex items-center gap-1">
                                 <Clock size={9} /> Extended
                               </span>
                             )}
@@ -3678,36 +3677,36 @@ export default function VisitorsManagementPage() {
                         </div>
                       </td>
                       <td className="px-5 py-4 align-top">
-                        <div className="font-bold text-[#0F172A] text-[13px] flex items-center gap-1.5 whitespace-nowrap"><CalendarDays size={14} className="text-slate-400" /> {vis.date || formatDisplayDate(vis.createdAt)}</div>
+                        <div className="font-pmedium text-[#0F172A] text-[13px] flex items-center gap-1.5 whitespace-nowrap"><CalendarDays size={14} className="text-slate-400" /> {vis.date || formatDisplayDate(vis.createdAt)}</div>
                       </td>
                       <td className="px-5 py-4 align-top">
-                        <div className="font-bold text-[#0F172A] text-[13px] whitespace-nowrap truncate max-w-[180px]">{vis.name}</div>
-                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5 flex items-center gap-1 whitespace-nowrap">
+                        <div className="font-pmedium text-[#0F172A] text-[13px] whitespace-nowrap truncate max-w-[180px]">{vis.name}</div>
+                        <div className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-0.5 flex items-center gap-1 whitespace-nowrap">
                           <Building size={10} /> {vis.company}
                         </div>
                       </td>
                       <td className="px-5 py-4 align-top">
-                        <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 font-bold text-[10px] uppercase rounded mb-1">{vis.purpose}</span>
+                        <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 font-pmedium text-[10px] uppercase rounded mb-1">{vis.purpose}</span>
                       </td>
                       <td className="px-5 py-4 align-top">
-                        <div className="text-xs font-semibold text-slate-600 flex items-center gap-1 whitespace-nowrap">
-                          <User size={12} /> <span className="font-bold text-[#0F172A] truncate max-w-[150px]">{vis.host}</span>
+                        <div className="text-xs font-pmedium text-slate-600 flex items-center gap-1 whitespace-nowrap">
+                          <User size={12} /> <span className="font-pmedium text-[#0F172A] truncate max-w-[150px]">{vis.host}</span>
                         </div>
                       </td>
                       <td className="px-5 py-4 align-top">
-                        <div className="flex items-center gap-2 font-bold text-[#0F172A] text-[13px] whitespace-nowrap">
+                        <div className="flex items-center gap-2 font-pmedium text-[#0F172A] text-[13px] whitespace-nowrap">
                           <span>{vis.checkIn || formatTimeLabel(vis.checkInAt) || '--:--'}</span>
                           <span className="text-slate-300">-</span>
                           <span>{vis.checkOut || formatTimeLabel(vis.checkOutAt) || '--:--'}</span>
                         </div>
                       </td>
                       <td className="px-5 py-4 align-top text-center">
-                        <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${getStatusBadge(vis.status)}`}>
+                        <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider border ${getStatusBadge(vis.status)}`}>
                           {vis.status}
                         </span>
                         {vis.convertedToClient && (
                           <div className="mt-2">
-                            <span className="inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-emerald-700">
+                            <span className="inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-emerald-700">
                               Converted to Client
                             </span>
                           </div>
@@ -3781,7 +3780,7 @@ export default function VisitorsManagementPage() {
                               type="button"
                               onClick={() => switchStandardVisitorMode(mode)}
                                 className={`rounded-lg px-2.5 py-2 text-[9px] font-black uppercase tracking-widest transition-all ${form.standardVisitorMode === mode
-                                  ? 'bg-white text-blue-700 shadow-sm'
+                                  ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
                                   : 'text-slate-500 hover:text-slate-900'
                                 }`}
                             >
@@ -3893,11 +3892,14 @@ export default function VisitorsManagementPage() {
                 >
 
                   {visitorMode === 'standard' && (
-                    <div className="space-y-2.5 animate-in fade-in bg-gray-50 p-2.5 rounded-lg border border-gray-200 text-[10px]">
-                      <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-200 pb-1 mb-2.5 flex items-center gap-1"><Building size={12} /> Visitor Entry Type</h3>
+                    <div className="space-y-5 animate-in fade-in">
 
                       {isCompactMode && (
-                        <div className="space-y-2.5 rounded-lg border border-blue-100 bg-white p-2.5">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                          <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                            <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><UserPlus size={16} /></span>
+                            <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Visitor Entry</span>
+                          </h4>
                           <div className="grid grid-cols-2 gap-1.5 rounded-lg bg-slate-100 p-1.5">
                             {[
                               ['new', 'New Visitor'],
@@ -3907,8 +3909,8 @@ export default function VisitorsManagementPage() {
                                 key={mode}
                                 type="button"
                                 onClick={() => switchStandardVisitorMode(mode)}
-                                className={`rounded-lg px-2.5 py-2 text-[9px] font-black uppercase tracking-widest transition-all ${form.standardVisitorMode === mode
-                                    ? 'bg-white text-blue-700 shadow-sm'
+                                className={`rounded-lg px-2.5 py-2 text-[10px] font-semibold uppercase tracking-widest transition-all ${form.standardVisitorMode === mode
+                                    ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
                                     : 'text-slate-500 hover:text-slate-900'
                                   }`}
                               >
@@ -3917,16 +3919,16 @@ export default function VisitorsManagementPage() {
                             ))}
                           </div>
                           {form.standardVisitorMode === 'existing' && (
-                            <div className="space-y-2 rounded-lg border border-blue-100 bg-blue-50/40 p-2.5">
-                              <label className="text-[9px] font-black uppercase tracking-widest text-gray-500">Search Existing Visitor</label>
-                              <div className="flex items-center gap-2 rounded-xl px-1 py-1">
-                                <Search size={14} className="text-gray-400" />
+                            <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/40 p-3">
+                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Search Existing Visitor</label>
+                              <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 border border-slate-200/60 focus-within:ring-2 focus-within:ring-[#2563EB]/20 focus-within:border-[#2563EB]">
+                                <Search size={14} className="text-gray-400 shrink-0" />
                                 <input
                                   type="text"
                                   value={form.standardVisitorSearch}
                                   onChange={(e) => setForm((prev) => ({ ...prev, standardVisitorSearch: e.target.value }))}
                                   placeholder="Search by name, phone, email, company"
-                                  className="w-full border-0 bg-white text-xs font-semibold text-gray-900 outline-none ring-0 shadow-none placeholder:text-gray-400 focus:border-0 focus:outline-none focus:ring-0"
+                                  className="w-full bg-transparent text-[12px] font-semibold text-[#0F172A] outline-none placeholder:text-slate-400"
                                 />
                               </div>
                               {hasStandardVisitorSearchQuery && standardVisitorSearchMatches.length > 0 ? (
@@ -3936,80 +3938,84 @@ export default function VisitorsManagementPage() {
                                       key={visitor.id}
                                       type="button"
                                       onClick={() => applyExistingStandardVisitor(visitor)}
-                                      className="rounded-lg border border-blue-100 bg-white px-2.5 py-2 text-left transition-all hover:border-blue-400 hover:bg-blue-50"
+                                      className="rounded-xl border border-blue-100 bg-white px-3 py-2.5 text-left transition-all hover:border-blue-400 hover:bg-blue-50"
                                     >
-                                      <p className="text-xs font-black text-slate-900">{visitor.name || 'Visitor'}</p>
+                                      <p className="text-[12px] font-semibold text-slate-900">{visitor.name || 'Visitor'}</p>
                                       <p className="mt-1 text-[10px] font-bold text-slate-600">{visitor.phone || 'No phone'} | {visitor.email || 'No email'}</p>
                                       <p className="mt-1 text-[10px] font-bold text-blue-700">{visitor.company || 'No company'}</p>
                                     </button>
                                   ))}
                                 </div>
                               ) : hasStandardVisitorSearchQuery ? (
-                                <p className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-4 text-xs font-bold text-gray-500">
+                                <p className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-4 text-xs font-semibold text-gray-500">
                                   No matching visitor found in history.
                                 </p>
                               ) : null}
                             </div>
                           )}
+                          
                         </div>
                       )}
 
-                      <div className="rounded-lg border border-slate-200 bg-white p-2.5 space-y-3">
-                        <h4 className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Personal Information</h4>
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">First Name *</label>
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                        <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                          <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><User size={16} /></span>
+                          <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Personal Information</span>
+                        </h4>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">First Name <span className="text-red-400">*</span></label>
                             <input
                               type="text"
                               placeholder="Visitor Name"
                               value={form.firstName}
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, firstName: true }))}
                               onChange={(e) => setForm((prev) => ({ ...prev, firstName: e.target.value, name: `${e.target.value} ${String(prev.lastName || '')}`.trim() }))}
-                              className={`w-full rounded-lg border px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none ${visibleStandardVisitorErrors.firstName ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.firstName ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                             />
-                            {visibleStandardVisitorErrors.firstName ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.firstName}</p> : null}
+                            {visibleStandardVisitorErrors.firstName ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.firstName}</span> : null}
                           </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Last Name *</label>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Last Name <span className="text-red-400">*</span></label>
                             <input
                               type="text"
                               placeholder="Visitor Surname"
                               value={form.lastName}
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, lastName: true }))}
                               onChange={(e) => setForm((prev) => ({ ...prev, lastName: e.target.value, name: `${String(prev.firstName || '')} ${e.target.value}`.trim() }))}
-                              className={`w-full rounded-lg border px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none ${visibleStandardVisitorErrors.lastName ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.lastName ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                             />
-                            {visibleStandardVisitorErrors.lastName ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.lastName}</p> : null}
+                            {visibleStandardVisitorErrors.lastName ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.lastName}</span> : null}
                           </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Gender *</label>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gender <span className="text-red-400">*</span></label>
                             <select
                               value={form.gender}
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, gender: true }))}
                               onChange={(e) => setForm((prev) => ({ ...prev, gender: e.target.value }))}
-                              className={`w-full rounded-lg border px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none ${visibleStandardVisitorErrors.gender ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.gender ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                             >
                               <option value="">Select Gender</option>
                               <option value="male">Male</option>
                               <option value="female">Female</option>
                               <option value="other">Other</option>
                             </select>
-                            {visibleStandardVisitorErrors.gender ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.gender}</p> : null}
+                            {visibleStandardVisitorErrors.gender ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.gender}</span> : null}
                           </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Phone Number *</label>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Phone Number <span className="text-red-400">*</span></label>
                             <input
                               type="tel"
                               placeholder="10 digit phone number"
                               value={form.phone}
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, phone: true }))}
                               onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value.replace(/[^\d]/g, '') }))}
-                              className={`w-full rounded-lg border px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none ${visibleStandardVisitorErrors.phone ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.phone ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                             />
-                            {visibleStandardVisitorErrors.phone ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.phone}</p> : null}
+                            {visibleStandardVisitorErrors.phone ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.phone}</span> : null}
                           </div>
-                          <div className="space-y-1 sm:col-span-2">
-                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Email Address *</label>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email Address <span className="text-red-400">*</span></label>
                             <input
                               type="email"
                               inputMode="email"
@@ -4018,20 +4024,17 @@ export default function VisitorsManagementPage() {
                               value={form.email}
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, email: true }))}
                               onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
-                              className={`w-full rounded-lg border px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none ${visibleStandardVisitorErrors.email ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.email ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                             />
-                            {visibleStandardVisitorErrors.email ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.email}</p> : null}
+                            {visibleStandardVisitorErrors.email ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.email}</span> : null}
                           </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Country *</label>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Country <span className="text-red-400">*</span></label>
                             <select
                               value={form.country}
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, country: true }))}
                               onChange={(e) => setForm((prev) => ({ ...prev, country: e.target.value, state: '', city: '' }))}
-                              className={`w-full rounded-lg border px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none ${visibleStandardVisitorErrors.country ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.country ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                             >
                               <option value="">Select Country</option>
                               {countryOptions.map((country) => (
@@ -4040,16 +4043,19 @@ export default function VisitorsManagementPage() {
                                 </option>
                               ))}
                             </select>
-                            {visibleStandardVisitorErrors.country ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.country}</p> : null}
+                            {visibleStandardVisitorErrors.country ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.country}</span> : null}
                           </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">State *</label>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">State <span className="text-red-400">*</span></label>
                             <select
                               value={form.state}
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, state: true }))}
                               onChange={(e) => setForm((prev) => ({ ...prev, state: e.target.value, city: '' }))}
                               disabled={!form.country}
-                              className={`w-full rounded-lg border px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100 ${visibleStandardVisitorErrors.state ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 ${visibleStandardVisitorErrors.state ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                             >
                               <option value="">{form.country ? 'Select State' : 'Select country first'}</option>
                               {stateOptions.map((state) => (
@@ -4058,16 +4064,16 @@ export default function VisitorsManagementPage() {
                                 </option>
                               ))}
                             </select>
-                            {visibleStandardVisitorErrors.state ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.state}</p> : null}
+                            {visibleStandardVisitorErrors.state ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.state}</span> : null}
                           </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">City *</label>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">City <span className="text-red-400">*</span></label>
                             <select
                               value={form.city}
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, city: true }))}
                               onChange={(e) => setForm((prev) => ({ ...prev, city: e.target.value }))}
                               disabled={!form.country || !form.state}
-                              className={`w-full rounded-lg border px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none disabled:cursor-not-allowed disabled:bg-gray-100 ${visibleStandardVisitorErrors.city ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 ${visibleStandardVisitorErrors.city ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                             >
                               <option value="">{form.country && form.state ? 'Select City' : 'Select country and state first'}</option>
                               {cityOptions.map((city) => (
@@ -4076,24 +4082,24 @@ export default function VisitorsManagementPage() {
                                 </option>
                               ))}
                             </select>
-                            {visibleStandardVisitorErrors.city ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.city}</p> : null}
+                            {visibleStandardVisitorErrors.city ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.city}</span> : null}
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Visitor Type</label>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Visitor Type</label>
                             <select
                               value={form.visitorCompanyType}
                               onChange={(e) => setForm((prev) => ({ ...prev, visitorCompanyType: e.target.value, visitorCompany: e.target.value === 'individual' ? '' : prev.visitorCompany }))}
-                              className="w-full rounded-lg border border-gray-200 px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500"
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                             >
                               <option value="individual">Individual</option>
                               <option value="company">Company</option>
                             </select>
                           </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Visitor Company {form.visitorCompanyType === 'company' ? '*' : ''}</label>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Visitor Company {form.visitorCompanyType === 'company' ? <span className="text-red-400">*</span> : ''}</label>
                             <input
                               type="text"
                               placeholder="Visitor Company"
@@ -4101,12 +4107,18 @@ export default function VisitorsManagementPage() {
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, visitorCompany: true }))}
                               onChange={(e) => setForm((prev) => ({ ...prev, visitorCompany: e.target.value }))}
                               disabled={form.visitorCompanyType === 'individual'}
-                              className={`w-full rounded-lg border px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed ${visibleStandardVisitorErrors.visitorCompany ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-blue-500'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 ${visibleStandardVisitorErrors.visitorCompany ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                             />
-                            {visibleStandardVisitorErrors.visitorCompany ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.visitorCompany}</p> : null}
+                            {visibleStandardVisitorErrors.visitorCompany ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.visitorCompany}</span> : null}
                           </div>
                         </div>
-                      </div>
+                    </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                        <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                          <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><CalendarDays size={16} /></span>
+                          <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Visit Details</span>
+                        </h4>
 
                       <div className="grid grid-cols-3 gap-1.5 rounded-lg bg-slate-100 p-1">
                         {[
@@ -4126,11 +4138,11 @@ export default function VisitorsManagementPage() {
                               hostGroupValue: type === 'standard' ? '' : prev.hostGroupValue,
                               hostUserId: type === 'standard' ? '' : prev.hostUserId,
                             }))}
-                            className={`rounded-lg px-2.5 py-2 text-[9px] font-black uppercase tracking-widest transition-all inline-flex items-center justify-center gap-1 ${locked
-                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                : form.standardVisitorType === type
-                                  ? 'bg-white text-blue-700 shadow-sm'
-                                  : 'text-slate-500 hover:text-slate-900'
+                            className={`rounded-lg px-2.5 py-2 text-[10px] font-semibold uppercase tracking-widest transition-all inline-flex items-center justify-center gap-1 ${locked
+                                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                  : form.standardVisitorType === type
+                                    ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
+                                    : 'text-slate-500 hover:text-slate-900'
                               }`}
                           >
                             {locked ? <Lock size={11} /> : null}
@@ -4141,18 +4153,18 @@ export default function VisitorsManagementPage() {
 
                       {form.standardVisitorType === 'department' ? (
                         <>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Purpose *</label>
-                              <select className={`w-full px-2.5 py-2 bg-white border rounded-lg font-semibold text-xs text-gray-900 outline-none cursor-pointer ${visibleStandardVisitorErrors.purpose ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-[#2563EB]'}`} value={form.purpose} onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, purpose: true }))} onChange={e => setForm({ ...form, purpose: e.target.value })}>
+                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Purpose <span className="text-red-400">*</span></label>
+                              <select className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.purpose ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} value={form.purpose} onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, purpose: true }))} onChange={e => setForm({ ...form, purpose: e.target.value })}>
                                 <option value="Meeting">Meeting</option><option value="Interview">Interview</option><option value="Delivery">Delivery</option><option value="Maintenance">Maintenance</option>
                               </select>
-                              {visibleStandardVisitorErrors.purpose ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.purpose}</p> : null}
+                              {visibleStandardVisitorErrors.purpose ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.purpose}</span> : null}
                             </div>
-                            <div className="space-y-1">
-                              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Role / Department *</label>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Role / Department <span className="text-red-400">*</span></label>
                               <select
-                                className={`w-full px-2.5 py-2 bg-white border rounded-lg font-semibold text-xs text-gray-900 outline-none cursor-pointer disabled:cursor-not-allowed ${visibleStandardVisitorErrors.hostGroupType ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-[#2563EB]'}`}
+                                className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:cursor-not-allowed ${visibleStandardVisitorErrors.hostGroupType ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                 value={form.hostGroupType}
                                 onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, hostGroupType: true }))}
                                 onChange={(e) => {
@@ -4170,12 +4182,12 @@ export default function VisitorsManagementPage() {
                                 <option value="department">Department</option>
                                 <option value="role">Role</option>
                               </select>
-                              {visibleStandardVisitorErrors.hostGroupType ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.hostGroupType}</p> : null}
+                              {visibleStandardVisitorErrors.hostGroupType ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.hostGroupType}</span> : null}
                             </div>
-                            <div className="space-y-1">
-                              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Department / Role Name *</label>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Department / Role Name <span className="text-red-400">*</span></label>
                               <select
-                                className={`w-full px-2.5 py-2 bg-white border rounded-lg font-semibold text-xs text-gray-900 outline-none cursor-pointer disabled:cursor-not-allowed ${visibleStandardVisitorErrors.hostGroupValue ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-[#2563EB]'}`}
+                                className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:cursor-not-allowed ${visibleStandardVisitorErrors.hostGroupValue ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                 value={form.hostGroupValue}
                                 onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, hostGroupValue: true }))}
                                 onChange={(e) => {
@@ -4199,12 +4211,12 @@ export default function VisitorsManagementPage() {
                                   );
                                 })}
                               </select>
-                              {visibleStandardVisitorErrors.hostGroupValue ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.hostGroupValue}</p> : null}
+                              {visibleStandardVisitorErrors.hostGroupValue ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.hostGroupValue}</span> : null}
                             </div>
-                            <div className="space-y-1">
-                              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Host Member *</label>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Host Member <span className="text-red-400">*</span></label>
                               <select
-                                className={`w-full px-2.5 py-2 bg-white border rounded-lg font-semibold text-xs text-gray-900 outline-none cursor-pointer disabled:cursor-not-allowed ${visibleStandardVisitorErrors.hostUserId ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-[#2563EB]'}`}
+                                className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:cursor-not-allowed ${visibleStandardVisitorErrors.hostUserId ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                 value={form.hostUserId}
                                 onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, hostUserId: true }))}
                                 onChange={(e) => {
@@ -4224,29 +4236,29 @@ export default function VisitorsManagementPage() {
                                   </option>
                                 ))}
                               </select>
-                              {visibleStandardVisitorErrors.hostUserId ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.hostUserId}</p> : null}
+                              {visibleStandardVisitorErrors.hostUserId ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.hostUserId}</span> : null}
                             </div>
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Reason *</label>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Reason <span className="text-red-400">*</span></label>
                             <textarea
                               rows={3}
                               placeholder="Why is the visitor here?"
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, reason: true }))}
-                              className={`w-full px-2.5 py-2 bg-white border rounded-lg font-semibold text-xs text-gray-900 outline-none resize-none ${visibleStandardVisitorErrors.reason ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-[#2563EB]'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none ${visibleStandardVisitorErrors.reason ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                               value={form.reason}
                               onChange={e => setForm({ ...form, reason: e.target.value })}
                             />
-                            {visibleStandardVisitorErrors.reason ? <p className="text-[10px] font-bold text-red-600">{visibleStandardVisitorErrors.reason}</p> : null}
+                            {visibleStandardVisitorErrors.reason ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.reason}</span> : null}
                           </div>
 
-                          <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-2 mt-3">
-                            <ShieldCheck className="text-blue-500 shrink-0" size={24} />
+                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-2.5">
+                            <ShieldCheck className="text-blue-500 shrink-0 mt-0.5" size={18} />
                             <div className="space-y-1">
                               <p className="text-[10px] font-bold text-blue-800 uppercase tracking-widest leading-relaxed">System will notify the host for approval.</p>
                               {visitorOverviewError ? (
-                                <p className="text-[10px] font-bold text-red-600">{visitorOverviewError}</p>
+                                <p className="text-[10px] font-medium text-red-600">{visitorOverviewError}</p>
                               ) : (
                                 <p className="text-[10px] font-bold text-blue-700">Only present unit members in the selected group can be selected, including managers and other roles.</p>
                               )}
@@ -4254,29 +4266,27 @@ export default function VisitorsManagementPage() {
                           </div>
                         </>
                       ) : (
-                        <div className="space-y-3.5">
-                          <div className="grid grid-cols-1 gap-4">
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Purpose</label>
-                              <select
-                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-gray-900 focus:border-[#2563EB] outline-none cursor-pointer"
-                                value={form.purpose}
-                                onChange={e => setForm({ ...form, purpose: e.target.value })}
-                              >
-                                <option value="Exploring Services">Exploring Services</option>
-                                <option value="General Visit">General Visit</option>
-                                <option value="Unit Enquiry">Unit Enquiry</option>
-                                <option value="Delivery">Delivery</option>
-                              </select>
-                            </div>
+                        <div className="space-y-4">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Purpose</label>
+                            <select
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                              value={form.purpose}
+                              onChange={e => setForm({ ...form, purpose: e.target.value })}
+                            >
+                              <option value="Exploring Services">Exploring Services</option>
+                              <option value="General Visit">General Visit</option>
+                              <option value="Unit Enquiry">Unit Enquiry</option>
+                              <option value="Delivery">Delivery</option>
+                            </select>
                           </div>
 
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Visit Note</label>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Visit Note</label>
                             <textarea
                               rows={4}
                               placeholder="Optional note, e.g. came to see the place or explore services"
-                              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-gray-900 focus:border-[#2563EB] outline-none resize-none"
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none"
                               value={form.reason}
                               onChange={e => setForm({ ...form, reason: e.target.value })}
                             />
@@ -4284,154 +4294,210 @@ export default function VisitorsManagementPage() {
 
                         </div>
                       )}
+                      </div>
                     </div>
                   )}
 
-                 {visitorMode === 'tour' && (
-  <div className="animate-in fade-in bg-gray-50 p-2.5 rounded-lg border border-gray-200 text-[10px] space-y-2">
+                  {visitorMode === 'tour' && (
+                    <div className="space-y-5 animate-in fade-in">
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                        <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                          <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><User size={16} /></span>
+                          <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Contact Information</span>
+                        </h4>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          <div className="flex flex-col gap-1 sm:col-span-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">POC / Visitor Name <span className="text-red-400">*</span></label>
+                            <input type="text" placeholder="POC / Visitor Name"
+                              value={form.pocName} onChange={(e) => setForm({ ...form, pocName: e.target.value })}
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Designation</label>
+                            <input type="text" placeholder="e.g. Founder"
+                              value={form.pocDesignation} onChange={(e) => setForm({ ...form, pocDesignation: e.target.value })}
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Company / Agency</label>
+                            <input type="text" placeholder="Company / Agency"
+                              value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })}
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
+                            <input type="tel" placeholder="Phone"
+                              value={form.pocPhone} onChange={(e) => setForm({ ...form, pocPhone: e.target.value })}
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
+                            <input type="email" placeholder="Email"
+                              value={form.pocEmail} onChange={(e) => setForm({ ...form, pocEmail: e.target.value })}
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                          </div>
+                        </div>
+                      </div>
 
-    <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-200 pb-1 flex items-center gap-1">
-      <Building size={12} /> Unit Tour / Enquiry
-    </h3>
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                        <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                          <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Globe size={16} /></span>
+                          <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Location</span>
+                        </h4>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Country</label>
+                            <select
+                              value={form.country}
+                              onChange={(e) => setForm({ ...form, country: e.target.value, state: '', city: '' })}
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                            >
+                              <option value="">Select Country</option>
+                              {countryOptions.map((country) => (
+                                <option key={country.isoCode} value={country.name}>{country.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">State</label>
+                            <select
+                              value={form.state}
+                              onChange={(e) => setForm({ ...form, state: e.target.value, city: '' })}
+                              disabled={!form.country}
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100"
+                            >
+                              <option value="">{form.country ? 'Select State' : 'Select country first'}</option>
+                              {stateOptions.map((state) => (
+                                <option key={state.isoCode} value={state.name}>{state.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">City</label>
+                            <select
+                              value={form.city}
+                              onChange={(e) => setForm({ ...form, city: e.target.value })}
+                              disabled={!form.country || !form.state}
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100"
+                            >
+                              <option value="">{form.country && form.state ? 'Select City' : 'Select country and state first'}</option>
+                              {cityOptions.map((city) => (
+                                <option key={`${city.name}-${city.stateCode}-${city.latitude}`} value={city.name}>{city.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
 
-    {/* Row 1 — POC identity */}
-    <div className="grid grid-cols-2 gap-1.5">
-      <input type="text" placeholder="POC / Visitor Name *"
-        value={form.pocName} onChange={(e) => setForm({ ...form, pocName: e.target.value })}
-        className="col-span-2 w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white" />
-      <input type="text" placeholder="Designation (e.g. Founder)"
-        value={form.pocDesignation} onChange={(e) => setForm({ ...form, pocDesignation: e.target.value })}
-        className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white" />
-      <input type="text" placeholder="Company / Agency"
-        value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })}
-        className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white" />
-      <input type="tel" placeholder="Phone *"
-        value={form.pocPhone} onChange={(e) => setForm({ ...form, pocPhone: e.target.value })}
-        className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white" />
-      <input type="email" placeholder="Email *"
-        value={form.pocEmail} onChange={(e) => setForm({ ...form, pocEmail: e.target.value })}
-        className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white" />
-    </div>
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                        <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                          <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building size={16} /></span>
+                          <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Client Profile &amp; Requirements</span>
+                        </h4>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Industry <span className="text-red-400">*</span></label>
+                            <select value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })}
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                              <option value="">Select Industry</option>
+                              {TOUR_INDUSTRY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Team Size <span className="text-red-400">*</span></label>
+                            <input type="text" placeholder="Team Size"
+                              value={form.teamSize} onChange={(e) => setForm({ ...form, teamSize: e.target.value })}
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Seats Needed <span className="text-red-400">*</span></label>
+                            <input type="text" placeholder="Seats Needed"
+                              value={form.seatCount} onChange={(e) => setForm({ ...form, seatCount: e.target.value })}
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Preferred Space <span className="text-red-400">*</span></label>
+                            <select value={form.preferredSpace} onChange={(e) => setForm({ ...form, preferredSpace: e.target.value })}
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                              <option value="">Select Space Type</option>
+                              {TOUR_SPACE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Budget Range <span className="text-red-400">*</span></label>
+                            <select value={form.budgetRange} onChange={(e) => setForm({ ...form, budgetRange: e.target.value })}
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                              <option value="">Select Budget</option>
+                              {TOUR_BUDGET_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Move-in Timeline <span className="text-red-400">*</span></label>
+                            <select value={form.moveInTimeline} onChange={(e) => setForm({ ...form, moveInTimeline: e.target.value })}
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                              <option value="">Select Timeline</option>
+                              {TOUR_TIMELINE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
 
-    {/* Row 2 — Location (saved for daily visitor record) */}
-    <div className="grid grid-cols-3 gap-1.5">
-      <select
-        value={form.country}
-        onChange={(e) => setForm({ ...form, country: e.target.value, state: '', city: '' })}
-        className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white"
-      >
-        <option value="">Country</option>
-        {countryOptions.map((country) => (
-          <option key={country.isoCode} value={country.name}>{country.name}</option>
-        ))}
-      </select>
-      <select
-        value={form.state}
-        onChange={(e) => setForm({ ...form, state: e.target.value, city: '' })}
-        disabled={!form.country}
-        className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white disabled:cursor-not-allowed disabled:bg-gray-100"
-      >
-        <option value="">{form.country ? 'State' : 'Select country first'}</option>
-        {stateOptions.map((state) => (
-          <option key={state.isoCode} value={state.name}>{state.name}</option>
-        ))}
-      </select>
-      <select
-        value={form.city}
-        onChange={(e) => setForm({ ...form, city: e.target.value })}
-        disabled={!form.country || !form.state}
-        className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white disabled:cursor-not-allowed disabled:bg-gray-100"
-      >
-        <option value="">{form.country && form.state ? 'City' : 'Select state first'}</option>
-        {cityOptions.map((city) => (
-          <option key={`${city.name}-${city.stateCode}-${city.latitude}`} value={city.name}>{city.name}</option>
-        ))}
-      </select>
-    </div>
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                        <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                          <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><CalendarDays size={16} /></span>
+                          <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Follow-up</span>
+                        </h4>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Preferred Contact Method <span className="text-red-400">*</span></label>
+                            <select value={form.preferredContactMethod} onChange={(e) => setForm({ ...form, preferredContactMethod: e.target.value })}
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                              <option value="">Select Contact Method</option>
+                              <option value="Call">Call</option>
+                              <option value="WhatsApp">WhatsApp</option>
+                              <option value="Email">Email</option>
+                              <option value="In-person">In-person</option>
+                            </select>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Follow-up Date</label>
+                            <input type="date" value={form.followUpDate} onChange={(e) => setForm({ ...form, followUpDate: e.target.value })}
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tour Notes</label>
+                          <textarea rows={3} placeholder="Tour notes — objections, preferences, follow-up points for Sales (optional)"
+                            className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none"
+                            value={form.tourNotes} onChange={(e) => setForm({ ...form, tourNotes: e.target.value })} />
+                        </div>
+                      </div>
 
-    {/* Row 3 — Client profile */}
-    <div className="grid grid-cols-3 gap-1.5">
-      <div>
-        <select value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })}
-          className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white">
-          <option value="">Industry *</option>
-          {TOUR_INDUSTRY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-        </select>
-      </div>
-      <input type="text" placeholder="Team Size *"
-        value={form.teamSize} onChange={(e) => setForm({ ...form, teamSize: e.target.value })}
-        className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white" />
-      <input type="text" placeholder="Seats Needed *"
-        value={form.seatCount} onChange={(e) => setForm({ ...form, seatCount: e.target.value })}
-        className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white" />
-    </div>
-
-    {/* Row 4 — Space intent */}
-    <div className="grid grid-cols-3 gap-1.5">
-      <select value={form.preferredSpace} onChange={(e) => setForm({ ...form, preferredSpace: e.target.value })}
-        className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white">
-        <option value="">Space Type *</option>
-        {TOUR_SPACE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-      <select value={form.budgetRange} onChange={(e) => setForm({ ...form, budgetRange: e.target.value })}
-        className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white">
-        <option value="">Budget *</option>
-        {TOUR_BUDGET_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-      <select value={form.moveInTimeline} onChange={(e) => setForm({ ...form, moveInTimeline: e.target.value })}
-        className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white">
-        <option value="">Timeline *</option>
-        {TOUR_TIMELINE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-    </div>
-
-    {/* Row 5 — Follow-up */}
-    <div className="grid grid-cols-2 gap-1.5">
-      <select value={form.preferredContactMethod} onChange={(e) => setForm({ ...form, preferredContactMethod: e.target.value })}
-        className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white">
-        <option value="">Contact Method *</option>
-        <option value="Call">Call</option>
-        <option value="WhatsApp">WhatsApp</option>
-        <option value="Email">Email</option>
-        <option value="In-person">In-person</option>
-      </select>
-      <input type="date" value={form.followUpDate} onChange={(e) => setForm({ ...form, followUpDate: e.target.value })}
-        className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500 bg-white" />
-    </div>
-
-    {/* Row 6 — Notes */}
-    <textarea rows={2} placeholder="Tour notes — objections, preferences, follow-up points for Sales (optional)"
-      className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg font-semibold text-xs text-gray-900 focus:border-blue-500 outline-none resize-none"
-      value={form.tourNotes} onChange={(e) => setForm({ ...form, tourNotes: e.target.value })} />
-
-    <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-1.5">
-      <ShieldCheck className="text-blue-500 shrink-0 mt-0.5" size={13} />
-      <p className="text-[9px] font-bold text-blue-700 leading-relaxed">
-        Visitor is checked in &amp; lead synced to CRM. All starred (*) fields required.
-      </p>
-    </div>
-
-  </div>
-)}
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-start gap-2.5">
+                        <ShieldCheck className="text-blue-500 shrink-0 mt-0.5" size={18} />
+                        <p className="text-[10px] font-bold text-blue-700 leading-relaxed">
+                          Visitor is checked in &amp; lead synced to CRM. All starred (*) fields required.
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {visitorMode === 'walkin_booking' && (
-                    <div className="animate-in fade-in flex h-full min-h-0 flex-col gap-2.5 overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-2.5">
-                      <div className="flex flex-1 min-h-0 flex-col gap-5 overflow-y-auto pr-1 lg:pr-2">
-                        <div className="space-y-3.5">
-                          <div className="rounded-lg border border-blue-100 bg-white p-2 shadow-sm lg:p-3">
-                            <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                              <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-blue-600">Client</p>
-                                <h4 className="text-[11px] font-black text-slate-950">New or existing client booking</h4>
-                              </div>
-                              {form.sourceVisitorId ? (
-                                <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-[8px] font-black uppercase tracking-widest text-blue-700">
-                                  <ArrowRight size={11} /> Visitor conversion
-                                </span>
-                              ) : null}
-                            </div>
+                    <div className="space-y-5 animate-in fade-in">
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                        <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                          <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><UserPlus size={16} /></span>
+                          <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Client Information</span>
+                        </h4>
+                        {form.sourceVisitorId ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-[8px] font-black uppercase tracking-widest text-blue-700">
+                            <ArrowRight size={11} /> Visitor conversion
+                          </span>
+                        ) : null}
 
-                            <div className="mb-5 grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5">
+                            <div className="grid grid-cols-2 gap-1.5 rounded-lg bg-slate-100 p-1.5">
                               {[
                                 ['new', 'New Client Booking'],
                                 ['existing', 'Existing Client Booking'],
@@ -4440,7 +4506,7 @@ export default function VisitorsManagementPage() {
                                   key={mode}
                                   type="button"
                                   onClick={() => setForm((prev) => ({ ...prev, clientBookingMode: mode, clientId: mode === 'new' ? '' : prev.clientId }))}
-                                  className={`rounded-xl px-3 py-3 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${form.clientBookingMode === mode ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                                  className={`rounded-lg px-2.5 py-2 text-[10px] font-semibold uppercase tracking-widest transition-all ${form.clientBookingMode === mode ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'text-slate-500 hover:text-slate-900'}`}
                                 >
                                   {label}
                                 </button>
@@ -4448,20 +4514,20 @@ export default function VisitorsManagementPage() {
                             </div>
 
                             {form.clientBookingMode === 'existing' && (
-                              <div className="mb-4 space-y-2">
-                                <label className="text-[9px] font-black uppercase tracking-widest text-gray-500">Search Existing Client</label>
+                              <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/40 p-3">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Search Existing Client</label>
                                 <div className="flex gap-2">
                                   <input
                                     type="text"
                                     value={form.clientSearch}
                                     onChange={(e) => setForm({ ...form, clientSearch: e.target.value })}
                                     placeholder="Search by name, phone, email, company"
-                                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-xs font-semibold text-gray-900 outline-none transition-all focus:border-blue-500"
+                                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                                   />
                                   <button
                                     type="button"
                                     onClick={() => refreshBookingClients(form.clientSearch)}
-                                    className="rounded-xl bg-blue-600 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-white"
+                                    className="px-4 py-2 bg-[#2563EB] text-white rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm hover:bg-blue-700 transition-all"
                                   >
                                     Search
                                   </button>
@@ -4485,32 +4551,32 @@ export default function VisitorsManagementPage() {
                               </div>
                             )}
 
-                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                              <label className="space-y-1 md:col-span-1">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Name *</span>
-                                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full rounded-xl border border-gray-200 bg-white px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500" placeholder="Client name" />
-                              </label>
-                              <label className="space-y-1 md:col-span-1">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Phone *</span>
-                                <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full rounded-xl border border-gray-200 bg-white px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500" placeholder="+91..." />
-                              </label>
-                              <label className="space-y-1 md:col-span-1">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Email *</span>
-                                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full rounded-xl border border-gray-200 bg-white px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500" placeholder="client@email.com" />
-                              </label>
-                              <label className="space-y-1 md:col-span-1">
-                                <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Company</span>
-                                <input type="text" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} className="w-full rounded-xl border border-gray-200 bg-white px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500" placeholder="Optional" />
-                              </label>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Name <span className="text-red-400">*</span></label>
+                                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="Client name" />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
+                                <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="+91..." />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
+                                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="client@email.com" />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Company</label>
+                                <input type="text" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="Optional" />
+                              </div>
                             </div>
 
                             {selectedBookingClient && (
-                              <p className="mt-3 text-[10px] font-bold text-blue-700">Using saved client {selectedBookingClient.clientCode || selectedBookingClient.name}. Contact fields are auto-filled; choose the room, schedule, and payment details below.</p>
+                              <p className="text-[10px] font-bold text-blue-700">Using saved client {selectedBookingClient.clientCode || selectedBookingClient.name}. Contact fields are auto-filled; choose the room, schedule, and payment details below.</p>
                             )}
 
                             {form.clientBookingMode === 'new' && matchedSavedVisitors.length > 0 && (
-                              <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50 p-3">
-                                <p className="text-[8px] font-black uppercase tracking-widest text-blue-700">Saved visitor matches</p>
+                              <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3">
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Saved visitor matches</p>
                                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                                   {matchedSavedVisitors.map((visitor) => (
                                     <button
@@ -4519,7 +4585,7 @@ export default function VisitorsManagementPage() {
                                       onClick={() => applySavedVisitorContact(visitor)}
                                       className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-left transition-all hover:border-blue-500 hover:bg-blue-50"
                                     >
-                                      <p className="text-xs font-black text-slate-900">{visitor.name || 'Visitor'}</p>
+                                      <p className="text-[12px] font-semibold text-slate-900">{visitor.name || 'Visitor'}</p>
                                       <p className="mt-1 text-[10px] font-bold text-slate-500">{visitor.phone || 'No phone'} • {visitor.email || 'No email'}</p>
                                     </button>
                                   ))}
@@ -4527,17 +4593,17 @@ export default function VisitorsManagementPage() {
                               </div>
                             )}
                           </div>
-                          <div className="rounded-lg border border-blue-100 bg-white p-2 shadow-sm lg:p-3">
-                            <div className="mb-4 flex items-center justify-between">
-                              <p className="text-[8px] font-black uppercase tracking-widest text-blue-700">Location & Capacity</p>
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Filter by floor and wing</p>
-                            </div>
 
-                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-                              <div className="space-y-1">
-                                <label className="text-[9px] font-black uppercase tracking-widest text-gray-500">Space Type *</label>
+                          <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                            <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                              <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><LayoutGrid size={16} /></span>
+                              <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Location &amp; Capacity</span>
+                            </h4>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Space Type <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full rounded-xl border border-gray-200 bg-white px-2.5 py-2 font-bold text-gray-900 outline-none transition-all focus:border-blue-500"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                                   value={form.spaceType}
                                   onChange={(e) => {
                                     const nextType = e.target.value;
@@ -4550,10 +4616,10 @@ export default function VisitorsManagementPage() {
                                   ))}
                                 </select>
                               </div>
-                              <div className="space-y-1">
-                                <label className="text-[9px] font-black uppercase tracking-widest text-gray-500">Floor *</label>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Floor <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full rounded-xl border border-gray-200 bg-white px-2.5 py-2 font-bold text-gray-900 outline-none transition-all focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
                                   value={form.floor}
                                   disabled={!form.spaceType}
                                   onChange={(e) => {
@@ -4567,10 +4633,10 @@ export default function VisitorsManagementPage() {
                                   ))}
                                 </select>
                               </div>
-                              <div className="space-y-1">
-                                <label className="text-[9px] font-black uppercase tracking-widest text-gray-500">Wing *</label>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Wing <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full rounded-xl border border-gray-200 bg-white px-2.5 py-2 font-bold text-gray-900 outline-none transition-all focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
                                   value={form.wing}
                                   disabled={!form.spaceType || !form.floor}
                                   onChange={(e) => {
@@ -4584,10 +4650,10 @@ export default function VisitorsManagementPage() {
                                   ))}
                                 </select>
                               </div>
-                              <div className="space-y-1">
-                                <label className="text-[9px] font-black uppercase tracking-widest text-gray-500">Specific Room *</label>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Specific Room <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full rounded-xl border border-gray-200 bg-white px-2.5 py-2 font-bold text-gray-900 outline-none transition-all focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
                                   value={form.resourceName}
                                   disabled={!form.spaceType || !form.floor || !form.wing}
                                   onChange={(e) => setForm({ ...form, resourceName: e.target.value, seatNumber: '' })}
@@ -4600,14 +4666,14 @@ export default function VisitorsManagementPage() {
                                   ))}
                                 </select>
                               </div>
-                              <div className="space-y-1">
-                                <label className="text-[9px] font-black uppercase tracking-widest text-gray-500">Attendees *</label>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Attendees <span className="text-red-400">*</span></label>
                                 <input
                                   type="number"
                                   min="1"
                                   max={selectedWalkInRoom?.capacity || undefined}
                                   inputMode="numeric"
-                                  className={`w-full rounded-xl border border-gray-200 bg-white px-2.5 py-2 font-bold text-gray-900 outline-none transition-all focus:border-blue-500 ${isDeskAreaSeatBooking ? 'opacity-70' : ''}`}
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${isDeskAreaSeatBooking ? 'opacity-70' : 'border-slate-200/60'}`}
                                   value={isDeskAreaSeatBooking ? 1 : form.attendees}
                                   disabled={isDeskAreaSeatBooking}
                                   onChange={(e) => {
@@ -4620,7 +4686,7 @@ export default function VisitorsManagementPage() {
                                     setForm({ ...form, attendees: nextValue === '' ? 1 : nextValue });
                                   }}
                                 />
-                                <p className="text-[10px] font-semibold text-gray-400">
+                                <p className="text-[10px] font-medium text-slate-400">
                                   {isDeskAreaSeatBooking
                                     ? 'Desk area bookings are one seat per booking.'
                                     : selectedWalkInRoom?.capacity
@@ -4632,12 +4698,12 @@ export default function VisitorsManagementPage() {
                           </div>
 
                           {isDeskAreaSeatBooking && (
-                            <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-5">
+                            <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
                               <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto] md:items-end">
-                                <div className="space-y-1">
-                                  <label className="text-[8px] font-black uppercase tracking-widest text-blue-700">Seat Number *</label>
+                                <div className="flex flex-col gap-1">
+                                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Seat Number <span className="text-red-400">*</span></label>
                                   <select
-                                    className="w-full rounded-xl border border-blue-100 bg-white px-2.5 py-2 font-bold text-gray-900 outline-none transition-all focus:border-blue-500"
+                                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                                     value={form.seatNumber}
                                     onChange={(e) => setForm({ ...form, seatNumber: e.target.value, attendees: 1 })}
                                   >
@@ -4654,8 +4720,8 @@ export default function VisitorsManagementPage() {
                                   </select>
                                 </div>
                                 <div className="rounded-xl bg-white px-4 py-3 text-right shadow-sm">
-                                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Seat Availability</p>
-                                  <p className="mt-1 text-xs font-black text-blue-700">
+                                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Seat Availability</p>
+                                  <p className="mt-1 text-xs font-bold text-blue-700">
                                     {deskSeatOptions.filter((seat) => seat.available).length} / {deskSeatOptions.length} available
                                   </p>
                                 </div>
@@ -4663,100 +4729,103 @@ export default function VisitorsManagementPage() {
                             </div>
                           )}
 
-                          <div className="rounded-lg border border-blue-100 bg-white p-2 shadow-sm">
-                            <div className="mb-3 flex items-center justify-between">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Booking Note</p>
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Optional front desk context</p>
-                            </div>
-                            <textarea
-                              rows="3"
-                              placeholder="Add booking purpose, special request, or internal note"
-                              className="w-full resize-none rounded-xl border border-gray-200 bg-white px-2.5 py-2 font-bold text-gray-900 outline-none transition-all focus:border-blue-500"
-                              value={form.purpose}
-                              onChange={(e) => setForm({ ...form, purpose: e.target.value })}
-                            />
-                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                            <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                              <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><FileText size={16} /></span>
+                              <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Schedule &amp; Availability</span>
+                            </h4>
 
-                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <div className="space-y-1">
-                              <label className="text-[9px] font-black uppercase tracking-widest text-gray-500">Start Date *</label>
-                              <input
-                                type="date"
-                                className="w-full rounded-xl border border-gray-200 bg-white px-2.5 py-2 font-bold text-gray-900 outline-none transition-all focus:border-blue-500"
-                                value={form.startDate}
-                                onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Booking Note</label>
+                              <textarea
+                                rows="3"
+                                placeholder="Add booking purpose, special request, or internal note"
+                                className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none"
+                                value={form.purpose}
+                                onChange={(e) => setForm({ ...form, purpose: e.target.value })}
                               />
                             </div>
-                            <div className="space-y-1">
-                              <label className="text-[9px] font-black uppercase tracking-widest text-gray-500">End Date *</label>
-                              <input
-                                type="date"
-                                min={form.startDate}
-                                className="w-full rounded-xl border border-gray-200 bg-white px-2.5 py-2 font-bold text-gray-900 outline-none transition-all focus:border-blue-500"
-                                value={form.endDate}
-                                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                              />
-                            </div>
-                          </div>
 
-                          <div className="rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Availability</p>
-                            <p className={`mt-1 text-xs font-bold ${walkInAvailability.status === 'available'
-                                ? 'text-emerald-700'
-                                : walkInAvailability.status === 'conflict'
-                                  ? 'text-rose-700'
-                                  : 'text-blue-900'
-                              }`}>
-                              {walkInAvailability.reason}
-                            </p>
-                            {meetingRoomOverviewError ? (
-                              <p className="mt-2 text-[10px] font-bold text-red-600">{meetingRoomOverviewError}</p>
-                            ) : null}
-                          </div>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Start Date <span className="text-red-400">*</span></label>
+                                <input
+                                  type="date"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  value={form.startDate}
+                                  onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                                />
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">End Date <span className="text-red-400">*</span></label>
+                                <input
+                                  type="date"
+                                  min={form.startDate}
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  value={form.endDate}
+                                  onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                                />
+                              </div>
+                            </div>
 
-                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <div className="space-y-1">
-                              <label className="text-[9px] font-black uppercase tracking-widest text-gray-500">Start Time *</label>
-                              <select
-                                className="w-full rounded-xl border border-gray-200 bg-white px-2.5 py-2 font-bold text-gray-900 outline-none transition-all focus:border-blue-500"
-                                value={form.startTime}
-                                onChange={(e) => {
-                                  const nextStartTime = e.target.value;
-                                  const nextEndTime = nextStartTime
-                                    ? minutesToTime((timeToMinutes(nextStartTime) || 0) + WALK_IN_MIN_DURATION_MINUTES)
-                                    : '';
-                                  setForm({
-                                    ...form,
-                                    startTime: nextStartTime,
-                                    endTime: nextEndTime,
-                                  });
-                                }}
-                              >
-                                <option value="">Select start time</option>
-                                {walkInStartTimeOptions.map((timeValue) => (
-                                  <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
-                                ))}
-                              </select>
+                            <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4">
+                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Availability</label>
+                              <p className={`mt-1 text-[12px] font-semibold ${walkInAvailability.status === 'available'
+                                  ? 'text-emerald-700'
+                                  : walkInAvailability.status === 'conflict'
+                                    ? 'text-rose-700'
+                                    : 'text-blue-900'
+                                }`}>
+                                {walkInAvailability.reason}
+                              </p>
+                              {meetingRoomOverviewError ? (
+                                <p className="mt-2 text-[10px] font-medium text-red-500">{meetingRoomOverviewError}</p>
+                              ) : null}
                             </div>
-                            <div className="space-y-1">
-                              <label className="text-[9px] font-black uppercase tracking-widest text-gray-500">End Time *</label>
-                              <select
-                                className="w-full rounded-xl border border-gray-200 bg-white px-2.5 py-2 font-bold text-gray-900 outline-none transition-all focus:border-blue-500"
-                                value={form.endTime}
-                                onChange={(e) => setForm({ ...form, endTime: e.target.value })}
-                              >
-                                <option value="">Select end time</option>
-                                {walkInEndTimeOptions.map((timeValue) => (
-                                  <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
-                                ))}
-                              </select>
+
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Start Time <span className="text-red-400">*</span></label>
+                                <select
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  value={form.startTime}
+                                  onChange={(e) => {
+                                    const nextStartTime = e.target.value;
+                                    const nextEndTime = nextStartTime
+                                      ? minutesToTime((timeToMinutes(nextStartTime) || 0) + WALK_IN_MIN_DURATION_MINUTES)
+                                      : '';
+                                    setForm({
+                                      ...form,
+                                      startTime: nextStartTime,
+                                      endTime: nextEndTime,
+                                    });
+                                  }}
+                                >
+                                  <option value="">Select start time</option>
+                                  {walkInStartTimeOptions.map((timeValue) => (
+                                    <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">End Time <span className="text-red-400">*</span></label>
+                                <select
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  value={form.endTime}
+                                  onChange={(e) => setForm({ ...form, endTime: e.target.value })}
+                                >
+                                  <option value="">Select end time</option>
+                                  {walkInEndTimeOptions.map((timeValue) => (
+                                    <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
+                                  ))}
+                                </select>
+                              </div>
                             </div>
-                          </div>
                           {walkInAvailability.status === 'conflict' && walkInAvailability.slotSuggestions.length > 0 && (
-                            <div className="space-y-3 rounded-xl border border-blue-100 bg-white p-3">
+                            <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 space-y-2">
                               <div className="flex items-center justify-between">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Alternative times</p>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">{formatWalkInDateLabel(form.startDate, form.endDate)}</p>
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Alternative times</span>
+                                <span className="text-[10px] font-bold text-blue-700">{formatWalkInDateLabel(form.startDate, form.endDate)}</span>
                               </div>
                               <div className="flex flex-wrap gap-2">
                                 {walkInAvailability.slotSuggestions.map((slot) => (
@@ -4764,7 +4833,7 @@ export default function VisitorsManagementPage() {
                                     key={`${slot.start}-${slot.end}`}
                                     type="button"
                                     onClick={() => setForm({ ...form, startTime: slot.start, endTime: slot.end })}
-                                    className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-blue-700 transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white"
+                                    className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-700 transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white"
                                   >
                                     {formatTimeLabel(slot.start)} - {formatTimeLabel(slot.end)}
                                   </button>
@@ -4774,10 +4843,10 @@ export default function VisitorsManagementPage() {
                           )}
 
                           {isDeskAreaSeatBooking && walkInAvailability.seatSuggestions.length > 0 && (
-                            <div className="space-y-3 rounded-xl border border-blue-100 bg-white p-3">
+                            <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 space-y-2">
                               <div className="flex items-center justify-between">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Available seats</p>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Desk Area</p>
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Available seats</span>
+                                <span className="text-[10px] font-bold text-blue-700">Desk Area</span>
                               </div>
                               <div className="flex flex-wrap gap-2">
                                 {walkInAvailability.seatSuggestions.map((seatNumber) => (
@@ -4785,7 +4854,7 @@ export default function VisitorsManagementPage() {
                                     key={seatNumber}
                                     type="button"
                                     onClick={() => setForm((prev) => ({ ...prev, seatNumber: String(seatNumber), attendees: 1 }))}
-                                    className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-blue-700 transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white"
+                                    className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-700 transition-all hover:border-blue-600 hover:bg-blue-600 hover:text-white"
                                   >
                                     Seat {seatNumber}
                                   </button>
@@ -4795,147 +4864,149 @@ export default function VisitorsManagementPage() {
                           )}
                         </div>
 
-                        <div className="grid gap-4 lg:grid-cols-3">
-                          <div className="rounded-lg border border-blue-100 bg-white p-2 shadow-sm">
-                            <div className="flex items-center justify-between">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Live pricing</p>
-                              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">{selectedWalkInRoom?.capacity || 0} seats</p>
-                            </div>
-                            <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-blue-600">
-                              {selectedWalkInRoom?.pricePerHour > 0
-                                ? `${formatCurrency(selectedWalkInRoom.pricePerHour)} / hr`
-                                : selectedWalkInRoom?.pricing || 'Pricing pending'}
-                            </p>
-                            <div className="mt-3 space-y-3">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                          <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                            <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Wallet size={16} /></span>
+                            <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Pricing &amp; Payment</span>
+                          </h4>
+                          <div className="grid gap-4 lg:grid-cols-3">
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Live Pricing</span>
+                                <span className="text-[10px] font-bold text-slate-400">{selectedWalkInRoom?.capacity || 0} seats</span>
+                              </div>
+                              <p className="text-[12px] font-semibold text-blue-700">
+                                {selectedWalkInRoom?.pricePerHour > 0
+                                  ? `${formatCurrency(selectedWalkInRoom.pricePerHour)} / hr`
+                                  : selectedWalkInRoom?.pricing || 'Pricing pending'}
+                              </p>
                               <div className="grid grid-cols-2 gap-2">
                                 <button
                                   type="button"
                                   onClick={() => setForm((prev) => ({ ...prev, discountType: 'amount' }))}
-                                  className={`rounded-lg border px-2 py-1.5 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${form.discountType === 'amount' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300'}`}
+                                  className={`rounded-lg border px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-all ${form.discountType === 'amount' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'}`}
                                 >
                                   Amount
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setForm((prev) => ({ ...prev, discountType: 'percent' }))}
-                                  className={`rounded-lg border px-2 py-1.5 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${form.discountType === 'percent' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300'}`}
+                                  className={`rounded-lg border px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-all ${form.discountType === 'percent' ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'}`}
                                 >
                                   Percent
                                 </button>
                               </div>
-                              <div className="space-y-1">
-                                <label className="text-[9px] font-black uppercase tracking-widest text-gray-500">
+                              <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                                   Discount {form.discountType === 'percent' ? '(%)' : '(INR)'}
                                 </label>
                                 <input
                                   type="number"
                                   min="0"
-                                  step={form.discountType === 'percent' ? '1' : '1'}
                                   value={form.discountValue}
                                   onChange={(e) => setForm((prev) => ({ ...prev, discountValue: e.target.value }))}
-                                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-900 outline-none transition-all focus:border-blue-500"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                                   placeholder={form.discountType === 'percent' ? 'e.g. 10' : 'e.g. 500'}
                                 />
                               </div>
-                              <div className="flex justify-between text-xs font-bold text-gray-600">
+                              <div className="flex justify-between text-[12px] font-semibold text-slate-600">
                                 <span>Base rate</span>
                                 <span>{hasWalkInQuote ? formatCurrency(walkInPricing.subtotalBeforeDiscount) : 'Pending'}</span>
                               </div>
-                              <div className="flex justify-between text-xs font-bold text-gray-600">
+                              <div className="flex justify-between text-[12px] font-semibold text-slate-600">
                                 <span>
                                   Discount
                                   {hasWalkInQuote && walkInPricing.discountType === 'percent' ? ` (${walkInPricing.discountValue}%)` : ''}
                                 </span>
                                 <span>{hasWalkInQuote ? `- ${formatCurrency(walkInPricing.discountAmount)}` : 'Pending'}</span>
                               </div>
-                              <div className="flex justify-between text-xs font-bold text-gray-600">
+                              <div className="flex justify-between text-[12px] font-semibold text-slate-600">
                                 <span>Taxable amount</span>
                                 <span>{hasWalkInQuote ? formatCurrency(walkInPricing.taxableBaseAfterDiscount) : 'Pending'}</span>
                               </div>
-                              <div className="flex justify-between text-xs font-bold text-gray-600">
+                              <div className="flex justify-between text-[12px] font-semibold text-slate-600">
                                 <span>GST (18%)</span>
                                 <span>{hasWalkInQuote ? formatCurrency(walkInPricing.gst) : 'Pending'}</span>
                               </div>
-                              <div className="flex justify-between border-t border-gray-100 pt-2 text-sm font-black text-gray-900">
+                              <div className="flex justify-between border-t border-slate-200 pt-2 text-[14px] font-bold text-[#0F172A]">
                                 <span>Total</span>
                                 <span>{hasWalkInQuote ? formatCurrency(walkInPricing.total) : 'Pending'}</span>
                               </div>
                             </div>
-                          </div>
 
-                          {walkInAvailability.status === 'conflict' && (
-                            <div className="rounded-lg border border-blue-100 bg-white p-2 shadow-sm">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Room alternatives</p>
-                              <div className="mt-3 space-y-2">
-                                {walkInAvailability.roomSuggestions.length > 0 ? (
-                                  walkInAvailability.roomSuggestions.map((room) => (
-                                    <button
-                                      key={room.name}
-                                      type="button"
-                                      onClick={() => setForm((prev) => ({ ...prev, floor: room.floor || prev.floor, wing: room.wing || prev.wing, resourceName: room.name, seatNumber: '' }))}
-                                      className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-left transition-all hover:border-blue-200 hover:bg-blue-50"
-                                    >
-                                      <span className="text-xs font-semibold text-gray-900">{room.name}</span>
-                                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">{room.floor} - {room.capacity} seats</span>
-                                    </button>
-                                  ))
-                                ) : (
-                                  <p className="text-xs font-medium text-gray-500">No alternate room suggestions for the selected slot.</p>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="rounded-lg border border-blue-100 bg-white p-2 shadow-sm">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Payment mode</p>
-                            <div className="mt-3 grid grid-cols-2 gap-2">
-                              {['Cash', 'GPay (UPI)'].map((mode) => (
-                                <button
-                                  key={mode}
-                                  type="button"
-                                  onClick={() => setForm({ ...form, paymentMode: mode, transactionId: mode === 'GPay (UPI)' ? form.transactionId : '', paymentProofFile: mode === 'GPay (UPI)' ? form.paymentProofFile : null })}
-                                  className={`rounded-xl border px-3 py-3 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${form.paymentMode === mode ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-200' : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300'}`}
-                                >
-                                  {mode}
-                                </button>
-                              ))}
-                            </div>
-                            {normalizeText(form.paymentMode).includes('gpay') && (
-                              <div className="mt-4 space-y-3">
+                            {walkInAvailability.status === 'conflict' && (
+                              <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 space-y-3">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Room Alternatives</span>
                                 <div className="space-y-2">
-                                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Transaction Number *</label>
-                                  <input
-                                    type="text"
-                                    value={form.transactionId}
-                                    onChange={(e) => setForm({ ...form, transactionId: e.target.value })}
-                                    placeholder="Enter GPay reference / UTR"
-                                    className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-xs font-semibold text-gray-900 outline-none focus:border-blue-500"
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Payment Screenshot *</label>
-                                  <input
-                                    type="file"
-                                    accept="image/png,image/jpeg,image/jpg"
-                                    onChange={(e) => setForm({ ...form, paymentProofFile: e.target.files?.[0] || null })}
-                                    className="block w-full rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-700 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-[10px] file:font-black file:uppercase file:tracking-widest file:text-white hover:border-blue-300"
-                                  />
-                                  {form.paymentProofFile?.name ? (
-                                    <p className="text-[10px] font-bold text-blue-700">Selected: {form.paymentProofFile.name}</p>
-                                  ) : null}
-                                  <p className="text-[10px] font-medium text-gray-500">Upload a JPG or PNG screenshot from the UPI app.</p>
+                                  {walkInAvailability.roomSuggestions.length > 0 ? (
+                                    walkInAvailability.roomSuggestions.map((room) => (
+                                      <button
+                                        key={room.name}
+                                        type="button"
+                                        onClick={() => setForm((prev) => ({ ...prev, floor: room.floor || prev.floor, wing: room.wing || prev.wing, resourceName: room.name, seatNumber: '' }))}
+                                        className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-left transition-all hover:border-blue-200 hover:bg-blue-50"
+                                      >
+                                        <span className="text-[12px] font-semibold text-slate-900">{room.name}</span>
+                                        <span className="text-[10px] font-bold text-slate-500">{room.floor} - {room.capacity} seats</span>
+                                      </button>
+                                    ))
+                                  ) : (
+                                    <p className="text-[12px] font-medium text-slate-500">No alternate room suggestions for the selected slot.</p>
+                                  )}
                                 </div>
                               </div>
                             )}
-                            <div className="mt-4 rounded-xl bg-blue-50 p-3">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-blue-700">Summary</p>
-                              <p className="mt-1 text-xs font-bold text-blue-950">{selectedWalkInRoom?.name || 'Select a room'} - {selectedWalkInRoom?.floor || form.floor || 'Select floor'} {selectedWalkInRoom?.wing || form.wing || ''}{isDeskAreaSeatBooking ? ` - Seat ${form.seatNumber || '-'}` : ''} - {formatWalkInDateLabel(form.startDate, form.endDate) || 'Select dates'}</p>
-                              <p className="mt-1 text-xs font-medium text-blue-900/80">{walkInAvailability.reason}</p>
+
+                            <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 space-y-4">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Payment Mode</span>
+                              <div className="grid grid-cols-2 gap-2">
+                                {['Cash', 'GPay (UPI)'].map((mode) => (
+                                  <button
+                                    key={mode}
+                                    type="button"
+                                    onClick={() => setForm({ ...form, paymentMode: mode, transactionId: mode === 'GPay (UPI)' ? form.transactionId : '', paymentProofFile: mode === 'GPay (UPI)' ? form.paymentProofFile : null })}
+                                    className={`rounded-lg border px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest transition-all ${form.paymentMode === mode ? 'border-blue-600 bg-blue-600 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300'}`}
+                                  >
+                                    {mode}
+                                  </button>
+                                ))}
+                              </div>
+                              {normalizeText(form.paymentMode).includes('gpay') && (
+                                <div className="space-y-3">
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Transaction Number <span className="text-red-400">*</span></label>
+                                    <input
+                                      type="text"
+                                      value={form.transactionId}
+                                      onChange={(e) => setForm({ ...form, transactionId: e.target.value })}
+                                      placeholder="Enter GPay reference / UTR"
+                                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                    />
+                                  </div>
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Payment Screenshot <span className="text-red-400">*</span></label>
+                                    <input
+                                      type="file"
+                                      accept="image/png,image/jpeg,image/jpg"
+                                      onChange={(e) => setForm({ ...form, paymentProofFile: e.target.files?.[0] || null })}
+                                      className="block w-full rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-[12px] text-slate-700 file:mr-4 file:rounded-lg file:border-0 file:bg-[#2563EB] file:px-4 file:py-2 file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-white hover:border-blue-300"
+                                    />
+                                    {form.paymentProofFile?.name ? (
+                                      <p className="text-[10px] font-medium text-blue-700">Selected: {form.paymentProofFile.name}</p>
+                                    ) : null}
+                                    <p className="text-[10px] font-medium text-slate-500">Upload a JPG or PNG screenshot from the UPI app.</p>
+                                  </div>
+                                </div>
+                              )}
+                              <div className="rounded-xl bg-blue-50 border border-blue-100 p-3 space-y-1">
+                                <p className="text-[10px] font-bold text-blue-700 uppercase tracking-widest">Summary</p>
+                                <p className="text-[12px] font-semibold text-blue-950">{selectedWalkInRoom?.name || 'Select a room'} - {selectedWalkInRoom?.floor || form.floor || 'Select floor'} {selectedWalkInRoom?.wing || form.wing || ''}{isDeskAreaSeatBooking ? ` - Seat ${form.seatNumber || '-'}` : ''} - {formatWalkInDateLabel(form.startDate, form.endDate) || 'Select dates'}</p>
+                                <p className="text-[12px] font-medium text-blue-900/80">{walkInAvailability.reason}</p>
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
                   )}
 
                   {visitorMode === 'verify_booking' && (
@@ -5010,8 +5081,8 @@ export default function VisitorsManagementPage() {
                 </div>
               </div>
 
-              <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-4 shrink-0">
-                <button onClick={() => { setIsLoggingVisitor(false); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setWalkInStep(1); setAvailabilityStatus('idle'); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); }} className="flex-1 py-3 bg-white border border-gray-200 rounded-xl font-black text-xs text-gray-500 hover:text-gray-900 transition-all shadow-sm">CANCEL</button>
+              <div className="flex items-center justify-end gap-3 pt-2 shrink-0 px-6 pb-4">
+                <button onClick={() => { setIsLoggingVisitor(false); setVerifiedBooking(null); setBookingConfirmation(null); setShowBookingConfirmationPopup(false); setWalkInStep(1); setAvailabilityStatus('idle'); setStandardVisitorTouched({}); setStandardVisitorSubmitAttempted(false); }} className="flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">Cancel</button>
 
                 {visitorMode === 'standard' && (
                   <button
@@ -5019,13 +5090,13 @@ export default function VisitorsManagementPage() {
                     onClick={handleProcessAction}
                     disabled={isSubmittingVisitor || isVisitorOverviewLoading || !visitorAccess.modes.standard}
                     title={!visitorAccess.modes.standard ? 'You do not have access to Standard Visitor tab.' : undefined}
-                    className="flex-1 py-3 bg-[#2563EB] text-white rounded-xl text-xs font-black shadow-md shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-slate-300 disabled:shadow-none"
+                    className="flex-1 px-8 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    <CheckCircle2 size={18} />{isSubmittingVisitor ? 'SENDING...' : form.standardVisitorType === 'department' ? 'SEND HOST APPROVAL' : 'CHECK IN VISITOR'}
+                    <CheckCircle2 size={14} />{isSubmittingVisitor ? 'SENDING...' : form.standardVisitorType === 'department' ? 'SEND HOST APPROVAL' : 'CHECK IN VISITOR'}
                   </button>
                 )}
                 {visitorMode === 'tour' && (
-                  <button onClick={handleProcessAction} disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have access to Unit Tour tab.' : undefined} className="flex-[2] py-3 bg-indigo-600 text-white rounded-xl text-xs font-black shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-gray-300 disabled:shadow-none">
+                  <button onClick={handleProcessAction} disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have access to Unit Tour tab.' : undefined} className="flex-1 py-3 bg-indigo-600 text-white rounded-xl text-xs font-pmedium shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-gray-300 disabled:shadow-none">
                     <Building size={18} /> SYNC LEAD & START TOUR
                   </button>
                 )}
@@ -5371,12 +5442,12 @@ export default function VisitorsManagementPage() {
                 <div>
                   <h2 className="text-lg font-['Poppins'] font-extrabold text-gray-900 leading-tight flex items-center gap-2">
                     {viewingVisitor.name}
-                    <span className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg border ${getStatusBadge(viewingVisitor.status)}`}>{viewingVisitor.status}</span>
+                    <span className={`px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider rounded-lg border ${getStatusBadge(viewingVisitor.status)}`}>{viewingVisitor.status}</span>
                     {viewingVisitor.convertedToClient && (
-                      <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700">Converted to Client</span>
+                      <span className="px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700">Converted to Client</span>
                     )}
                   </h2>
-                  <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mt-1.5">{viewingVisitor.company} • Badge: {viewingVisitor.badgeNo || 'N/A'}</p>
+                  <p className="text-[9px] font-pmedium text-gray-500 uppercase tracking-widest mt-1.5">{viewingVisitor.company} • Badge: {viewingVisitor.badgeNo || 'N/A'}</p>
                 </div>
                 <button onClick={() => setViewingVisitor(null)} className="w-9 h-9 bg-white rounded-full flex items-center justify-center text-gray-400 shadow-sm hover:text-red-500 transition-all"><X size={18} /></button>
               </div>
@@ -5385,78 +5456,78 @@ export default function VisitorsManagementPage() {
 
                 <div className="grid grid-cols-2 gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
                   <div className="space-y-1">
-                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider">First Name</p>
-                    <p className="font-bold text-gray-900 text-xs">{viewingVisitor.firstName || 'N/A'}</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-pmedium tracking-wider">First Name</p>
+                    <p className="font-pmedium text-gray-900 text-xs">{viewingVisitor.firstName || 'N/A'}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider">Last Name</p>
-                    <p className="font-bold text-gray-900 text-xs">{viewingVisitor.lastName || 'N/A'}</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-pmedium tracking-wider">Last Name</p>
+                    <p className="font-pmedium text-gray-900 text-xs">{viewingVisitor.lastName || 'N/A'}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider">Gender</p>
-                    <p className="font-bold text-gray-900 text-xs">{viewingVisitor.gender || 'N/A'}</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-pmedium tracking-wider">Gender</p>
+                    <p className="font-pmedium text-gray-900 text-xs">{viewingVisitor.gender || 'N/A'}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider flex items-center gap-1"><Phone size={12} /> Phone Contact</p>
-                    <p className="font-bold text-gray-900 text-xs">{viewingVisitor.phone || 'Not Provided'}</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-pmedium tracking-wider flex items-center gap-1"><Phone size={12} /> Phone Contact</p>
+                    <p className="font-pmedium text-gray-900 text-xs">{viewingVisitor.phone || 'Not Provided'}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider">Country</p>
-                    <p className="font-bold text-gray-900 text-xs">{viewingVisitor.country || 'N/A'}</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-pmedium tracking-wider">Country</p>
+                    <p className="font-pmedium text-gray-900 text-xs">{viewingVisitor.country || 'N/A'}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider">State</p>
-                    <p className="font-bold text-gray-900 text-xs">{viewingVisitor.state || 'N/A'}</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-pmedium tracking-wider">State</p>
+                    <p className="font-pmedium text-gray-900 text-xs">{viewingVisitor.state || 'N/A'}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider">City</p>
-                    <p className="font-bold text-gray-900 text-xs">{viewingVisitor.city || 'N/A'}</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-pmedium tracking-wider">City</p>
+                    <p className="font-pmedium text-gray-900 text-xs">{viewingVisitor.city || 'N/A'}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider flex items-center gap-1"><User size={12} /> Host / Point of Contact</p>
-                    <p className="font-bold text-gray-900 text-xs">{viewingVisitor.host}</p>
-                    {viewingVisitor.department && <p className="text-[10px] text-gray-500 font-bold uppercase">{viewingVisitor.department}</p>}
+                    <p className="text-[10px] text-gray-500 uppercase font-pmedium tracking-wider flex items-center gap-1"><User size={12} /> Host / Point of Contact</p>
+                    <p className="font-pmedium text-gray-900 text-xs">{viewingVisitor.host}</p>
+                    {viewingVisitor.department && <p className="text-[10px] text-gray-500 font-pmedium uppercase">{viewingVisitor.department}</p>}
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider flex items-center gap-1"><BadgeCheck size={12} /> Visit Purpose</p>
-                    <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 font-bold text-xs rounded">{viewingVisitor.purpose}</span>
+                    <p className="text-[10px] text-gray-500 uppercase font-pmedium tracking-wider flex items-center gap-1"><BadgeCheck size={12} /> Visit Purpose</p>
+                    <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 font-pmedium text-xs rounded">{viewingVisitor.purpose}</span>
                   </div>
                   {viewingVisitor.bookingId && (
                     <div className="space-y-1">
-                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-wider flex items-center gap-1"><FileText size={12} /> Online Booking ID</p>
-                      <p className="font-black text-blue-600 text-xs">{viewingVisitor.bookingId}</p>
+                      <p className="text-[10px] text-gray-500 uppercase font-pmedium tracking-wider flex items-center gap-1"><FileText size={12} /> Online Booking ID</p>
+                      <p className="font-pmedium text-blue-600 text-xs">{viewingVisitor.bookingId}</p>
                     </div>
                   )}
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
                   <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Visit Date</p>
-                    <p className="mt-1.5 text-xs font-black text-gray-900">{viewingVisitor.date || formatDisplayDate(viewingVisitor.createdAt)}</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Visit Date</p>
+                    <p className="mt-1.5 text-xs font-pmedium text-gray-900">{viewingVisitor.date || formatDisplayDate(viewingVisitor.createdAt)}</p>
                   </div>
                   <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Visitor Code</p>
-                    <p className="mt-1.5 text-xs font-black text-gray-900">{viewingVisitor.visitorCode || 'N/A'}</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Visitor Code</p>
+                    <p className="mt-1.5 text-xs font-pmedium text-gray-900">{viewingVisitor.visitorCode || 'N/A'}</p>
                   </div>
                   <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Source</p>
-                    <p className="mt-1.5 text-xs font-black text-gray-900">{viewingVisitor.source || 'Frontdesk'}</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Source</p>
+                    <p className="mt-1.5 text-xs font-pmedium text-gray-900">{viewingVisitor.source || 'Frontdesk'}</p>
                   </div>
                   <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Department</p>
-                    <p className="mt-1.5 text-xs font-black text-gray-900">{viewingVisitor.department || 'General'}</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Department</p>
+                    <p className="mt-1.5 text-xs font-pmedium text-gray-900">{viewingVisitor.department || 'General'}</p>
                   </div>
                   <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Visitor Type</p>
-                    <p className="mt-1.5 text-xs font-black text-gray-900">{toTitleCase(viewingVisitor.visitorType || 'standard')}</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Visitor Type</p>
+                    <p className="mt-1.5 text-xs font-pmedium text-gray-900">{toTitleCase(viewingVisitor.visitorType || 'standard')}</p>
                   </div>
                   <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Company Type</p>
-                    <p className="mt-1.5 text-xs font-black text-gray-900">{toTitleCase(viewingVisitor.visitorCompanyType || 'individual')}</p>
+                    <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Company Type</p>
+                    <p className="mt-1.5 text-xs font-pmedium text-gray-900">{toTitleCase(viewingVisitor.visitorCompanyType || 'individual')}</p>
                   </div>
                   <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Visitor Company</p>
-                  <p className="mt-1.5 text-xs font-black text-gray-900">
+                  <p className="text-[9px] font-pmedium uppercase tracking-widest text-gray-400">Visitor Company</p>
+                  <p className="mt-1.5 text-xs font-pmedium text-gray-900">
                     {normalizeText(viewingVisitor.visitorType) === 'tenant'
                       ? (viewingVisitor.tenantCompanyName || 'N/A')
                       : 'Not Applicable'}
@@ -5467,24 +5538,24 @@ export default function VisitorsManagementPage() {
                 <div className="flex items-center gap-3 text-center">
                   <div className={`flex-1 p-3 border rounded-xl ${viewingVisitor.status === 'Cancelled' ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}`}>
                     <p className={`text-[10px] font-['Poppins'] font-extrabold uppercase tracking-widest mb-1 ${viewingVisitor.status === 'Cancelled' ? 'text-red-600' : 'text-green-600'}`}>Time In</p>
-                    <p className={`text-base font-black ${viewingVisitor.status === 'Cancelled' ? 'text-red-700 line-through' : 'text-green-700'}`}>{viewingVisitor.checkIn || formatTimeLabel(viewingVisitor.checkInAt) || '--:--'}</p>
+                    <p className={`text-base font-pmedium ${viewingVisitor.status === 'Cancelled' ? 'text-red-700 line-through' : 'text-green-700'}`}>{viewingVisitor.checkIn || formatTimeLabel(viewingVisitor.checkInAt) || '--:--'}</p>
                   </div>
                   <div className="text-gray-300"><ArrowRight size={24} strokeWidth={3} /></div>
                   <div className={`flex-1 p-3 border rounded-xl ${(viewingVisitor.checkOut || '--:--') === '--:--' ? 'border-gray-200 bg-gray-50' : 'border-gray-300 bg-gray-100'}`}>
-                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Time Out</p>
-                    <p className="text-base font-black text-gray-700">{viewingVisitor.checkOut || formatTimeLabel(viewingVisitor.checkOutAt) || '--:--'}</p>
+                    <p className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest mb-1">Time Out</p>
+                    <p className="text-base font-pmedium text-gray-700">{viewingVisitor.checkOut || formatTimeLabel(viewingVisitor.checkOutAt) || '--:--'}</p>
                   </div>
                 </div>
 
                 <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Reason to Meet Host</p>
-                  <p className="mt-1.5 text-xs font-medium text-gray-700 leading-relaxed">{viewingVisitor.reason || viewingVisitor.notes || 'No reason added.'}</p>
+                  <p className="text-[10px] font-pmedium uppercase tracking-widest text-gray-400">Reason to Meet Host</p>
+                  <p className="mt-1.5 text-xs font-pmedium text-gray-700 leading-relaxed">{viewingVisitor.reason || viewingVisitor.notes || 'No reason added.'}</p>
                 </div>
 
                 {String(viewingVisitor.approvalStatus || viewingVisitor.status || '').toLowerCase() === 'rejected' && (
                   <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-red-500">Rejection Reason</p>
-                    <p className="mt-1.5 text-xs font-medium text-red-700 leading-relaxed">
+                    <p className="text-[10px] font-pmedium uppercase tracking-widest text-red-500">Rejection Reason</p>
+                    <p className="mt-1.5 text-xs font-pmedium text-red-700 leading-relaxed">
                       {viewingVisitor.rejectionReason || 'No rejection reason provided.'}
                     </p>
                   </div>
@@ -5493,14 +5564,14 @@ export default function VisitorsManagementPage() {
               </div>
 
               <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex gap-2.5 shrink-0">
-                <button onClick={() => setViewingVisitor(null)} className="flex-1 py-2.5 bg-white border border-gray-200 rounded-lg font-black text-xs text-gray-600 hover:bg-gray-100 transition-all">CLOSE</button>
+                <button onClick={() => setViewingVisitor(null)} className="flex-1 py-2.5 bg-white border border-gray-200 rounded-lg font-pmedium text-xs text-gray-600 hover:bg-gray-100 transition-all">CLOSE</button>
                 {!isVisitorCheckedOut(viewingVisitor) && (
-                  <button onClick={() => handlePrintBadge(viewingVisitor)} className="flex-1 py-2.5 bg-slate-900 text-white rounded-lg font-black text-xs shadow-lg hover:bg-black transition-all flex items-center justify-center gap-1.5">
+                  <button onClick={() => handlePrintBadge(viewingVisitor)} className="flex-1 py-2.5 bg-slate-900 text-white rounded-lg font-pmedium text-xs shadow-lg hover:bg-black transition-all flex items-center justify-center gap-1.5">
                     <Printer size={15} /> PRINT BADGE
                   </button>
                 )}
                 {viewingVisitor.status === 'Checked In' && (
-                  <button onClick={() => handleCheckOut(viewingVisitor.id)} className="flex-1 py-2.5 rounded-lg font-black text-xs transition-all flex items-center justify-center gap-1.5 bg-red-600 text-white shadow-lg shadow-red-200 hover:bg-red-700">
+                  <button onClick={() => handleCheckOut(viewingVisitor.id)} className="flex-1 py-2.5 rounded-lg font-pmedium text-xs transition-all flex items-center justify-center gap-1.5 bg-red-600 text-white shadow-lg shadow-red-200 hover:bg-red-700">
                     <LogOut size={15} /> CHECK OUT
                   </button>
                 )}
@@ -5765,32 +5836,32 @@ export default function VisitorsManagementPage() {
                 <CheckCircle2 size={32} className="text-green-500" />
               </div>
 
-              <h2 className="text-xl font-black text-gray-900 z-10">Check-In Successful</h2>
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2 mb-5">Virtual Visitor Badge Generated</p>
+              <h2 className="text-xl font-pmedium text-gray-900 z-10">Check-In Successful</h2>
+              <p className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest mt-2 mb-5">Virtual Visitor Badge Generated</p>
 
               <div className="w-full bg-gray-50 border-2 border-dashed border-gray-300 rounded-2xl p-4 relative">
                 <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-14 h-5 bg-white border-2 border-gray-200 rounded-full flex items-center justify-center"><div className="w-7 h-1.5 bg-gray-200 rounded-full"></div></div>
 
                 <p className="text-[9px] font-pmedium text-blue-600 uppercase tracking-widest mb-3">VISITOR PASS</p>
-                <h3 className="text-xl font-black text-gray-900 mb-1 leading-tight">{showBadge.name || showBadge.fullName || '—'}</h3>
-                <p className="text-[11px] font-bold text-gray-500 mb-4">{showBadge.company || 'Individual'}</p>
+                <h3 className="text-xl font-pmedium text-gray-900 mb-1 leading-tight">{showBadge.name || showBadge.fullName || '—'}</h3>
+                <p className="text-[11px] font-pmedium text-gray-500 mb-4">{showBadge.company || 'Individual'}</p>
 
                 <div className="grid grid-cols-2 gap-3 text-left border-t border-gray-200 pt-3">
-                  <div><p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Badge No</p><p className="font-black text-base text-gray-900">{showBadge.badgeNo || '—'}</p></div>
-                  <div><p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Purpose</p><p className="font-bold text-xs text-gray-700">{showBadge.purpose || '—'}</p></div>
-                  <div><p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Check-In</p><p className="font-bold text-xs text-gray-700">{showBadge.checkIn || formatTimeLabel(new Date())}</p></div>
-                  <div><p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Phone</p><p className="font-bold text-xs text-gray-700">{showBadge.phone || '—'}</p></div>
-                  <div className="col-span-2"><p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Host / Destination</p><p className="font-bold text-xs text-gray-700">{showBadge.host || showBadge.hostName || 'Front Desk'}</p></div>
+                  <div><p className="text-[8px] font-pmedium text-gray-400 uppercase tracking-widest">Badge No</p><p className="font-pmedium text-xs text-gray-700">{showBadge.badgeNo || '—'}</p></div>
+                  <div><p className="text-[8px] font-pmedium text-gray-400 uppercase tracking-widest">Purpose</p><p className="font-pmedium text-xs text-gray-700">{showBadge.purpose || '—'}</p></div>
+                  <div><p className="text-[8px] font-pmedium text-gray-400 uppercase tracking-widest">Check-In</p><p className="font-pmedium text-xs text-gray-700">{showBadge.checkIn || formatTimeLabel(new Date())}</p></div>
+                  <div><p className="text-[8px] font-pmedium text-gray-400 uppercase tracking-widest">Phone</p><p className="font-pmedium text-xs text-gray-700">{showBadge.phone || '—'}</p></div>
+                  <div className="col-span-2"><p className="text-[8px] font-pmedium text-gray-400 uppercase tracking-widest">Host / Destination</p><p className="font-pmedium text-xs text-gray-700">{showBadge.host || showBadge.hostName || 'Front Desk'}</p></div>
                 </div>
               </div>
 
-              <p className="text-[10px] font-bold text-amber-600 mt-4 max-w-[240px] leading-relaxed">{showBadge.notes || "Host has been notified via email and SMS."}</p>
+              <p className="text-[10px] font-pmedium text-green-600 mt-4 max-w-[240px] leading-relaxed">{showBadge.notes || "Host has been notified via email and SMS."}</p>
 
               <div className="w-full mt-5 grid grid-cols-2 gap-2">
-                <button onClick={handlePrintBadge} className="w-full py-3 bg-gray-900 text-white rounded-2xl text-xs font-black shadow-lg hover:bg-black transition-all">
+                <button onClick={handlePrintBadge} className="w-full py-3 bg-blue-600 text-white rounded-2xl text-xs font-pmedium shadow-lg hover:bg-blue-700 transition-all">
                   PRINT BADGE
                 </button>
-                <button onClick={() => setShowBadge(null)} className="w-full py-3 border border-gray-300 text-gray-700 rounded-2xl text-xs font-black hover:bg-gray-50 transition-all">
+                <button onClick={() => setShowBadge(null)} className="w-full py-3 border border-gray-300 text-gray-700 rounded-2xl text-xs font-pmedium hover:bg-gray-50 transition-all">
                   CLOSE
                 </button>
               </div>

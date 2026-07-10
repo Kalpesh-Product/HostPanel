@@ -5,9 +5,11 @@
  */
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSelector } from "react-redux";
 import WidgetSection from "../../../../components/WidgetSection";
 import BarGraph from "../../../../components/graphs/BarGraph";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
+import useAuth from "../../../../hooks/useAuth";
 import {
   Globe, Users, Eye, UserPlus, LayoutGrid, ArrowRight,
   FileText, Zap, Map,
@@ -30,25 +32,32 @@ const fyMonthIndex = (date: Date) => (date.getMonth() + 9) % 12;
 
 const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
   const axiosPrivate = useAxiosPrivate();
+  const selectedCompany = useSelector((state: any) => state.company.selectedCompany);
+  const { auth } = useAuth();
 
-  // ── Visitors (same endpoint as VisitorDashboard / ManageVisitors) ────────────
+  const workspaceId = selectedCompany?.workspaceId || auth?.user?.primaryWorkspace || auth?.user?.workspaceMembership?.workspace || auth?.user?.workspaceId || "";
+  const companyId = selectedCompany?.companyId || auth?.user?.companyId || "";
+
+  // ── Visitors (same endpoint as the Visitor Management terminal) ──────────────
   const { data: visitorsRaw = [] } = useQuery({
-    queryKey: ["dashboard-visitors-full"],
+    queryKey: ["dashboard-visitors-basic"],
     queryFn: async () => {
-      const res = await axiosPrivate.get("/api/visitors/fetch-visitors");
-      // This endpoint returns the array directly on res.data
-      return Array.isArray(res?.data) ? res.data : [];
+      const res = await axiosPrivate.get("/api/v1/visitors", { params: { limit: 100 } });
+      const visitors = res?.data?.data?.visitors ?? [];
+      return Array.isArray(visitors) ? visitors : [];
     },
     staleTime: 5 * 60 * 1000,
   });
 
-  // ── Website leads ──────────────────────────────────────────────────────────
+  // ── Website leads (same endpoint as CompanyLeads) ──────────────────────────
   const { data: leadsRaw = [] } = useQuery({
-    queryKey: ["dashboard-leads-basic"],
+    queryKey: ["dashboard-leads-basic", companyId, workspaceId],
+    enabled: !!(companyId || workspaceId),
     queryFn: async () => {
-      const res = await axiosPrivate.get("/api/v1/website-leads");
-      const d = res?.data?.data ?? res?.data ?? [];
-      return Array.isArray(d) ? d : [];
+      const res = await axiosPrivate.get(
+        `/api/leads/get-leads?companyId=${encodeURIComponent(companyId)}&workspaceId=${encodeURIComponent(workspaceId)}`,
+      );
+      return Array.isArray(res?.data) ? res.data : [];
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -65,12 +74,14 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
 
   // ── Derived: visitor stats ─────────────────────────────────────────────────
   const visitorStats = useMemo(() => {
-    const todayStr = dayjs().format("YYYY-MM-DD");
+    const today = dayjs();
     const todayVisitors = visitorsRaw.filter((v: any) => {
-      const d = v.dateOfVisit || v.checkInTime || v.createdAt || "";
-      return d && d.startsWith(todayStr);
+      const d = v.checkInAt || v.createdAt || "";
+      return d && dayjs(d).isSame(today, "day");
     });
-    const checkedIn = visitorsRaw.filter((v: any) => v.isCheckedIn || v.checkedIn || false).length;
+    const checkedIn = visitorsRaw.filter(
+      (v: any) => String(v.status || "").toLowerCase() === "checked_in",
+    ).length;
     return {
       todayCount: todayVisitors.length,
       totalCount: visitorsRaw.length,
@@ -82,7 +93,7 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
   const visitorsByMonth = useMemo(() => {
     const counts = new Array(12).fill(0);
     visitorsRaw.forEach((v: any) => {
-      const d = new Date(v.dateOfVisit || v.checkInTime || v.createdAt || "");
+      const d = new Date(v.checkInAt || v.createdAt || "");
       if (!isNaN(d.getTime())) counts[fyMonthIndex(d)]++;
     });
     return [{ name: "Visitors", data: counts }];
@@ -98,18 +109,18 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
     tooltip: { theme: "light" },
   };
 
-  // ── Derived: lead stats ────────────────────────────────────────────────────
+  // ── Derived: lead stats (lead.status: Pending / Contacted / Closed / Rejected) ──
   const leadStats = useMemo(() => {
-    const newLeads = leadsRaw.filter((l: any) => !l.isContacted && !l.contacted).length;
-    const contacted = leadsRaw.filter((l: any) => l.isContacted || l.contacted).length;
+    const newLeads = leadsRaw.filter((l: any) => (l.status || "Pending") === "Pending").length;
+    const contacted = leadsRaw.filter((l: any) => l.status === "Contacted").length;
     return { total: leadsRaw.length, newLeads, contacted };
   }, [leadsRaw]);
 
   const orgStats = useMemo(() => {
     const ov = orgOverview as any;
     return {
-      members: ov?.totalMembers ?? ov?.memberCount ?? 0,
-      departments: ov?.totalDepartments ?? ov?.departmentCount ?? 0,
+      members: ov?.metrics?.totalMembers ?? 0,
+      departments: Array.isArray(ov?.departments) ? ov.departments.length : 0,
     };
   }, [orgOverview]);
 
@@ -117,7 +128,8 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
   const visitorTypeDonut = useMemo(() => {
     const map: Record<string, number> = {};
     visitorsRaw.forEach((v: any) => {
-      const type = v.visitorType || v.type || "Unknown";
+      const raw = String(v.visitorType || v.type || "standard");
+      const type = raw.charAt(0).toUpperCase() + raw.slice(1);
       map[type] = (map[type] || 0) + 1;
     });
     const entries = Object.entries(map);
@@ -146,8 +158,8 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
   const recentVisitors = useMemo(
     () => [...visitorsRaw]
       .sort((a: any, b: any) =>
-        new Date(b.dateOfVisit || b.checkInTime || b.createdAt || 0).getTime() -
-        new Date(a.dateOfVisit || a.checkInTime || a.createdAt || 0).getTime()
+        new Date(b.checkInAt || b.createdAt || 0).getTime() -
+        new Date(a.checkInAt || a.createdAt || 0).getTime()
       )
       .slice(0, 5),
     [visitorsRaw],
@@ -231,16 +243,19 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
           {recentVisitors.length > 0 ? (
-            recentVisitors.map((v: any, i: number) => (
-              <RecentItem
-                key={i}
-                title={v.visitorName || v.name || v.fullName || "Visitor"}
-                sub={v.visitorType || v.purpose || v.type || "—"}
-                badge={v.isCheckedIn || v.checkedIn ? "Checked In" : v.checkOutTime ? "Checked Out" : "Logged"}
-                badgeColor={statusBadgeColor(v.isCheckedIn || v.checkedIn ? "active" : "completed")}
-                time={humanRelTime(v.dateOfVisit || v.checkInTime || v.createdAt)}
-              />
-            ))
+            recentVisitors.map((v: any, i: number) => {
+              const status = String(v.status || "").toLowerCase();
+              return (
+                <RecentItem
+                  key={v.id || i}
+                  title={v.fullName || v.visitorCode || "Visitor"}
+                  sub={v.purpose || v.visitorType || "—"}
+                  badge={status === "checked_in" ? "Checked In" : status === "checked_out" ? "Checked Out" : status === "pending" ? "Pending" : "Logged"}
+                  badgeColor={statusBadgeColor(status === "checked_in" ? "active" : status === "pending" ? "pending" : "completed")}
+                  time={humanRelTime(v.checkInAt || v.createdAt)}
+                />
+              );
+            })
           ) : (
             <p className="text-content text-gray-400 text-center py-6">No visitors logged yet.</p>
           )}
@@ -250,11 +265,11 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
           {recentLeads.length > 0 ? (
             recentLeads.map((l: any, i: number) => (
               <RecentItem
-                key={i}
+                key={l._id || i}
                 title={l.name || l.fullName || "Lead"}
                 sub={l.email || l.phone || "—"}
-                badge={l.isContacted || l.contacted ? "Contacted" : "New"}
-                badgeColor={statusBadgeColor(l.isContacted || l.contacted ? "active" : "pending")}
+                badge={(l.status || "Pending") === "Pending" ? "New" : l.status}
+                badgeColor={statusBadgeColor(l.status === "Contacted" || l.status === "Closed" ? "active" : "pending")}
                 time={humanRelTime(l.createdAt)}
               />
             ))

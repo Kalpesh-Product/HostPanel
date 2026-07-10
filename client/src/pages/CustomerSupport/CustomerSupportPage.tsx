@@ -398,74 +398,92 @@ export default function CustomerSupportPage() {
               </button>
             </div>
 
-            <form onSubmit={submitTicket} className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-1 space-y-5 bg-slate-50/30">
-              <div className="space-y-1.5">
-                <label htmlFor="issue-title" className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Title *</label>
-                <input
-                  id="issue-title"
-                  type="text"
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  placeholder="e.g. AC not working on floor 3"
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none shadow-sm transition-all placeholder:text-slate-400"
-                  required
-                />
+            <form onSubmit={submitTicket} className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 bg-slate-50/30">
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                  <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><AlertCircle size={16} /></span>
+                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Issue Details</span>
+                </h4>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="issue-title" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Title <span className="text-red-400">*</span></label>
+                  <input
+                    id="issue-title"
+                    type="text"
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    placeholder="e.g. Platform Issue"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                    required
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="issue-description" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Description / Issue <span className="text-red-400">*</span></label>
+                  <textarea
+                    id="issue-description"
+                    value={description}
+                    onChange={(event) => setDescription(event.target.value)}
+                    rows={5}
+                    placeholder="Describe the issue in detail"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400"
+                    required
+                  />
+                </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label htmlFor="issue-description" className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Description / Issue *</label>
-                <textarea
-                  id="issue-description"
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  rows={5}
-                  placeholder="Describe the issue in detail"
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none shadow-sm transition-all resize-none placeholder:text-slate-400"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="issue-page-url" className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Page URL (Optional)</label>
-                <input
-                  id="issue-page-url"
-                  type="text"
-                  value={pageUrl}
-                  onChange={(event) => setPageUrl(event.target.value)}
-                  placeholder="e.g. /extra-common-modules/assets"
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none shadow-sm transition-all placeholder:text-slate-400"
-                />
-                <p className="text-[10px] text-slate-400 font-medium">Paste the page you were on when the issue happened, so our team can see exactly what you saw.</p>
-              </div>
-
-              <div className="space-y-1.5">
-                <label htmlFor="issue-image" className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Image Upload (Optional)</label>
-                <label
-                  htmlFor="issue-image"
-                  className="w-full border-2 border-dashed border-slate-200 rounded-xl p-5 flex items-center justify-center gap-2 text-sm font-semibold text-slate-500 cursor-pointer hover:border-[#2563EB] hover:bg-blue-50/50 transition-colors"
-                >
-                  <Upload size={16} />
-                  {imageFile ? imageFile.name : "Choose an image file"}
-                </label>
-                <input
-                  id="issue-image"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    setImageFile(file || null);
-                  }}
-                />
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                  <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Upload size={16} /></span>
+                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Attachments</span>
+                </h4>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="issue-page-url" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Page URL</label>
+                  <input
+                    id="issue-page-url"
+                    type="text"
+                    value={pageUrl}
+                    onChange={(event) => setPageUrl(event.target.value)}
+                    placeholder="e.g. /extra-common-modules/assets"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                  />
+                  <p className="text-[10px] font-medium text-slate-400">Paste the page you were on when the issue happened, so our team can see exactly what you saw.</p>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="issue-image" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Image Upload</label>
+                  <label
+                    htmlFor="issue-image"
+                    className="w-full border-2 border-dashed border-slate-200 rounded-lg p-4 flex items-center justify-center gap-2 text-[12px] font-semibold text-slate-500 cursor-pointer hover:border-[#2563EB] hover:bg-blue-50/50 transition-colors"
+                  >
+                    <Upload size={16} />
+                    {imageFile ? imageFile.name : "Choose an image file"}
+                  </label>
+                  <input
+                    id="issue-image"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      setImageFile(file || null);
+                    }}
+                  />
+                </div>
               </div>
             </form>
 
-            <div className="p-5 sm:p-6 md:p-8 bg-white border-t border-slate-100 shrink-0">
+            <div className="p-3 sm:p-4 bg-white border-t border-slate-100 shrink-0 flex gap-3">
+              <button
+                type="button"
+                onClick={() => { setIsCreateModalOpen(false); resetCreateForm(); }}
+                className="flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all"
+              >
+                Cancel
+              </button>
               <button
                 type="submit"
                 disabled={isSubmitting || !title.trim() || !description.trim()}
                 onClick={(e) => submitTicket(e)}
-                className="w-full py-3 bg-[#2563EB] text-white rounded-xl font-black text-[12px] uppercase tracking-wider shadow-lg shadow-[#2563EB]/25 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none hover:bg-blue-600 transition-all active:scale-[0.98]"
+                className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {isSubmitting ? "Submitting..." : "Submit Ticket"}
               </button>
@@ -492,52 +510,52 @@ export default function CustomerSupportPage() {
               </button>
             </div>
 
-            <div className="p-5 sm:p-6 md:p-8 space-y-4 overflow-y-auto flex-1">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ticket ID</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.ticketId || "-"}</p></div>
-                <div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Workspace</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.workspaceName || "-"}</p></div>
-                <div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Role</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.role || "-"}</p></div>
-                <div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Department</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.department || "-"}</p></div>
-                <div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Requested At</p><p className="text-[13px] font-bold text-[#0F172A]">{formatDate(selectedTicket.requestedAt)}</p></div>
-                <div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Accepted By</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.acceptedByName || "-"}</p></div>
-                <div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Resolved By</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.resolvedByName || "-"}</p></div>
-                <div className="space-y-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</p><span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ${statusPillClass[selectedTicket.status]}`}>{selectedTicket.status}</span></div>
-              </div>
-
-              <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-4 space-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Issue Title</p>
-                <p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.title || "-"}</p>
-              </div>
-
-              <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-4 space-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Issue Description / Follow Up</p>
-                <p className="text-[13px] font-bold text-[#0F172A] whitespace-pre-wrap max-h-20 overflow-y-auto">{selectedTicket.description || "-"}</p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-4 space-y-1">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Issue Attachment</p>
-                  {selectedTicket.image?.url ? (
-                    <a href={selectedTicket.image.url} target="_blank" rel="noreferrer" className="text-[13px] font-bold text-[#2563EB] underline">View Uploaded Image</a>
-                  ) : (
-                    <p className="text-[13px] font-bold text-slate-400">No attachment</p>
-                  )}
+              <div className="p-3 sm:p-4 space-y-4 overflow-y-auto flex-1">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Ticket ID</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.ticketId || "-"}</p></div>
+                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Workspace</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.workspaceName || "-"}</p></div>
+                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Role</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.role || "-"}</p></div>
+                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Department</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.department || "-"}</p></div>
+                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Requested At</p><p className="text-[13px] font-bold text-[#0F172A]">{formatDate(selectedTicket.requestedAt)}</p></div>
+                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Accepted By</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.acceptedByName || "-"}</p></div>
+                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Resolved By</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.resolvedByName || "-"}</p></div>
+                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Status</p><span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ${statusPillClass[selectedTicket.status]}`}>{selectedTicket.status}</span></div>
                 </div>
+
                 <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-4 space-y-1">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Resolution Attachment</p>
-                  {selectedTicket.resolutionAttachment?.url ? (
-                    <a href={selectedTicket.resolutionAttachment.url} target="_blank" rel="noreferrer" className="text-[13px] font-bold text-[#2563EB] underline">View Resolution File</a>
-                  ) : (
-                    <p className="text-[13px] font-bold text-slate-400">No resolution attachment</p>
-                  )}
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Issue Title</p>
+                  <p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.title || "-"}</p>
+                </div>
+
+                <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-4 space-y-1">
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Issue Description / Follow Up</p>
+                  <p className="text-[13px] font-bold text-[#0F172A] whitespace-pre-wrap max-h-20 overflow-y-auto">{selectedTicket.description || "-"}</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-4 space-y-1">
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Issue Attachment</p>
+                    {selectedTicket.image?.url ? (
+                      <a href={selectedTicket.image.url} target="_blank" rel="noreferrer" className="text-[13px] font-bold text-[#2563EB] underline">View Uploaded Image</a>
+                    ) : (
+                      <p className="text-[13px] font-bold text-slate-400">No attachment</p>
+                    )}
+                  </div>
+                  <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-4 space-y-1">
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Resolution Attachment</p>
+                    {selectedTicket.resolutionAttachment?.url ? (
+                      <a href={selectedTicket.resolutionAttachment.url} target="_blank" rel="noreferrer" className="text-[13px] font-bold text-[#2563EB] underline">View Resolution File</a>
+                    ) : (
+                      <p className="text-[13px] font-bold text-slate-400">No resolution attachment</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-4 space-y-1">
+                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Resolution</p>
+                  <p className="text-[13px] font-bold text-[#0F172A] whitespace-pre-wrap max-h-20 overflow-y-auto">{selectedTicket.resolutionMessage || "-"}</p>
                 </div>
               </div>
-
-              <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-4 space-y-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Resolution</p>
-                <p className="text-[13px] font-bold text-[#0F172A] whitespace-pre-wrap max-h-20 overflow-y-auto">{selectedTicket.resolutionMessage || "-"}</p>
-              </div>
-            </div>
 
             <div className="p-4 sm:p-6 md:p-8 bg-slate-50/50 border-t border-slate-100/60 shrink-0 flex flex-wrap gap-3 justify-end">
               {selectedTicket.status === "Resolved" ? (
