@@ -780,6 +780,7 @@ function normalizeDailyBooking(booking) {
 export default function VisitorsManagementPage() {
   const { auth } = useAuth();
   const axiosPrivate = useAxiosPrivate();
+  const isReadOnlySession = Boolean(auth?.impersonation);
   const userPermissions = useMemo(
     () => auth?.user?.permissions?.permissions || [],
     [auth?.user?.permissions?.permissions],
@@ -5088,25 +5089,25 @@ export default function VisitorsManagementPage() {
                   <button
                     type="button"
                     onClick={handleProcessAction}
-                    disabled={isSubmittingVisitor || isVisitorOverviewLoading || !visitorAccess.modes.standard}
-                    title={!visitorAccess.modes.standard ? 'You do not have access to Standard Visitor tab.' : undefined}
+                    disabled={isSubmittingVisitor || isVisitorOverviewLoading || !visitorAccess.modes.standard || isReadOnlySession}
+                    title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.standard ? 'You do not have access to Standard Visitor tab.' : undefined}
                     className="flex-1 px-8 py-2.5 bg-[#2563EB] text-white btn-pill shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     <CheckCircle2 size={14} />{isSubmittingVisitor ? 'SENDING...' : form.standardVisitorType === 'department' ? 'SEND HOST APPROVAL' : 'CHECK IN VISITOR'}
                   </button>
                 )}
                 {visitorMode === 'tour' && (
-                  <button onClick={handleProcessAction} disabled={!visitorAccess.modes.tour} title={!visitorAccess.modes.tour ? 'You do not have access to Unit Tour tab.' : undefined} className="btn-pill flex-1 py-3 bg-indigo-600 text-white shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-gray-300 disabled:shadow-none">
+                  <button onClick={handleProcessAction} disabled={!visitorAccess.modes.tour || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.tour ? 'You do not have access to Unit Tour tab.' : undefined} className="btn-pill flex-1 py-3 bg-indigo-600 text-white shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5 disabled:bg-gray-300 disabled:shadow-none">
                     <Building size={18} /> SYNC LEAD & START TOUR
                   </button>
                 )}
                 {visitorMode === 'walkin_booking' && (
-                  <button disabled={!walkInAvailability.available || isSubmittingVisitor || !visitorAccess.modes.walkin_booking} title={!visitorAccess.modes.walkin_booking ? 'You do not have access to Walk-in Booking tab.' : undefined} onClick={handleProcessAction} className="btn-pill flex-[2] py-3 bg-blue-600 text-white shadow-md shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5">
+                  <button disabled={!walkInAvailability.available || isSubmittingVisitor || !visitorAccess.modes.walkin_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.walkin_booking ? 'You do not have access to Walk-in Booking tab.' : undefined} onClick={handleProcessAction} className="btn-pill flex-[2] py-3 bg-blue-600 text-white shadow-md shadow-blue-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-blue-700 transition-all flex items-center justify-center gap-1.5">
                     <Wallet size={18} /> {isSubmittingVisitor ? 'CONFIRMING...' : 'COLLECT PAYMENT & CONFIRM'}
                   </button>
                 )}
                 {visitorMode === 'verify_booking' && (
-                  <button disabled={!verifiedBooking || !visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have access to Verify Booking tab.' : undefined} onClick={handleProcessAction} className="btn-pill flex-[2] py-3 bg-green-600 text-white shadow-md shadow-green-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-green-700 transition-all flex items-center justify-center gap-1.5">
+                  <button disabled={!verifiedBooking || !visitorAccess.modes.verify_booking || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : !visitorAccess.modes.verify_booking ? 'You do not have access to Verify Booking tab.' : undefined} onClick={handleProcessAction} className="btn-pill flex-[2] py-3 bg-green-600 text-white shadow-md shadow-green-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-green-700 transition-all flex items-center justify-center gap-1.5">
                     <CheckCircle2 size={18} /> {verifiedBooking?.status === 'Pending Payment' ? 'MARK PAID & CHECK IN' : 'CONFIRM ENTRY'}
                   </button>
                 )}
@@ -5325,7 +5326,7 @@ export default function VisitorsManagementPage() {
 
               <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-4">
                 <button onClick={() => setCancellingBooking(null)} className="btn-pill flex-1 py-4 bg-white border border-gray-200 text-gray-500 hover:text-gray-900 transition-all">ABORT</button>
-                <button disabled={!cancelForm.reason} onClick={handleCancelUpcoming} className="btn-pill flex-1 py-4 bg-red-600 text-white shadow-lg shadow-red-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-red-700 transition-all">CONFIRM CANCELLATION</button>
+                <button disabled={!cancelForm.reason || isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined} onClick={handleCancelUpcoming} className="btn-pill flex-1 py-4 bg-red-600 text-white shadow-lg shadow-red-200 disabled:bg-gray-300 disabled:shadow-none hover:bg-red-700 transition-all">CONFIRM CANCELLATION</button>
               </div>
             </div>
           </div>
@@ -5571,7 +5572,7 @@ export default function VisitorsManagementPage() {
                   </button>
                 )}
                 {viewingVisitor.status === 'Checked In' && (
-                  <button onClick={() => handleCheckOut(viewingVisitor.id)} className="btn-pill flex-1 py-2.5 transition-all flex items-center justify-center gap-1.5 bg-red-600 text-white shadow-lg shadow-red-200 hover:bg-red-700">
+                  <button disabled={isReadOnlySession} title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined} onClick={() => handleCheckOut(viewingVisitor.id)} className="btn-pill flex-1 py-2.5 bg-red-600 text-white shadow-lg shadow-red-200 hover:bg-red-700 transition-all flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none">
                     <LogOut size={15} /> CHECK OUT
                   </button>
                 )}

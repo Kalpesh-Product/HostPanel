@@ -68,9 +68,29 @@ const CreditsIndicator = ({ workspaceId, companyId }) => {
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isUpgradeSubmitting, setIsUpgradeSubmitting] = useState(false);
   const [requestedUpgradePlan, setRequestedUpgradePlan] = useState("");
+  // localStorage.workspace_setup is only ever written once, at initial
+  // workspace-setup time — it never reflects a later plan change made from
+  // master panel. Use it as the instant-first-paint fallback only; the live
+  // fetch below (same endpoint Sidebar.tsx/ModuleCardsLanding.tsx poll)
+  // overrides it once it resolves, so an upgraded host actually sees their
+  // new plan here instead of being stuck on "basic" forever.
+  const [currentPlan, setCurrentPlan] = useState<PlanType>(readCurrentPlan());
   const subscriptionId = companyId || workspaceId;
-  const currentPlan = readCurrentPlan();
   const upgradePlanCards = getUpgradePlanOptions(currentPlan);
+
+  useEffect(() => {
+    let mounted = true;
+    axios
+      .get("/api/workspaces/module-access-map")
+      .then((res) => {
+        const plan = res?.data?.data?.selectedPlan;
+        if (mounted && plan) setCurrentPlan(plan);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [axios, subscriptionRefreshKey]);
 
   const handleUpgradePlanRequest = async (plan: string) => {
     if (requestedUpgradePlan === plan) {

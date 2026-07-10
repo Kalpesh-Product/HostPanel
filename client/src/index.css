@@ -11,6 +11,16 @@
   }
 }
 
+/* Staff "View As" read-only sessions (see MainLayout.tsx / PrimaryButton.tsx):
+   PrimaryButton disables itself in JS, but plenty of forms use a plain
+   native submit button. Belt-and-braces so those can't fire a write either. */
+[data-readonly-session="true"] button[type="submit"],
+[data-readonly-session="true"] input[type="submit"] {
+  pointer-events: none;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @layer utilities {
 
   body {

@@ -40,6 +40,23 @@ export default function useAxiosPrivate() {
           return Promise.reject(error);
         }
 
+        if (error?.response?.status === 403 && auth?.impersonation) {
+          // Staff "View As" sessions never have a refresh token by design
+          // (see StaffViewPage.tsx) — attempting one here is guaranteed to
+          // fail and would wipe the whole read-only session and bounce the
+          // viewer to login over a SINGLE denied request (a blocked write
+          // from blockWriteIfImpersonating, or any ordinary permission check
+          // like Visitor Management's hasVisitorAccess gate — both return a
+          // plain 403). Reject this one request in place instead; the
+          // session still ends naturally when its own short-lived access
+          // token actually expires (next page load's auth check catches
+          // that, since there's no refresh path to keep it alive anyway).
+          // No toast here by design — write buttons are already disabled
+          // preemptively (PrimaryButton + the [data-readonly-session] CSS
+          // rule), so reaching this branch at all should be rare/edge-case.
+          return Promise.reject(error);
+        }
+
         if (error?.response?.status === 403 && !prevRequest.sent) {
           prevRequest.sent = true;
           const authData = await refresh();

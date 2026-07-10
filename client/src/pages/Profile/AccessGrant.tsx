@@ -422,6 +422,7 @@ export default function AccessGrantsPage() {
   const navigate = useNavigate();
   const axiosPrivate = useAxiosPrivate();
   const { auth, setAuth } = useAuth();
+  const isReadOnlySession = Boolean(auth?.impersonation);
   const currentUser = (auth?.user ?? null) as Record<string, any> | null;
   const currentRole = normalizeRole(String(currentUser?.workspaceMembership?.role || currentUser?.role || ''));
   const canEditAccessGrants = currentRole === 'owner' || currentRole === 'founder';
@@ -2167,7 +2168,8 @@ export default function AccessGrantsPage() {
                   </button>
                   <button
                     onClick={handleConfirmWorkspaceLink}
-                    disabled={isSaving}
+                    disabled={isSaving || isReadOnlySession}
+                    title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined}
                     className="btn-pill bg-[#2563EB] px-4 py-2 text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
                   >
                     {isSaving ? 'Saving...' : 'Add Access'}
@@ -2366,7 +2368,8 @@ export default function AccessGrantsPage() {
                 </button>
                 <button
                   onClick={handleConfirmWorkspaceTransfer}
-                  disabled={isSaving}
+                  disabled={isSaving || isReadOnlySession}
+                  title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined}
                   className="btn-pill bg-[#2563EB] px-4 py-2 text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
                 >
                   {isSaving ? 'Saving...' : `Transfer as ${selectedTransferRole.label}`}
@@ -2455,7 +2458,8 @@ export default function AccessGrantsPage() {
                 </button>
                 <button
                   onClick={handleTransferOwnership}
-                  disabled={isSaving || !canEditAccessGrants || eligibleOwnershipCandidates.length === 0}
+                  disabled={isSaving || !canEditAccessGrants || eligibleOwnershipCandidates.length === 0 || isReadOnlySession}
+                  title={isReadOnlySession ? 'Read-only staff view - changes are disabled' : undefined}
                   className="btn-pill px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white transition-colors disabled:opacity-60"
                 >
                   {isSaving ? 'Saving...' : showTransferWarning ? 'Confirm Transfer' : 'Review Transfer'}
