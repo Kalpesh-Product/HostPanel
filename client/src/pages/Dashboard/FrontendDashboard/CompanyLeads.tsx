@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useMemo, useState } from "react";
 import {
-  BadgeCheck, CheckCircle2, Eye, Mail, Phone, Search, Sparkles, Target, X,
+  BadgeCheck, CheckCircle2, Eye, FileDown, FileSpreadsheet, Mail, Phone, Search, Sparkles, Target, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,6 +10,8 @@ import useAxiosPrivate from "../../../hooks/useAxiosPrivate";
 import useAuth from "../../../hooks/useAuth";
 import PageFrame from "../../../components/Pages/PageFrame";
 import { statusPillClass } from '../../../lib/status-pill';
+import { createReport } from "../../../services/reports";
+import { downloadReportFile } from "../../../utils/report-download";
 
 const WEBSITE_STATUSES = ["Pending", "Contacted", "Closed", "Rejected"];
 
@@ -33,6 +35,7 @@ export default function CompanyLeads() {
   const [searchQuery, setSearchQuery] = useState("");
   const [stageFilter, setStageFilter] = useState("All");
   const [selectedLeadId, setSelectedLeadId] = useState(null);
+  const [isExportingReport, setIsExportingReport] = useState("");
 
   const workspaceId = selectedCompany?.workspaceId || auth?.user?.primaryWorkspace || auth?.user?.workspaceMembership?.workspace || auth?.user?.workspaceId || "";
   const companyId = selectedCompany?.companyId || auth?.user?.companyId || "";
@@ -94,6 +97,29 @@ export default function CompanyLeads() {
     [leads, selectedLeadId],
   );
 
+  const handleExportReport = async (format = "PDF") => {
+    const reportFormat = String(format).toLowerCase() === "excel" ? "Excel" : "PDF";
+    if (!visibleLeads.length) { toast.error("There are no website leads to export."); return; }
+    setIsExportingReport(reportFormat);
+    try {
+      const response = await createReport({
+        title: "Website Leads Report", department: "Sales", category: "Other", dataWindow: "Custom",
+        reportMonth: new Date().toISOString().slice(0, 7), period: "Website Leads",
+        generatedBy: auth?.user?.fullName || auth?.user?.name || "Website Team", format: reportFormat,
+        description: "Website enquiries received from the published site.", sourceType: "custom", sourceRef: "website-leads",
+        reportRows: visibleLeads.slice(0, 100).map((lead, index) => ({
+          label: `${index + 1}. ${lead.fullName || "Website lead"}`,
+          value: [lead.mobileNumber || "No phone", lead.email || "No email", lead.source || "Website", lead.productType || lead.vertical || "No product", lead.status || "Pending", formatDateLabel(lead.recievedDate || lead.createdAt)].join(" | "),
+        })),
+        monthlyData: [],
+      });
+      if (reportFormat === "PDF") await downloadReportFile(response?.data?.download, { openInNewTab: false });
+      toast.success(`${reportFormat} report saved to Reports.`);
+      window.dispatchEvent(new Event("reports:refresh"));
+    } catch (error) { toast.error(error?.message || "Failed to export website leads report."); }
+    finally { setIsExportingReport(""); }
+  };
+
   if (isPending) {
     return (
       <div className="p-2 lg:p-2.5 animate-pulse">
@@ -131,6 +157,18 @@ export default function CompanyLeads() {
               <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Website enquiries received from your published site.
               </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
+              <button type="button" onClick={() => handleExportReport("PDF")} disabled={Boolean(isExportingReport)} title="Export PDF" aria-label="Export website leads as PDF"
+                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:cursor-not-allowed disabled:opacity-50">
+                <FileDown size={16} className="text-red-500" aria-hidden="true" />
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
+              </button>
+              <button type="button" onClick={() => handleExportReport("Excel")} disabled={Boolean(isExportingReport)} title="Export Excel" aria-label="Export website leads as Excel"
+                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-50">
+                <FileSpreadsheet size={16} className="text-emerald-500" aria-hidden="true" />
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
+              </button>
             </div>
           </div>
 
@@ -264,7 +302,8 @@ export default function CompanyLeads() {
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-center gap-1.5">
                               <button type="button" onClick={() => setSelectedLeadId(lead._id)}
-                                className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"><Eye size={15} strokeWidth={2.5} /></button>
+                                title="View details" aria-label={`View details for ${lead.fullName}`}
+                                className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"><Eye size={15} strokeWidth={2.5} aria-hidden="true" /></button>
                             </div>
                           </td>
                         </tr>

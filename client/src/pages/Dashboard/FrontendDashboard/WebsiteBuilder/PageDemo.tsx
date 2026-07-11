@@ -163,7 +163,9 @@ const InclusionsSection = ({
   inclusions: Array<{ key: string; enabled: boolean }>;
   title?: string;
 }) => {
-  if (!inclusions.length) return null;
+  // Only enabled inclusions appear on the website; disabled ones are hidden.
+  const enabledInclusions = inclusions.filter(({ enabled }) => enabled);
+  if (!enabledInclusions.length) return null;
   return (
     <section className={SECTION_BLOCK}>
       <div className={CONTENT_WRAP}>
@@ -171,26 +173,16 @@ const InclusionsSection = ({
           <LinedHeading title={title} />
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 md:grid-cols-6 md:gap-6">
-          {inclusions.map(({ key, enabled }) => {
+          {enabledInclusions.map(({ key }) => {
             const item = ALL_INCLUSIONS.find((i) => i.key === key);
             if (!item) return null;
             return (
               <div
                 key={key}
-                className={`flex flex-col items-center gap-2 text-center ${enabled ? "text-[#111827]" : "text-slate-400"}`}
+                className="flex flex-col items-center gap-2 text-center text-[#111827]"
               >
-                {/* Icon with optional cross overlay */}
-                <div className="relative">
-                  {item.icon}
-                  {!enabled ? (
-                    <svg viewBox="0 0 40 40" className="absolute inset-0 h-10 w-10 text-slate-500" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                      <line x1="8" y1="8" x2="32" y2="32" />
-                      <line x1="32" y1="8" x2="8" y2="32" />
-                    </svg>
-                  ) : null}
-                </div>
-                {/* Label â€” strikethrough when disabled */}
-                <span className={`text-[10px] font-pmedium uppercase tracking-wider font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[11px] ${!enabled ? "line-through" : ""}`}>
+                {item.icon}
+                <span className="text-[10px] font-pmedium uppercase tracking-wider font-['Poppins',ui-sans-serif,system-ui,sans-serif] md:text-[11px]">
                   {item.label}
                 </span>
               </div>
@@ -228,11 +220,9 @@ const LogoCarousel = ({ logos, title }: { logos: string[]; title?: string }) => 
   return (
     <section className="bg-white px-4 py-10 md:px-6 md:py-12">
       <div className={CONTENT_WRAP}>
-        {title ? (
-          <div className="mb-8">
-            <LinedHeading title={title} />
-          </div>
-        ) : null}
+        <div className="mb-8">
+          <LinedHeading title={title || "Trusted by"} />
+        </div>
         <div className="overflow-hidden">
           <div className="flex items-center justify-center gap-6 md:gap-16 transition-all duration-700">
             {displayed.map((src, idx) => (

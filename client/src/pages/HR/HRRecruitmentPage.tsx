@@ -759,22 +759,28 @@ interface AddJobModalProps {
 function AddJobModal({ open, onClose, onSave, form, setForm, departments, mode = "create" }: AddJobModalProps) {
   return open && createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-start justify-center pt-[4vh] pb-8 bg-black/40 backdrop-blur-sm overflow-y-auto"
+      className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/40 backdrop-blur-sm overflow-y-auto"
       onClick={onClose}
     >
         <div
-          className="relative w-full max-w-3xl mx-4 bg-slate-100 rounded-3xl shadow-2xl border border-slate-200 overflow-hidden"
+          className="relative w-full sm:max-w-3xl h-[92vh] sm:h-auto sm:max-h-[95vh] bg-white/95 backdrop-blur-xl rounded-t-[32px] sm:rounded-[32px] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] sm:shadow-[0_16px_40px_rgba(15,23,42,0.12)] border-t sm:border border-white/80 overflow-hidden flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
-        <div className="px-6 py-5 border-b border-slate-200 bg-slate-900 text-white flex items-center justify-between">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <Briefcase size={16} /> {mode === "edit" ? "Edit Job Opening" : "Publish Job Opening"}
-          </h3>
-          <button type="button" onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
-            <X size={16} className="text-white/80" />
+        <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0" />
+        <div className="p-5 sm:p-6 md:p-8 border-b border-slate-100 bg-white flex items-center justify-between shrink-0">
+          <div>
+            <h3 className="text-xl sm:text-2xl font-pmedium text-primary tracking-tight">
+              {mode === "edit" ? "Edit Job Opening" : "Publish Job Opening"}
+            </h3>
+            <p className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">
+              {mode === "edit" ? "Update the role details shown on careers" : "Create a new role for your careers page"}
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm">
+            <X size={18} strokeWidth={2.5} />
           </button>
         </div>
-        <div className="p-6 max-h-[75vh] overflow-y-auto space-y-5 bg-slate-100">
+        <div className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 bg-slate-50/30">
           <FormSection title="Job Details" icon={Briefcase}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
@@ -852,15 +858,15 @@ function AddJobModal({ open, onClose, onSave, form, setForm, departments, mode =
             </div>
           </FormSection>
         </div>
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-100">
-          <button type="button" onClick={onClose} className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">
+        <div className="p-3 sm:p-4 bg-white border-t border-slate-100 shrink-0 flex gap-3">
+          <button type="button" onClick={onClose} className="flex-1 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-pmedium text-[10px] uppercase tracking-wider hover:bg-slate-50 transition-all">
             Cancel
           </button>
           <button
             type="button"
             disabled={!form.title || !form.department}
             onClick={onSave}
-            className="px-8 py-2.5 bg-blue-600 text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+            className="flex-1 px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-pmedium text-[10px] uppercase tracking-wider shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
           >
             <Briefcase size={14} />
             {mode === "edit" ? "Update Job" : "Publish to Website"}
@@ -1893,20 +1899,16 @@ export default function HRRecruitmentPage({ mode = "hr" }: { mode?: "hr" | "care
         />
       )}
 
-      {mode !== "careers" && (
-        <>
-          {/* Publish Job Modal */}
-          <AddJobModal
-            open={isJobModalOpen}
-            onClose={() => { setIsJobModalOpen(false); setNewJob(EMPTY_JOB); setEditingJobCode(""); }}
-            onSave={handleAddJob}
-            form={newJob}
-            setForm={setNewJob}
-            departments={DEPARTMENTS}
-            mode={editingJobCode ? "edit" : "create"}
-          />
-        </>
-      )}
+      {/* Shared by Recruitment and Careers: both surfaces expose publish/edit actions. */}
+      <AddJobModal
+        open={isJobModalOpen}
+        onClose={() => { setIsJobModalOpen(false); setNewJob(EMPTY_JOB); setEditingJobCode(""); }}
+        onSave={handleAddJob}
+        form={newJob}
+        setForm={setNewJob}
+        departments={DEPARTMENTS}
+        mode={editingJobCode ? "edit" : "create"}
+      />
     </div>
   );
 }

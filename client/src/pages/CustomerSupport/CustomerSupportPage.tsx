@@ -1,9 +1,11 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, Plus } from "lucide-react";
+import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, Eye, FileDown, FileSpreadsheet, Plus } from "lucide-react";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import PageFrame from "../../components/Pages/PageFrame";
 import { statusPillClass } from "../../lib/status-pill";
+import { createReport } from "../../services/reports";
+import { downloadReportFile } from "../../utils/report-download";
 
 type TicketStatus =
   | "Open"
@@ -45,6 +47,11 @@ type SupportPayload = {
 
 const SUPPORT_TICKETS_API = "/api/tickets/support-tickets";
 
+const capitalizeFirst = (value?: string | null) => {
+  if (!value) return "-";
+  return value.charAt(0).toUpperCase() + value.slice(1);
+};
+
 const formatDate = (value?: string | null) => {
   if (!value) return "-";
   const parsed = new Date(value);
@@ -78,6 +85,7 @@ export default function CustomerSupportPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [isExportingReport, setIsExportingReport] = useState("");
 
   const currentList = useMemo(
     () => (activeTab === "raised" ? supportData.raised : supportData.history),
@@ -205,6 +213,32 @@ export default function CustomerSupportPage() {
     }
   };
 
+  const handleExportIssues = async (format = "PDF") => {
+    const reportFormat = String(format).toLowerCase() === "excel" ? "Excel" : "PDF";
+    if (!filteredList.length) { toast.error("There are no issues to export."); return; }
+    setIsExportingReport(reportFormat);
+    try {
+      const response = await createReport({
+        title: activeTab === "resolved" ? "Customer Support Issue History" : "Customer Support Issues Raised",
+        department: "Customer Support", category: "Other", dataWindow: "Custom",
+        reportMonth: new Date().toISOString().slice(0, 7),
+        period: activeTab === "resolved" ? "Issue History" : "Issues Raised",
+        generatedBy: "Customer Support", format: reportFormat,
+        description: `Customer support ${activeTab === "resolved" ? "issue history" : "raised issues"} export.`,
+        sourceType: "custom", sourceRef: activeTab === "resolved" ? "customer-support-history" : "customer-support-raised",
+        reportRows: filteredList.slice(0, 100).map((ticket, index) => ({
+          label: `${index + 1}. ${ticket.ticketId || "Ticket"} - ${ticket.title || "Support issue"}`,
+          value: [ticket.status, formatDate(ticket.requestedAt), ticket.requestedByName || "Unknown requester", ticket.acceptedByName || "Not accepted", ticket.resolvedByName || "Not resolved"].join(" | "),
+        })),
+        monthlyData: [],
+      });
+      if (reportFormat === "PDF") await downloadReportFile(response?.data?.download, { openInNewTab: false });
+      toast.success(`${reportFormat} support report saved to Reports.`);
+      window.dispatchEvent(new Event("reports:refresh"));
+    } catch (error: any) { toast.error(error?.message || "Failed to export support issues."); }
+    finally { setIsExportingReport(""); }
+  };
+
   return (
     <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
       <PageFrame>
@@ -219,6 +253,18 @@ export default function CustomerSupportPage() {
               <p className="text-xs font-pmedium text-slate-500 mt-1">
                 Track issue lifecycle with clear ownership and resolution context.
               </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
+              <button type="button" onClick={() => handleExportIssues("PDF")} disabled={Boolean(isExportingReport)} title="Export PDF" aria-label="Export support issues as PDF"
+                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:cursor-not-allowed disabled:opacity-50">
+                <FileDown size={16} className="text-red-500" aria-hidden="true" />
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
+              </button>
+              <button type="button" onClick={() => handleExportIssues("Excel")} disabled={Boolean(isExportingReport)} title="Export Excel" aria-label="Export support issues as Excel"
+                className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-50">
+                <FileSpreadsheet size={16} className="text-emerald-500" aria-hidden="true" />
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
+              </button>
             </div>
           </div>
 
@@ -375,9 +421,11 @@ export default function CustomerSupportPage() {
                             <button
                               type="button"
                               onClick={() => { setSelectedTicket(ticket); setIsDetailsModalOpen(true); }}
-                              className="px-3 py-1.5 rounded-lg text-[11px] font-pmedium bg-slate-100/70 text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 transition-all"
+                              title="View details"
+                              aria-label={`View details for ${ticket.ticketId || ticket.title}`}
+                              className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"
                             >
-                              View Details
+                              <Eye size={15} strokeWidth={2.5} aria-hidden="true" />
                             </button>
                           </td>
                         </tr>
@@ -524,13 +572,12 @@ export default function CustomerSupportPage() {
 
               <div className="p-3 sm:p-4 space-y-4 overflow-y-auto flex-1">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Ticket ID</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.ticketId || "-"}</p></div>
-                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Workspace</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.workspaceName || "-"}</p></div>
-                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Role</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.role || "-"}</p></div>
-                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Department</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.department || "-"}</p></div>
-                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Requested At</p><p className="text-[13px] font-bold text-[#0F172A]">{formatDate(selectedTicket.requestedAt)}</p></div>
-                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Accepted By</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.acceptedByName || "-"}</p></div>
-                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Resolved By</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.resolvedByName || "-"}</p></div>
+                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Ticket ID</p><p className="text-[13px] font-pmedium text-[#0F172A]">{selectedTicket.ticketId || "-"}</p></div>
+                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Unit</p><p className="text-[13px] font-pmedium text-[#0F172A]">{selectedTicket.workspaceName || "-"}</p></div>
+                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Role</p><p className="text-[13px] font-pmedium text-[#0F172A]">{capitalizeFirst(selectedTicket.role)}</p></div>
+                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Requested At</p><p className="text-[13px] font-pmedium text-[#0F172A]">{formatDate(selectedTicket.requestedAt)}</p></div>
+                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Accepted By</p><p className="text-[13px] font-pmedium text-[#0F172A]">{selectedTicket.acceptedByName || "-"}</p></div>
+                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Resolved By</p><p className="text-[13px] font-pmedium text-[#0F172A]">{selectedTicket.resolvedByName || "-"}</p></div>
                   <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Status</p><span className={statusPillClass(selectedTicket.status)}>{selectedTicket.status}</span></div>
                 </div>
 

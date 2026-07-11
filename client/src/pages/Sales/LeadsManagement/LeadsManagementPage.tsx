@@ -3,7 +3,7 @@ import {
   BadgeCheck, Building2, CalendarDays, CheckCircle2,
   ChevronRight, Mail, Phone, RotateCcw, Eye,
   Search, ShieldCheck, Sparkles, Target, User, X,
-  Briefcase, DollarSign, Home, Clock, Tag,
+  Briefcase, DollarSign, Home, Clock, Tag, FileDown, FileSpreadsheet,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -389,7 +389,17 @@ export default function LeadsManagementPage() {
               Sales synced from Visitor Management and Website Builder.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap self-end md:self-auto">
+            <button type="button" onClick={() => handleExportReport("PDF")} disabled={Boolean(isExportingReport)} title="Export PDF" aria-label="Export leads as PDF"
+              className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-red-50 hover:border-red-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:cursor-not-allowed disabled:opacity-50">
+              <FileDown size={16} className="text-red-500" aria-hidden="true" />
+              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white px-1.5 py-0.5 rounded">PDF</span>
+            </button>
+            <button type="button" onClick={() => handleExportReport("Excel")} disabled={Boolean(isExportingReport)} title="Export Excel" aria-label="Export leads as Excel"
+              className="group relative p-2.5 rounded-xl bg-white border border-slate-200/60 hover:bg-emerald-50 hover:border-emerald-200 text-slate-500 transition-all active:scale-95 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 disabled:cursor-not-allowed disabled:opacity-50">
+              <FileSpreadsheet size={16} className="text-emerald-500" aria-hidden="true" />
+              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 translate-y-full text-[8px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-500 text-white px-1.5 py-0.5 rounded">EXCEL</span>
+            </button>
             {/* <button
               type="button"
               onClick={mainTab === "website-leads" ? loadWebsiteLeads : loadLeads}
@@ -578,7 +588,8 @@ export default function LeadsManagementPage() {
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-center gap-1.5">
                           <button type="button" onClick={() => setSelectedLeadId(lead.id)}
-                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"><Eye size={15} strokeWidth={2.5} /></button>
+                            title="View details" aria-label={`View details for ${lead.name}`}
+                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"><Eye size={15} strokeWidth={2.5} aria-hidden="true" /></button>
                           <button type="button" onClick={() => handleUpdateStage(lead.id, "Converted")}
                             className="p-1.5 bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-600 rounded-lg transition-all"><CheckCircle2 size={15} strokeWidth={2.5} /></button>
                         </div>
@@ -689,7 +700,8 @@ export default function LeadsManagementPage() {
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-center gap-1.5">
                           <button type="button" onClick={() => setSelectedWebsiteLeadId(lead._id)}
-                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all"><Eye size={15} strokeWidth={2.5} /></button>
+                            title="View details" aria-label={`View details for ${lead.fullName}`}
+                            className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40"><Eye size={15} strokeWidth={2.5} aria-hidden="true" /></button>
                           {/* <button type="button" onClick={() => handleUpdateWebsiteLeadStatus(lead._id, "Closed")}
                             className="p-1.5 bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-600 rounded-lg transition-all"><CheckCircle2 size={15} strokeWidth={2.5} /></button> */}
                         </div>
