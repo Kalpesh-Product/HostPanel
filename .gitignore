@@ -5,7 +5,7 @@
 .agents/
 SKILL.md
 skills-lock.json
-
+.claude/
 # OS
 .DS_Store
 Thumbs.db
