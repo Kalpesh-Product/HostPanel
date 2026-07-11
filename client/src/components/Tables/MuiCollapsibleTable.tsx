@@ -33,7 +33,7 @@ const CollapsibleTable = ({ columns, data, renderExpandedRow }) => {
               <TableCell
                 align="center"
                 key={col.field}
-                sx={{ fontWeight: "bold" }}
+                sx={{ fontFamily: "Poppins-SemiBold", fontWeight: 600 }}
               >
                 {col.headerName}
               </TableCell>
@@ -41,7 +41,7 @@ const CollapsibleTable = ({ columns, data, renderExpandedRow }) => {
             <TableCell
               align="center"
               colSpan={1}
-              sx={{ fontWeight: "bold", padding: "8px" }}
+              sx={{ fontFamily: "Poppins-SemiBold", fontWeight: 600, padding: "8px" }}
             >
               Actions
             </TableCell>

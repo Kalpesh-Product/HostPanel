@@ -60,7 +60,7 @@ const WidgetSection = ({
     <div className={`motion-preset-slide-up-sm py-0 ${height ? height : ""}`}>
       {title && (
         <div
-          className={`border-default border-[#7D7D7E] p-4 flex w-full justify-between items-center rounded-t-xl ${
+          className={`border-default border-borderGray p-4 flex w-full justify-between items-center rounded-t-xl ${
             normalCase ? "" : "uppercase"
           }`}
         >

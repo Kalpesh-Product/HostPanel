@@ -22,6 +22,7 @@ import { createTicket, getTickets, updateTicket } from '../../services/tickets';
 import { getOrganizationOverview } from '../../services/organization';
 import { getAssets } from '../../services/assets';
 import { axiosPrivate } from '../../utils/axios';
+import { statusPillClass } from '../../lib/status-pill';
 
 // import { getWorkspaceMembers } from '@/services/auth';
 // import { getAssets } from '@/services/assets';
@@ -1857,19 +1858,19 @@ export function TicketsPage() {
 
   const getPriorityBadge = (priority) => {
     switch (priority.toLowerCase()) {
-      case 'high': return <span className="w-max px-2.5 py-1 bg-red-50 text-red-600 rounded-md text-[10px] font-black uppercase tracking-wider border border-red-100">High</span>;
-      case 'medium': return <span className="w-max px-2.5 py-1 bg-amber-50 text-amber-600 rounded-md text-[10px] font-black uppercase tracking-wider border border-amber-100">Medium</span>;
-      case 'low': return <span className="w-max px-2.5 py-1 bg-blue-50 text-blue-600 rounded-md text-[10px] font-black uppercase tracking-wider border border-blue-100">Low</span>;
+      case 'high': return <span className={statusPillClass("High")}>High</span>;
+      case 'medium': return <span className={statusPillClass("Medium")}>Medium</span>;
+      case 'low': return <span className={statusPillClass("Low")}>Low</span>;
       default: return null;
     }
   };
 
   const getStatusBadge = (status) => {
     switch (status.toLowerCase()) {
-      case 'resolved': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-green-50 text-green-600 border border-green-200 rounded-lg text-[10px] font-black uppercase tracking-wider"><CheckCircle2 size={12} /> Resolved</span>;
-      case 'in progress': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg text-[10px] font-black uppercase tracking-wider"><Clock size={12} /> In Progress</span>;
-      case 'open': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded-lg text-[10px] font-black uppercase tracking-wider"><AlertCircle size={12} /> Open (Raised)</span>;
-      case 'closed': return <span className="flex items-center gap-1 w-max px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-[10px] font-black uppercase tracking-wider"><CheckSquare size={12} /> Closed</span>;
+      case 'resolved': return <span className={statusPillClass("Resolved")}>Resolved</span>;
+      case 'in progress': return <span className={statusPillClass("In Progress")}>In Progress</span>;
+      case 'open': return <span className={statusPillClass("Open (Raised)")}>Open (Raised)</span>;
+      case 'closed': return <span className={statusPillClass("Closed")}>Closed</span>;
       default: return null;
     }
   };
@@ -2000,7 +2001,7 @@ export function TicketsPage() {
                     <button
                       key={status}
                       onClick={() => setStatusFilter(status)}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${statusFilter === status
+                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${statusFilter === status
                         ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
                         : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
                         }`}
@@ -2015,14 +2016,14 @@ export function TicketsPage() {
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
                       type="text" placeholder="Search tickets..."
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                       value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
                   <div className="relative">
                     <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                     <select
-                      className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
+                      className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[100px]"
                       value={selectedDeptFilter} onChange={(e) => setSelectedDeptFilter(e.target.value)}
                     >
                       <option value="All">All Tickets</option>
@@ -2043,7 +2044,7 @@ export function TicketsPage() {
 
                 {/* Desktop Table */}
                 <table className="hidden lg:table w-full text-left">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Ticket Details</th>
                       <th className="px-5 py-4">Routing & Assignment</th>
@@ -2057,32 +2058,32 @@ export function TicketsPage() {
                     {displayedTickets.map((ticket) => (
                       <tr key={ticket.id} className="hover:bg-[#E0E7FF]/30 transition-all group">
                         <td className="px-5 sm:px-6 py-4 sm:py-5 align-top max-w-[250px] xl:max-w-[400px]">
-                          <span className="font-mono text-[10px] font-bold text-[#2563EB] bg-blue-50 px-2 py-0.5 rounded border border-blue-100 mb-1.5 inline-block">{ticket.id}</span>
-                          <div className="font-semibold text-[#0F172A] text-[13px] sm:text-[14px]" title={ticket.title}>{ticket.title}</div>
+                          <span className="text-[10px] font-pmedium text-slate-600 mb-1.5 inline-block">{ticket.id}</span>
+                          <div className="font-pmedium text-[#0F172A] text-[13px] sm:text-[14px]" title={ticket.title}>{ticket.title}</div>
                           <div className="text-[11px] sm:text-[12px] text-slate-500 mt-1 line-clamp-2">{ticket.description}</div>
                         </td>
                         <td className="px-5 sm:px-6 py-4 sm:py-5 align-top">
-                          <div className="text-[12px] sm:text-[13px] font-semibold text-[#0F172A] min-w-[200px]">
-                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">Raised By:</span>
+                          <div className="text-[12px] sm:text-[13px] font-pmedium text-[#0F172A] min-w-[200px]">
+                            <span className={statusPillClass("Raised By:")}>Raised By:</span>
                             {formatPersonLabel(ticket.submittedBy, ticket.submittedByDept)}
                             {getSubmittedByBadgeLabel(ticket.submittedByDept) ? (
-                              <span className={`mt-1 inline-flex w-max rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-widest ${getSubmittedByBadgeClass(ticket.submittedByDept)}`}>
+                              <span className={statusPillClass(getSubmittedByBadgeLabel(ticket.submittedByDept))}>
                                 {getSubmittedByBadgeLabel(ticket.submittedByDept)}
                               </span>
                             ) : null}
                             {getCompanyBadgeLabel(ticket) ? (
-                              <span className="mt-1 inline-flex w-max rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-blue-700">
+                              <span className={statusPillClass("Tenant •")}>
                                 Tenant • {getCompanyBadgeLabel(ticket)}
                               </span>
                             ) : null}
                           </div>
-                          <div className="text-[12px] sm:text-[13px] font-semibold text-[#2563EB] min-w-[200px] mt-2.5">
-                            <span className="text-[9px] text-blue-400 font-bold uppercase tracking-wider block mb-0.5">Sent To:</span>
+                          <div className="text-[12px] sm:text-[13px] font-pmedium text-[#2563EB] min-w-[200px] mt-2.5">
+                            <span className={statusPillClass("Sent To:")}>Sent To:</span>
                             <Building2 size={12} className="inline mr-1 -mt-0.5" />
                             {ticket.department} {ticket.assignedTo !== ticket.department + ' Queue' ? `→ ${ticket.assignedTo}` : ''}
                           </div>
                           {ticket.acceptedBy && (
-                            <div className="text-[10px] font-bold text-indigo-600 mt-2 flex items-center gap-1 bg-indigo-50 w-max px-2 py-0.5 rounded border border-indigo-100">
+                            <div className="text-[10px] font-pmedium text-slate-500 mt-2 flex items-center gap-1">
                               <User size={10} /> Accepted By: {ticket.acceptedBy}
                             </div>
                           )}
@@ -2091,12 +2092,12 @@ export function TicketsPage() {
                         <td className="px-5 sm:px-6 py-4 sm:py-5 align-top">
                           {getStatusBadge(ticket.status)}
                           {ticket.status === 'Resolved' && ticket.resolutionNote && (
-                            <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest mt-1.5 flex items-center gap-1">
+                            <p className="text-[9px] font-pmedium text-slate-500 uppercase tracking-widest mt-1.5 flex items-center gap-1">
                               <FileText size={10} strokeWidth={2.5} /> Note Attached
                             </p>
                           )}
                         </td>
-                        <td className="px-5 sm:px-6 py-4 sm:py-5 align-top font-semibold text-[12px] text-slate-500">{ticket.updated}</td>
+                        <td className="px-5 sm:px-6 py-4 sm:py-5 align-top font-pmedium text-[12px] text-slate-500">{ticket.updated}</td>
                         <td className="px-5 sm:px-6 py-4 sm:py-5 align-top text-center">
                           <button
                             onClick={() => setViewingTicket(ticket)}
@@ -2132,21 +2133,21 @@ export function TicketsPage() {
 
                         <div className="grid grid-cols-2 gap-3 bg-slate-55 p-3 rounded-xl border border-slate-100 mt-1">
                           <div>
-                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mb-0.5">Raised By</span>
+                            <span className={statusPillClass("Raised By")}>Raised By</span>
                             <span className="text-[11px] font-semibold text-[#0F172A] truncate block" title={ticket.submittedBy}>{formatPersonLabel(ticket.submittedBy, ticket.submittedByDept)}</span>
                             {getSubmittedByBadgeLabel(ticket.submittedByDept) ? (
-                              <span className={`mt-1 inline-flex w-max rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-widest ${getSubmittedByBadgeClass(ticket.submittedByDept)}`}>
+                              <span className={statusPillClass(getSubmittedByBadgeLabel(ticket.submittedByDept))}>
                                 {getSubmittedByBadgeLabel(ticket.submittedByDept)}
                               </span>
                             ) : null}
                             {getCompanyBadgeLabel(ticket) ? (
-                              <span className="mt-1 inline-flex w-max rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-blue-700">
+                              <span className={statusPillClass("Tenant •")}>
                                 Tenant • {getCompanyBadgeLabel(ticket)}
                               </span>
                             ) : null}
                           </div>
                           <div>
-                            <span className="text-[9px] text-blue-400 font-bold uppercase tracking-wider block mb-0.5">Routed To</span>
+                            <span className={statusPillClass("Routed To")}>Routed To</span>
                             <span className="text-[11px] font-semibold text-[#2563EB] truncate block" title={ticket.department}>{ticket.department} {ticket.assignedTo !== ticket.department + ' Queue' ? `→ ${ticket.assignedTo.split(' ')[0]}` : ''}</span>
                           </div>
                         </div>
@@ -2161,7 +2162,7 @@ export function TicketsPage() {
                           <div className="flex flex-col">
                             <span className="font-semibold text-slate-700 text-[11px] sm:text-[12px] flex items-center gap-1.5"><Clock size={12} /> {ticket.updated}</span>
                             {ticket.status === 'Resolved' && ticket.resolutionNote && (
-                              <span className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider flex items-center gap-1 mt-0.5"><FileText size={10} strokeWidth={2.5} /> Note Attached</span>
+                              <span className={statusPillClass("Note Attached")}>Note Attached</span>
                             )}
                           </div>
                           <button
@@ -2213,98 +2214,109 @@ export function TicketsPage() {
                 <button onClick={() => setIsCreateModalOpen(false)} className="w-10 h-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:text-red-500 transition-all shadow-sm"><X size={18} strokeWidth={2.5} /></button>
               </div>
 
-              <form onSubmit={handleCreateTicket} className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-1 space-y-6 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-5 bg-blue-50/50 p-4 sm:p-5 rounded-2xl sm:rounded-[20px] border border-blue-100">
-                  {requiresAssetSnapshotDepartment(ticketForm.department) && (
-                    <div className="space-y-1.5 sm:col-span-2">
-                      <label className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Related Asset *</label>
-                      <select
+              <form onSubmit={handleCreateTicket} className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 [&::-webkit-scrollbar]:hidden bg-slate-50/30">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                  <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                    <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><Building2 size={16} /></span>
+                    <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Routing & Assignment</span>
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {requiresAssetSnapshotDepartment(ticketForm.department) && (
+                      <div className="flex flex-col gap-1 sm:col-span-2">
+                        <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Related Asset <span className="text-red-400">*</span></label>
+                        <select
+                          required
+                          className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer"
+                          value={ticketForm.assetId}
+                          onChange={(e) => {
+                            const nextAssetId = e.target.value;
+                            setTicketForm({
+                              ...ticketForm,
+                              assetId: nextAssetId,
+                            });
+                          }}
+                        >
+                          <option value="">Select Asset</option>
+                          {assetOptions.map((asset) => (
+                            <option key={asset.recordId || asset.id || asset.assetCode} value={asset.recordId || asset.id || asset.assetCode}>
+                              {asset.assetName || asset.name} ({asset.assetCode || asset.id}){asset.department ? ` - ${asset.department}` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        {selectedTicketAsset ? (
+                          <p className="text-[10px] font-medium text-slate-400">
+                            {selectedTicketAsset.assetName || selectedTicketAsset.name} will be tagged on this ticket and the repair log.
+                          </p>
+                        ) : (
+                          <p className="text-[10px] font-medium text-slate-400">
+                            Select the assigned asset only for IT or Maintenance issue reports.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Due Date <span className="text-red-400">*</span></label>
+                      <input
                         required
-                        className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer shadow-sm transition-all"
-                        value={ticketForm.assetId}
-                        onChange={(e) => {
-                          const nextAssetId = e.target.value;
-                          setTicketForm({
-                            ...ticketForm,
-                            assetId: nextAssetId,
-                          });
-                        }}
-                      >
-                        <option value="">Select Asset</option>
-                        {assetOptions.map((asset) => (
-                          <option key={asset.recordId || asset.id || asset.assetCode} value={asset.recordId || asset.id || asset.assetCode}>
-                            {asset.assetName || asset.name} ({asset.assetCode || asset.id}){asset.department ? ` - ${asset.department}` : ''}
-                          </option>
-                        ))}
-                      </select>
-                      {selectedTicketAsset ? (
-                        <p className="text-[11px] text-blue-700 font-semibold">
-                          {selectedTicketAsset.assetName || selectedTicketAsset.name} will be tagged on this ticket and the repair log.
-                        </p>
-                      ) : (
-                        <p className="text-[11px] text-blue-700 font-semibold">
-                          Select the assigned asset only for IT or Maintenance issue reports.
-                        </p>
-                      )}
+                        type="date"
+                        className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                        value={ticketForm.dueDate}
+                        onChange={(e) => setTicketForm({ ...ticketForm, dueDate: e.target.value })}
+                      />
                     </div>
-                  )}
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Due Date *</label>
-                    <input
-                      required
-                      type="date"
-                      className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none shadow-sm transition-all"
-                      value={ticketForm.dueDate}
-                      onChange={(e) => setTicketForm({ ...ticketForm, dueDate: e.target.value })}
-                    />
-                  </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Target Department <span className="text-red-400">*</span></label>
+                      <select required className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={ticketForm.department} onChange={e => {
+                        const nextDepartment = e.target.value;
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Target Department *</label>
-                    <select required className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer shadow-sm transition-all" value={ticketForm.department} onChange={e => {
-                      const nextDepartment = e.target.value;
-
-                      setTicketForm({
-                        ...ticketForm,
-                        department: nextDepartment,
-                        assetId: requiresAssetSnapshotDepartment(nextDepartment) ? ticketForm.assetId : '',
-                        assignee: '',
-                        assigneeUserId: '',
-                      });
-                    }}>
-                      <option value="">Select Dept</option>
-                      {ticketCreateDepartments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Direct Assignee (Optional)</label>
-                    <select className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer shadow-sm disabled:opacity-50 transition-all" disabled={!ticketForm.department} value={ticketForm.assigneeUserId || ''} onChange={e => {
-                      const selected = assigneeOptions.find(option => option.userId === e.target.value || option.id === e.target.value) || null;
-                      setTicketForm({
-                        ...ticketForm,
-                        assignee: selected?.name || '',
-                        assigneeUserId: selected?.userId || '',
-                      });
-                    }}>
-                      {!isSpecialRoutingDepartment(ticketForm.department) && <option value="">Dept General Queue</option>}
-                      {assigneeOptions.map(option => <option key={option.id} value={option.userId || option.id}>{option.label}</option>)}
-                    </select>
+                        setTicketForm({
+                          ...ticketForm,
+                          department: nextDepartment,
+                          assetId: requiresAssetSnapshotDepartment(nextDepartment) ? ticketForm.assetId : '',
+                          assignee: '',
+                          assigneeUserId: '',
+                        });
+                      }}>
+                        <option value="">Select Dept</option>
+                        {ticketCreateDepartments.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1 sm:col-span-2">
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Direct Assignee (Optional)</label>
+                      <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:opacity-50" disabled={!ticketForm.department} value={ticketForm.assigneeUserId || ''} onChange={e => {
+                        const selected = assigneeOptions.find(option => option.userId === e.target.value || option.id === e.target.value) || null;
+                        setTicketForm({
+                          ...ticketForm,
+                          assignee: selected?.name || '',
+                          assigneeUserId: selected?.userId || '',
+                        });
+                      }}>
+                        {!isSpecialRoutingDepartment(ticketForm.department) && <option value="">Dept General Queue</option>}
+                        {assigneeOptions.map(option => <option key={option.id} value={option.userId || option.id}>{option.label}</option>)}
+                      </select>
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Priority *</label>
-                  <select className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer shadow-sm transition-all" value={ticketForm.priority} onChange={e => setTicketForm({ ...ticketForm, priority: e.target.value })}>
+                <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                  <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><AlertCircle size={16} /></span>
+                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Issue Details</span>
+                </h4>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Priority <span className="text-red-400">*</span></label>
+                  <select className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer" value={ticketForm.priority} onChange={e => setTicketForm({ ...ticketForm, priority: e.target.value })}>
                     <option value="Low">Low</option>
                     <option value="Medium">Medium</option>
                     <option value="High">High</option>
                   </select>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Issue Title *</label>
-                  <input required type="text" placeholder="e.g. Server configuration needs approval" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none shadow-sm transition-all placeholder:text-slate-400" value={ticketForm.title} onChange={e => setTicketForm({ ...ticketForm, title: e.target.value })} />
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Issue Title <span className="text-red-400">*</span></label>
+                  <input required type="text" placeholder="e.g. Server configuration needs approval" className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400" value={ticketForm.title} onChange={e => setTicketForm({ ...ticketForm, title: e.target.value })} />
                   {ticketForm.department ? (
                     <div className="rounded-2xl border border-blue-100 bg-white shadow-sm overflow-hidden">
                       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 bg-blue-50/40">
@@ -2317,9 +2329,9 @@ export function TicketsPage() {
                           </p>
                         </div>
                         {issueSuggestionsLoading ? (
-                          <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Searching...</span>
+                          <span className={statusPillClass("Searching...")}>Searching...</span>
                         ) : (
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          <span className={statusPillClass(issueSuggestions.length)}>
                             {issueSuggestions.length} saved
                           </span>
                         )}
@@ -2340,7 +2352,7 @@ export function TicketsPage() {
                                     {issue.description || 'Use this as a starting point for the issue details.'}
                                   </p>
                                 </div>
-                                <span className="shrink-0 text-[9px] font-black uppercase tracking-widest text-blue-700 bg-blue-50 border border-blue-100 px-2 py-1 rounded-full">
+                                <span className={statusPillClass(issue.department)}>
                                   {issue.department}
                                 </span>
                               </div>
@@ -2356,9 +2368,10 @@ export function TicketsPage() {
                   ) : null}
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Detailed Description</label>
-                  <textarea required rows={4} placeholder="Provide issue details..." className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-600 focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none resize-none shadow-sm transition-all placeholder:text-slate-400" value={ticketForm.description} onChange={e => setTicketForm({ ...ticketForm, description: e.target.value })} />
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Detailed Description</label>
+                  <textarea required rows={4} placeholder="Provide issue details..." className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400" value={ticketForm.description} onChange={e => setTicketForm({ ...ticketForm, description: e.target.value })} />
+                </div>
                 </div>
 
                 <div className="space-y-1.5">
@@ -2432,15 +2445,15 @@ export function TicketsPage() {
                       <div className="min-w-0 flex-1">
                         <span className="font-bold text-[#0F172A] text-[13px] block wrap-break-word leading-snug">{viewingTicket.submittedBy}</span>
                         {!viewingTicket.submittedBy?.includes('(Owner)') ? (
-                          <span className="mt-0.5 block text-[9px] font-black text-slate-500 uppercase tracking-wide wrap-break-word">{viewingTicket.submittedByDept}</span>
+                          <span className={statusPillClass(viewingTicket.submittedByDept)}>{viewingTicket.submittedByDept}</span>
                         ) : null}
                         {getCompanyBadgeLabel(viewingTicket) ? (
-                          <span className="mt-1 inline-flex max-w-full rounded-full border border-blue-100 bg-blue-50 px-2 py-0.5 text-[8px] font-black uppercase tracking-widest text-blue-700 wrap-break-word">
+                          <span className={statusPillClass("Tenant •")}>
                             Tenant • {getCompanyBadgeLabel(viewingTicket)}
                           </span>
                         ) : null}
                         {getSubmittedByBadgeLabel(viewingTicket.submittedByDept) ? (
-                          <span className={`mt-1 inline-flex max-w-full rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-widest wrap-break-word ${getSubmittedByBadgeClass(viewingTicket.submittedByDept)}`}>
+                          <span className={statusPillClass(getSubmittedByBadgeLabel(viewingTicket.submittedByDept))}>
                             {getSubmittedByBadgeLabel(viewingTicket.submittedByDept)}
                           </span>
                         ) : null}
@@ -2453,7 +2466,7 @@ export function TicketsPage() {
                       <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-black">{getInitials(viewingTicket.assignedTo)}</div>
                       <div className="min-w-0 flex-1">
                         <span className="font-bold text-[#0F172A] text-[13px] block wrap-break-word leading-snug">{viewingTicket.assignedTo}</span>
-                        <span className="mt-0.5 block text-[9px] font-black text-[#2563EB] uppercase tracking-wide wrap-break-word">{viewingTicket.department}</span>
+                        <span className={statusPillClass(viewingTicket.department)}>{viewingTicket.department}</span>
                       </div>
                     </div>
                   </div>
@@ -2514,9 +2527,9 @@ export function TicketsPage() {
                     </div>
                     {isEmployeeTicketProfile ? null : (
                       <div className="space-y-1.5">
-                        <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Accept as</label>
+                        <label className="text-[10px] sm:text-[11px] font-pmedium text-slate-500 uppercase tracking-wider">Accept as</label>
                         <select
-                          className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all"
+                          className="w-full px-4 py-3 bg-white border border-slate-200 shadow-sm rounded-xl font-pmedium text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none cursor-pointer transition-all"
                           value={ticketQueueAssigneeUserId || ''}
                           onChange={(e) => setTicketQueueAssigneeUserId(e.target.value)}
                         >
@@ -2579,7 +2592,7 @@ export function TicketsPage() {
                     <textarea
                       required rows={3}
                       placeholder="Explain how this issue was resolved... (This will be sent to the raiser)"
-                      className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl font-medium text-slate-700 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none resize-none mb-3 shadow-sm placeholder:text-slate-400 text-[13px]"
+                      className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl font-pmedium text-slate-700 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none resize-none mb-3 shadow-sm placeholder:text-slate-400 text-[13px]"
                       value={resolutionMessage} onChange={e => setResolutionMessage(e.target.value)}
                     />
                     <div className="flex flex-col-reverse sm:flex-row gap-3">

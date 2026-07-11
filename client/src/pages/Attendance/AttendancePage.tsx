@@ -29,6 +29,7 @@ import {
 import { extractDepartmentLabel, normalizeDepartmentKey, normalizeRoleValue } from '@/utils/user-helpers';
 import { formatTime12h } from '@/utils/time';
 import { AttendanceSkeleton } from '@/components/ui/Skeleton';
+import { statusPillClass } from '../../lib/status-pill';
 
 /* ── Types ── */
 interface AttendanceRecord {
@@ -181,7 +182,7 @@ const getStatusBadge = (status?: string) => {
     slate: 'bg-slate-100 text-slate-600 border-slate-200',
   };
   return (
-    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${colorMap[color] || colorMap.slate}`}>
+    <span className={statusPillClass(label)}>
       {label}
     </span>
   );
@@ -946,7 +947,7 @@ export function AttendancePage() {
                     <select
                       value={selectedMonth}
                       onChange={(e) => setSelectedMonth(e.target.value)}
-                      className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[140px]"
+                      className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[140px]"
                     >
                       {monthOptions().map((opt) => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -972,7 +973,7 @@ export function AttendancePage() {
                       <select
                         value={selectedMonth}
                         onChange={(e) => setSelectedMonth(e.target.value)}
-                        className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[140px]"
+                        className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[140px]"
                       >
                         {monthOptions().map((opt) => (
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -985,7 +986,7 @@ export function AttendancePage() {
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                     <input
                       type="text" placeholder="Search employee..."
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                       value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
@@ -993,7 +994,7 @@ export function AttendancePage() {
                     <div className="relative">
                       <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2563EB]" size={13} />
                       <select
-                        className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
+                        className="pl-9 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
                         value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}
                       >
                         <option value="All">All Depts</option>
@@ -1011,7 +1012,7 @@ export function AttendancePage() {
                       key={status}
                       type="button"
                       onClick={() => setSubTab(status)}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${subTab === status ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'}`}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${subTab === status ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200' : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'}`}
                     >
                       {status.charAt(0).toUpperCase() + status.slice(1)}
                     </button>
@@ -1026,7 +1027,7 @@ export function AttendancePage() {
               {/* TAB: My Attendance */}
               {activeTab === 'my-attendance' && (
                 <table className="w-full text-left min-w-[700px]">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Date</th>
                       <th className="px-5 py-4">Check In</th>
@@ -1039,18 +1040,18 @@ export function AttendancePage() {
                   <tbody className="divide-y divide-slate-100/60">
                     {visibleMyRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="text-center py-16 text-slate-400 font-semibold">
+                        <td colSpan={6} className="text-center py-16 text-slate-400 font-pmedium">
                           No attendance records found for this month.
                         </td>
                       </tr>
                     ) : (
                       visibleMyRecords.map((record, idx) => (
                         <tr key={record.recordId || record.id || idx} className="hover:bg-slate-50/50 transition-colors group">
-                          <td className="px-5 py-4 font-bold text-slate-900">{record.date || '--'}</td>
-                          <td className="px-5 py-4 font-semibold text-slate-700">{getTimeDisplay(record.checkIn)}</td>
-                          <td className="px-5 py-4 font-semibold text-slate-700">{getTimeDisplay(record.checkOut)}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-900">{record.date || '--'}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-700">{getTimeDisplay(record.checkIn)}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-700">{getTimeDisplay(record.checkOut)}</td>
                           <td className="px-5 py-4">{getStatusBadge(record.status)}</td>
-                          <td className="px-5 py-4 font-semibold text-slate-700">{formatDuration(record.totalHours || record.workingHours ? Number(record.totalHours || record.workingHours) : undefined)}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-700">{formatDuration(record.totalHours || record.workingHours ? Number(record.totalHours || record.workingHours) : undefined)}</td>
                           <td className="px-5 py-4 text-center">
                             <div className="flex items-center justify-center gap-1">
                               <button
@@ -1079,7 +1080,7 @@ export function AttendancePage() {
               {/* TAB: Team Attendance */}
               {activeTab === 'team-attendance' && (
                 <table className="w-full text-left min-w-[800px]">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Employee</th>
                       <th className="px-5 py-4">Department</th>
@@ -1093,7 +1094,7 @@ export function AttendancePage() {
                   <tbody className="divide-y divide-slate-100/60">
                     {filteredTeamRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="text-center py-16 text-slate-400 font-semibold">
+                        <td colSpan={7} className="text-center py-16 text-slate-400 font-pmedium">
                           No team records found.
                         </td>
                       </tr>
@@ -1101,15 +1102,15 @@ export function AttendancePage() {
                       filteredTeamRecords.map((record, idx) => (
                         <tr key={record.userId || idx} className="hover:bg-slate-50/50 transition-colors group">
                           <td className="px-5 py-4">
-                            <div className="font-bold text-slate-900 flex items-center gap-2">
+                            <div className="font-pmedium text-slate-900 flex items-center gap-2">
                               <User size={14} className="text-slate-400" />
                               {record.employeeName || 'Unknown'}
                             </div>
                           </td>
-                          <td className="px-5 py-4 font-semibold text-slate-600">{record.department || '--'}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-600">{record.department || '--'}</td>
                           <td className="px-5 py-4 text-slate-700">{record.date || '--'}</td>
-                          <td className="px-5 py-4 font-semibold text-slate-700">{getTimeDisplay(record.checkIn)}</td>
-                          <td className="px-5 py-4 font-semibold text-slate-700">{getTimeDisplay(record.checkOut)}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-700">{getTimeDisplay(record.checkIn)}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-700">{getTimeDisplay(record.checkOut)}</td>
                           <td className="px-5 py-4">{getStatusBadge(record.status)}</td>
                           <td className="px-5 py-4 text-center">
                             <button
@@ -1130,7 +1131,7 @@ export function AttendancePage() {
               {/* TAB: Corrections */}
               {activeTab === 'corrections' && (
                 <table className="w-full text-left min-w-[800px]">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Employee</th>
                       <th className="px-5 py-4">Date</th>
@@ -1144,16 +1145,16 @@ export function AttendancePage() {
                   <tbody className="divide-y divide-slate-100/60">
                     {allRecords.filter((r) => r.correction).length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="text-center py-16 text-slate-400 font-semibold">
+                        <td colSpan={7} className="text-center py-16 text-slate-400 font-pmedium">
                           No correction requests found.
                         </td>
                       </tr>
                     ) : (
                       allRecords.filter((r) => r.correction).map((record, idx) => (
                         <tr key={record.recordId || record.id || idx} className="hover:bg-slate-50/50 transition-colors group">
-                          <td className="px-5 py-4 font-bold text-slate-900">{record.employeeName || profile.name}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-900">{record.employeeName || profile.name}</td>
                           <td className="px-5 py-4 text-slate-700">{record.date || '--'}</td>
-                          <td className="px-5 py-4 font-semibold text-slate-700 capitalize">{record.correction?.type?.replace(/_/g, ' ') || '--'}</td>
+                          <td className="px-5 py-4 font-pmedium text-slate-700 capitalize">{record.correction?.type?.replace(/_/g, ' ') || '--'}</td>
                           <td className="px-5 py-4">
                             <span className="text-slate-500 text-[11px]">
                               {record.correction?.originalCheckIn ? `In: ${formatTime12b(record.correction.originalCheckIn)}` : ''}
@@ -1161,7 +1162,7 @@ export function AttendancePage() {
                             </span>
                           </td>
                           <td className="px-5 py-4">
-                            <span className="text-[#2563EB] font-bold text-[11px]">
+                            <span className="text-[#2563EB] font-pmedium text-[11px]">
                               {record.correction?.requestedCheckIn ? `In: ${formatTime12b(record.correction.requestedCheckIn)}` : ''}
                               {record.correction?.requestedCheckOut ? ` Out: ${formatTime12b(record.correction.requestedCheckOut)}` : ''}
                             </span>
@@ -1324,33 +1325,33 @@ export function AttendancePage() {
                   </div>
                   {(correctionForm.type === 'check_in' || correctionForm.type === 'both') && (
                     <div>
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Requested Check In Time</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest block mb-1">Requested Check In Time</label>
                       <input
                         type="time"
                         value={correctionForm.requestedCheckIn}
                         onChange={(e) => setCorrectionForm((prev) => ({ ...prev, requestedCheckIn: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none"
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none"
                       />
                     </div>
                   )}
                   {(correctionForm.type === 'check_out' || correctionForm.type === 'both') && (
                     <div>
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Requested Check Out Time</label>
+                      <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest block mb-1">Requested Check Out Time</label>
                       <input
                         type="time"
                         value={correctionForm.requestedCheckOut}
                         onChange={(e) => setCorrectionForm((prev) => ({ ...prev, requestedCheckOut: e.target.value }))}
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none"
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none"
                       />
                     </div>
                   )}
                   <div>
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Reason</label>
+                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest block mb-1">Reason</label>
                     <textarea
                       value={correctionForm.reason}
                       onChange={(e) => setCorrectionForm((prev) => ({ ...prev, reason: e.target.value }))}
                       placeholder="Explain why this correction is needed..."
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none resize-none min-h-[80px] placeholder:text-slate-400"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none resize-none min-h-[80px] placeholder:text-slate-400"
                       rows={3}
                     />
                   </div>
@@ -1406,7 +1407,7 @@ export function AttendancePage() {
                   <div className="text-center py-16 text-slate-400 font-semibold">No attendance history found.</div>
                 ) : (
                   <table className="w-full text-left">
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                       <tr>
                         <th className="px-4 py-3">Date</th>
                         <th className="px-4 py-3">Check In</th>
@@ -1418,11 +1419,11 @@ export function AttendancePage() {
                     <tbody className="divide-y divide-slate-100/60">
                       {employeeHistory.map((record, idx) => (
                         <tr key={record.recordId || idx} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-4 py-3 font-bold text-slate-900">{record.date || '--'}</td>
-                          <td className="px-4 py-3 font-semibold text-slate-700">{getTimeDisplay(record.checkIn)}</td>
-                          <td className="px-4 py-3 font-semibold text-slate-700">{getTimeDisplay(record.checkOut)}</td>
+                          <td className="px-4 py-3 font-pmedium text-slate-900">{record.date || '--'}</td>
+                          <td className="px-4 py-3 font-pmedium text-slate-700">{getTimeDisplay(record.checkIn)}</td>
+                          <td className="px-4 py-3 font-pmedium text-slate-700">{getTimeDisplay(record.checkOut)}</td>
                           <td className="px-4 py-3">{getStatusBadge(record.status)}</td>
-                          <td className="px-4 py-3 font-semibold text-slate-700">{formatDuration(record.totalHours ? Number(record.totalHours) : undefined)}</td>
+                          <td className="px-4 py-3 font-pmedium text-slate-700">{formatDuration(record.totalHours ? Number(record.totalHours) : undefined)}</td>
                         </tr>
                       ))}
                     </tbody>

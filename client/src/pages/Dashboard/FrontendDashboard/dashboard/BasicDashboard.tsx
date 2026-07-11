@@ -119,8 +119,8 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
   const orgStats = useMemo(() => {
     const ov = orgOverview as any;
     return {
-      members: ov?.metrics?.totalMembers ?? 0,
-      departments: Array.isArray(ov?.departments) ? ov.departments.length : 0,
+      activeMembers: ov?.metrics?.activeMembers ?? 0,
+      totalMembers: ov?.metrics?.totalMembers ?? 0,
     };
   }, [orgOverview]);
 
@@ -200,20 +200,34 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
       <WidgetSection layout={4} title="Overview" border normalCase>
         <StatCard icon={Eye} label="Visitors Today" value={visitorStats.todayCount} sub={`${visitorStats.checkedIn} currently in`} color="#80bf01" route="/visitors/visitor-management" />
         <StatCard icon={UserPlus} label="Website Leads" value={leadStats.total} sub={`${leadStats.newLeads} new`} color="#1E3D73" route="/company-settings/website-builder/leads" />
-        <StatCard icon={Users} label="Team Members" value={orgStats.members} sub={`${orgStats.departments} departments`} color="#0891b2" route="/company-settings/organization-management" />
+        <StatCard icon={Users} label="Active Members" value={orgStats.activeMembers} sub={`${orgStats.totalMembers} total members`} color="#0891b2" route="/company-settings/organization-management" />
         <StatCard icon={Eye} label="All-Time Visitors" value={visitorStats.totalCount} sub="Total logged visitors" color="#7c3aed" route="/visitors/visitor-management" />
       </WidgetSection>
 
-      {/* Donuts row */}
+      {/* Quick links */}
+      <WidgetSection layout={3} title="Quick Links" border normalCase>
+        {quickLinks.map((ql, i) => <QuickLink key={i} {...ql} />)}
+      </WidgetSection>
+
+      {/* Recent leads + Lead status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <DonutWidget
-          title="Visitor Types"
-          series={visitorTypeDonut.series}
-          labels={visitorTypeDonut.labels}
-          colors={visitorTypeDonut.colors}
-          centerLabel="Visitors"
-          emptyText="No visitor data yet"
-        />
+        <SectionCard title="Recent Leads" linkLabel="View all" linkRoute="/company-settings/website-builder/leads">
+          {recentLeads.length > 0 ? (
+            recentLeads.map((l: any, i: number) => (
+              <RecentItem
+                key={l._id || i}
+                title={l.name || l.fullName || "Lead"}
+                sub={l.email || l.phone || "—"}
+                badge={(l.status || "Pending") === "Pending" ? "New" : l.status}
+                badgeColor={statusBadgeColor(l.status === "Contacted" || l.status === "Closed" ? "active" : "pending")}
+                time={humanRelTime(l.createdAt)}
+              />
+            ))
+          ) : (
+            <p className="text-content text-gray-400 text-center py-6">No leads yet — publish your website to start receiving leads.</p>
+          )}
+        </SectionCard>
+
         <DonutWidget
           title="Lead Status"
           series={leadDonutSeries}
@@ -224,22 +238,7 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
         />
       </div>
 
-      {/* Monthly visitor bar chart */}
-      <div className="border-default border-borderGray rounded-xl overflow-hidden">
-        <div className="p-4 border-b-2 border-borderGray uppercase">
-          <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Monthly Visitor Trend (FY)</span>
-        </div>
-        <div className="p-2">
-          <BarGraph
-            chartId="basic-monthly-visitors"
-            data={visitorsByMonth}
-            options={visitorBarOptions}
-            height={240}
-          />
-        </div>
-      </div>
-
-      {/* Recent visitors + recent leads */}
+      {/* Recent visitors + Visitor types */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Recent Visitors" linkLabel="View all" linkRoute="/visitors/visitor-management">
           {recentVisitors.length > 0 ? (
@@ -261,28 +260,30 @@ const BasicDashboard = ({ onUpgradeClick }: BasicDashboardProps) => {
           )}
         </SectionCard>
 
-        <SectionCard title="Recent Leads" linkLabel="View all" linkRoute="/company-settings/website-builder/leads">
-          {recentLeads.length > 0 ? (
-            recentLeads.map((l: any, i: number) => (
-              <RecentItem
-                key={l._id || i}
-                title={l.name || l.fullName || "Lead"}
-                sub={l.email || l.phone || "—"}
-                badge={(l.status || "Pending") === "Pending" ? "New" : l.status}
-                badgeColor={statusBadgeColor(l.status === "Contacted" || l.status === "Closed" ? "active" : "pending")}
-                time={humanRelTime(l.createdAt)}
-              />
-            ))
-          ) : (
-            <p className="text-content text-gray-400 text-center py-6">No leads yet — publish your website to start receiving leads.</p>
-          )}
-        </SectionCard>
+        <DonutWidget
+          title="Visitor Types"
+          series={visitorTypeDonut.series}
+          labels={visitorTypeDonut.labels}
+          colors={visitorTypeDonut.colors}
+          centerLabel="Visitors"
+          emptyText="No visitor data yet"
+        />
       </div>
 
-      {/* Quick links */}
-      <WidgetSection layout={3} title="Quick Links" border normalCase>
-        {quickLinks.map((ql, i) => <QuickLink key={i} {...ql} />)}
-      </WidgetSection>
+      {/* Monthly visitor bar chart */}
+      <div className="border-default border-borderGray rounded-xl overflow-hidden">
+        <div className="p-4 border-b-2 border-borderGray uppercase">
+          <span className="text-mobileTitle lg:text-widgetTitle text-primary font-pmedium">Monthly Visitor Trend (FY)</span>
+        </div>
+        <div className="p-2">
+          <BarGraph
+            chartId="basic-monthly-visitors"
+            data={visitorsByMonth}
+            options={visitorBarOptions}
+            height={240}
+          />
+        </div>
+      </div>
 
     </div>
   );

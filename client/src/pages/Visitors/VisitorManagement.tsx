@@ -26,6 +26,7 @@ import {
   Download, Printer, Lock, Home
 } from 'lucide-react';
 import PageFrame from '../../components/Pages/PageFrame';
+import { statusPillClass } from '../../lib/status-pill';
 
 function formatTimeLabel(value) {
   if (!value) return '';
@@ -3321,10 +3322,10 @@ export default function VisitorsManagementPage() {
             <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
               {activeTab === 'history' && (
                 <>
-                  <select className="px-3 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none cursor-pointer transition-all" value={historyMonth} onChange={(e) => setHistoryMonth(e.target.value)}>
+                  <select className="px-3 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none cursor-pointer transition-all" value={historyMonth} onChange={(e) => setHistoryMonth(e.target.value)}>
                     {historyMonthOptions.map((month) => <option key={month} value={month}>{month}</option>)}
                   </select>
-                  <select className="px-3 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none cursor-pointer transition-all" value={historyYear} onChange={(e) => setHistoryYear(e.target.value)}>
+                  <select className="px-3 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none cursor-pointer transition-all" value={historyYear} onChange={(e) => setHistoryYear(e.target.value)}>
                     {historyYearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
                   </select>
                 </>
@@ -3357,7 +3358,7 @@ export default function VisitorsManagementPage() {
               {(activeTab === 'daily' || activeTab === 'history' || activeTab === 'bookings' || activeTab === 'clients') && (
                 <div className="relative flex-1 min-w-[160px]">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                  <input type="text" placeholder="Search records..." className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" onChange={(e) => setSearchQuery(e.target.value)} />
+                  <input type="text" placeholder="Search records..." className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
               )}
               <button
@@ -3380,7 +3381,7 @@ export default function VisitorsManagementPage() {
           {activeTab === 'daily' && (
             <div className="overflow-x-auto flex-1">
               <table className="w-full text-left border-collapse">
-                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-5 py-4">Badge ID</th>
                     <th className="px-5 py-4">Visitor Info</th>
@@ -3407,7 +3408,7 @@ export default function VisitorsManagementPage() {
                     return (
                       <tr key={visitorId} className="hover:bg-slate-50/50 transition-colors group">
                         <td className="px-5 py-4 align-top">
-                          <div className="font-black text-blue-600 bg-blue-50 px-3 py-2 rounded inline-flex items-center gap-1 border border-blue-100 whitespace-nowrap">
+                          <div className="font-pmedium text-slate-600 inline-flex items-center gap-1 whitespace-nowrap">
                             <BadgeCheck size={14} /> {vis.badgeNo || 'N/A'}
                           </div>
                         </td>
@@ -3423,7 +3424,7 @@ export default function VisitorsManagementPage() {
                           </div>
                         </td>
                         <td className="px-5 py-4 align-top">
-                          <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 font-pmedium text-[10px] uppercase rounded mb-1">{vis.purpose}</span>
+                          <span className={statusPillClass(vis.purpose)}>{vis.purpose}</span>
                         </td>
                         <td className="px-5 py-4 align-top">
                           <div className="text-xs font-pmedium text-slate-600 flex items-center gap-1 whitespace-nowrap">
@@ -3432,14 +3433,14 @@ export default function VisitorsManagementPage() {
                         </td>
                         <td className="px-5 py-4 align-top">
                           <div className="flex items-center gap-2 font-pmedium text-[#0F172A] text-[13px] whitespace-nowrap">
-                            <span className="text-emerald-600">{vis.checkIn || formatTimeLabel(vis.checkInAt) || '--:--'}</span>
+                            <span className="text-slate-600">{vis.checkIn || formatTimeLabel(vis.checkInAt) || '--:--'}</span>
                             <span className="text-slate-300">-</span>
                             <span className={(vis.checkOut || '--:--') === '--:--' ? 'text-slate-400' : 'text-[#0F172A]'}>{vis.checkOut || formatTimeLabel(vis.checkOutAt) || '--:--'}</span>
                           </div>
                         </td>
                         <td className="px-5 py-4 align-top">
                           <div className="flex flex-col items-start gap-0.5">
-                            <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider border ${getStatusBadge(vis.status)}`}>
+                            <span className={statusPillClass(vis.status)}>
                               {vis.status}
                             </span>
                           </div>
@@ -3480,7 +3481,7 @@ export default function VisitorsManagementPage() {
                     );
                   })}
                   {trackedVisitors.length === 0 && (
-                    <tr><td colSpan={7} className="text-center py-20 text-slate-400 font-semibold">No live visitors.</td></tr>
+                    <tr><td colSpan={7} className="text-center py-20 text-slate-400 font-pmedium">No live visitors.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -3502,7 +3503,7 @@ export default function VisitorsManagementPage() {
                         <div className="flex flex-wrap items-center gap-1.5">
                           <h3 className="font-pmedium text-[#0F172A] text-[15px]">{bkg.resource}</h3>
                           <div className="flex items-center gap-1.5">
-                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-pmedium uppercase border ${getStatusBadge(bkg.status)}`}>{bkg.status}</span>
+                            <span className={statusPillClass(bkg.status)}>{bkg.status}</span>
                             {bkg.isExtended && (
                               <span className="px-1.5 py-0.5 rounded text-[8px] font-pmedium uppercase border bg-purple-50 text-purple-700 border-purple-200 flex items-center gap-1">
                                 <Clock size={9} /> Extended
@@ -3534,7 +3535,7 @@ export default function VisitorsManagementPage() {
 
                     <div className="w-full border-t border-slate-100 pt-3 mt-auto flex flex-wrap justify-end gap-1">
                       {Number(bkg.discountAmount || 0) > 0 && (
-                        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-2xl text-[7px] font-black uppercase tracking-widest whitespace-nowrap">
+                        <span className={statusPillClass("Discount")}>
                           Discount {formatCurrency(bkg.discountAmount)}{bkg.discountType === 'percent' ? ` (${Number(bkg.discountValue || 0)}%)` : ''}
                         </span>
                       )}
@@ -3591,7 +3592,7 @@ export default function VisitorsManagementPage() {
           {activeTab === 'clients' && (
             <div className="overflow-x-auto flex-1">
               <table className="w-full text-left border-collapse">
-                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-5 py-4">Client Info</th>
                     <th className="px-5 py-4">Contact</th>
@@ -3605,32 +3606,32 @@ export default function VisitorsManagementPage() {
                   {clientRows.map((client) => (
                     <tr key={client.id || client.recordId || client.clientCode} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-5 py-4 align-top">
-                        <div className="font-bold text-[#0F172A] text-[13px]">{client.name || client.company || 'Unnamed Client'}</div>
+                        <div className="font-pmedium text-[#0F172A] text-[13px]">{client.name || client.company || 'Unnamed Client'}</div>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          {client.company && <span className="text-[11px] font-semibold text-slate-500">{client.company}</span>}
-                          {!client.company && <span className="text-[11px] font-semibold text-slate-400">Individual</span>}
+                          {client.company && <span className="text-[11px] font-pmedium text-slate-500">{client.company}</span>}
+                          {!client.company && <span className="text-[11px] font-pmedium text-slate-400">Individual</span>}
                         </div>
                       </td>
                       <td className="px-5 py-4 align-top">
-                        <div className="text-xs font-semibold text-slate-600 flex items-center gap-1"><Phone size={12} /> {client.phone || '—'}</div>
-                        <div className="text-xs font-semibold text-slate-600 flex items-center gap-1 mt-0.5"><Mail size={12} /> {client.email || '—'}</div>
+                        <div className="text-xs font-pmedium text-slate-600 flex items-center gap-1"><Phone size={12} /> {client.phone || '—'}</div>
+                        <div className="text-xs font-pmedium text-slate-600 flex items-center gap-1 mt-0.5"><Mail size={12} /> {client.email || '—'}</div>
                       </td>
                       <td className="px-5 py-4 align-top">
                         {normalizeText(client.source) === 'visitor-conversion' ? (
-                          <span className="inline-flex px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border border-emerald-200 bg-emerald-50 text-emerald-700">
+                          <span className={statusPillClass("Converted")}>
                             Converted
                           </span>
                         ) : (
-                          <span className="inline-flex px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border border-slate-200 bg-slate-50 text-slate-600">
+                          <span className={statusPillClass("Walk-in")}>
                             Walk-in
                           </span>
                         )}
                       </td>
                       <td className="px-5 py-4 align-top text-center">
-                        <span className="font-black text-[#0F172A] text-[13px]">{client.bookingCount || 0}</span>
+                        <span className="font-pmedium text-[#0F172A] text-[13px]">{client.bookingCount || 0}</span>
                       </td>
                       <td className="px-5 py-4 align-top text-center">
-                        <span className="font-black text-[#0F172A] text-[13px]">{formatCurrency(client.totalBookedAmount || 0)}</span>
+                        <span className="font-pmedium text-[#0F172A] text-[13px]">{formatCurrency(client.totalBookedAmount || 0)}</span>
                       </td>
                       <td className="px-5 py-4 align-top text-center">
                         <button
@@ -3644,7 +3645,7 @@ export default function VisitorsManagementPage() {
                     </tr>
                   ))}
                   {clientRows.length === 0 && (
-                    <tr><td colSpan={6} className="text-center py-20 text-slate-400 font-semibold">No clients found.</td></tr>
+                    <tr><td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium">No clients found.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -3655,7 +3656,7 @@ export default function VisitorsManagementPage() {
           {activeTab === 'history' && (
             <div className="overflow-x-auto flex-1">
               <table className="w-full text-left border-collapse">
-                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-5 py-4">Badge ID</th>
                     <th className="px-5 py-4">Date</th>
@@ -3673,7 +3674,7 @@ export default function VisitorsManagementPage() {
                     return (
                     <tr key={vis.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-5 py-4 align-top">
-                        <div className="font-black text-blue-600 bg-blue-50 px-3 py-2 rounded inline-flex items-center gap-1 border border-blue-100 whitespace-nowrap">
+                        <div className="font-pmedium text-slate-600 inline-flex items-center gap-1 whitespace-nowrap">
                           <BadgeCheck size={14} /> {vis.badgeNo || 'N/A'}
                         </div>
                       </td>
@@ -3687,7 +3688,7 @@ export default function VisitorsManagementPage() {
                         </div>
                       </td>
                       <td className="px-5 py-4 align-top">
-                        <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 font-pmedium text-[10px] uppercase rounded mb-1">{vis.purpose}</span>
+                        <span className={statusPillClass(vis.purpose)}>{vis.purpose}</span>
                       </td>
                       <td className="px-5 py-4 align-top">
                         <div className="text-xs font-pmedium text-slate-600 flex items-center gap-1 whitespace-nowrap">
@@ -3702,12 +3703,12 @@ export default function VisitorsManagementPage() {
                         </div>
                       </td>
                       <td className="px-5 py-4 align-top text-center">
-                        <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-pmedium uppercase tracking-wider border ${getStatusBadge(vis.status)}`}>
+                        <span className={statusPillClass(vis.status)}>
                           {vis.status}
                         </span>
                         {vis.convertedToClient && (
                           <div className="mt-2">
-                            <span className="inline-flex rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[9px] font-pmedium uppercase tracking-widest text-emerald-700">
+                            <span className={statusPillClass("Converted to Client")}>
                               Converted to Client
                             </span>
                           </div>
@@ -3728,7 +3729,7 @@ export default function VisitorsManagementPage() {
                     </tr>
                   )})}
                   {displayedHistory.length === 0 && (
-                    <tr><td colSpan={8} className="text-center py-20 text-slate-400 font-semibold">No historical data found for {historyMonth} {historyYear}.</td></tr>
+                    <tr><td colSpan={8} className="text-center py-20 text-slate-400 font-pmedium">No historical data found for {historyMonth} {historyYear}.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -3792,7 +3793,7 @@ export default function VisitorsManagementPage() {
 
                         {form.standardVisitorMode === 'existing' && (
                           <div className="space-y-3 rounded-2xl border border-blue-100 bg-blue-50/40 p-3">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-500">Search Existing Visitor</label>
+                            <label className="text-[10px] font-pmedium uppercase tracking-widest text-gray-500">Search Existing Visitor</label>
                             <div className="flex items-center gap-2 rounded-xl px-1 py-1">
                               <Search size={14} className="text-gray-400" />
                               <input
@@ -3800,7 +3801,7 @@ export default function VisitorsManagementPage() {
                                 value={form.standardVisitorSearch}
                                 onChange={(e) => setForm((prev) => ({ ...prev, standardVisitorSearch: e.target.value }))}
                                 placeholder="Search by name, phone, email, company"
-                                className="w-full border-0 bg-white text-xs font-semibold text-gray-900 outline-none ring-0 shadow-none placeholder:text-gray-400 focus:border-0 focus:outline-none focus:ring-0"
+                                className="w-full border-0 bg-white text-xs font-pmedium text-gray-900 outline-none ring-0 shadow-none placeholder:text-gray-400 focus:border-0 focus:outline-none focus:ring-0"
                               />
                             </div>
 
@@ -3832,35 +3833,35 @@ export default function VisitorsManagementPage() {
 
                     <div className="space-y-3.5">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Full Name *</label>
-                        <input type="text" placeholder="Visitor Name" className="w-full px-2.5 py-2 bg-white border-2 border-gray-200 rounded-lg font-semibold text-xs text-gray-900 focus:border-[#2563EB] outline-none" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+                        <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">Full Name *</label>
+                        <input type="text" placeholder="Visitor Name" className="w-full px-2.5 py-2 bg-white border-2 border-gray-200 rounded-lg font-pmedium text-xs text-gray-900 focus:border-[#2563EB] outline-none" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Phone *</label>
-                          <input type="tel" placeholder="+91..." className="w-full px-2.5 py-2 bg-white border-2 border-gray-200 rounded-lg font-semibold text-xs text-gray-900 focus:border-[#2563EB] outline-none" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+                          <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">Phone *</label>
+                          <input type="tel" placeholder="+91..." className="w-full px-2.5 py-2 bg-white border-2 border-gray-200 rounded-lg font-pmedium text-xs text-gray-900 focus:border-[#2563EB] outline-none" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Email *</label>
-                          <input type="email" placeholder="@email.com" className="w-full px-2.5 py-2 bg-white border-2 border-gray-200 rounded-lg font-semibold text-xs text-gray-900 focus:border-[#2563EB] outline-none" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+                          <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">Email *</label>
+                          <input type="email" placeholder="@email.com" className="w-full px-2.5 py-2 bg-white border-2 border-gray-200 rounded-lg font-pmedium text-xs text-gray-900 focus:border-[#2563EB] outline-none" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-3 gap-3">
                         <div className="col-span-2 space-y-1">
-                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Company / Agency</label>
-                          <input type="text" placeholder="Optional" className="w-full px-2.5 py-2 bg-white border-2 border-gray-200 rounded-lg font-semibold text-xs text-gray-900 focus:border-[#2563EB] outline-none" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} />
+                          <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">Company / Agency</label>
+                          <input type="text" placeholder="Optional" className="w-full px-2.5 py-2 bg-white border-2 border-gray-200 rounded-lg font-pmedium text-xs text-gray-900 focus:border-[#2563EB] outline-none" value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} />
                         </div>
                         {visitorMode === 'walkin_booking' && (
                           <div className="col-span-1 space-y-1">
-                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Attendees</label>
+                            <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">Attendees</label>
                             <input
                               type="number"
                               min="0"
                               step="1"
                               inputMode="numeric"
-                              className="w-full px-2.5 py-2 bg-white border-2 border-gray-200 rounded-lg font-semibold text-xs text-gray-900 focus:border-[#2563EB] outline-none"
+                              className="w-full px-2.5 py-2 bg-white border-2 border-gray-200 rounded-lg font-pmedium text-xs text-gray-900 focus:border-[#2563EB] outline-none"
                               value={form.attendees}
                               onChange={(e) => {
                                 const nextValue = e.target.value === '' ? '' : Number(e.target.value);
@@ -3921,7 +3922,7 @@ export default function VisitorsManagementPage() {
                           </div>
                           {form.standardVisitorMode === 'existing' && (
                             <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/40 p-3">
-                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Search Existing Visitor</label>
+                              <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Search Existing Visitor</label>
                               <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 border border-slate-200/60 focus-within:ring-2 focus-within:ring-[#2563EB]/20 focus-within:border-[#2563EB]">
                                 <Search size={14} className="text-gray-400 shrink-0" />
                                 <input
@@ -3929,7 +3930,7 @@ export default function VisitorsManagementPage() {
                                   value={form.standardVisitorSearch}
                                   onChange={(e) => setForm((prev) => ({ ...prev, standardVisitorSearch: e.target.value }))}
                                   placeholder="Search by name, phone, email, company"
-                                  className="w-full bg-transparent text-[12px] font-semibold text-[#0F172A] outline-none placeholder:text-slate-400"
+                                  className="w-full bg-transparent text-[12px] font-pmedium text-[#0F172A] outline-none placeholder:text-slate-400"
                                 />
                               </div>
                               {hasStandardVisitorSearchQuery && standardVisitorSearchMatches.length > 0 ? (
@@ -3965,36 +3966,36 @@ export default function VisitorsManagementPage() {
                         </h4>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">First Name <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">First Name <span className="text-red-400">*</span></label>
                             <input
                               type="text"
                               placeholder="Visitor Name"
                               value={form.firstName}
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, firstName: true }))}
                               onChange={(e) => setForm((prev) => ({ ...prev, firstName: e.target.value, name: `${e.target.value} ${String(prev.lastName || '')}`.trim() }))}
-                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.firstName ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.firstName ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                             />
                             {visibleStandardVisitorErrors.firstName ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.firstName}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Last Name <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Last Name <span className="text-red-400">*</span></label>
                             <input
                               type="text"
                               placeholder="Visitor Surname"
                               value={form.lastName}
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, lastName: true }))}
                               onChange={(e) => setForm((prev) => ({ ...prev, lastName: e.target.value, name: `${String(prev.firstName || '')} ${e.target.value}`.trim() }))}
-                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.lastName ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.lastName ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                             />
                             {visibleStandardVisitorErrors.lastName ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.lastName}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gender <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Gender <span className="text-red-400">*</span></label>
                             <select
                               value={form.gender}
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, gender: true }))}
                               onChange={(e) => setForm((prev) => ({ ...prev, gender: e.target.value }))}
-                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.gender ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.gender ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                             >
                               <option value="">Select Gender</option>
                               <option value="male">Male</option>
@@ -4004,19 +4005,19 @@ export default function VisitorsManagementPage() {
                             {visibleStandardVisitorErrors.gender ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.gender}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Phone Number <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone Number <span className="text-red-400">*</span></label>
                             <input
                               type="tel"
                               placeholder="10 digit phone number"
                               value={form.phone}
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, phone: true }))}
                               onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value.replace(/[^\d]/g, '') }))}
-                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.phone ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.phone ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                             />
                             {visibleStandardVisitorErrors.phone ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.phone}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email Address <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email Address <span className="text-red-400">*</span></label>
                             <input
                               type="email"
                               inputMode="email"
@@ -4025,17 +4026,17 @@ export default function VisitorsManagementPage() {
                               value={form.email}
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, email: true }))}
                               onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
-                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.email ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.email ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                             />
                             {visibleStandardVisitorErrors.email ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.email}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Country <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Country <span className="text-red-400">*</span></label>
                             <select
                               value={form.country}
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, country: true }))}
                               onChange={(e) => setForm((prev) => ({ ...prev, country: e.target.value, state: '', city: '' }))}
-                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.country ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.country ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                             >
                               <option value="">Select Country</option>
                               {countryOptions.map((country) => (
@@ -4050,13 +4051,13 @@ export default function VisitorsManagementPage() {
 
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">State <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">State <span className="text-red-400">*</span></label>
                             <select
                               value={form.state}
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, state: true }))}
                               onChange={(e) => setForm((prev) => ({ ...prev, state: e.target.value, city: '' }))}
                               disabled={!form.country}
-                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 ${visibleStandardVisitorErrors.state ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 ${visibleStandardVisitorErrors.state ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                             >
                               <option value="">{form.country ? 'Select State' : 'Select country first'}</option>
                               {stateOptions.map((state) => (
@@ -4068,13 +4069,13 @@ export default function VisitorsManagementPage() {
                             {visibleStandardVisitorErrors.state ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.state}</span> : null}
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">City <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">City <span className="text-red-400">*</span></label>
                             <select
                               value={form.city}
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, city: true }))}
                               onChange={(e) => setForm((prev) => ({ ...prev, city: e.target.value }))}
                               disabled={!form.country || !form.state}
-                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 ${visibleStandardVisitorErrors.city ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 ${visibleStandardVisitorErrors.city ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                             >
                               <option value="">{form.country && form.state ? 'Select City' : 'Select country and state first'}</option>
                               {cityOptions.map((city) => (
@@ -4089,18 +4090,18 @@ export default function VisitorsManagementPage() {
 
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Visitor Type</label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Visitor Type</label>
                             <select
                               value={form.visitorCompanyType}
                               onChange={(e) => setForm((prev) => ({ ...prev, visitorCompanyType: e.target.value, visitorCompany: e.target.value === 'individual' ? '' : prev.visitorCompany }))}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                             >
                               <option value="individual">Individual</option>
                               <option value="company">Company</option>
                             </select>
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Visitor Company {form.visitorCompanyType === 'company' ? <span className="text-red-400">*</span> : ''}</label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Visitor Company {form.visitorCompanyType === 'company' ? <span className="text-red-400">*</span> : ''}</label>
                             <input
                               type="text"
                               placeholder="Visitor Company"
@@ -4108,7 +4109,7 @@ export default function VisitorsManagementPage() {
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, visitorCompany: true }))}
                               onChange={(e) => setForm((prev) => ({ ...prev, visitorCompany: e.target.value }))}
                               disabled={form.visitorCompanyType === 'individual'}
-                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 ${visibleStandardVisitorErrors.visitorCompany ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 ${visibleStandardVisitorErrors.visitorCompany ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                             />
                             {visibleStandardVisitorErrors.visitorCompany ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.visitorCompany}</span> : null}
                           </div>
@@ -4156,16 +4157,16 @@ export default function VisitorsManagementPage() {
                         <>
                           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div className="flex flex-col gap-1">
-                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Purpose <span className="text-red-400">*</span></label>
-                              <select className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.purpose ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} value={form.purpose} onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, purpose: true }))} onChange={e => setForm({ ...form, purpose: e.target.value })}>
+                              <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Purpose <span className="text-red-400">*</span></label>
+                              <select className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${visibleStandardVisitorErrors.purpose ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`} value={form.purpose} onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, purpose: true }))} onChange={e => setForm({ ...form, purpose: e.target.value })}>
                                 <option value="Meeting">Meeting</option><option value="Interview">Interview</option><option value="Delivery">Delivery</option><option value="Maintenance">Maintenance</option>
                               </select>
                               {visibleStandardVisitorErrors.purpose ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.purpose}</span> : null}
                             </div>
                             <div className="flex flex-col gap-1">
-                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Role / Department <span className="text-red-400">*</span></label>
+                              <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Role / Department <span className="text-red-400">*</span></label>
                               <select
-                                className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:cursor-not-allowed ${visibleStandardVisitorErrors.hostGroupType ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                                className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:cursor-not-allowed ${visibleStandardVisitorErrors.hostGroupType ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                 value={form.hostGroupType}
                                 onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, hostGroupType: true }))}
                                 onChange={(e) => {
@@ -4186,9 +4187,9 @@ export default function VisitorsManagementPage() {
                               {visibleStandardVisitorErrors.hostGroupType ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.hostGroupType}</span> : null}
                             </div>
                             <div className="flex flex-col gap-1">
-                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Department / Role Name <span className="text-red-400">*</span></label>
+                              <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Department / Role Name <span className="text-red-400">*</span></label>
                               <select
-                                className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:cursor-not-allowed ${visibleStandardVisitorErrors.hostGroupValue ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                                className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:cursor-not-allowed ${visibleStandardVisitorErrors.hostGroupValue ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                 value={form.hostGroupValue}
                                 onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, hostGroupValue: true }))}
                                 onChange={(e) => {
@@ -4215,9 +4216,9 @@ export default function VisitorsManagementPage() {
                               {visibleStandardVisitorErrors.hostGroupValue ? <span className="text-[10px] font-medium text-red-500">{visibleStandardVisitorErrors.hostGroupValue}</span> : null}
                             </div>
                             <div className="flex flex-col gap-1">
-                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Host Member <span className="text-red-400">*</span></label>
+                              <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Host Member <span className="text-red-400">*</span></label>
                               <select
-                                className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:cursor-not-allowed ${visibleStandardVisitorErrors.hostUserId ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                                className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] cursor-pointer disabled:cursor-not-allowed ${visibleStandardVisitorErrors.hostUserId ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                                 value={form.hostUserId}
                                 onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, hostUserId: true }))}
                                 onChange={(e) => {
@@ -4242,12 +4243,12 @@ export default function VisitorsManagementPage() {
                           </div>
 
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Reason <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Reason <span className="text-red-400">*</span></label>
                             <textarea
                               rows={3}
                               placeholder="Why is the visitor here?"
                               onBlur={() => setStandardVisitorTouched((prev) => ({ ...prev, reason: true }))}
-                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none ${visibleStandardVisitorErrors.reason ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
+                              className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none ${visibleStandardVisitorErrors.reason ? 'border-red-300 bg-red-50' : 'border-slate-200/60'}`}
                               value={form.reason}
                               onChange={e => setForm({ ...form, reason: e.target.value })}
                             />
@@ -4269,9 +4270,9 @@ export default function VisitorsManagementPage() {
                       ) : (
                         <div className="space-y-4">
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Purpose</label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Purpose</label>
                             <select
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                               value={form.purpose}
                               onChange={e => setForm({ ...form, purpose: e.target.value })}
                             >
@@ -4283,11 +4284,11 @@ export default function VisitorsManagementPage() {
                           </div>
 
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Visit Note</label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Visit Note</label>
                             <textarea
                               rows={4}
                               placeholder="Optional note, e.g. came to see the place or explore services"
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none"
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none"
                               value={form.reason}
                               onChange={e => setForm({ ...form, reason: e.target.value })}
                             />
@@ -4308,34 +4309,34 @@ export default function VisitorsManagementPage() {
                         </h4>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div className="flex flex-col gap-1 sm:col-span-2">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">POC / Visitor Name <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">POC / Visitor Name <span className="text-red-400">*</span></label>
                             <input type="text" placeholder="POC / Visitor Name"
                               value={form.pocName} onChange={(e) => setForm({ ...form, pocName: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Designation</label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Designation</label>
                             <input type="text" placeholder="e.g. Founder"
                               value={form.pocDesignation} onChange={(e) => setForm({ ...form, pocDesignation: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Company / Agency</label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Company / Agency</label>
                             <input type="text" placeholder="Company / Agency"
                               value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
                             <input type="tel" placeholder="Phone"
                               value={form.pocPhone} onChange={(e) => setForm({ ...form, pocPhone: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
                             <input type="email" placeholder="Email"
                               value={form.pocEmail} onChange={(e) => setForm({ ...form, pocEmail: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                           </div>
                         </div>
                       </div>
@@ -4347,11 +4348,11 @@ export default function VisitorsManagementPage() {
                         </h4>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Country</label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Country</label>
                             <select
                               value={form.country}
                               onChange={(e) => setForm({ ...form, country: e.target.value, state: '', city: '' })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                             >
                               <option value="">Select Country</option>
                               {countryOptions.map((country) => (
@@ -4360,12 +4361,12 @@ export default function VisitorsManagementPage() {
                             </select>
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">State</label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">State</label>
                             <select
                               value={form.state}
                               onChange={(e) => setForm({ ...form, state: e.target.value, city: '' })}
                               disabled={!form.country}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100"
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100"
                             >
                               <option value="">{form.country ? 'Select State' : 'Select country first'}</option>
                               {stateOptions.map((state) => (
@@ -4374,12 +4375,12 @@ export default function VisitorsManagementPage() {
                             </select>
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">City</label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">City</label>
                             <select
                               value={form.city}
                               onChange={(e) => setForm({ ...form, city: e.target.value })}
                               disabled={!form.country || !form.state}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100"
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100"
                             >
                               <option value="">{form.country && form.state ? 'Select City' : 'Select country and state first'}</option>
                               {cityOptions.map((city) => (
@@ -4397,47 +4398,47 @@ export default function VisitorsManagementPage() {
                         </h4>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Industry <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Industry <span className="text-red-400">*</span></label>
                             <select value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
                               <option value="">Select Industry</option>
                               {TOUR_INDUSTRY_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                             </select>
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Team Size <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Team Size <span className="text-red-400">*</span></label>
                             <input type="text" placeholder="Team Size"
                               value={form.teamSize} onChange={(e) => setForm({ ...form, teamSize: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Seats Needed <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Seats Needed <span className="text-red-400">*</span></label>
                             <input type="text" placeholder="Seats Needed"
                               value={form.seatCount} onChange={(e) => setForm({ ...form, seatCount: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                           </div>
                         </div>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Preferred Space <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Preferred Space <span className="text-red-400">*</span></label>
                             <select value={form.preferredSpace} onChange={(e) => setForm({ ...form, preferredSpace: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
                               <option value="">Select Space Type</option>
                               {TOUR_SPACE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                             </select>
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Budget Range <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Budget Range <span className="text-red-400">*</span></label>
                             <select value={form.budgetRange} onChange={(e) => setForm({ ...form, budgetRange: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
                               <option value="">Select Budget</option>
                               {TOUR_BUDGET_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                             </select>
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Move-in Timeline <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Move-in Timeline <span className="text-red-400">*</span></label>
                             <select value={form.moveInTimeline} onChange={(e) => setForm({ ...form, moveInTimeline: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
                               <option value="">Select Timeline</option>
                               {TOUR_TIMELINE_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
                             </select>
@@ -4452,9 +4453,9 @@ export default function VisitorsManagementPage() {
                         </h4>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Preferred Contact Method <span className="text-red-400">*</span></label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Preferred Contact Method <span className="text-red-400">*</span></label>
                             <select value={form.preferredContactMethod} onChange={(e) => setForm({ ...form, preferredContactMethod: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]">
                               <option value="">Select Contact Method</option>
                               <option value="Call">Call</option>
                               <option value="WhatsApp">WhatsApp</option>
@@ -4463,15 +4464,15 @@ export default function VisitorsManagementPage() {
                             </select>
                           </div>
                           <div className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Follow-up Date</label>
+                            <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Follow-up Date</label>
                             <input type="date" value={form.followUpDate} onChange={(e) => setForm({ ...form, followUpDate: e.target.value })}
-                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
+                              className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" />
                           </div>
                         </div>
                         <div className="flex flex-col gap-1">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tour Notes</label>
+                          <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Tour Notes</label>
                           <textarea rows={3} placeholder="Tour notes — objections, preferences, follow-up points for Sales (optional)"
-                            className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none"
+                            className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none"
                             value={form.tourNotes} onChange={(e) => setForm({ ...form, tourNotes: e.target.value })} />
                         </div>
                       </div>
@@ -4493,8 +4494,7 @@ export default function VisitorsManagementPage() {
                           <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Client Information</span>
                         </h4>
                         {form.sourceVisitorId ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 text-[8px] font-black uppercase tracking-widest text-blue-700">
-                            <ArrowRight size={11} /> Visitor conversion
+                          <span className={statusPillClass("Visitor conversion")}>Visitor conversion
                           </span>
                         ) : null}
 
@@ -4516,14 +4516,14 @@ export default function VisitorsManagementPage() {
 
                             {form.clientBookingMode === 'existing' && (
                               <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/40 p-3">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Search Existing Client</label>
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Search Existing Client</label>
                                 <div className="flex gap-2">
                                   <input
                                     type="text"
                                     value={form.clientSearch}
                                     onChange={(e) => setForm({ ...form, clientSearch: e.target.value })}
                                     placeholder="Search by name, phone, email, company"
-                                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                                   />
                                   <button
                                     type="button"
@@ -4554,20 +4554,20 @@ export default function VisitorsManagementPage() {
 
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Name <span className="text-red-400">*</span></label>
-                                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="Client name" />
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Name <span className="text-red-400">*</span></label>
+                                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="Client name" />
                               </div>
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
-                                <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="+91..." />
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Phone <span className="text-red-400">*</span></label>
+                                <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="+91..." />
                               </div>
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
-                                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="client@email.com" />
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Email <span className="text-red-400">*</span></label>
+                                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="client@email.com" />
                               </div>
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Company</label>
-                                <input type="text" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="Optional" />
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Company</label>
+                                <input type="text" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]" placeholder="Optional" />
                               </div>
                             </div>
 
@@ -4602,9 +4602,9 @@ export default function VisitorsManagementPage() {
                             </h4>
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Space Type <span className="text-red-400">*</span></label>
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Space Type <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                                   value={form.spaceType}
                                   onChange={(e) => {
                                     const nextType = e.target.value;
@@ -4618,9 +4618,9 @@ export default function VisitorsManagementPage() {
                                 </select>
                               </div>
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Floor <span className="text-red-400">*</span></label>
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Floor <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
                                   value={form.floor}
                                   disabled={!form.spaceType}
                                   onChange={(e) => {
@@ -4635,9 +4635,9 @@ export default function VisitorsManagementPage() {
                                 </select>
                               </div>
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Wing <span className="text-red-400">*</span></label>
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Wing <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
                                   value={form.wing}
                                   disabled={!form.spaceType || !form.floor}
                                   onChange={(e) => {
@@ -4652,9 +4652,9 @@ export default function VisitorsManagementPage() {
                                 </select>
                               </div>
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Specific Room <span className="text-red-400">*</span></label>
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Specific Room <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
                                   value={form.resourceName}
                                   disabled={!form.spaceType || !form.floor || !form.wing}
                                   onChange={(e) => setForm({ ...form, resourceName: e.target.value, seatNumber: '' })}
@@ -4668,13 +4668,13 @@ export default function VisitorsManagementPage() {
                                 </select>
                               </div>
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Attendees <span className="text-red-400">*</span></label>
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Attendees <span className="text-red-400">*</span></label>
                                 <input
                                   type="number"
                                   min="1"
                                   max={selectedWalkInRoom?.capacity || undefined}
                                   inputMode="numeric"
-                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${isDeskAreaSeatBooking ? 'opacity-70' : 'border-slate-200/60'}`}
+                                  className={`w-full px-3 py-2 bg-white border rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] ${isDeskAreaSeatBooking ? 'opacity-70' : 'border-slate-200/60'}`}
                                   value={isDeskAreaSeatBooking ? 1 : form.attendees}
                                   disabled={isDeskAreaSeatBooking}
                                   onChange={(e) => {
@@ -4702,9 +4702,9 @@ export default function VisitorsManagementPage() {
                             <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
                               <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto] md:items-end">
                                 <div className="flex flex-col gap-1">
-                                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Seat Number <span className="text-red-400">*</span></label>
+                                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Seat Number <span className="text-red-400">*</span></label>
                                   <select
-                                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                                     value={form.seatNumber}
                                     onChange={(e) => setForm({ ...form, seatNumber: e.target.value, attendees: 1 })}
                                   >
@@ -4737,11 +4737,11 @@ export default function VisitorsManagementPage() {
                             </h4>
 
                             <div className="flex flex-col gap-1">
-                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Booking Note</label>
+                              <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Booking Note</label>
                               <textarea
                                 rows="3"
                                 placeholder="Add booking purpose, special request, or internal note"
-                                className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none"
+                                className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none"
                                 value={form.purpose}
                                 onChange={(e) => setForm({ ...form, purpose: e.target.value })}
                               />
@@ -4749,20 +4749,20 @@ export default function VisitorsManagementPage() {
 
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Start Date <span className="text-red-400">*</span></label>
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Start Date <span className="text-red-400">*</span></label>
                                 <input
                                   type="date"
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                                   value={form.startDate}
                                   onChange={(e) => setForm({ ...form, startDate: e.target.value })}
                                 />
                               </div>
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">End Date <span className="text-red-400">*</span></label>
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">End Date <span className="text-red-400">*</span></label>
                                 <input
                                   type="date"
                                   min={form.startDate}
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                                   value={form.endDate}
                                   onChange={(e) => setForm({ ...form, endDate: e.target.value })}
                                 />
@@ -4770,7 +4770,7 @@ export default function VisitorsManagementPage() {
                             </div>
 
                             <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4">
-                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Availability</label>
+                              <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Availability</label>
                               <p className={`mt-1 text-[12px] font-semibold ${walkInAvailability.status === 'available'
                                   ? 'text-emerald-700'
                                   : walkInAvailability.status === 'conflict'
@@ -4786,9 +4786,9 @@ export default function VisitorsManagementPage() {
 
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Start Time <span className="text-red-400">*</span></label>
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Start Time <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                                   value={form.startTime}
                                   onChange={(e) => {
                                     const nextStartTime = e.target.value;
@@ -4809,9 +4809,9 @@ export default function VisitorsManagementPage() {
                                 </select>
                               </div>
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">End Time <span className="text-red-400">*</span></label>
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">End Time <span className="text-red-400">*</span></label>
                                 <select
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                                   value={form.endTime}
                                   onChange={(e) => setForm({ ...form, endTime: e.target.value })}
                                 >
@@ -4825,7 +4825,7 @@ export default function VisitorsManagementPage() {
                           {walkInAvailability.status === 'conflict' && walkInAvailability.slotSuggestions.length > 0 && (
                             <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 space-y-2">
                               <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Alternative times</span>
+                                <span className={statusPillClass("Alternative times")}>Alternative times</span>
                                 <span className="text-[10px] font-bold text-blue-700">{formatWalkInDateLabel(form.startDate, form.endDate)}</span>
                               </div>
                               <div className="flex flex-wrap gap-2">
@@ -4846,7 +4846,7 @@ export default function VisitorsManagementPage() {
                           {isDeskAreaSeatBooking && walkInAvailability.seatSuggestions.length > 0 && (
                             <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 space-y-2">
                               <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Available seats</span>
+                                <span className={statusPillClass("Available seats")}>Available seats</span>
                                 <span className="text-[10px] font-bold text-blue-700">Desk Area</span>
                               </div>
                               <div className="flex flex-wrap gap-2">
@@ -4873,7 +4873,7 @@ export default function VisitorsManagementPage() {
                           <div className="grid gap-4 lg:grid-cols-3">
                             <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 space-y-3">
                               <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Live Pricing</span>
+                                <span className={statusPillClass("Live Pricing")}>Live Pricing</span>
                                 <span className="text-[10px] font-bold text-slate-400">{selectedWalkInRoom?.capacity || 0} seats</span>
                               </div>
                               <p className="text-[12px] font-semibold text-blue-700">
@@ -4898,7 +4898,7 @@ export default function VisitorsManagementPage() {
                                 </button>
                               </div>
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">
                                   Discount {form.discountType === 'percent' ? '(%)' : '(INR)'}
                                 </label>
                                 <input
@@ -4906,7 +4906,7 @@ export default function VisitorsManagementPage() {
                                   min="0"
                                   value={form.discountValue}
                                   onChange={(e) => setForm((prev) => ({ ...prev, discountValue: e.target.value }))}
-                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                                   placeholder={form.discountType === 'percent' ? 'e.g. 10' : 'e.g. 500'}
                                 />
                               </div>
@@ -4937,7 +4937,7 @@ export default function VisitorsManagementPage() {
 
                             {walkInAvailability.status === 'conflict' && (
                               <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 space-y-3">
-                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Room Alternatives</span>
+                                <span className={statusPillClass("Room Alternatives")}>Room Alternatives</span>
                                 <div className="space-y-2">
                                   {walkInAvailability.roomSuggestions.length > 0 ? (
                                     walkInAvailability.roomSuggestions.map((room) => (
@@ -4959,7 +4959,7 @@ export default function VisitorsManagementPage() {
                             )}
 
                             <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 space-y-4">
-                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Payment Mode</span>
+                              <span className={statusPillClass("Payment Mode")}>Payment Mode</span>
                               <div className="grid grid-cols-2 gap-2">
                                 {['Cash', 'GPay (UPI)'].map((mode) => (
                                   <button
@@ -4975,17 +4975,17 @@ export default function VisitorsManagementPage() {
                               {normalizeText(form.paymentMode).includes('gpay') && (
                                 <div className="space-y-3">
                                   <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Transaction Number <span className="text-red-400">*</span></label>
+                                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Transaction Number <span className="text-red-400">*</span></label>
                                     <input
                                       type="text"
                                       value={form.transactionId}
                                       onChange={(e) => setForm({ ...form, transactionId: e.target.value })}
                                       placeholder="Enter GPay reference / UTR"
-                                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                                      className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                                     />
                                   </div>
                                   <div className="flex flex-col gap-1">
-                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Payment Screenshot <span className="text-red-400">*</span></label>
+                                    <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Payment Screenshot <span className="text-red-400">*</span></label>
                                     <input
                                       type="file"
                                       accept="image/png,image/jpeg,image/jpg"
@@ -5015,8 +5015,8 @@ export default function VisitorsManagementPage() {
                       <h3 className="text-xs font-black text-blue-600 uppercase tracking-widest border-b border-blue-200 pb-2 mb-2 flex items-center gap-2"><Search size={16} /> Online Booking Lookup</h3>
 
                       <div className="flex gap-3">
-                        <input type="text" placeholder="Enter booking ID..." className="flex-1 px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-bold text-gray-900 focus:border-blue-500 outline-none uppercase shadow-sm text-xs" value={form.bookingId} onChange={e => setForm({ ...form, bookingId: e.target.value })} />
-                        <button onClick={handleVerifySearch} disabled={!form.bookingId || !visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have permission to verify booking IDs.' : undefined} className="px-6 bg-gray-900 text-white rounded-xl font-black text-xs hover:bg-black disabled:bg-gray-300 transition-all shadow-md">FETCH</button>
+                        <input type="text" placeholder="Enter booking ID..." className="flex-1 px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-pmedium text-gray-900 focus:border-blue-500 outline-none uppercase shadow-sm text-xs" value={form.bookingId} onChange={e => setForm({ ...form, bookingId: e.target.value })} />
+                        <button onClick={handleVerifySearch} disabled={!form.bookingId || !visitorAccess.modes.verify_booking} title={!visitorAccess.modes.verify_booking ? 'You do not have permission to verify booking IDs.' : undefined} className="btn-pill px-6 bg-gray-900 text-white hover:bg-black disabled:bg-gray-300 transition-all shadow-md">FETCH</button>
                       </div>
 
                       {verifiedBooking && (
@@ -5027,7 +5027,7 @@ export default function VisitorsManagementPage() {
                               <p className="font-bold text-gray-900 text-lg mt-1">{verifiedBooking.resource}</p>
                               <p className="text-xs font-bold text-gray-500">{verifiedBooking.date} • {verifiedBooking.time}</p>
                             </div>
-                            <span className={`px-2 py-1 rounded text-[9px] font-black uppercase ${verifiedBooking.status === 'Pending Payment' ? 'bg-amber-50 text-amber-600' : 'bg-green-50 text-green-600'}`}>
+                            <span className={statusPillClass(verifiedBooking.status)}>
                               {verifiedBooking.status}
                             </span>
                           </div>
@@ -5059,7 +5059,7 @@ export default function VisitorsManagementPage() {
                           {verifiedBooking.status === 'Pending Payment' && (
                             <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 space-y-3">
                               <div className="flex justify-between items-center">
-                                <span className="text-xs font-black text-amber-800 uppercase tracking-widest">Amount Due:</span>
+                                <span className={statusPillClass("Amount Due:")}>Amount Due:</span>
                                 <span className="text-xl font-black text-amber-600">₹{verifiedBooking.amountDue}</span>
                               </div>
                               <div className="flex gap-2">
@@ -5303,18 +5303,18 @@ export default function VisitorsManagementPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Reason for Cancellation *</label>
+                  <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">Reason for Cancellation *</label>
                   <textarea
-                    className="w-full p-4 bg-white border-2 border-gray-200 rounded-xl font-bold text-gray-900 focus:border-red-400 outline-none resize-none"
+                    className="w-full p-4 bg-white border-2 border-gray-200 rounded-xl font-pmedium text-gray-900 focus:border-red-400 outline-none resize-none"
                     rows={3} placeholder="Provide a reason..."
                     value={cancelForm.reason} onChange={e => setCancelForm({ ...cancelForm, reason: e.target.value })}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Refund Action</label>
+                  <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">Refund Action</label>
                   <select
-                    className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-bold text-gray-900 focus:border-red-400 outline-none cursor-pointer"
+                    className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-pmedium text-gray-900 focus:border-red-400 outline-none cursor-pointer"
                     value={cancelForm.refundType} onChange={e => setCancelForm({ ...cancelForm, refundType: e.target.value })}
                   >
                     <option value="Full Refund">Full Refund (100% Credits/Money back)</option>
@@ -5361,10 +5361,10 @@ export default function VisitorsManagementPage() {
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Select New Date *</label>
+                    <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">Select New Date *</label>
                     <input
                       type="date"
-                      className="w-full px-5 py-4 bg-white border-2 border-gray-200 rounded-xl font-black text-gray-900 focus:border-amber-400 outline-none transition-all shadow-sm cursor-pointer"
+                      className="w-full px-5 py-4 bg-white border-2 border-gray-200 rounded-xl font-pmedium text-gray-900 focus:border-amber-400 outline-none transition-all shadow-sm cursor-pointer"
                       value={rescheduleForm.newDate} onChange={e => setRescheduleForm({ ...rescheduleForm, newDate: e.target.value, newStartTime: '', newEndTime: '' })}
                     />
                   </div>
@@ -5372,7 +5372,7 @@ export default function VisitorsManagementPage() {
                   {rescheduleForm.newDate ? (
                     <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2">
                       <div className="flex justify-between items-center">
-                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Available Time Slots</label>
+                        <label className="text-[10px] font-pmedium text-gray-500 uppercase tracking-widest">Available Time Slots</label>
                         <span className="text-[10px] font-black text-green-600 flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded"><Check size={10} /> Live Master Calendar Sync</span>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[150px] overflow-y-auto pr-2">
@@ -5410,7 +5410,7 @@ export default function VisitorsManagementPage() {
                                     'bg-white border-green-200 text-green-700 hover:bg-green-50'}`}
                             >
                               <span className={booked ? 'line-through decoration-red-400 decoration-2' : ''}>{displayLabel}</span>
-                              {booked && <span className="block text-[9px] uppercase mt-1 text-red-500">Booked by another</span>}
+                              {booked && <span className={statusPillClass("Booked by another")}>Booked by another</span>}
                             </button>
                           )
                         })}
@@ -5443,9 +5443,9 @@ export default function VisitorsManagementPage() {
                 <div>
                   <h2 className="text-lg font-['Poppins'] font-extrabold text-gray-900 leading-tight flex items-center gap-2">
                     {viewingVisitor.name}
-                    <span className={`px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider rounded-lg border ${getStatusBadge(viewingVisitor.status)}`}>{viewingVisitor.status}</span>
+                    <span className={statusPillClass(viewingVisitor.status)}>{viewingVisitor.status}</span>
                     {viewingVisitor.convertedToClient && (
-                      <span className="px-2.5 py-1 text-[10px] font-pmedium uppercase tracking-wider rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700">Converted to Client</span>
+                      <span className={statusPillClass("Converted to Client")}>Converted to Client</span>
                     )}
                   </h2>
                   <p className="text-[9px] font-pmedium text-gray-500 uppercase tracking-widest mt-1.5">{viewingVisitor.company} • Badge: {viewingVisitor.badgeNo || 'N/A'}</p>
@@ -5589,7 +5589,7 @@ export default function VisitorsManagementPage() {
                 <div>
                   <h2 className="text-2xl font-black text-gray-900 leading-none flex items-center gap-3">
                     {viewingBooking.resource}
-                    <span className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg border ${getStatusBadge(viewingBooking.status)}`}>{viewingBooking.status}</span>
+                    <span className={statusPillClass(viewingBooking.status)}>{viewingBooking.status}</span>
                   </h2>
                   <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-2">
                     {viewingBooking.company}
@@ -5738,7 +5738,7 @@ export default function VisitorsManagementPage() {
                       </span>
                     )}
                     {normalizeText(viewingClient.source) === 'visitor-conversion' && (
-                      <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                      <span className={statusPillClass("Converted Visitor")}>
                         Converted Visitor
                       </span>
                     )}
@@ -5786,7 +5786,7 @@ export default function VisitorsManagementPage() {
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-sm font-black text-slate-950">{booking.resource}</p>
-                            <span className={`rounded-md border px-2 py-1 text-[9px] font-black uppercase tracking-widest ${getStatusBadge(booking.status)}`}>{booking.status}</span>
+                            <span className={statusPillClass(booking.status)}>{booking.status}</span>
                           </div>
                           <p className="mt-1 text-xs font-bold text-slate-500">{booking.dateLabel || booking.date} • {booking.time}</p>
                           <p className="mt-1 text-xs font-semibold text-slate-400">{booking.sourceReference || booking.notes || 'Frontdesk booking'}</p>

@@ -31,6 +31,7 @@ import {
   transferOrganizationOwnership,
   updateOrganizationMemberRole,
 } from '../../services/organization';
+import { statusPillClass } from '../../lib/status-pill';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -367,17 +368,17 @@ function getInitials(name = '') {
 function getStatusBadge(status: string) {
   switch ((status || '').toLowerCase()) {
     case 'joined':
-      return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50"><UserCheck size={12}/>Active</span>;
+      return <span className={statusPillClass("Active")}>Active</span>;
     case 'accepted':
-      return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50"><UserCheck size={12}/>Accepted</span>;
+      return <span className={statusPillClass("Accepted")}>Accepted</span>;
     case 'pending':
-      return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50"><Clock size={12}/>Pending</span>;
+      return <span className={statusPillClass("Pending")}>Pending</span>;
     case 'invited':
-      return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-orange-600 bg-orange-50"><Mail size={12}/>Invited</span>;
+      return <span className={statusPillClass("Invited")}>Invited</span>;
     case 'disabled':
-      return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-50"><UserX size={12}/>Disabled</span>;
+      return <span className={statusPillClass("Disabled")}>Disabled</span>;
     default:
-      return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-100">{status || 'Unknown'}</span>;
+      return <span className={statusPillClass(status || 'Unknown')}>{status || 'Unknown'}</span>;
   }
 }
 
@@ -658,16 +659,16 @@ export default function AccessGrantsPage() {
   const getRoleBadge = (group) => {
     switch (group) {
       case 'Founder':
-        return <span className="px-3 py-1 bg-[#111827] text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Shield size={12} /> Founder</span>;
+        return <span className={statusPillClass("Founder")}>Founder</span>;
       case 'Super-Admin':
-        return <span className="px-3 py-1 bg-[#2563EB]/10 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Shield size={12} /> Super Admin</span>;
+        return <span className={statusPillClass("Super Admin")}>Super Admin</span>;
       case 'Admin':
-        return <span className="px-3 py-1 bg-cyan-100 text-cyan-700 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Shield size={12} /> Admin</span>;
+        return <span className={statusPillClass("Admin")}>Admin</span>;
       case 'Manager':
-        return <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Users size={12} /> Manager</span>;
+        return <span className={statusPillClass("Manager")}>Manager</span>;
       case 'Employee':
       default:
-        return <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 w-max"><Users size={12} /> Employee</span>;
+        return <span className={statusPillClass("Employee")}>Employee</span>;
     }
   };
 
@@ -1404,7 +1405,7 @@ export default function AccessGrantsPage() {
                   <button
                     key={s}
                     onClick={() => setStatusFilter(s)}
-                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
                       statusFilter === s
                         ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
                         : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
@@ -1425,7 +1426,7 @@ export default function AccessGrantsPage() {
                     placeholder="Search by name, email, or dept..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr- py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                    className="w-full pl-9 pr- py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                   />
                 </div>
 
@@ -1435,7 +1436,7 @@ export default function AccessGrantsPage() {
                   <select
                     value={selectedRole}
                     onChange={(e) => setSelectedRole(e.target.value)}
-                    className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[110px]"
+                    className="pl-9 pr-4 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[110px]"
                   >
                     {ROLE_FILTERS.map((role) => (
                       <option key={role} value={role}>{role}</option>
@@ -1463,7 +1464,7 @@ export default function AccessGrantsPage() {
             {/* Table */}
             <div className="overflow-x-auto flex-1">
               <table className="w-full text-left">
-                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-5 py-4 text-left">Employee ID</th>
                     <th className="px-5 py-4 text-left">Platform User</th>
@@ -1500,26 +1501,26 @@ export default function AccessGrantsPage() {
                       return (
                         <tr key={user.id} className="hover:bg-slate-50/50 transition-colors group">
                           <td className="px-5 py-4">
-                            <span className="font-bold text-slate-800 text-[12px]">{user.employeeId || '—'}</span>
+                            <span className="font-pmedium text-slate-800 text-[12px]">{user.employeeId || '—'}</span>
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-bold shadow-sm shrink-0 ${
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-pmedium shadow-sm shrink-0 ${
                                 user.roleGroup === 'Founder' ? 'bg-[#111827] text-white' : 'bg-[#2563EB] text-white'
                               }`}>
                                 {getInitials(user.name)}
                               </div>
-                              <span className="font-semibold text-slate-800 text-[12px]">{user.name}</span>
+                              <span className="font-pmedium text-slate-800 text-[12px]">{user.name}</span>
                             </div>
                           </td>
                           <td className="px-5 py-4">
-                            <span className="text-[11px] font-medium text-slate-500">{user.email}</span>
+                            <span className="text-[11px] font-pmedium text-slate-500">{user.email}</span>
                           </td>
                           <td className="px-5 py-4">{getRoleBadge(user.roleGroup)}</td>
                           <td className="px-5 py-4">
                             <div className="flex flex-wrap gap-1.5 max-w-56">
                               {departmentBadges.map((dept, i) => (
-                                <span key={i} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[9px] font-bold tracking-wide">{dept}</span>
+                                <span key={i} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[9px] font-pmedium tracking-wide">{dept}</span>
                               ))}
                             </div>
                           </td>
@@ -1529,9 +1530,7 @@ export default function AccessGrantsPage() {
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-end gap-2">
                               {user.roleGroup === 'Founder' ? (
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 text-amber-900 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm border border-amber-300/60">
-                                  <Crown size={11} strokeWidth={2.5} />
-                                  Founder
+                                <span className={statusPillClass("Founder")}>Founder
                                 </span>
                               ) : (
                                 <>
@@ -1563,7 +1562,7 @@ export default function AccessGrantsPage() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={7} className="text-center py-20 text-slate-400 font-semibold">
+                      <td colSpan={7} className="text-center py-20 text-slate-400 font-pmedium">
                         No members found.
                       </td>
                     </tr>
@@ -1633,7 +1632,7 @@ export default function AccessGrantsPage() {
                           </p>
                           {roleActionWarning.requiresDepartments && (
                             <div className="space-y-2 rounded-xl border border-white/70 bg-white/80 p-3">
-                              <label className="block text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
+                              <label className="block text-[10px] font-pmedium uppercase tracking-[0.24em] text-slate-500">
                                 Department Access
                               </label>
                               {roleActionWarning.departmentMode === 'single' ? (
@@ -1695,7 +1694,7 @@ export default function AccessGrantsPage() {
                         <p className="text-sm font-semibold text-slate-900">Ready to continue?</p>
                         <p className="text-xs text-slate-500">Use confirm only if you want to apply the role update.</p>
                       </div>
-                      <div className={`px-3 py-1.5 rounded-full text-[10px] font-semibold uppercase tracking-[0.22em] ${roleActionWarning.type === 'promote' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                      <div className="text-[10px] font-pmedium uppercase tracking-wider text-slate-600">
                         Second step
                       </div>
                     </div>
@@ -2115,7 +2114,7 @@ export default function AccessGrantsPage() {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Target Workspace</label>
+                    <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Target Workspace</label>
                     <div className="relative">
                       <select
                         value={workspaceLinkForm.targetWorkspaceId}
@@ -2125,7 +2124,7 @@ export default function AccessGrantsPage() {
                             targetWorkspaceId: event.target.value,
                           }))
                         }
-                        className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+                        className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-pmedium text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
                       >
                         <option value="">Select unit</option>
                         {linkWorkspaceOptions.map((item) => (
@@ -2139,7 +2138,7 @@ export default function AccessGrantsPage() {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Link Note</label>
+                    <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Link Note</label>
                     <textarea
                       rows={3}
                       value={workspaceLinkForm.note}
@@ -2207,7 +2206,7 @@ export default function AccessGrantsPage() {
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Target Unit</label>
+                    <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Target Unit</label>
                     <div className="relative">
                       <select
                         value={workspaceTransferForm.targetWorkspaceId}
@@ -2225,7 +2224,7 @@ export default function AccessGrantsPage() {
                             departmentIds: nextDepartmentIds,
                           }));
                         }}
-                        className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+                        className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-pmedium text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
                       >
                         {transferWorkspaceOptions.map((item) => (
                           <option key={item.id} value={item.id}>
@@ -2238,7 +2237,7 @@ export default function AccessGrantsPage() {
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Role After Transfer</label>
+                    <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Role After Transfer</label>
                     <div className="relative">
                       <select
                         value={workspaceTransferForm.role}
@@ -2257,7 +2256,7 @@ export default function AccessGrantsPage() {
                                   : [current.departmentIds[0] || selectedTransferDepartmentOptions[0]?.id || ''].filter(Boolean),
                           }));
                         }}
-                        className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+                        className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-pmedium text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
                       >
                         {TRANSFER_ROLE_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -2271,7 +2270,7 @@ export default function AccessGrantsPage() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Department After Transfer</label>
+                  <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Department After Transfer</label>
                   {isSuperAdminTransferRole ? (
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-500">
                       All Departments
@@ -2285,7 +2284,7 @@ export default function AccessGrantsPage() {
                             return (
                               <label
                                 key={department.id}
-                                className="flex items-center gap-3 rounded-xl border border-slate-100 px-3 py-2 text-sm font-medium text-slate-700"
+                                className="flex items-center gap-3 rounded-xl border border-slate-100 px-3 py-2 text-sm font-pmedium text-slate-700"
                               >
                                 <input
                                   type="checkbox"
@@ -2319,7 +2318,7 @@ export default function AccessGrantsPage() {
                             departmentIds: event.target.value ? [event.target.value] : [],
                           }))
                         }
-                        className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+                        className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-pmedium text-slate-700 outline-none transition focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
                       >
                         <option value="">Select department</option>
                         {selectedTransferDepartmentOptions.map((department) => (
@@ -2339,7 +2338,7 @@ export default function AccessGrantsPage() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-slate-400">Transfer Note</label>
+                  <label className="mb-2 block text-[10px] font-pmedium uppercase tracking-wider text-slate-400">Transfer Note</label>
                   <textarea
                     rows={3}
                     value={workspaceTransferForm.note}
@@ -2396,7 +2395,7 @@ export default function AccessGrantsPage() {
                     </p>
 
                     <div className="space-y-2">
-                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Select New Founder</label>
+                      <label className="block text-xs font-pmedium text-slate-500 uppercase tracking-wider">Select New Founder</label>
                       <select
                         value={transferTargetUserId || eligibleOwnershipCandidates[0]?.id || ''}
                         onChange={(event) => setTransferTargetUserId(event.target.value)}

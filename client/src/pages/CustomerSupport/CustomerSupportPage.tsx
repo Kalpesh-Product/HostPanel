@@ -1,8 +1,9 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2 } from "lucide-react";
+import { Upload, X, Search, AlertCircle, AlertTriangle, Clock, CheckCircle2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import useAxiosPrivate from "../../hooks/useAxiosPrivate";
 import PageFrame from "../../components/Pages/PageFrame";
+import { statusPillClass } from "../../lib/status-pill";
 
 type TicketStatus =
   | "Open"
@@ -42,16 +43,6 @@ type SupportPayload = {
   history: SupportTicket[];
 };
 
-const statusPillClass: Record<TicketStatus, string> = {
-  Open: "bg-blue-100 text-blue-700",
-  "In Progress": "bg-amber-100 text-amber-700",
-  Resolved: "bg-emerald-100 text-emerald-700",
-  Closed: "bg-green-100 text-green-700",
-  Pending: "bg-slate-100 text-slate-700",
-  Escalated: "bg-red-100 text-red-700",
-  Rejected: "bg-rose-100 text-rose-700",
-};
-
 const SUPPORT_TICKETS_API = "/api/tickets/support-tickets";
 
 const formatDate = (value?: string | null) => {
@@ -69,7 +60,7 @@ const formatDate = (value?: string | null) => {
 
 export default function CustomerSupportPage() {
   const axios = useAxiosPrivate();
-  const [activeTab, setActiveTab] = useState<"raised" | "history">("raised");
+  const [activeTab, setActiveTab] = useState<"raised" | "resolved">("raised");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -100,7 +91,7 @@ export default function CustomerSupportPage() {
 
   const filteredList = useMemo(() => {
     let list = currentList;
-    if (statusFilter !== "All") {
+    if (activeTab === "raised" && statusFilter !== "All") {
       list = list.filter(t => t.status === statusFilter);
     }
     if (searchQuery.trim()) {
@@ -113,7 +104,7 @@ export default function CustomerSupportPage() {
       );
     }
     return list;
-  }, [currentList, searchQuery, statusFilter]);
+  }, [activeTab, currentList, searchQuery, statusFilter]);
 
   const loadTickets = useCallback(async () => {
     try {
@@ -181,7 +172,7 @@ export default function CustomerSupportPage() {
       await loadTickets();
       setIsDetailsModalOpen(false);
       setSelectedTicket(null);
-      setActiveTab("history");
+      setActiveTab("resolved");
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to close ticket.");
     } finally {
@@ -231,33 +222,7 @@ export default function CustomerSupportPage() {
             </div>
           </div>
 
-          {/* 2. MAIN TABS */}
-          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
-            <button
-              type="button"
-              onClick={() => setActiveTab("raised")}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
-                activeTab === "raised"
-                  ? "bg-[#2563EB] text-white shadow-sm"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              Issues Raised
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("history")}
-              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
-                activeTab === "history"
-                  ? "bg-[#2563EB] text-white shadow-sm"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              Issues History
-            </button>
-          </div>
-
-          {/* 3. STAT CARDS */}
+          {/* 2. STAT CARDS */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3 shrink-0">
             <div className="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm flex justify-between items-center transition-all hover:shadow-md">
               <div className="min-w-0">
@@ -289,10 +254,37 @@ export default function CustomerSupportPage() {
             </div>
           </div>
 
+          {/* 3. MAIN TABS */}
+          <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setActiveTab("raised")}
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+                activeTab === "raised"
+                  ? "bg-[#2563EB] text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              Issues Raised
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("resolved")}
+              className={`flex-1 rounded-xl px-4 py-2 text-[10px] font-pbold font-bold uppercase tracking-widest transition-all ${
+                activeTab === "resolved"
+                  ? "bg-[#2563EB] text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              Issue Resolved
+            </button>
+          </div>
+
           {/* 4. DATA PANEL */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
             {/* Toolbar */}
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
+              {activeTab === "raised" ? (
                 <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                   {['All', 'Open', 'In Progress', 'Resolved', 'Closed'].map((status) => (
                     <button
@@ -307,32 +299,48 @@ export default function CustomerSupportPage() {
                     </button>
                   ))}
                 </div>
-              <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
-                <div className="relative flex-1 min-w-[180px]">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                  <input
-                    type="text"
-                    placeholder="Search tickets..."
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+              ) : (
+                <div className="w-full xl:max-w-md">
+                  <div className="relative w-full">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                    <input
+                      type="text"
+                      placeholder="Search tickets..."
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="bg-[#2563EB] text-white px-4 py-2.5 rounded-2xl font-bold text-[10px] flex items-center gap-1.5 shadow-sm hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"
-                >
-                  Raise Issue
-                </button>
-              </div>
+              )}
+              {activeTab === "raised" ? (
+                <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
+                  <div className="relative flex-1 min-w-[180px]">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                    <input
+                      type="text"
+                      placeholder="Search tickets..."
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="btn-pill bg-[#2563EB] text-white px-4 py-2.5 flex items-center gap-1.5 shadow-sm hover:bg-primary/95 active:scale-95 transition-all whitespace-nowrap"
+                  >
+                    <Plus size={13} strokeWidth={3} />Raise Issue
+                  </button>
+                </div>
+              ) : null}
             </div>
             {isLoading ? (
               <div className="p-4 text-sm font-bold text-slate-500">Loading tickets...</div>
             ) : (
-              <div className="w-full overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-slate-50 border-b border-slate-100">
+              <div className="overflow-x-auto flex-1">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-4 py-3.5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-left">Ticket ID</th>
                       <th className="px-4 py-3.5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-left">Issue Title</th>
@@ -346,20 +354,24 @@ export default function CustomerSupportPage() {
                   <tbody>
                     {filteredList.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-8 text-center text-sm font-bold text-slate-400">No issues found.</td>
+                        <td colSpan={7} className="text-center py-20 text-slate-400 font-pmedium">No issues found.</td>
                       </tr>
                     ) : (
                       filteredList.map((ticket) => (
-                        <tr key={ticket.id} className="hover:bg-slate-50/70 transition-colors">
-                          <td className="px-4 py-3.5 text-[13px] font-semibold text-slate-700 border-t border-slate-100/60 whitespace-nowrap">{ticket.ticketId || "-"}</td>
-                          <td className="px-4 py-3.5 text-[13px] font-semibold text-[#0F172A] border-t border-slate-100/60"><div className="truncate max-w-[200px]">{ticket.title}</div></td>
-                          <td className="px-4 py-3.5 text-[13px] font-semibold text-slate-600 border-t border-slate-100/60 whitespace-nowrap">{formatDate(ticket.requestedAt)}</td>
-                          <td className="px-4 py-3.5 text-[13px] font-semibold text-slate-600 border-t border-slate-100/60 whitespace-nowrap">{ticket.resolvedByName || "-"}</td>
-                          <td className="px-4 py-3.5 border-t border-slate-100/60">
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ${statusPillClass[ticket.status] || "bg-slate-100 text-slate-700"}`}>{ticket.status}</span>
+                        <tr key={ticket.id} className="hover:bg-slate-50/50 transition-colors group">
+                          <td className="px-5 py-4 align-top whitespace-nowrap">
+                            <div className="font-pmedium text-slate-600 inline-flex items-center gap-1 whitespace-nowrap">{ticket.ticketId || "N/A"}</div>
                           </td>
-                          <td className="px-4 py-3.5 text-[13px] font-semibold text-slate-600 border-t border-slate-100/60 whitespace-nowrap">{ticket.acceptedByName || "-"}</td>
-                          <td className="px-4 py-3.5 border-t border-slate-100/60 whitespace-nowrap">
+                          <td className="px-5 py-4 align-top">
+                            <div className="font-pmedium text-[#0F172A] text-[13px] truncate max-w-[200px]">{ticket.title}</div>
+                          </td>
+                          <td className="px-5 py-4 align-top text-xs font-pmedium text-slate-600 whitespace-nowrap">{formatDate(ticket.requestedAt)}</td>
+                          <td className="px-5 py-4 align-top text-xs font-pmedium text-slate-600 whitespace-nowrap">{ticket.resolvedByName || "-"}</td>
+                          <td className="px-5 py-4 align-top text-center">
+                            <span className={statusPillClass(ticket.status)}>{ticket.status}</span>
+                          </td>
+                          <td className="px-5 py-4 align-top text-xs font-pmedium text-slate-600 whitespace-nowrap">{ticket.acceptedByName || "-"}</td>
+                          <td className="px-5 py-4 align-top text-center whitespace-nowrap">
                             <button
                               type="button"
                               onClick={() => { setSelectedTicket(ticket); setIsDetailsModalOpen(true); }}
@@ -413,7 +425,7 @@ export default function CustomerSupportPage() {
                     value={title}
                     onChange={(event) => setTitle(event.target.value)}
                     placeholder="e.g. Platform Issue"
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
                     required
                   />
                 </div>
@@ -425,7 +437,7 @@ export default function CustomerSupportPage() {
                     onChange={(event) => setDescription(event.target.value)}
                     rows={5}
                     placeholder="Describe the issue in detail"
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400"
                     required
                   />
                 </div>
@@ -444,7 +456,7 @@ export default function CustomerSupportPage() {
                     value={pageUrl}
                     onChange={(event) => setPageUrl(event.target.value)}
                     placeholder="e.g. /extra-common-modules/assets"
-                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] placeholder:text-slate-400"
                   />
                   <p className="text-[10px] font-medium text-slate-400">Paste the page you were on when the issue happened, so our team can see exactly what you saw.</p>
                 </div>
@@ -452,7 +464,7 @@ export default function CustomerSupportPage() {
                   <label htmlFor="issue-image" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Image Upload</label>
                   <label
                     htmlFor="issue-image"
-                    className="w-full border-2 border-dashed border-slate-200 rounded-lg p-4 flex items-center justify-center gap-2 text-[12px] font-semibold text-slate-500 cursor-pointer hover:border-[#2563EB] hover:bg-blue-50/50 transition-colors"
+                    className="w-full border-2 border-dashed border-slate-200 rounded-lg p-4 flex items-center justify-center gap-2 text-[12px] font-pmedium text-slate-500 cursor-pointer hover:border-[#2563EB] hover:bg-blue-50/50 transition-colors"
                   >
                     <Upload size={16} />
                     {imageFile ? imageFile.name : "Choose an image file"}
@@ -519,7 +531,7 @@ export default function CustomerSupportPage() {
                   <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Requested At</p><p className="text-[13px] font-bold text-[#0F172A]">{formatDate(selectedTicket.requestedAt)}</p></div>
                   <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Accepted By</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.acceptedByName || "-"}</p></div>
                   <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Resolved By</p><p className="text-[13px] font-bold text-[#0F172A]">{selectedTicket.resolvedByName || "-"}</p></div>
-                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Status</p><span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ${statusPillClass[selectedTicket.status]}`}>{selectedTicket.status}</span></div>
+                  <div className="space-y-1"><p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Status</p><span className={statusPillClass(selectedTicket.status)}>{selectedTicket.status}</span></div>
                 </div>
 
                 <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-4 space-y-1">
@@ -602,20 +614,26 @@ export default function CustomerSupportPage() {
               </button>
             </div>
 
-            <form onSubmit={submitFollowUp} className="p-5 sm:p-6 md:p-8 overflow-y-auto flex-1 space-y-5 bg-slate-50/30">
-              <p className="text-[13px] font-semibold text-slate-500">
-                Follow-up for ticket <span className="text-[#0F172A] font-bold">{selectedTicket.ticketId || "-"}</span>.
-              </p>
-              <div className="space-y-1.5">
-                <label htmlFor="followup-description" className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Follow Up Message (Optional)</label>
-                <textarea
-                  id="followup-description"
-                  value={followUpDescription}
-                  onChange={(event) => setFollowUpDescription(event.target.value)}
-                  rows={4}
-                  placeholder="Explain what is still pending or unresolved."
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-semibold text-[#0F172A] focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none shadow-sm transition-all resize-none placeholder:text-slate-400"
-                />
+            <form onSubmit={submitFollowUp} className="p-3 sm:p-4 overflow-y-auto flex-1 space-y-4 bg-slate-50/30">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+                <h4 className="flex items-center gap-2.5 border-b border-slate-200/80 pb-2">
+                  <span className="p-1.5 rounded-lg bg-blue-100 text-blue-700 shrink-0"><AlertCircle size={16} /></span>
+                  <span className="text-[12px] font-pmedium text-primary uppercase tracking-[0.16em]">Follow Up</span>
+                </h4>
+                <p className="text-[12px] font-semibold text-slate-500">
+                  Follow-up for ticket <span className="text-[#0F172A] font-bold">{selectedTicket.ticketId || "-"}</span>.
+                </p>
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="followup-description" className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Follow Up Message</label>
+                  <textarea
+                    id="followup-description"
+                    value={followUpDescription}
+                    onChange={(event) => setFollowUpDescription(event.target.value)}
+                    rows={4}
+                    placeholder="Explain what is still pending or unresolved."
+                    className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] outline-none transition-all focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none placeholder:text-slate-400"
+                  />
+                </div>
               </div>
             </form>
 

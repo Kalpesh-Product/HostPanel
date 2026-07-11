@@ -32,6 +32,7 @@ import PageFrame from '@/components/Pages/PageFrame';
 import { canAccessAdministrationDashboard, getStoredUser } from '@/lib/auth-session';
 import { BookingsSkeleton } from '@/components/ui/Skeleton';
 import { formatTime12h } from '@/utils/time';
+import { statusPillClass } from '../../../lib/status-pill';
 // Backend services - uncomment when backend is ready:
 // import { getMeetingRoomBookings, updateMeetingRoomBooking } from '@/services/meeting-room-bookings';
 // import { getTenantCompanies } from '@/services/tenant-companies';
@@ -1788,7 +1789,7 @@ export default function BookingsPage() {
                   </h3>
                   <div className="flex items-center gap-2">
                     <select
-                      className="w-full sm:w-auto px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
+                      className="w-full sm:w-auto px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-pmedium text-slate-700 outline-none cursor-pointer"
                       value={trackerMonth}
                       onChange={(e) => setTrackerMonth(e.target.value)}
                     >
@@ -1801,7 +1802,7 @@ export default function BookingsPage() {
                   </div>
                 </div>
                 <table className="w-full table-auto text-left">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-3 py-4">Department</th>
                       <th className="px-3 py-4 text-center">Bookings</th>
@@ -1810,15 +1811,15 @@ export default function BookingsPage() {
                   <tbody className="divide-y divide-slate-100/60">
                     {departmentTrackerSummary.map((dept) => (
                       <tr key={dept.department} className="hover:bg-blue-50/30 transition-all group">
-                        <td className="px-3 py-4 text-xs font-bold text-slate-900">{dept.department}</td>
-                        <td className="px-3 py-4 text-center text-xs font-bold text-slate-900">{dept.bookings}</td>
+                        <td className="px-3 py-4 text-xs font-pmedium text-slate-900">{dept.department}</td>
+                        <td className="px-3 py-4 text-center text-xs font-pmedium text-slate-900">{dept.bookings}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot className="border-t border-slate-200 bg-slate-50/50">
                     <tr>
-                      <td className="px-3 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500">Totals</td>
-                      <td className="px-3 py-4 text-center text-xs font-black text-slate-900">{departmentTrackerTotals.bookings}</td>
+                      <td className="px-3 py-4 text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Totals</td>
+                      <td className="px-3 py-4 text-center text-xs font-pmedium text-slate-900">{departmentTrackerTotals.bookings}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -1831,16 +1832,16 @@ export default function BookingsPage() {
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-center gap-4 bg-slate-50/50">
                 <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
                   {/* ── Sub-tabs: Status ── */}
-                  <div className="flex items-center gap-1 rounded-2xl bg-slate-100/70 p-1">
+                  <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                     {(activeScope === 'tenant' ? tenantStatusOptions : bookingStatusOptions).map((status) => (
                       <button
                         key={status}
                         type="button"
                         onClick={() => setActiveTab(status)}
-                        className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${
+                        className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
                           activeTab === status
                             ? 'bg-[#2563EB] text-white shadow-sm shadow-blue-200'
-                            : 'bg-transparent text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
+                            : 'bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700'
                         }`}
                       >
                         {status}
@@ -1850,7 +1851,7 @@ export default function BookingsPage() {
                   {activeScope !== 'tenant' && (
                     <>
                       <select
-                        className="w-full sm:w-auto px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
+                        className="w-full sm:w-auto px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-pmedium text-slate-700 outline-none cursor-pointer"
                         value={resourceFilter}
                         onChange={(e) => setResourceFilter(e.target.value)}
                       >
@@ -1859,7 +1860,7 @@ export default function BookingsPage() {
                         ))}
                       </select>
                       <select
-                        className="w-full sm:w-auto px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
+                        className="w-full sm:w-auto px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[11px] font-pmedium text-slate-700 outline-none cursor-pointer"
                         value={bookingTypeFilter}
                         onChange={(e) => setBookingTypeFilter(e.target.value)}
                       >
@@ -1876,7 +1877,7 @@ export default function BookingsPage() {
                     <input
                       type="text"
                       placeholder={activeScope === 'tenant' ? 'Search company, resource, date...' : 'Search bookings...'}
-                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
+                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-pmedium outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -1886,7 +1887,7 @@ export default function BookingsPage() {
 
               {/* ── Bookings Table ──────────────────────────────────── */}
               <table className="w-full table-auto text-left">
-                <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                   <tr>
                     <th className="px-3 py-4 whitespace-nowrap">Resource</th>
                     {activeScope === 'tenant' && <th className="px-3 py-4 whitespace-nowrap">Company</th>}
@@ -1901,7 +1902,7 @@ export default function BookingsPage() {
                 <tbody className="divide-y divide-slate-100/60">
                   {visibleRows.length === 0 ? (
                     <tr>
-                      <td colSpan={activeScope === 'tenant' ? 5 : 7} className="px-3 py-20 text-center font-bold text-slate-400">
+                      <td colSpan={activeScope === 'tenant' ? 5 : 7} className="px-3 py-20 text-center font-pmedium text-slate-400">
                         No bookings found matching your filters.
                       </td>
                     </tr>
@@ -1919,8 +1920,8 @@ export default function BookingsPage() {
                                 <MapPin size={14} />
                               </div>
                               <div>
-                                <div className="font-black text-slate-900 text-sm">{row.resourceName}</div>
-                                <div className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">
+                                <div className="font-pmedium text-slate-900 text-sm">{row.resourceName}</div>
+                                <div className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-0.5">
                                   {row.resourceType}{row.resourceLocation ? ` • ${row.resourceLocation}` : ''}
                                 </div>
                               </div>
@@ -1928,31 +1929,31 @@ export default function BookingsPage() {
                           </td>
                           {activeScope === 'tenant' && (
                             <td className="px-3 py-4">
-                              <span className="font-black text-slate-900 text-sm">{row.companyName || row.company}</span>
+                              <span className="font-pmedium text-slate-900 text-sm">{row.companyName || row.company}</span>
                             </td>
                           )}
                           <td className="px-3 py-4">
                             {renderScheduleSummary(row as unknown as Record<string, unknown>, { showDate: true })}
                           </td>
                           <td className="px-3 py-4">
-                            <div className="font-bold text-slate-800 text-xs">{row.bookedBy || '-'}</div>
-                            <div className="text-[10px] font-bold text-slate-500 flex items-center gap-1.5">
+                            <div className="font-pmedium text-slate-800 text-xs">{row.bookedBy || '-'}</div>
+                            <div className="text-[10px] font-pmedium text-slate-500 flex items-center gap-1.5">
                               {row.role || 'Manager'}
                             </div>
                           </td>
                           {activeScope !== 'tenant' && (
                             <td className="px-3 py-4">
-                              <span className="font-black text-slate-900 text-sm">{row.company || row.department}</span>
+                              <span className="font-pmedium text-slate-900 text-sm">{row.company || row.department}</span>
                             </td>
                           )}
                           <td className="px-3 py-4 text-center">
-                            <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${statusBadge(liveStatus)}`}>
+                            <span className={statusPillClass(liveStatus)}>
                               {liveStatus}
                             </span>
                           </td>
                           {activeScope !== 'tenant' && (
                             <td className="px-3 py-4 text-center">
-                              <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${bookingTypeBadgeClass(row.bookingType)}`}>
+                              <span className={statusPillClass(row.bookingType)}>
                                 {row.bookingType}
                               </span>
                             </td>
@@ -2018,7 +2019,7 @@ export default function BookingsPage() {
                 <div>
                   <h2 className="text-2xl font-black text-slate-900">{viewingDetails.resourceName || 'Booking Details'}</h2>
                   <div className="mt-1 flex items-center gap-3">
-                    <span className={`inline-flex rounded-md border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${statusBadge(viewingDetails.status)}`}>{viewingDetails.status}</span>
+                    <span className={statusPillClass(viewingDetails.status)}>{viewingDetails.status}</span>
                     <span className="flex items-center gap-1 text-xs font-bold text-slate-500">
                       <MapPin size={12} /> {viewingDetails.resourceType}
                     </span>
@@ -2097,7 +2098,7 @@ export default function BookingsPage() {
                                   <p className="text-sm font-bold text-slate-900">{invite.invitedName || 'Employee'}</p>
                                   <p className="text-[10px] font-bold text-slate-500">{invite.invitedRole}{invite.invitedDepartments.length > 0 ? ` • ${invite.invitedDepartments.join(', ')}` : ''}</p>
                                 </div>
-                                <span className={`inline-flex rounded-md border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${inviteStatusBadge(invite.status)}`}>
+                                <span className={statusPillClass(inviteStatusLabel(invite.status))}>
                                   {inviteStatusLabel(invite.status)}
                                 </span>
                               </div>
@@ -2122,7 +2123,7 @@ export default function BookingsPage() {
                       <InfoRow label="Payment Mode" value={viewingDetails.paymentMode || '-'} />
                       {viewingDetails.transactionId && <InfoRow label="Transaction ID" value={viewingDetails.transactionId} />}
                       <InfoRow label="Invoice Status" value={
-                        <span className={`inline-flex rounded-md border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${invoiceStatusBadge(viewingDetails.invoiceStatus)}`}>
+                        <span className={statusPillClass(viewingDetails.invoiceStatus)}>
                           {viewingDetails.invoiceStatus}
                         </span>
                       } />
@@ -2182,9 +2183,9 @@ export default function BookingsPage() {
                 <p className="text-xs font-bold text-slate-500">{formatDisplayDate(cancellingBooking.date)} • {cancellingBooking.timeSlot}</p>
               </div>
               <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-500">Reason for cancellation</label>
+                <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Reason for cancellation</label>
                 <textarea
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-bold outline-none transition-all focus:ring-2 focus:ring-red-400"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-pmedium outline-none transition-all focus:ring-2 focus:ring-red-400"
                   rows={3}
                   placeholder="Enter cancellation reason..."
                   value={cancelForm.reason}
@@ -2265,18 +2266,18 @@ export default function BookingsPage() {
               {bookingActionMode === 'reschedule' ? (
                 <div className="grid grid-cols-3 gap-3">
                   <div className="col-span-3">
-                    <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-500">New Date</label>
+                    <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">New Date</label>
                     <input
                       type="date"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-bold outline-none transition-all focus:ring-2 focus:ring-[#2563EB]"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-pmedium outline-none transition-all focus:ring-2 focus:ring-[#2563EB]"
                       value={rescheduleForm.newDate}
                       onChange={(e) => setRescheduleForm((prev) => ({ ...prev, newDate: e.target.value }))}
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-500">Start Time</label>
+                    <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Start Time</label>
                     <select
-                      className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-bold text-slate-700 outline-none transition-all focus:ring-2 focus:ring-[#2563EB]"
+                      className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-pmedium text-slate-700 outline-none transition-all focus:ring-2 focus:ring-[#2563EB]"
                       value={rescheduleForm.newStartTime}
                       onChange={(e) => setRescheduleForm((prev) => ({ ...prev, newStartTime: e.target.value }))}
                     >
@@ -2287,9 +2288,9 @@ export default function BookingsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-500">End Time</label>
+                    <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">End Time</label>
                     <select
-                      className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-bold text-slate-700 outline-none transition-all focus:ring-2 focus:ring-[#2563EB]"
+                      className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-pmedium text-slate-700 outline-none transition-all focus:ring-2 focus:ring-[#2563EB]"
                       value={rescheduleForm.newEndTime}
                       onChange={(e) => setRescheduleForm((prev) => ({ ...prev, newEndTime: e.target.value }))}
                     >
@@ -2302,9 +2303,9 @@ export default function BookingsPage() {
                 </div>
               ) : (
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-500">Extra Minutes</label>
+                  <label className="mb-1.5 block text-[10px] font-pmedium uppercase tracking-widest text-slate-500">Extra Minutes</label>
                   <select
-                    className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-bold text-slate-700 outline-none transition-all focus:ring-2 focus:ring-[#2563EB]"
+                    className="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-pmedium text-slate-700 outline-none transition-all focus:ring-2 focus:ring-[#2563EB]"
                     value={extendForm.extraMinutes}
                     onChange={(e) => setExtendForm({ extraMinutes: e.target.value })}
                   >
@@ -2381,7 +2382,7 @@ export default function BookingsPage() {
 
             <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 bg-slate-50/30 px-6 py-4">
               <select
-                className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none"
+                className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-pmedium text-slate-700 outline-none"
                 value={masterCalendarType}
                 onChange={(e) => { setMasterCalendarType(e.target.value); setMasterCalendarFloor('All Floors'); setMasterCalendarWing('All Wings'); setMasterCalendarRoom('All Rooms'); }}
               >
@@ -2390,7 +2391,7 @@ export default function BookingsPage() {
                 ))}
               </select>
               <select
-                className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none"
+                className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-pmedium text-slate-700 outline-none"
                 value={masterCalendarFloor}
                 onChange={(e) => { setMasterCalendarFloor(e.target.value); setMasterCalendarWing('All Wings'); setMasterCalendarRoom('All Rooms'); }}
               >
@@ -2399,7 +2400,7 @@ export default function BookingsPage() {
                 ))}
               </select>
               <select
-                className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none"
+                className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-pmedium text-slate-700 outline-none"
                 value={masterCalendarWing}
                 onChange={(e) => { setMasterCalendarWing(e.target.value); setMasterCalendarRoom('All Rooms'); }}
               >
@@ -2408,7 +2409,7 @@ export default function BookingsPage() {
                 ))}
               </select>
               <select
-                className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 outline-none"
+                className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-pmedium text-slate-700 outline-none"
                 value={masterCalendarRoom}
                 onChange={(e) => setMasterCalendarRoom(e.target.value)}
               >
@@ -2487,7 +2488,7 @@ export default function BookingsPage() {
                             </p>
                           </div>
                         </div>
-                        <span className={`inline-flex rounded-md border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${statusBadge(getLiveMeetingStatus(booking as unknown as Record<string, unknown>))}`}>
+                        <span className={statusPillClass(getLiveMeetingStatus(booking as unknown as Record<string, unknown>))}>
                           {getLiveMeetingStatus(booking as unknown as Record<string, unknown>)}
                         </span>
                       </div>
@@ -2515,7 +2516,7 @@ export default function BookingsPage() {
 function InfoRow({ label, value }: { label: string; value: ReactNode | string | number | null | undefined }) {
   return (
     <div className="flex items-center justify-between py-2">
-      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{label}</span>
+      <span className={statusPillClass(label)}>{label}</span>
       <span className="text-xs font-bold text-slate-900">{value ?? '-'}</span>
     </div>
   );

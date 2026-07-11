@@ -47,7 +47,7 @@ import {
 } from "lucide-react";
 import type { ElementType, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Card from "../../../components/Card";
 import PageFrame from "../../../components/Pages/PageFrame";
 import PrimaryButton from "../../../components/PrimaryButton";
@@ -219,6 +219,7 @@ const DEFAULT_SECTION_ROUTES: Record<string, string> = {
   "maintenance-repair-logs": "/maintenance/repair-logs",
   "amc-maintenance-scheduler": "/maintenance/amc-scheduler",
   "tech-website-builder": "/company-settings/website-builder",
+  "website-review": "/company-settings/website-builder/dynamic/reviews",
   "it-repair-logs": "/it/repair-logs",
   "it-system-access": "/it/system-access",
 };
@@ -246,6 +247,7 @@ const ICON_BY_ID: Record<string, ElementType> = {
   "website-builder": Globe,
   "wono-nomad": ShieldCheck,
   "website-leads": Magnet,
+  "website-review": CheckCircle2,
   "organization-management": Building,
   "module-management": Boxes,
   "access-grants": UserCog,
@@ -354,7 +356,15 @@ const SECTION_FALLBACKS: Record<SectionType, WorkspaceModuleSection> = {
       { id: "sales-department", label: "Sales Department", tabs: [] },
       { id: "finance-department", label: "Finance Department", tabs: [] },
       { id: "maintenance-department", label: "Maintenance Department", tabs: [] },
-      { id: "tech-department", label: "Tech Department", tabs: [] },
+      {
+        id: "tech-department",
+        label: "Tech Department",
+        tabs: [
+          { id: "tech-website-builder", label: "Website Builder", route: "/company-settings/website-builder", implemented: true, unlockedInWorkspace: true },
+          { id: "website-leads", label: "Website Leads", route: "/company-settings/website-builder/leads", implemented: true, unlockedInWorkspace: true },
+          { id: "website-review", label: "Website Review", route: "/company-settings/website-builder/dynamic/reviews", implemented: true, unlockedInWorkspace: true },
+        ],
+      },
       { id: "it-department", label: "IT Department", tabs: [] },
     ],
   },
@@ -411,6 +421,60 @@ const LockedCard = ({
     <div className="pointer-events-none absolute inset-0 rounded-2xl bg-white/45" />
   </button>
 );
+
+const CompactAddOnCard = ({
+  title,
+  icon,
+  locked = false,
+  route,
+  state,
+  onClick,
+}: {
+  title: string;
+  icon?: ReactNode;
+  locked?: boolean;
+  route?: string;
+  state?: Record<string, unknown>;
+  onClick?: () => void;
+}) => {
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    if (locked) {
+      onClick?.();
+      return;
+    }
+    if (onClick) {
+      onClick();
+      return;
+    }
+    if (route) {
+      navigate(route, state ? { state } : undefined);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={`relative flex min-h-[104px] w-full flex-col items-center justify-center rounded-xl border border-slate-200 bg-white px-2.5 py-3 text-center shadow-sm transition-all hover:border-slate-300 hover:shadow-md ${
+        locked ? "cursor-not-allowed" : "cursor-pointer"
+      }`}
+    >
+      <div className="flex min-w-0 flex-col items-center gap-2">
+        {icon ? (
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[17px] text-slate-700">
+            {icon}
+          </div>
+        ) : null}
+        <span className="w-full break-words text-[10px] font-semibold leading-[1.25] text-slate-800 sm:text-[11px]">
+          {title}
+        </span>
+      </div>
+      {locked ? <Lock size={13} className="absolute right-2.5 top-2.5 text-slate-500" /> : null}
+    </button>
+  );
+};
 
 const resolveSectionId = (rawSection?: string): SectionType => {
   const normalized = String(rawSection || "").trim() as SectionType;
@@ -950,7 +1014,7 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
     const remappedItems = filteredItems.map((item) => {
       const itemId = String(item?.id || "").trim();
       if (itemId === "website-leads")
-        return { ...item, label: "Leads Management", route: "/sales-crm/leads-management" };
+        return { ...item, label: "Website Leads", route: "/company-settings/website-builder/leads" };
       if (itemId === "resource-pricing")
         return { ...item, label: "Resource & Pricing" };
       return item;
@@ -1107,13 +1171,13 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
       const secData = findSection(secId);
       const rawItems = Array.isArray(secData?.items) ? secData.items : [];
       // Mirror the section pages: Attendance lives under Common Modules and
-      // Website Leads is presented as Leads Management.
+      // Website Leads keeps the website-facing label everywhere.
       const items = (secId === "extra-common-modules"
         ? rawItems.filter((item) => String(item?.id || "").trim() !== "attendance")
         : rawItems
       ).map((item) =>
         String(item?.id || "").trim() === "website-leads"
-          ? { ...item, label: "Leads Management" }
+          ? { ...item, label: "Website Leads" }
           : item,
       );
       items.forEach((item) => pushModule(item, GROUP_LABELS[secId]));
@@ -1164,7 +1228,13 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
           key: deptLabel,
           label: deptLabel,
           cards: groupCards(deptLabel),
-        }));
+        })).sort((a, b) => {
+          const enabledDelta = b.cards.filter((card) => card.unlocked).length - a.cards.filter((card) => card.unlocked).length;
+          if (enabledDelta !== 0) return enabledDelta;
+          const cardDelta = b.cards.length - a.cards.length;
+          if (cardDelta !== 0) return cardDelta;
+          return a.label.localeCompare(b.label);
+        });
         grouped.forEach((deptCards, label) => {
           if (sectionLabels.has(label)) return;
           if (!departments.some((item) => item.key === label)) {
@@ -1221,8 +1291,8 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
             <div className="space-y-5">
               {addOnGroups.map((group) => {
                 const isDeptGroup = group.key === "department-accesses";
-                const enabledCards = group.cards.filter((card) => card.unlocked);
-                const disabledCards = group.cards.filter((card) => !card.unlocked);
+                const enabledCards = [...group.cards].filter((card) => card.unlocked).sort((a, b) => a.title.localeCompare(b.title));
+                const disabledCards = [...group.cards].filter((card) => !card.unlocked).sort((a, b) => a.title.localeCompare(b.title));
 
                 return (
                   <div key={group.key} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
@@ -1238,8 +1308,9 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
                         <h3 className="text-[15px] font-bold uppercase tracking-wide text-slate-800">
                           {group.roman}. {group.label}
                         </h3>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {isDeptGroup ? `${group.departments?.length || 0} departments` : `${group.cards.length} modules`}
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          {enabledCards.length} enabled &middot; {disabledCards.length} locked
+                          {isDeptGroup ? ` · ${group.departments?.length || 0} departments` : ""}
                         </p>
                       </div>
                       <ChevronDown
@@ -1255,25 +1326,15 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
                           <div className="space-y-5">
                             <div className={enabledCards.length > 0 ? "space-y-3" : "hidden"}>
                               <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-600">Enabled</p>
-                              <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
                                 {enabledCards.map((card) => {
-                                  const titleWithGroup = (
-                                    <span className="flex flex-col items-center gap-1">
-                                      <span>{card.title}</span>
-                                      <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                                        {card.groupLabel}
-                                      </span>
-                                    </span>
-                                  );
                                   return (
-                                    <Card
+                                    <CompactAddOnCard
                                       key={`addon-enabled-${card.id}`}
-                                      title={titleWithGroup}
+                                      title={card.title}
                                       icon={card.icon}
-                                      route={card.route || "#"}
-                                      fullHeight
+                                      route={card.route}
                                       state={{ fromSection: "add-ons" }}
-                                      interactive={Boolean(card.route)}
                                     />
                                   );
                                 })}
@@ -1282,14 +1343,14 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
 
                             {disabledCards.length > 0 ? (
                               <div className="space-y-3">
-                                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Disabled</p>
-                                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Locked</p>
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
                                   {disabledCards.map((card) => (
-                                    <LockedCard
+                                    <CompactAddOnCard
                                       key={`addon-disabled-${card.id}`}
                                       title={card.title}
                                       icon={card.icon}
-                                      helperText={card.groupLabel}
+                                      locked
                                       onClick={upgradePlanCards.length > 0 ? () => setIsUpgradeModalOpen(true) : undefined}
                                     />
                                   ))}
@@ -1299,10 +1360,24 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
                           </div>
                         ) : (
                           <div className="space-y-4">
-                            {(group.departments || []).map((department) => {
+                            {[...(group.departments || [])]
+                              .sort((a, b) => {
+                                const enabledDelta =
+                                  b.cards.filter((card) => card.unlocked).length -
+                                  a.cards.filter((card) => card.unlocked).length;
+                                if (enabledDelta !== 0) return enabledDelta;
+                                const cardDelta = b.cards.length - a.cards.length;
+                                if (cardDelta !== 0) return cardDelta;
+                                return a.label.localeCompare(b.label);
+                              })
+                              .map((department) => {
                               const deptOpen = openAddOnDepartment === department.key;
-                              const enabledDeptCards = department.cards.filter((card) => card.unlocked);
-                              const disabledDeptCards = department.cards.filter((card) => !card.unlocked);
+                              const enabledDeptCards = [...department.cards]
+                                .filter((card) => card.unlocked)
+                                .sort((a, b) => a.title.localeCompare(b.title));
+                              const disabledDeptCards = [...department.cards]
+                                .filter((card) => !card.unlocked)
+                                .sort((a, b) => a.title.localeCompare(b.title));
 
                               return (
                                 <div key={department.key} className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
@@ -1319,7 +1394,9 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
                                       <h4 className="text-sm font-bold uppercase tracking-wide text-slate-700">
                                         {department.label}
                                       </h4>
-                                      <p className="mt-1 text-xs text-slate-500">{department.cards.length} modules</p>
+                                      <p className="mt-1 text-[11px] text-slate-500">
+                                        {enabledDeptCards.length} enabled &middot; {disabledDeptCards.length} locked
+                                      </p>
                                     </div>
                                     <ChevronDown
                                       className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-200 ${
@@ -1332,42 +1409,32 @@ const ModuleCardsLanding = ({ section }: { section?: SectionType }) => {
                                     <div className="border-t border-slate-200 px-4 py-4">
                                       <div className="space-y-5">
                                         <div className={enabledDeptCards.length > 0 ? "space-y-3" : "hidden"}>
-                                          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-600">Enabled</p>
-                                          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                            {enabledDeptCards.map((card) => {
-                                              const titleWithGroup = (
-                                                <span className="flex flex-col items-center gap-1">
-                                                  <span>{card.title}</span>
-                                                  <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                                                    {card.groupLabel}
-                                                  </span>
-                                                </span>
-                                              );
+                                        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-600">Enabled</p>
+                                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+                                          {enabledDeptCards.map((card) => {
                                               return (
-                                                <Card
+                                                <CompactAddOnCard
                                                   key={`dept-enabled-${card.id}`}
-                                                  title={titleWithGroup}
+                                                  title={card.title}
                                                   icon={card.icon}
-                                                  route={card.route || "#"}
-                                                  fullHeight
+                                                  route={card.route}
                                                   state={{ fromSection: "add-ons" }}
-                                                  interactive={Boolean(card.route)}
                                                 />
                                               );
                                             })}
-                                          </div>
+                                        </div>
                                         </div>
 
                                         {disabledDeptCards.length > 0 ? (
                                           <div className="space-y-3">
-                                            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Disabled</p>
-                                            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Locked</p>
+                                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
                                               {disabledDeptCards.map((card) => (
-                                                <LockedCard
+                                                <CompactAddOnCard
                                                   key={`dept-disabled-${card.id}`}
                                                   title={card.title}
                                                   icon={card.icon}
-                                                  helperText={card.groupLabel}
+                                                  locked
                                                   onClick={upgradePlanCards.length > 0 ? () => setIsUpgradeModalOpen(true) : undefined}
                                                 />
                                               ))}

@@ -15,6 +15,7 @@ import { getLeaveRequests, updateLeaveRequest } from "@/services/leave-requests"
 import { getTeamAttendance } from "@/services/attendance";
 import { createReport } from "@/services/reports";
 import { downloadReportFile } from "@/utils/report-download";
+import { statusPillClass } from '../../lib/status-pill';
 
 /* ───────────────────────────── Types ───────────────────────────── */
 
@@ -221,19 +222,17 @@ function normalizeLeaveRequest(entry: Record<string, unknown>): NormalizedLeave 
 
 function getStatusBadge(status: unknown) {
   const n = normalizeStatus(status);
-  const base = "inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider border";
-  if (n === "approved") return <span className={`${base} bg-green-50 text-green-700 border-green-200`}><CheckCircle2 size={12} /> Approved</span>;
-  if (n === "rejected") return <span className={`${base} bg-red-50 text-red-700 border-red-200`}><XCircle size={12} /> Rejected</span>;
-  return <span className={`${base} bg-amber-50 text-amber-700 border-amber-200`}><Clock size={12} /> Pending</span>;
+  if (n === "approved") return <span className={statusPillClass("approved")}>Approved</span>;
+  if (n === "rejected") return <span className={statusPillClass("rejected")}>Rejected</span>;
+  return <span className={statusPillClass("pending")}>Pending</span>;
 }
 
 function getRosterStatusBadge(status: string) {
   const n = normalizeKey(status);
-  const base = "inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider border";
-  if (n.includes("on-leave") || n.includes("half-day")) return <span className={`${base} bg-blue-50 text-[#2563EB] border-blue-200`}>On Leave Today</span>;
-  if (n.includes("absent")) return <span className={`${base} bg-slate-100 text-slate-500 border-slate-300`}>Absent Today</span>;
-  if (n.includes("present-late")) return <span className={`${base} bg-rose-50 text-rose-700 border-rose-200`}>Present Late</span>;
-  return <span className={`${base} bg-green-50 text-green-700 border-green-200`}>Present</span>;
+  if (n.includes("on-leave") || n.includes("half-day")) return <span className={statusPillClass("on leave")}>On Leave Today</span>;
+  if (n.includes("absent")) return <span className={statusPillClass("absent")}>Absent Today</span>;
+  if (n.includes("present-late")) return <span className={statusPillClass("late")}>Present Late</span>;
+  return <span className={statusPillClass("present")}>Present</span>;
 }
 
 function getTypeColor(type: string): string {
@@ -641,7 +640,7 @@ export default function HRLeaveRequestsProcessingPage() {
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
                 }`}
               >
-                {tab.key === "requests" ? `${tab.label} (${leaveRequests.length})` : tab.label}
+                {tab.label}
               </button>
             ))}
           </div>
@@ -714,29 +713,21 @@ export default function HRLeaveRequestsProcessingPage() {
 
             {/* Data Panel Header Row (DESIGN.md §7) */}
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-              <div className="flex bg-slate-100/50 p-1 rounded-xl w-full xl:w-auto relative border border-slate-200/50 overflow-x-auto">
-                <button
-                  onClick={() => setStatusFilter("all")}
-                  className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 whitespace-nowrap ${statusFilter === "all" ? "text-[#0F172A]" : "text-slate-500 hover:text-slate-800"}`}
-                >
-                  {statusFilter === "all" && <div className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
-                  All <span className="ml-1 text-slate-400">{leaveRequests.length}</span>
-                </button>
-                {STATUS_PILLS.filter((p) => p.key !== "all").map((pill) => (
+              <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                {STATUS_PILLS.map((pill) => (
                   <button
                     key={pill.key}
                     onClick={() => setStatusFilter(pill.key)}
-                    className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 whitespace-nowrap ${statusFilter === pill.key ? "text-[#0F172A]" : "text-slate-500 hover:text-slate-800"}`}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${statusFilter === pill.key ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200" : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"}`}
                   >
-                    {statusFilter === pill.key && <div className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
-                    {pill.label} <span className="ml-1 text-slate-400">{pill.key === "pending" ? pendingRequestsCount : pill.key === "approved" ? approvedRequestsCount : rejectedRequestsCount}</span>
+                    {pill.label}
                   </button>
                 ))}
               </div>
 
               <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap sm:flex-nowrap">
                 <select
-                  className="pl-3 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
+                  className="pl-3 pr-8 py-2.5 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 text-[#2563EB] rounded-lg text-[10px] font-pmedium uppercase tracking-widest outline-none cursor-pointer appearance-none shadow-sm min-w-[120px]"
                   value={departmentFilter}
                   onChange={(e) => setDepartmentFilter(e.target.value)}
                 >
@@ -748,7 +739,7 @@ export default function HRLeaveRequestsProcessingPage() {
                     type="text" placeholder="Search name or role..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                   />
                 </div>
                 
@@ -759,7 +750,7 @@ export default function HRLeaveRequestsProcessingPage() {
             {activeTab === "master" && (
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4 text-left">Employee</th>
                       <th className="px-5 py-4 text-left">Department</th>
@@ -770,30 +761,30 @@ export default function HRLeaveRequestsProcessingPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
                     {filteredMaster.length === 0 ? (
-                      <tr><td colSpan={5} className="text-center py-20 text-slate-400 font-semibold">No employees found.</td></tr>
+                      <tr><td colSpan={5} className="text-center py-20 text-slate-400 font-pmedium">No employees found.</td></tr>
                     ) : filteredMaster.map((emp) => {
                       const b = emp.balances as LeaveBalances;
                       return (
                         <tr key={String(emp.id)} className="hover:bg-slate-50/50 transition-colors group">
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-2.5">
-                              <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center text-[#2563EB] font-bold text-[11px]">
+                              <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center text-[#2563EB] font-pmedium text-[11px]">
                                 {getEmployeeInitials(String(emp.name))}
                               </div>
                               <div className="min-w-0">
-                                <p className="text-[12px] font-bold text-slate-800 truncate">{String(emp.name)}</p>
+                                <p className="text-[12px] font-pmedium text-slate-800 truncate">{String(emp.name)}</p>
                                 <p className="text-[10px] text-slate-400">{String(emp.role)}</p>
                               </div>
                             </div>
                           </td>
                           <td className="px-5 py-4 text-[11px] text-slate-600">{getDepartmentDisplay(emp.departments)}</td>
                           <td className="px-5 py-4 text-center">
-                            <span className="text-[13px] font-bold text-slate-900">{b.totalTaken}</span>
+                            <span className="text-[13px] font-pmedium text-slate-900">{b.totalTaken}</span>
                             <span className="text-[10px] text-slate-400 ml-1">/ {b.totalAllowed}</span>
                             <div className="flex gap-1.5 mt-1 justify-center">
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-50 text-red-600 font-semibold">S:{b.sickTaken}</span>
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-semibold">C:{b.casualTaken}</span>
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 font-semibold">CO:{b.compOffTaken}</span>
+                              <span className="text-[9px] text-slate-600 font-pmedium">S:{b.sickTaken}</span>
+                              <span className="text-[9px] text-slate-600 font-pmedium">C:{b.casualTaken}</span>
+                              <span className="text-[9px] text-slate-600 font-pmedium">CO:{b.compOffTaken}</span>
                             </div>
                           </td>
                           <td className="px-5 py-4 text-center">{getRosterStatusBadge(String(emp.status))}</td>
@@ -814,7 +805,7 @@ export default function HRLeaveRequestsProcessingPage() {
             {activeTab === "current" && (
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4 text-left">Employee</th>
                       <th className="px-5 py-4 text-left">Department</th>
@@ -824,20 +815,20 @@ export default function HRLeaveRequestsProcessingPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
                     {filteredCurrent.length === 0 ? (
-                      <tr><td colSpan={4} className="text-center py-20 text-slate-400 font-semibold">No employees are currently on leave.</td></tr>
+                      <tr><td colSpan={4} className="text-center py-20 text-slate-400 font-pmedium">No employees are currently on leave.</td></tr>
                     ) : filteredCurrent.map((r) => (
                       <tr key={r.recordId} className="hover:bg-slate-50/50 transition-colors group">
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-2.5">
-                            <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center text-[#2563EB] font-bold text-[11px]">
+                            <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center text-[#2563EB] font-pmedium text-[11px]">
                               {getEmployeeInitials(r.name)}
                             </div>
-                            <p className="text-[12px] font-bold text-slate-800">{r.name}</p>
+                            <p className="text-[12px] font-pmedium text-slate-800">{r.name}</p>
                           </div>
                         </td>
                         <td className="px-5 py-4 text-[11px] text-slate-600">{r.departmentDisplay}</td>
-                        <td className="px-5 py-4 text-[12px] font-semibold text-slate-700">{r.from}</td>
-                        <td className="px-5 py-4 text-[12px] font-semibold text-slate-700">{r.to}</td>
+                        <td className="px-5 py-4 text-[12px] font-pmedium text-slate-700">{r.from}</td>
+                        <td className="px-5 py-4 text-[12px] font-pmedium text-slate-700">{r.to}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -849,7 +840,7 @@ export default function HRLeaveRequestsProcessingPage() {
             {activeTab === "requests" && (
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4 text-left">Employee</th>
                       <th className="px-5 py-4 text-left">Leave Type & Reason</th>
@@ -860,29 +851,29 @@ export default function HRLeaveRequestsProcessingPage() {
                   </thead>
                   <tbody className="divide-y divide-slate-100/60">
                     {filteredRequests.length === 0 ? (
-                      <tr><td colSpan={5} className="text-center py-20 text-slate-400 font-semibold">No leave requests match your filters.</td></tr>
+                      <tr><td colSpan={5} className="text-center py-20 text-slate-400 font-pmedium">No leave requests match your filters.</td></tr>
                     ) : filteredRequests.map((req) => (
                       <tr key={req.id} className="hover:bg-slate-50/50 transition-colors group">
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-2.5">
-                            <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center text-[#2563EB] font-bold text-[11px]">
+                            <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center text-[#2563EB] font-pmedium text-[11px]">
                               {getEmployeeInitials(req.name)}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-[12px] font-bold text-slate-800 truncate">{req.name}</p>
+                              <p className="text-[12px] font-pmedium text-slate-800 truncate">{req.name}</p>
                               <p className="text-[10px] text-slate-400">{req.departmentDisplay} &bull; {req.role}</p>
                             </div>
                           </div>
                         </td>
                         <td className="px-5 py-4">
-                          <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider border ${getTypeColor(req.type)}`}>
+                          <span className={statusPillClass(req.type)}>
                             {req.type}
                           </span>
                           <p className="text-[11px] text-slate-500 mt-1 truncate max-w-[200px]" title={req.reason}>"{req.reason}"</p>
                         </td>
                         <td className="px-5 py-4">
-                          <p className="text-[12px] font-semibold text-slate-700">{req.from} - {req.to}</p>
-                          <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mt-0.5">{req.days} day(s)</p>
+                          <p className="text-[12px] font-pmedium text-slate-700">{req.from} - {req.to}</p>
+                          <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-wider mt-0.5">{req.days} day(s)</p>
                         </td>
                         <td className="px-5 py-4 text-center">{getStatusBadge(req.status)}</td>
                         <td className="px-5 py-4 text-center">
@@ -972,7 +963,7 @@ export default function HRLeaveRequestsProcessingPage() {
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-4">Leave History</p>
                 <div className="border border-slate-200 rounded-2xl overflow-hidden">
                   <table className="w-full">
-                    <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                    <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                       <tr>
                         <th className="px-4 py-3 text-left">Applied On</th>
                         <th className="px-4 py-3 text-left">Type</th>
@@ -987,12 +978,12 @@ export default function HRLeaveRequestsProcessingPage() {
                         <tr key={String(record.id)} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-4 py-3 text-[11px] text-slate-600">{String(record.dateApplied || "")}</td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase border ${getTypeColor(String(record.type))}`}>
+                            <span className={statusPillClass(String(record.type))}>
                               {String(record.type)}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-[11px] text-slate-700">{String(record.from || "")} - {String(record.to || "")}</td>
-                          <td className="px-4 py-3 text-center text-[12px] font-bold text-slate-900">{String(record.days || "0")}</td>
+                          <td className="px-4 py-3 text-center text-[12px] font-pmedium text-slate-900">{String(record.days || "0")}</td>
                           <td className="px-4 py-3 text-center">{getStatusBadge(record.status)}</td>
                           <td className="px-4 py-3 text-center">
                             <button onClick={() => setViewingLeaveDetail({ ...record, employeeName: viewingEmployee.name })} className="p-1.5 bg-slate-100 text-slate-600 hover:bg-blue-100 hover:text-blue-700 rounded-lg transition-all">
@@ -1033,7 +1024,7 @@ export default function HRLeaveRequestsProcessingPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Leave Type</p>
-                    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase border ${getTypeColor(String(viewingLeaveDetail.type || ""))}`}>
+                    <span className={statusPillClass(String(viewingLeaveDetail.type || "Leave"))}>
                       {String(viewingLeaveDetail.type || "Leave")}
                     </span>
                   </div>
@@ -1087,7 +1078,7 @@ export default function HRLeaveRequestsProcessingPage() {
                   </div>
                   <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Leave Type</p>
-                    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold uppercase border ${getTypeColor(viewingRequest.type)}`}>{viewingRequest.type}</span>
+                    <span className={statusPillClass(viewingRequest.type)}>{viewingRequest.type}</span>
                   </div>
                   <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Mode</p>
@@ -1182,9 +1173,9 @@ export default function HRLeaveRequestsProcessingPage() {
                   <p className="text-xs text-red-700 font-medium">Providing a reason is mandatory to notify the employee.</p>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Reason for Rejection *</label>
+                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-wider">Reason for Rejection *</label>
                   <textarea
-                    className="w-full p-4 bg-slate-50 border-2 border-transparent rounded-xl font-medium text-slate-900 focus:border-red-400 outline-none resize-none transition-all text-[12px]"
+                    className="w-full p-4 bg-slate-50 border-2 border-transparent rounded-xl font-pmedium text-slate-900 focus:border-red-400 outline-none resize-none transition-all text-[12px]"
                     rows={4} placeholder="Explain why the leave cannot be approved..."
                     value={rejectReason}
                     onChange={(e) => setRejectReason(e.target.value)}

@@ -37,6 +37,7 @@ import {
   sendExternalBookingConfirmationEmail,
 } from '../../services/meeting-room-bookings';
 import { validateEmail, validatePhone, computeExternalPricing, hasSlotConflict, computeAvailableSlots, timeToMinutes as helpersTimeToMinutes } from './externalBookingHelpers';
+import { statusPillClass } from '../../lib/status-pill';
 
 
 interface StoredUser {
@@ -819,7 +820,7 @@ function ClientDetailsTab({
       {selectedClient && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
-            <p className="text-[13px] font-bold text-emerald-800">{selectedClient.name}</p>
+            <p className="text-[13px] font-pmedium text-emerald-800">{selectedClient.name}</p>
             <p className="text-[11px] text-emerald-600">{selectedClient.email}</p>
             {selectedClient.phone && (
               <p className="text-[11px] text-emerald-600">{selectedClient.phone}</p>
@@ -866,7 +867,7 @@ function ClientDetailsTab({
                   onClick={() => handleSelectClient(client)}
                   className="w-full px-4 py-2.5 text-left hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0"
                 >
-                  <p className="text-[13px] font-semibold text-[#0F172A]">{client.name}</p>
+                  <p className="text-[13px] font-pmedium text-[#0F172A]">{client.name}</p>
                   <p className="text-[11px] text-slate-500">
                     {client.email}
                     {client.phone ? ` · ${client.phone}` : ''}
@@ -891,7 +892,7 @@ function ClientDetailsTab({
         <button
           type="button"
           onClick={handleAddNew}
-          className="flex items-center gap-2 text-[13px] font-bold text-[#2563EB] hover:text-blue-700 transition-colors self-start"
+          className="flex items-center gap-2 text-[13px] font-pmedium text-[#2563EB] hover:text-blue-700 transition-colors self-start"
         >
           <UserPlus size={15} strokeWidth={2.5} />
           Add New Client
@@ -902,13 +903,13 @@ function ClientDetailsTab({
       {clientMode === 'new' && !selectedClient && (
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+            <p className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">
               New Client Details
             </p>
             <button
               type="button"
               onClick={() => { setClientMode('search'); setClientErrors({}); }}
-              className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+              className="text-[11px] font-pmedium text-slate-400 hover:text-slate-600 transition-colors"
             >
               ← Back to search
             </button>
@@ -1290,7 +1291,7 @@ function ExternalBookingDialog({
                 <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">
                   External Booking
                 </h2>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">
                   Walk-in / External visitor
                 </p>
               </div>
@@ -1307,7 +1308,7 @@ function ExternalBookingDialog({
             <div className="flex-1 overflow-y-auto px-6 md:px-8 py-5 flex flex-col gap-4">
               {/* Error banner */}
               {errorMessage && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-600">
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-pmedium text-red-600">
                   {errorMessage}
                 </div>
               )}
@@ -1363,7 +1364,7 @@ function ExternalBookingDialog({
 
                     {/* Row 1 — Type filter (left) + Floor filter (right) */}
                     <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                      <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">
                         Type
                       </label>
                       <select
@@ -1383,7 +1384,7 @@ function ExternalBookingDialog({
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                      <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">
                         Floor
                       </label>
                       <select
@@ -1403,8 +1404,8 @@ function ExternalBookingDialog({
 
                     {/* Row 2 — Wing filter (left, optional) + Resource selector (right) */}
                     <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
-                        Wing <span className="text-slate-300 font-medium normal-case tracking-normal">(optional)</span>
+                      <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">
+                        Wing <span className="text-slate-300 font-pmedium normal-case tracking-normal">(optional)</span>
                       </label>
                       <select
                         value={wingFilter}
@@ -1422,7 +1423,7 @@ function ExternalBookingDialog({
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                      <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">
                         Resource <span className="text-red-400">*</span>
                       </label>
                       <select
@@ -1469,13 +1470,13 @@ function ExternalBookingDialog({
                         </p>
                       )}
                       {bookingErrors.resource && (
-                        <p className="text-[11px] text-red-500 font-semibold mt-0.5">{bookingErrors.resource}</p>
+                        <p className="text-[11px] text-red-500 font-pmedium mt-0.5">{bookingErrors.resource}</p>
                       )}
                     </div>
 
                     {/* ── Row 3: Date (left) + Start time (right) ─────────────────── */}
                     <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Date</label>
+                      <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">Date</label>
                       <input
                         type="date"
                         value={bookingForm.date}
@@ -1493,12 +1494,12 @@ function ExternalBookingDialog({
                         className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                       />
                       {bookingErrors.date && (
-                        <p className="text-[11px] text-red-500 font-semibold mt-0.5">{bookingErrors.date}</p>
+                        <p className="text-[11px] text-red-500 font-pmedium mt-0.5">{bookingErrors.date}</p>
                       )}
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Start Time</label>
+                      <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">Start Time</label>
                       <select
                         value={bookingForm.startTime}
                         onChange={(e) => {
@@ -1543,13 +1544,13 @@ function ExternalBookingDialog({
                         ))}
                       </select>
                       {bookingErrors.startTime && (
-                        <p className="text-[11px] text-red-500 font-semibold mt-0.5">{bookingErrors.startTime}</p>
+                        <p className="text-[11px] text-red-500 font-pmedium mt-0.5">{bookingErrors.startTime}</p>
                       )}
                     </div>
 
                     {/* ── Row 4: End time (left) + Duration display (right) ────────── */}
                     <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">End Time</label>
+                      <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">End Time</label>
                       <select
                         value={bookingForm.endTime}
                         onChange={(e) => {
@@ -1570,12 +1571,12 @@ function ExternalBookingDialog({
                         ))}
                       </select>
                       {bookingErrors.endTime && (
-                        <p className="text-[11px] text-red-500 font-semibold mt-0.5">{bookingErrors.endTime}</p>
+                        <p className="text-[11px] text-red-500 font-pmedium mt-0.5">{bookingErrors.endTime}</p>
                       )}
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">Duration</label>
+                      <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">Duration</label>
                       <p className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 min-h-[42px] flex items-center">
                         {(() => {
                           const startMin = timeToMinutes(bookingForm.startTime);
@@ -1633,11 +1634,11 @@ function ExternalBookingDialog({
                               <div className="p-3 bg-red-50 rounded-xl border border-red-100">
                                 <div className="flex items-start gap-2 mb-2">
                                   <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={15} />
-                                  <p className="text-[12px] text-red-800 font-bold">Time conflict — this slot is already booked.</p>
+                                  <p className="text-[12px] text-red-800 font-pmedium">Time conflict — this slot is already booked.</p>
                                 </div>
                                 {suggestions.length > 0 && (
                                   <div>
-                                    <p className="text-[10px] font-black text-red-700 uppercase tracking-widest mb-1.5">Available slots for this duration:</p>
+                                    <p className="text-[10px] font-pmedium text-red-700 uppercase tracking-widest mb-1.5">Available slots for this duration:</p>
                                     <div className="flex flex-wrap gap-1.5">
                                       {suggestions.map((slot) => (
                                         <button
@@ -1656,7 +1657,7 @@ function ExternalBookingDialog({
                                   </div>
                                 )}
                                 {suggestions.length === 0 && (
-                                  <p className="text-[11px] font-semibold text-red-700 mt-1">No available slots for this duration. Choose another date.</p>
+                                  <p className="text-[11px] font-pmedium text-red-700 mt-1">No available slots for this duration. Choose another date.</p>
                                 )}
                               </div>
                             );
@@ -1667,7 +1668,7 @@ function ExternalBookingDialog({
                             return (
                               <div className="p-3 bg-emerald-50 rounded-xl flex items-start gap-2 border border-emerald-100">
                                 <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={15} />
-                                <p className="text-[12px] text-emerald-800 font-bold">Resource is available for the selected slot.</p>
+                                <p className="text-[12px] text-emerald-800 font-pmedium">Resource is available for the selected slot.</p>
                               </div>
                             );
                           }
@@ -1678,7 +1679,7 @@ function ExternalBookingDialog({
                               return (
                                 <div className="p-3 bg-emerald-50 rounded-xl flex items-start gap-2 border border-emerald-100">
                                   <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={15} />
-                                  <p className="text-[12px] text-emerald-800 font-bold">Fully available on this date. Choose a time slot.</p>
+                                  <p className="text-[12px] text-emerald-800 font-pmedium">Fully available on this date. Choose a time slot.</p>
                                 </div>
                               );
                             }
@@ -1686,14 +1687,14 @@ function ExternalBookingDialog({
                               return (
                                 <div className="p-3 bg-red-50 rounded-xl flex items-start gap-2 border border-red-100">
                                   <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={15} />
-                                  <p className="text-[12px] text-red-800 font-bold">No slots available on this date. Choose another date.</p>
+                                  <p className="text-[12px] text-red-800 font-pmedium">No slots available on this date. Choose another date.</p>
                                 </div>
                               );
                             }
                             return (
                               <div className="p-3 bg-amber-50 rounded-xl flex items-start gap-2 border border-amber-100">
                                 <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={15} />
-                                <p className="text-[12px] text-amber-800 font-bold">Some slots are taken on this date. Choose an open time slot.</p>
+                                <p className="text-[12px] text-amber-800 font-pmedium">Some slots are taken on this date. Choose an open time slot.</p>
                               </div>
                             );
                           }
@@ -1705,7 +1706,7 @@ function ExternalBookingDialog({
 
                     {/* ── Row 5: Purpose (full-width, col-span-2) ──────────────────── */}
                     <div className="col-span-2 flex flex-col gap-1">
-                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                      <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">
                         Purpose <span className="text-red-400">*</span>
                       </label>
                       <input
@@ -1719,13 +1720,13 @@ function ExternalBookingDialog({
                         className="w-full text-sm px-3 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                       />
                       {bookingErrors.purpose && (
-                        <p className="text-[11px] text-red-500 font-semibold mt-0.5">{bookingErrors.purpose}</p>
+                        <p className="text-[11px] text-red-500 font-pmedium mt-0.5">{bookingErrors.purpose}</p>
                       )}
                     </div>
 
                     {/* ── Row 6: Payment Mode pills (full-width, col-span-2) ─────────── */}
                     <div className="col-span-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
+                      <label className="text-xs font-pmedium text-slate-500 uppercase tracking-wider mb-1.5 block">
                         Payment Mode <span className="text-red-500">*</span>
                       </label>
                       <div className="flex flex-wrap gap-1.5 bg-slate-100/60 p-1 rounded-xl border border-slate-200/50">
@@ -1752,7 +1753,7 @@ function ExternalBookingDialog({
                     {/* ── Row 7: Payment Status toggle (left) + Transaction ID (right) ── */}
                     {/* Left col: Pending / Paid toggle */}
                     <div>
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
+                      <label className="text-xs font-pmedium text-slate-500 uppercase tracking-wider mb-1.5 block">
                         Payment Status
                       </label>
                       <div className="flex bg-slate-100/60 p-1 rounded-xl border border-slate-200/50">
@@ -1777,7 +1778,7 @@ function ExternalBookingDialog({
                     <div>
                       {bookingForm.paymentStatus === 'Paid' ? (
                         <>
-                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
+                          <label className="text-xs font-pmedium text-slate-500 uppercase tracking-wider mb-1.5 block">
                             Transaction ID{' '}
                             <span className="font-normal normal-case tracking-normal text-slate-400">(optional)</span>
                           </label>
@@ -1800,8 +1801,8 @@ function ExternalBookingDialog({
 
                     {/* ── Row 7.5: Discount (full-width, col-span-2, optional) ─────── */}
                     <div className="col-span-2 flex flex-col gap-1">
-                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
-                        Discount <span className="text-slate-300 font-medium normal-case tracking-normal">(optional)</span>
+                      <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">
+                        Discount <span className="text-slate-300 font-pmedium normal-case tracking-normal">(optional)</span>
                       </label>
                       <div className="flex gap-2">
                         {/* ₹ / % type toggle — same pill style as payment mode */}
@@ -1836,15 +1837,15 @@ function ExternalBookingDialog({
                         />
                       </div>
                       {bookingErrors.discount && (
-                        <p className="text-[11px] text-red-500 font-semibold mt-0.5">{bookingErrors.discount}</p>
+                        <p className="text-[11px] text-red-500 font-pmedium mt-0.5">{bookingErrors.discount}</p>
                       )}
                     </div>
 
                     {/* ── Row 8: Notes (full-width, col-span-2, optional) ──────────── */}
                     <div className="col-span-2 flex flex-col gap-1">
-                      <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                      <label className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500">
                         Notes{' '}
-                        <span className="text-slate-300 font-medium normal-case tracking-normal">(optional)</span>
+                        <span className="text-slate-300 font-pmedium normal-case tracking-normal">(optional)</span>
                       </label>
                       <textarea
                         rows={2}
@@ -1858,34 +1859,34 @@ function ExternalBookingDialog({
                     {/* ── Row 9: Pricing Summary Box (full-width, col-span-2) ──────── */}
                     <div className="col-span-2">
                       <div className="rounded-2xl border border-blue-200/60 bg-blue-50/40 p-4 flex flex-col gap-2">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1">Pricing Summary</p>
+                        <p className="text-[10px] font-pmedium uppercase tracking-widest text-blue-600 mb-1">Pricing Summary</p>
                         {/* Base Price */}
                         <div className="flex justify-between items-center text-[13px]">
-                          <span className="text-slate-600 font-semibold">Base Price</span>
-                          <span className="font-bold text-slate-900">₹{externalPricing.basePriceRaw.toFixed(2)}</span>
+                          <span className="text-slate-600 font-pmedium">Base Price</span>
+                          <span className="font-pmedium text-slate-900">₹{externalPricing.basePriceRaw.toFixed(2)}</span>
                         </div>
                         {/* Discount line — only shown when non-zero */}
                         {externalPricing.discountAmount > 0 && (
                           <div className="flex justify-between items-center text-[13px]">
-                            <span className="text-slate-600 font-semibold">Discount</span>
-                            <span className="font-bold text-emerald-600">−₹{externalPricing.discountAmount.toFixed(2)}</span>
+                            <span className="text-slate-600 font-pmedium">Discount</span>
+                            <span className="font-pmedium text-emerald-600">−₹{externalPricing.discountAmount.toFixed(2)}</span>
                           </div>
                         )}
                         {/* GST */}
                         <div className="flex justify-between items-center text-[13px]">
-                          <span className="text-slate-600 font-semibold">GST (18%)</span>
-                          <span className="font-bold text-slate-900">₹{externalPricing.gstAmount.toFixed(2)}</span>
+                          <span className="text-slate-600 font-pmedium">GST (18%)</span>
+                          <span className="font-pmedium text-slate-900">₹{externalPricing.gstAmount.toFixed(2)}</span>
                         </div>
                         {/* Divider */}
                         <div className="h-px bg-blue-200/60 my-0.5" />
                         {/* Total */}
                         <div className="flex justify-between items-center">
-                          <span className="text-[14px] font-black text-[#0F172A] uppercase tracking-wider">Total</span>
-                          <span className="text-[16px] font-black text-[#2563EB]">₹{externalPricing.totalAmount.toFixed(2)}</span>
+                          <span className="text-[14px] font-pmedium text-[#0F172A] uppercase tracking-wider">Total</span>
+                          <span className="text-[16px] font-pmedium text-[#2563EB]">₹{externalPricing.totalAmount.toFixed(2)}</span>
                         </div>
                         {/* No rate note */}
                         {externalPricing.noRateSet && selectedResource && (
-                          <p className="text-[11px] font-semibold text-amber-600 mt-1">
+                          <p className="text-[11px] font-pmedium text-amber-600 mt-1">
                             This resource has no hourly rate set.
                           </p>
                         )}
@@ -2744,11 +2745,11 @@ export function MeetingRoomsPage() {
   const renderScheduleSummary = (booking: any, opts?: { showDate?: boolean }) => {
     const showDate = opts?.showDate !== false;
     return (
-      <div className="text-[12px] font-semibold text-slate-600 flex flex-col gap-0.5">
-        {showDate && <span className="font-bold text-[#0F172A]">{booking.date || ''}</span>}
+      <div className="text-[12px] font-pmedium text-slate-600 flex flex-col gap-0.5">
+        {showDate && <span className="font-pmedium text-[#0F172A]">{booking.date || ''}</span>}
         <span className="whitespace-nowrap">{formatTimeSlot(booking.startTime, booking.endTime)}</span>
         {isRescheduledBooking(booking) && booking.previousDate && (
-          <span className="text-[10px] font-bold text-purple-500 line-through">
+          <span className="text-[10px] font-pmedium text-purple-500 line-through">
             {booking.previousDate} {formatTimeSlot(booking.previousStartTime, booking.previousEndTime)}
           </span>
         )}
@@ -3681,7 +3682,7 @@ export function MeetingRoomsPage() {
   };
 
   return (
-    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-sans text-[12px]">
+    <div className="p-2 lg:p-2.5 min-h-full text-[#0F172A] font-pmedium text-[12px]">
       <PageFrame>
         {isInitialLoading && (
           <div className="flex flex-col gap-4 animate-pulse">
@@ -3695,14 +3696,17 @@ export function MeetingRoomsPage() {
               {[1,2,3,4].map(i => <div key={i} className="h-20 bg-slate-200 rounded-[2rem]" />)}
             </div>
             {/* Main content skeleton */}
-            <div className="grid lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 h-96 bg-slate-100 rounded-3xl" />
+            <div className="flex flex-col gap-6">
               <div className="h-96 bg-slate-100 rounded-3xl" />
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="h-72 bg-slate-100 rounded-3xl" />
+                <div className="h-72 bg-slate-100 rounded-3xl" />
+              </div>
             </div>
           </div>
         )}
         {!isInitialLoading && (
-          <div className="flex flex-col gap-4 text-slate-700 font-sans">
+          <div className="flex flex-col gap-4 text-slate-700 font-pmedium">
 
             {/* 1. HEADER */}
             <div className="mb-3 flex flex-col md:flex-row justify-between items-start md:items-end gap-1.5">
@@ -3754,12 +3758,12 @@ export function MeetingRoomsPage() {
             </div>
 
             {errorMessage ? (
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-600">
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-pmedium text-red-600">
                 {errorMessage}
               </div>
             ) : null}
 
-            {/* 2. MAIN TABS (TenantCompanies style) */}
+            {/* 2. MAIN TABS */}
             <div className="mb-3 flex flex-wrap gap-1.5 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
               {[
                 { key: 'my_bookings', label: 'My Bookings' },
@@ -3790,8 +3794,8 @@ export function MeetingRoomsPage() {
                 return (
                   <div key={card.key} className={card.cardClass}>
                     <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
-                      <p className="text-[15px] font-black text-slate-900">{card.value}</p>
+                      <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                      <p className="text-[15px] font-pmedium text-slate-900">{card.value}</p>
                     </div>
                     <div className={`p-2 rounded-2xl ${card.iconClass} shrink-0`}><Icon size={16}/></div>
                   </div>
@@ -3799,154 +3803,14 @@ export function MeetingRoomsPage() {
               })}
             </div>
 
-            <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
+            <div className="flex flex-col gap-6 lg:gap-8">
 
-              {/* 3. MAIN DATA TABLE (LEFT: 2/3) */}
-              <div className="lg:col-span-2 flex flex-col bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden min-h-[500px]">
+              {/* 3. MAIN DATA TABLE */}
+              <div className="flex flex-col bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden min-h-[500px]">
 
-                {/* Tabs & Filters */}
-                <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-                  {mainBookingTab === 'my_bookings' && (
-                    <div className="flex bg-slate-100/50 p-1 rounded-xl w-full xl:w-auto relative border border-slate-200/50 overflow-x-auto">
-                      {isEmployeeProfile ? (
-                      <>
-                        <button
-                          onClick={() => { setActiveTab('my_bookings'); setStatusFilter('all'); }}
-                          className={`flex-1 min-w-0 sm:min-w-[100px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'my_bookings' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
-                            }`}
-                        >
-                          {activeTab === 'my_bookings' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
-                          MY BOOKINGS
-                        </button>
-                        <button
-                          onClick={() => { setActiveTab('invites'); setStatusFilter('all'); }}
-                          className={`flex-1 min-w-0 sm:min-w-[90px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'invites' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
-                            }`}
-                        >
-                          {activeTab === 'invites' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
-                          INVITES
-                          {receivedInvites.filter(i => i.status === 'pending').length > 0 && (
-                            <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[9px] font-bold rounded-full shadow-sm shadow-red-200 animate-pulse">
-                              {receivedInvites.filter(i => i.status === 'pending').length}
-                            </span>
-                          )}
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        {/* First tab: Company / Dept / Assigned - role-based */}
-                        <button
-                          onClick={() => {
-                            const tab = isAdminProfile
-                              ? 'assigned_dept_bookings'
-                              : (isOwnerProfile || isSuperAdminProfile)
-                                ? 'company_bookings'
-                                : 'dept_bookings';
-                            setActiveTab(tab);
-                            setStatusFilter('all');
-                          }}
-                          className={`flex-[2.2] min-w-[210px] sm:min-w-[250px] lg:min-w-[120px] py-2 px-3 sm:px-4 rounded-lg text-[11px] sm:text-[12px] lg:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap text-center ${(activeTab === 'assigned_dept_bookings' || activeTab === 'company_bookings' || activeTab === 'dept_bookings') ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
-                            }`}
-                        >
-                          {(activeTab === 'assigned_dept_bookings' || activeTab === 'company_bookings' || activeTab === 'dept_bookings') && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
-                          COMPANY
-                        </button>
-                        <button
-                          onClick={() => { setActiveTab('my_bookings'); setStatusFilter('all'); }}
-                          className={`flex-1 min-w-0 sm:min-w-[100px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'my_bookings' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
-                            }`}
-                        >
-                          {activeTab === 'my_bookings' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
-                          MY BOOKINGS
-                        </button>
-                        <button
-                          onClick={() => { setActiveTab('invites'); setStatusFilter('all'); }}
-                          className={`flex-1 min-w-0 sm:min-w-[90px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'invites' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'
-                            }`}
-                        >
-                          {activeTab === 'invites' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
-                          INVITES
-                          {receivedInvites.filter(i => i.status === 'pending').length > 0 && (
-                            <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[9px] font-bold rounded-full shadow-sm shadow-red-200 animate-pulse">
-                              {receivedInvites.filter(i => i.status === 'pending').length}
-                            </span>
-                          )}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                  )}
-                  {mainBookingTab !== 'my_bookings' && (
-                    <div className="flex bg-slate-100/50 p-1 rounded-xl w-full xl:w-auto relative border border-slate-200/50 overflow-x-auto">
-                      <button
-                        onClick={() => { setActiveTab('bookings'); setStatusFilter('all'); }}
-                        className={`flex-1 min-w-0 sm:min-w-[100px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'bookings' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'}`}
-                      >
-                        {activeTab === 'bookings' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
-                        BOOKINGS
-                      </button>
-                      <button
-                        onClick={() => { setActiveTab('booking_history'); setStatusFilter('all'); }}
-                        className={`flex-1 min-w-0 sm:min-w-[120px] py-2 px-2.5 sm:px-4 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === 'booking_history' ? 'text-[#0F172A]' : 'text-slate-500 hover:text-slate-800'}`}
-                      >
-                        {activeTab === 'booking_history' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
-                        BOOKING HISTORY
-                      </button>
-                    </div>
-                  )}
-
-
-                  <div className="relative w-full xl:w-auto">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      type="text"
-                      placeholder="Search rooms or hosts..."
-                      className="w-full xl:w-58 pl-10 pr-4 py-2 bg-white border border-slate-200/60 rounded-xl text-[13px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400 shadow-sm"
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                {mainBookingTab === 'my_bookings' && (
-                  <button
-                    onClick={() => {
-                      setNewBooking((prev) => ({ ...prev, floor: '', wing: '', roomType: '', roomName: '' }));
-                      setShowBookingDialog(true);
-                    }}
-                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
-                  >
-                    <Plus size={14} strokeWidth={3} /> BOOK A ROOM
-                  </button>
-                )}
-                {mainBookingTab === 'internal_booking' && (
-                  <button
-                    onClick={() => setShowInternalBookingDialog(true)}
-                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
-                  >
-                    <UserPlus size={14} strokeWidth={3} /> BOOK FOR MEMBER
-                  </button>
-                )}
-                {mainBookingTab === 'external_booking' && (
-                  <button
-                    onClick={() => setShowNewExternalBookingDialog(true)}
-                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95"
-                  >
-                    <Globe size={14} strokeWidth={3} /> WALK-IN BOOKING
-                  </button>
-                )}
-                {mainBookingTab === 'tenant_bookings' && (
-                  <button
-                    onClick={() => setShowTenantBookingDialog(true)}
-                    className="w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 rounded-2xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-indigo-700 active:scale-95"
-                  >
-                    <Building2 size={14} strokeWidth={3} /> TENANT BOOKING
-                  </button>
-                )}
-              </div>
-                </div>
-
-                {/* Status Sub-Tabs */}
-                <div className="px-3 sm:px-4 lg:px-5 py-2 border-b border-slate-100/40 bg-white flex items-center gap-1.5 overflow-x-auto">
+                {/* Status, Search & Action */}
+                <div className="order-2 px-3 sm:px-4 lg:px-5 py-3 border-b border-slate-100/60 bg-slate-50/50 flex flex-col xl:flex-row xl:items-center gap-3">
+                  <div className="flex flex-1 items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                   {(activeTab !== 'invites'
                     ? activeTab === 'assigned_dept_bookings'
                       ? [
@@ -3990,34 +3854,146 @@ export function MeetingRoomsPage() {
                       {pill.label}
                     </button>
                   ))}
+                  </div>
+
+                  <div className="relative w-full xl:w-64 shrink-0">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      type="text"
+                      value={mainBookingTab === 'external_booking' ? externalSearchQuery : searchQuery}
+                      placeholder={mainBookingTab === 'external_booking' ? 'Search clients, rooms, or booking codes...' : 'Search rooms or hosts...'}
+                      className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200/60 rounded-xl text-[13px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                      onChange={(e) => mainBookingTab === 'external_booking' ? setExternalSearchQuery(e.target.value) : setSearchQuery(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="flex items-center shrink-0">
+                    {mainBookingTab === 'my_bookings' && (
+                      <button onClick={() => { setNewBooking((prev) => ({ ...prev, floor: '', wing: '', roomType: '', roomName: '' })); setShowBookingDialog(true); }} className="btn-pill w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95">
+                        <Plus size={14} strokeWidth={3} /> BOOK A ROOM
+                      </button>
+                    )}
+                    {mainBookingTab === 'internal_booking' && (
+                      <button onClick={() => setShowInternalBookingDialog(true)} className="btn-pill w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95">
+                        <UserPlus size={14} strokeWidth={3} /> BOOK FOR MEMBER
+                      </button>
+                    )}
+                    {mainBookingTab === 'external_booking' && (
+                      <button onClick={() => setShowNewExternalBookingDialog(true)} className="btn-pill w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-primary/95 active:scale-95">
+                        <Globe size={14} strokeWidth={3} /> WALK-IN BOOKING
+                      </button>
+                    )}
+                    {mainBookingTab === 'tenant_bookings' && (
+                      <button onClick={() => setShowTenantBookingDialog(true)} className="btn-pill w-full md:w-auto bg-[#2563EB] text-white px-4 py-2 flex items-center justify-center gap-1.5 shadow-sm transition-all hover:bg-indigo-700 active:scale-95">
+                        <Building2 size={14} strokeWidth={3} /> TENANT BOOKING
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Scope Tabs */}
+                <div className="order-1 p-1 border-b border-slate-100/60 flex bg-white shadow-sm overflow-x-auto [&::-webkit-scrollbar]:hidden">
+                  {mainBookingTab === 'my_bookings' && (
+                    <div className="flex w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-100 bg-white p-1 shadow-sm [&::-webkit-scrollbar]:hidden">
+                      {isEmployeeProfile ? (
+                      <>
+                        <button
+                          onClick={() => { setActiveTab('my_bookings'); setStatusFilter('all'); }}
+                          className={`flex-1 min-w-[130px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'my_bookings' ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                        >
+                          {activeTab === 'my_bookings' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />}
+                          MY BOOKINGS
+                        </button>
+                        <button
+                          onClick={() => { setActiveTab('invites'); setStatusFilter('all'); }}
+                          className={`flex-1 min-w-[130px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'invites' ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                        >
+                          {activeTab === 'invites' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />}
+                          INVITES
+                          {receivedInvites.filter(i => i.status === 'pending').length > 0 && (
+                            <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[9px] font-pmedium rounded-full shadow-sm shadow-red-200 animate-pulse">
+                              {receivedInvites.filter(i => i.status === 'pending').length}
+                            </span>
+                          )}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {/* First tab: Company / Dept / Assigned - role-based */}
+                        <button
+                          onClick={() => {
+                            const tab = isAdminProfile
+                              ? 'assigned_dept_bookings'
+                              : (isOwnerProfile || isSuperAdminProfile)
+                                ? 'company_bookings'
+                                : 'dept_bookings';
+                            setActiveTab(tab);
+                            setStatusFilter('all');
+                          }}
+                          className={`flex-1 min-w-[130px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${(activeTab === 'assigned_dept_bookings' || activeTab === 'company_bookings' || activeTab === 'dept_bookings') ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                        >
+                          {(activeTab === 'assigned_dept_bookings' || activeTab === 'company_bookings' || activeTab === 'dept_bookings') && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />}
+                          COMPANY
+                        </button>
+                        <button
+                          onClick={() => { setActiveTab('my_bookings'); setStatusFilter('all'); }}
+                          className={`flex-1 min-w-[130px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'my_bookings' ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                        >
+                          {activeTab === 'my_bookings' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />}
+                          MY BOOKINGS
+                        </button>
+                        <button
+                          onClick={() => { setActiveTab('invites'); setStatusFilter('all'); }}
+                          className={`flex-1 min-w-[130px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'invites' ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                        >
+                          {activeTab === 'invites' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />}
+                          INVITES
+                          {receivedInvites.filter(i => i.status === 'pending').length > 0 && (
+                            <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-red-500 text-white text-[9px] font-pmedium rounded-full shadow-sm shadow-red-200 animate-pulse">
+                              {receivedInvites.filter(i => i.status === 'pending').length}
+                            </span>
+                          )}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  )}
+                  {mainBookingTab !== 'my_bookings' && (
+                    <div className="flex w-full gap-1.5 overflow-x-auto rounded-2xl border border-slate-100 bg-white p-1 shadow-sm [&::-webkit-scrollbar]:hidden">
+                      <button
+                        onClick={() => { setActiveTab('bookings'); setStatusFilter('all'); }}
+                        className={`flex-1 min-w-[150px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'bookings' ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                      >
+                        {activeTab === 'bookings' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />}
+                        BOOKINGS
+                      </button>
+                      <button
+                        onClick={() => { setActiveTab('booking_history'); setStatusFilter('all'); }}
+                        className={`flex-1 min-w-[150px] py-2 px-4 rounded-full text-[10px] font-pmedium uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'booking_history' ? 'text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                      >
+                        {activeTab === 'booking_history' && <motion.div layoutId="roomTabs" className="absolute inset-0 bg-[#2563EB] rounded-full shadow-sm z-[-1]" />}
+                        BOOKING HISTORY
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Desktop Table */}
-                {activeTab !== 'invites' ? (
+                <div className="order-3">
+                  {activeTab !== 'invites' ? (
                   <>
                     {/* ── External Bookings Table (Tasks 18/19/21) ── */}
                     {mainBookingTab === 'external_booking' ? (
                       <>
-                        {/* Search + Filters */}
-                        <div className="px-3 sm:px-4 lg:px-5 py-3 border-b border-slate-100/40 bg-white flex flex-col gap-3">
-                          {/* Search input */}
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                            <input
-                              type="text"
-                              value={externalSearchQuery}
-                              onChange={(e) => setExternalSearchQuery(e.target.value)}
-                              placeholder="Search by client name, room, or booking code…"
-                              className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200/60 rounded-xl text-[13px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400 shadow-sm"
-                            />
-                          </div>
-                          
-                        </div>
-
                         {/* Desktop external table */}
                         <div className="hidden md:block overflow-x-auto">
                           <table className="w-full text-left border-collapse">
-                            <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                            <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                               <tr>
                                 <th className="px-5 py-4">Client Name</th>
                                 <th className="px-5 py-4">Resource</th>
@@ -4035,19 +4011,19 @@ export function MeetingRoomsPage() {
                                 return (
                                   <tr key={b.recordId || b.id} className="hover:bg-slate-50/50 transition-colors group">
                                     <td className="px-5 py-4">
-                                      <p className="font-bold text-[#0F172A] text-[13px]">{(b as any).bookedForName || '—'}</p>
+                                      <p className="font-pmedium text-[#0F172A] text-[13px]">{(b as any).bookedForName || '—'}</p>
                                     </td>
                                     <td className="px-5 py-4">
                                       <div className="flex items-center gap-2">
                                         <Building size={14} className="text-primary shrink-0" />
-                                        <p className="font-semibold text-[#0F172A] text-[13px] whitespace-nowrap">{b.roomName}</p>
+                                        <p className="font-pmedium text-[#0F172A] text-[13px] whitespace-nowrap">{b.roomName}</p>
                                       </div>
                                     </td>
                                     <td className="px-5 py-4">
                                       {renderScheduleSummary(b)}
                                     </td>
                                     <td className="px-5 py-4 text-center">
-                                      <span className={`px-2.5 py-1 inline-flex items-center justify-center rounded-md text-[10px] font-black uppercase tracking-wider border ${
+                                      <span className={`px-2.5 py-1 inline-flex items-center justify-center rounded-md text-[10px] font-pmedium uppercase tracking-wider border ${
                                         paymentStatus === 'Paid'
                                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                           : 'bg-amber-50 text-amber-700 border-amber-200'
@@ -4056,7 +4032,7 @@ export function MeetingRoomsPage() {
                                       </span>
                                     </td>
                                     <td className="px-5 py-4 text-center">
-                                      <span className={`px-2.5 py-1 flex items-center justify-center gap-1.5 rounded-md text-[10px] font-black uppercase tracking-wider ${getStatusStyle(displayStatus)} border`}>
+                                      <span className={`${statusPillClass(displayStatus)} justify-center gap-1.5`}>
                                         {displayStatus}
                                       </span>
                                     </td>
@@ -4082,7 +4058,7 @@ export function MeetingRoomsPage() {
                                   <td colSpan={6} className="px-6 py-16 text-center">
                                     <div className="flex flex-col items-center gap-3">
                                       <Globe size={32} className="text-slate-300" />
-                                      <p className="text-sm font-semibold text-slate-400">No external bookings yet. Click &quot;Walk-in Booking&quot; to get started.</p>
+                                      <p className="text-sm font-pmedium text-slate-400">No external bookings yet. Click &quot;Walk-in Booking&quot; to get started.</p>
                                     </div>
                                   </td>
                                 </tr>
@@ -4101,25 +4077,25 @@ export function MeetingRoomsPage() {
                               <div key={b.recordId || b.id} className="bg-white border border-slate-200/60 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
                                 <div className="flex justify-between items-start">
                                   <div>
-                                    <p className="font-bold text-[#0F172A] text-sm">{(b as any).bookedForName || '—'}</p>
-                                    <p className="text-[11px] font-semibold text-slate-500">{b.roomName}</p>
+                                    <p className="font-pmedium text-[#0F172A] text-sm">{(b as any).bookedForName || '—'}</p>
+                                    <p className="text-[11px] font-pmedium text-slate-500">{b.roomName}</p>
                                   </div>
-                                  <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${getStatusStyle(displayStatus)}`}>
+                                  <span className={statusPillClass(displayStatus)}>
                                     {displayStatus}
                                   </span>
                                 </div>
-                                <div className="grid grid-cols-2 gap-2 bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs font-semibold text-slate-600">
+                                <div className="grid grid-cols-2 gap-2 bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs font-pmedium text-slate-600">
                                   <div>
-                                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Date</span>
+                                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Date</span>
                                     {b.date}
                                   </div>
                                   <div>
-                                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Time</span>
+                                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Time</span>
                                     {formatTime12h(b.startTime)} – {formatTime12h(b.endTime)}
                                   </div>
                                   <div>
-                                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Payment</span>
-                                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Payment</span>
+                                    <span className={`px-2 py-0.5 rounded text-[9px] font-pmedium uppercase border ${paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
                                       {paymentStatus || 'Pending'}
                                     </span>
                                   </div>
@@ -4142,7 +4118,7 @@ export function MeetingRoomsPage() {
                           {externalDisplayedBookings.length === 0 && (
                             <div className="py-12 text-center">
                               <Globe size={32} className="text-slate-300 mx-auto mb-3" />
-                              <p className="text-sm font-semibold text-slate-400">No external bookings yet. Click &quot;Walk-in Booking&quot; to get started.</p>
+                              <p className="text-sm font-pmedium text-slate-400">No external bookings yet. Click &quot;Walk-in Booking&quot; to get started.</p>
                             </div>
                           )}
                         </div>
@@ -4151,12 +4127,14 @@ export function MeetingRoomsPage() {
                     <>
                     <div className="hidden md:block overflow-x-auto">
                       <table className="w-full text-left border-collapse">
-                        <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                        <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                           <tr>
                             <th className="px-5 py-4">Meeting Room</th>
+                            <th className="px-5 py-4">Type</th>
+                            <th className="px-5 py-4">Department</th>
                             <th className="px-5 py-4">Host</th>
-                            {mainBookingTab === 'internal_booking' && <th className="px-5 py-4">Booked By</th>}
-                            <th className="px-5 py-4">Schedule</th>
+                            <th className="px-5 py-4">Date</th>
+                            <th className="px-5 py-4">Start &amp; End Time</th>
                             <th className="px-5 py-4 text-center">Status</th>
                             <th className="px-5 py-4 text-center">Action</th>
                           </tr>
@@ -4176,39 +4154,36 @@ export function MeetingRoomsPage() {
                                   <div className="flex items-center gap-2.5 min-w-[180px]">
                                     <Building size={16} className="text-primary" />
                                     <div className="min-w-0">
-                                      <p className="font-bold text-[#0F172A] text-[13px] whitespace-nowrap">{b.roomName}</p>
-                                      <p className="text-[11px] font-semibold text-slate-400">{getBookingDisplayCount()} Booking{b.roomCapacity ? ` - ${b.roomCapacity} seats` : ''}</p>
-                                      <span className={`mt-1 inline-flex px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-wider ${getBookingTagBadge(b)}`}>
+                                      <p className="font-pmedium text-[#0F172A] text-[13px] whitespace-nowrap">{b.roomName}</p>
+                                      <p className="text-[11px] font-pmedium text-slate-400">{getBookingDisplayCount()} Booking{b.roomCapacity ? ` - ${b.roomCapacity} seats` : ''}</p>
+                                      <span className={`mt-1 inline-flex px-2 py-0.5 rounded-full border text-[9px] font-pmedium uppercase tracking-wider ${getBookingTagBadge(b)}`}>
                                         {getBookingTagLabel(b)}
                                       </span>
                                     </div>
                                   </div>
                                 </td>
+                                <td className="px-5 py-4 whitespace-nowrap text-[12px] text-slate-600">
+                                  {b.roomType || roomCatalog.find((room) => room.name === b.roomName)?.type || getMeetingRoomTypeFromName(b.roomName)}
+                                </td>
+                                <td className="px-5 py-4 text-[12px] text-slate-600">
+                                  {b.department || '—'}
+                                </td>
                                 <td className="px-5 py-4">
-                                  <p className="text-[13px] font-bold text-[#0F172A]">
+                                  <p className="text-[13px] font-pmedium text-[#0F172A]">
                                     {normalize(b.bookingType) === 'tenant'
                                       ? ((b as any).bookedByTenantCompanyName || b.department || 'Tenant Company')
                                       : ((b as any).bookedForName || b.bookedByName)}
                                     {getInviteMeetingLabel(b) ? ` (${getInviteMeetingLabel(b)})` : ''}
                                   </p>
-                                  <p className="text-[11px] font-semibold text-slate-400">{b.department}</p>
                                 </td>
-                                {mainBookingTab === 'internal_booking' && (
-                                  <td className="px-5 py-4">
-                                    {(b as any).bookedForName
-                                      ? <p className="text-[13px] font-semibold text-slate-600">{b.bookedByName}</p>
-                                      : <p className="text-[11px] text-slate-300">—</p>
-                                    }
-                                  </td>
-                                )}
-                                <td className="px-5 py-4">
-                                  {renderScheduleSummary(b)}
-                                  {(Number(b.totalAmount || 0) > 0 || Number(b.extensionAmount || 0) > 0) && (
-                                    <p className="mt-1 text-[11px] font-bold text-slate-500">Total: {formatCurrency(b.totalAmount || 0)}</p>
-                                  )}
+                                <td className="px-5 py-4 whitespace-nowrap text-[12px] text-slate-600">
+                                  {b.date || '—'}
+                                </td>
+                                <td className="px-5 py-4 whitespace-nowrap text-[12px] text-slate-600">
+                                  {formatTimeSlot(b.startTime || b.checkIn, b.endTime || b.checkOut)}
                                 </td>
                                 <td className="px-5 py-4 text-center">
-                                  <span className={`px-2.5 py-1 flex items-center justify-center gap-1.5 rounded-md text-[10px] font-black uppercase tracking-wider ${getStatusStyle(displayStatus)} border`}>
+                                  <span className={`${statusPillClass(displayStatus)} justify-center gap-1.5`}>
                                     {displayStatus}
                                   </span>
                                 </td>
@@ -4230,7 +4205,7 @@ export function MeetingRoomsPage() {
                             );
                           })}
                           {displayedBookings.length === 0 && (
-                            <tr><td colSpan={mainBookingTab === 'internal_booking' ? 6 : 5} className="px-6 py-16 text-center text-sm font-semibold text-slate-400 bg-slate-50/30">No bookings found matching your criteria.</td></tr>
+                            <tr><td colSpan={8} className="px-6 py-16 text-center text-sm font-pmedium text-slate-400 bg-slate-50/30">No bookings found matching your criteria.</td></tr>
                           )}
                         </tbody>
                       </table>
@@ -4252,34 +4227,34 @@ export function MeetingRoomsPage() {
                               <div className="flex items-center gap-2 min-w-[180px]">
                                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary"><Building size={14} strokeWidth={2.5} /></div>
                                 <div className="min-w-0">
-                                  <p className="font-bold text-[#0F172A] text-sm leading-tight whitespace-nowrap">{b.roomName}</p>
-                                  <p className="text-[11px] font-semibold text-slate-500">
+                                  <p className="font-pmedium text-[#0F172A] text-sm leading-tight whitespace-nowrap">{b.roomName}</p>
+                                  <p className="text-[11px] font-pmedium text-slate-500">
                                     {(b as any).bookedForName || b.bookedByName}
                                     {getInviteMeetingLabel(b) ? ` (${getInviteMeetingLabel(b)})` : ''}
                                   </p>
                                 </div>
                               </div>
-                              <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${getStatusStyle(displayStatus)} border`}>
+                              <span className={statusPillClass(displayStatus)}>
                                 {displayStatus}
                               </span>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2 bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs font-semibold text-slate-600">
+                            <div className="grid grid-cols-2 gap-2 bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs font-pmedium text-slate-600">
                               <div>
-                                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Date</span>
+                                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Date</span>
                                 {b.date}
                               </div>
                               <div>
-                                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Time</span>
+                                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Time</span>
                                 {b.checkIn} - {b.checkOut}
                               </div>
                               {(Number(b.totalAmount || 0) > 0 || Number(b.extensionAmount || 0) > 0) && (
                                 <div className="col-span-2">
-                                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Amount</span>
+                                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Amount</span>
                                   <div className="flex items-center justify-between gap-2">
-                                    <span className="font-black text-[#0F172A]">{formatCurrency(b.totalAmount || 0)}</span>
+                                    <span className="font-pmedium text-[#0F172A]">{formatCurrency(b.totalAmount || 0)}</span>
                                     {Number(b.extensionAmount || 0) > 0 && (
-                                      <span className="text-[10px] font-bold text-slate-500">Extension: {formatCurrency(b.extensionAmount)}</span>
+                                      <span className="text-[10px] font-pmedium text-slate-500">Extension: {formatCurrency(b.extensionAmount)}</span>
                                     )}
                                   </div>
                                 </div>
@@ -4302,7 +4277,7 @@ export function MeetingRoomsPage() {
                         );
                       })}
                       {displayedBookings.length === 0 && (
-                        <div className="py-12 text-center text-sm font-semibold text-slate-400">No bookings found.</div>
+                        <div className="py-12 text-center text-sm font-pmedium text-slate-400">No bookings found.</div>
                       )}
                     </div>
                     </>
@@ -4312,7 +4287,7 @@ export function MeetingRoomsPage() {
                   <>
                     <div className="hidden md:block overflow-x-auto">
                       <table className="w-full text-left border-collapse">
-                        <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                        <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                           <tr>
                             <th className="px-5 py-4">Meeting Room</th>
                             <th className="px-5 py-4">Invited By</th>
@@ -4334,23 +4309,23 @@ export function MeetingRoomsPage() {
                                     <div className="flex items-center gap-2.5 min-w-[180px]">
                                       <Building size={16} className="text-primary" />
                                       <div className="min-w-0">
-                                        <p className="font-bold text-[#0F172A] text-[13px] whitespace-nowrap">{invite.roomName}</p>
-                                        <p className="text-[11px] font-semibold text-slate-400">{invite.department}</p>
+                                        <p className="font-pmedium text-[#0F172A] text-[13px] whitespace-nowrap">{invite.roomName}</p>
+                                        <p className="text-[11px] font-pmedium text-slate-400">{invite.department}</p>
                                       </div>
                                     </div>
                                   </td>
                                   <td className="px-5 py-4">
-                                    <p className="text-[13px] font-bold text-[#0F172A]">{invite.bookedByName}</p>
-                                    <p className="text-[11px] font-semibold text-slate-400">{inviteName}</p>
+                                    <p className="text-[13px] font-pmedium text-[#0F172A]">{invite.bookedByName}</p>
+                                    <p className="text-[11px] font-pmedium text-slate-400">{inviteName}</p>
                                   </td>
                                   <td className="px-5 py-4">
-                                    <div className="text-[12px] font-semibold text-slate-600 flex flex-col gap-0.5">
-                                      <span className="font-bold text-[#0F172A]">{invite.date}</span>
+                                    <div className="text-[12px] font-pmedium text-slate-600 flex flex-col gap-0.5">
+                                      <span className="font-pmedium text-[#0F172A]">{invite.date}</span>
                                       <span className="whitespace-nowrap">{formatTimeSlot(invite.startTime, invite.endTime)}</span>
                                     </div>
                                   </td>
                                   <td className="px-5 py-4 text-center">
-                                    <span className={`px-2.5 py-1 flex items-center justify-center gap-1.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${statusBadge(invite.status)}`}>
+                                    <span className={`${statusPillClass(statusLabel(invite.status))} justify-center gap-1.5`}>
                                       {statusLabel(invite.status)}
                                     </span>
                                   </td>
@@ -4364,7 +4339,7 @@ export function MeetingRoomsPage() {
                                         </>
                                       )}
                                       {invite.status === 'pending' && !canRespond && (
-                                        <span className="px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider bg-slate-100 text-slate-500 border border-slate-200">Expired</span>
+                                        <span className="px-2 py-1 rounded-md text-[9px] font-pmedium uppercase tracking-wider bg-slate-100 text-slate-500 border border-slate-200">Expired</span>
                                       )}
                                       {invite.status === 'rejected' && invite.responseReason && (
                                         <button onClick={() => setViewingBooking(allBookings.find((booking) => String(booking.recordId) === String(invite.bookingId)) || null)} className="p-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg transition-all" title="View Reject Reason">Reason</button>
@@ -4376,7 +4351,7 @@ export function MeetingRoomsPage() {
                             })()
                           ))}
                           {displayedInvites.length === 0 && (
-                            <tr><td colSpan={5} className="px-6 py-16 text-center text-sm font-semibold text-slate-400 bg-slate-50/30">No meeting invites found.</td></tr>
+                            <tr><td colSpan={5} className="px-6 py-16 text-center text-sm font-pmedium text-slate-400 bg-slate-50/30">No meeting invites found.</td></tr>
                           )}
                         </tbody>
                       </table>
@@ -4392,21 +4367,20 @@ export function MeetingRoomsPage() {
                             <div key={`${invite.bookingId}-${invite.invitedUserId}`} className="bg-white border border-slate-200/60 rounded-2xl p-4 shadow-sm flex flex-col gap-3">
                               <div className="flex justify-between items-start gap-3">
                                 <div className="min-w-0">
-                                  <p className="font-bold text-[#0F172A] text-sm leading-tight whitespace-nowrap">{invite.roomName}</p>
-                                  <p className="text-[11px] font-semibold text-slate-500">{invite.bookedByName}</p>
+                                  <p className="font-pmedium text-[#0F172A] text-sm leading-tight whitespace-nowrap">{invite.roomName}</p>
+                                  <p className="text-[11px] font-pmedium text-slate-500">{invite.bookedByName}</p>
                                 </div>
-                                <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${statusBadge(invite.status)
-                                  } border`}>
+                                <span className={statusPillClass(statusLabel(invite.status))}>
                                   {statusLabel(invite.status)}
                                 </span>
                               </div>
-                              <div className="grid grid-cols-2 gap-2 bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs font-semibold text-slate-600">
+                              <div className="grid grid-cols-2 gap-2 bg-slate-50 rounded-xl p-3 border border-slate-100 text-xs font-pmedium text-slate-600">
                                 <div>
-                                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Date</span>
+                                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Date</span>
                                   {invite.date}
                                 </div>
                                 <div>
-                                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Time</span>
+                                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-pmedium block mb-0.5">Time</span>
                                   <span className="whitespace-nowrap">{formatTimeSlot(invite.startTime, invite.endTime)}</span>
                                 </div>
                               </div>
@@ -4430,23 +4404,24 @@ export function MeetingRoomsPage() {
                         })()
                       ))}
                       {displayedInvites.length === 0 && (
-                        <div className="py-12 text-center text-sm font-semibold text-slate-400">No meeting invites found.</div>
+                        <div className="py-12 text-center text-sm font-pmedium text-slate-400">No meeting invites found.</div>
                       )}
                     </div>
                   </>
-                )}
+                  )}
+                </div>
               </div>
 
-              {/* 4. DASHBOARD WIDGETS (RIGHT: 1/3) */}
-              <div className="flex flex-col gap-6 lg:gap-8 min-h-full">
+              {/* 4. AVAILABILITY AND UPCOMING (BELOW TABLE) */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8">
 
                 {/* Calendar Widget */}
-                <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5 flex-grow-0">
-                  <div className="mb-5">
-                    <h3 className="font-bold text-[14px] text-[#0F172A] mb-3">Room Availability</h3>
+                <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-4 flex-grow-0">
+                  <div className="mb-4">
+                    <h3 className="font-pmedium text-[14px] text-[#0F172A] mb-3">Room Availability</h3>
                     <div className="relative">
                       <select
-                        className="w-full pl-4 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[12px] text-primary focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none appearance-none cursor-pointer transition-all shadow-sm"
+                        className="w-full pl-4 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl font-pmedium text-[12px] text-primary focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none appearance-none cursor-pointer transition-all shadow-sm"
                         value={calendarRoomFilter}
                         onChange={(e) => setCalendarRoomFilter(e.target.value)}
                       >
@@ -4460,18 +4435,18 @@ export function MeetingRoomsPage() {
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-center mb-5">
-                    <button onClick={handlePrevMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"><ChevronLeft size={16} /></button>
-                    <span className="font-bold text-[12px] text-[#0F172A] tracking-wide">{monthNames[currentMonth]} {currentYear}</span>
-                    <button onClick={handleNextMonth} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"><ChevronRight size={16} /></button>
+                  <div className="mx-auto flex max-w-sm justify-between items-center mb-4">
+                    <button onClick={handlePrevMonth} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"><ChevronLeft size={16} /></button>
+                    <span className="font-pmedium text-[12px] text-[#0F172A] tracking-wide">{monthNames[currentMonth]} {currentYear}</span>
+                    <button onClick={handleNextMonth} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"><ChevronRight size={16} /></button>
                   </div>
 
-                  <div className="grid grid-cols-7 gap-1.5 mb-1.5 text-center text-[10px] font-black text-slate-400 tracking-widest">
+                  <div className="mx-auto grid max-w-sm grid-cols-7 gap-1 mb-1.5 text-center text-[9px] font-pmedium text-slate-400 tracking-widest">
                     {['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'].map((d, idx) => <div key={`day-${idx}`}>{d}</div>)}
                   </div>
 
-                  <div className="grid grid-cols-7 gap-1.5">
-                    {[...Array(firstDayOfMonth)].map((_, i) => <div key={`empty-${i}`} className="aspect-square rounded-xl border border-dashed border-slate-200 bg-slate-50" />)}
+                  <div className="mx-auto grid max-w-sm grid-cols-7 gap-1">
+                    {[...Array(firstDayOfMonth)].map((_, i) => <div key={`empty-${i}`} className="aspect-square rounded-lg border border-dashed border-slate-200 bg-slate-50" />)}
                     {[...Array(daysInMonth)].map((_, i) => {
                       const day = i + 1;
                       const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -4488,26 +4463,26 @@ export function MeetingRoomsPage() {
                           type="button"
                           title={`Bookings: ${dayBookings.length}`}
                           onClick={() => setSelectedCalendarDateKey(dateStr)}
-                          className={`aspect-square rounded-[10px] sm:rounded-xl border-2 p-1.5 sm:p-2 text-left transition-all hover:-translate-y-0.5 hover:shadow-sm flex flex-col justify-between ${dayStyle} ${isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-white' : ''}`}
+                          className={`relative flex aspect-square items-center justify-center rounded-lg border p-0 text-center transition-all hover:-translate-y-0.5 hover:shadow-sm ${dayStyle} ${isSelected ? 'ring-2 ring-primary ring-offset-1 ring-offset-white' : ''}`}
                         >
-                          <div className="flex justify-between items-start gap-1">
-                            <span className="font-black text-[11px] sm:text-[13px] leading-none">{day}</span>
-                            <span className="text-[9px] font-black uppercase tracking-widest opacity-70">{dayBookings.length}</span>
-                          </div>
+                          <span className="font-pmedium text-[11px] leading-none">{day}</span>
+                          {dayBookings.length > 0 && (
+                            <span className="absolute bottom-1 right-1 text-[7px] font-pmedium leading-none opacity-70">{dayBookings.length}</span>
+                          )}
                         </button>
                       );
                     })}
                   </div>
 
-                  <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selected day</p>
-                        <p className="mt-1 text-sm font-black text-slate-950">{selectedCalendarDateLabel}</p>
+                        <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Selected day</p>
+                        <p className="mt-1 text-sm font-pmedium text-slate-950">{selectedCalendarDateLabel}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bookings</p>
-                        <p className="mt-1 text-lg font-black text-primary">{selectedCalendarBookings.length}</p>
+                        <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Bookings</p>
+                        <p className="mt-1 text-lg font-pmedium text-primary">{selectedCalendarBookings.length}</p>
                       </div>
                     </div>
 
@@ -4518,32 +4493,32 @@ export function MeetingRoomsPage() {
                             <div key={`${booking.recordId || booking.id}-${booking.startTime}-${booking.endTime}`} className="rounded-2xl bg-white border border-slate-200 p-3 shadow-sm">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0">
-                                  <p className="text-sm font-black text-slate-950 break-words leading-snug">
+                                  <p className="text-sm font-pmedium text-slate-950 break-words leading-snug">
                                     {normalize(booking.bookingType) === 'tenant'
                                       ? ((booking as any).bookedByTenantCompanyName || booking.department || 'Tenant Company')
                                       : (booking.bookedByName || booking.roomName)}
                                   </p>
-                                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5 whitespace-nowrap">{booking.roomName}</p>
+                                  <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-0.5 whitespace-nowrap">{booking.roomName}</p>
                                 </div>
-                                <span className={`inline-flex shrink-0 px-2.5 py-1 rounded-full border text-[10px] font-black uppercase tracking-widest ${statusBadge(booking.status)}`}>{statusLabel(booking.status)}</span>
+                                <span className={`${statusPillClass(statusLabel(booking.status))} shrink-0`}>{statusLabel(booking.status)}</span>
                               </div>
                               <div className="mt-2">{renderScheduleSummary(booking, { showDate: false })}</div>
-                              <p className="mt-1 text-[10px] font-medium text-slate-500">{booking.purpose || booking.notes || ''}</p>
-                              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] font-semibold text-slate-600">
+                              <p className="mt-1 text-[10px] font-pmedium text-slate-500">{booking.purpose || booking.notes || ''}</p>
+                              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] font-pmedium text-slate-600">
                                 <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Date</p>
+                                  <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Date</p>
                                   <p className="mt-1 leading-snug break-words">{booking.date || selectedCalendarDateKey}</p>
                                 </div>
                                 <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Room</p>
+                                  <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Room</p>
                                   <p className="mt-1 leading-snug whitespace-nowrap">{booking.roomName || "Meeting Room"}</p>
                                 </div>
                                 <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Type</p>
+                                  <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Type</p>
                                   <p className="mt-1 leading-snug break-words">{booking.bookingType || "Booking"}</p>
                                 </div>
                                 <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
-                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Status</p>
+                                  <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Status</p>
                                   <p className="mt-1 leading-snug break-words">{statusLabel(booking.status)}</p>
                                 </div>
                               </div>
@@ -4551,9 +4526,9 @@ export function MeetingRoomsPage() {
                           ))
                         ) : (
                           <div className="rounded-2xl bg-white border border-slate-200 p-5 text-center">
-                            <p className="text-[12px] font-bold text-slate-900">Booked on this date</p>
-                            <p className="mt-1 text-[28px] font-black text-primary leading-none">{selectedCalendarBookings.length}</p>
-                            <p className="mt-2 text-[10px] font-semibold text-slate-500">
+                            <p className="text-[12px] font-pmedium text-slate-900">Booked on this date</p>
+                            <p className="mt-1 text-[28px] font-pmedium text-primary leading-none">{selectedCalendarBookings.length}</p>
+                            <p className="mt-2 text-[10px] font-pmedium text-slate-500">
                               {selectedCalendarHasExternalBookings
                                 ? 'External booking details are hidden for Internal company employees.'
                                 : 'Booking details are visible to the administration manager only.'}
@@ -4562,8 +4537,8 @@ export function MeetingRoomsPage() {
                         )
                       ) : (
                         <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-5 text-center">
-                          <p className="text-[12px] font-bold text-slate-500">No bookings for this date.</p>
-                          <p className="mt-1 text-[10px] font-semibold text-slate-400">Pick another day or room to inspect the calendar.</p>
+                          <p className="text-[12px] font-pmedium text-slate-500">No bookings for this date.</p>
+                          <p className="mt-1 text-[10px] font-pmedium text-slate-400">Pick another day or room to inspect the calendar.</p>
                         </div>
                       )}
                     </div>
@@ -4572,8 +4547,8 @@ export function MeetingRoomsPage() {
 
                 {/* Contextual Upcoming Widget */}
                 <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm p-5 flex-grow">
-                  <h3 className="font-bold text-[14px] text-[#0F172A] mb-1">Upcoming</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-5">
+                  <h3 className="font-pmedium text-[14px] text-[#0F172A] mb-1">Upcoming</h3>
+                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest mb-5">
                     {activeTab === 'my_bookings'
                       ? 'Your Schedule'
                       : isEmployeeProfile && activeTab === 'invites'
@@ -4598,10 +4573,10 @@ export function MeetingRoomsPage() {
                         <div className="flex-1 pb-1">
                           <div className="flex justify-between items-start mb-0.5">
                             {renderScheduleSummary(b, { showDate: false })}
-                            {b.date === todayStr && <span className="text-[9px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md uppercase tracking-wider border border-amber-200">Today</span>}
+                            {b.date === todayStr && <span className="text-[9px] font-pmedium bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md uppercase tracking-wider border border-amber-200">Today</span>}
                           </div>
-                          <p className="text-[11px] font-bold text-slate-500 mt-1 whitespace-nowrap">{b.roomName}</p>
-                          <p className="text-[10px] font-bold text-slate-400 mt-1">{b.date}</p>
+                          <p className="text-[11px] font-pmedium text-slate-500 mt-1 whitespace-nowrap">{b.roomName}</p>
+                          <p className="text-[10px] font-pmedium text-slate-400 mt-1">{b.date}</p>
                         </div>
                       </div>
                     )) : (
@@ -4609,7 +4584,7 @@ export function MeetingRoomsPage() {
                         <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-slate-100 mb-3">
                           <CalIcon size={20} className="text-slate-300" />
                         </div>
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">No scheduled meetings</p>
+                        <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest">No scheduled meetings</p>
                       </div>
                     )}
                   </div>
@@ -4643,7 +4618,7 @@ export function MeetingRoomsPage() {
               <div className="px-6 py-4 md:p-8 flex justify-between items-center border-b border-slate-100/60 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
                 <div>
                   <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">Book Meeting Room</h2>
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Host: {managerProfile.name}</p>
+                  <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">Host: {managerProfile.name}</p>
                 </div>
                 <button onClick={() => setShowBookingDialog(false)} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
                   <X size={20} strokeWidth={2.5} />
@@ -4654,10 +4629,10 @@ export function MeetingRoomsPage() {
                 {/* ── Row 1: Meeting Type + Floor ── */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meeting Type</label>
+                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Meeting Type</label>
                     <div className="relative">
                       <select
-                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
+                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
                         value={newBooking.roomType}
                         onChange={(e) => {
                           const v = e.target.value;
@@ -4678,10 +4653,10 @@ export function MeetingRoomsPage() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Floor</label>
+                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Floor</label>
                     <div className="relative">
                       <select
-                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
+                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
                         value={newBooking.floor}
                         onChange={(e) => {
                           const v = e.target.value;
@@ -4703,10 +4678,10 @@ export function MeetingRoomsPage() {
                 {/* ── Row 2: Wing + Room ── */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Wing <span className="text-slate-300 normal-case font-semibold">(optional)</span></label>
+                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Wing <span className="text-slate-300 normal-case font-pmedium">(optional)</span></label>
                     <div className="relative">
                       <select
-                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
+                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
                         value={newBooking.wing}
                         onChange={(e) => {
                           const v = e.target.value;
@@ -4723,10 +4698,10 @@ export function MeetingRoomsPage() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Room</label>
+                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Room</label>
                     <div className="relative">
                       <select
-                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
+                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
                         value={newBooking.roomName}
                         onChange={(e) => {
                           const roomName = e.target.value;
@@ -4762,12 +4737,12 @@ export function MeetingRoomsPage() {
                 </div>
                 {/* Capacity hint */}
                 {selectedRoomCapacity ? (
-                  <div className="rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-2.5 text-[12px] font-semibold text-blue-800 flex items-center justify-between">
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-2.5 text-[12px] font-pmedium text-blue-800 flex items-center justify-between">
                     <span>Capacity: <strong>{selectedRoomCapacity}</strong> seats</span>
                     <span>Invite slots left: <strong>{Math.max(Number(selectedRoomCapacity) - 1 - Number(newBooking.inviteeUserIds.length || 0), 0)}</strong></span>
                   </div>
                 ) : canShowRoomTypeCount ? (
-                  <p className={`text-[12px] font-bold ${selectedFloorRoomTypeCount > 0 ? 'text-blue-700' : 'text-rose-600'}`}>
+                  <p className={`text-[12px] font-pmedium ${selectedFloorRoomTypeCount > 0 ? 'text-blue-700' : 'text-rose-600'}`}>
                     {selectedFloorRoomTypeCount > 0
                       ? `${selectedFloorRoomTypeCount} room${selectedFloorRoomTypeCount === 1 ? '' : 's'} available${selectedBookingWing ? ` in wing ${selectedBookingWing}` : ''}`
                       : `No rooms available for this floor${selectedBookingWing ? ` in wing ${selectedBookingWing}` : ''}`}
@@ -4777,21 +4752,21 @@ export function MeetingRoomsPage() {
                 {/* ── Row 3: Date + Start Time + End Time ── */}
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</label>
+                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Date</label>
                     <input
                       type="date"
                       min={todayStr}
                       value={newBooking.date}
-                      className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all"
+                      className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all"
                       onChange={(e) => setNewBooking({ ...newBooking, date: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Start Time</label>
+                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Start Time</label>
                     <div className="relative">
                       <select
                         value={newBooking.startTime || ''}
-                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all appearance-none cursor-pointer"
+                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all appearance-none cursor-pointer"
                         onChange={(e) => {
                           const nextStartTime = e.target.value;
                           const minimumEndTime = minutesToTimeString((timeToMinutes(nextStartTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
@@ -4813,11 +4788,11 @@ export function MeetingRoomsPage() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">End Time</label>
+                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">End Time</label>
                     <div className="relative">
                       <select
                         value={newBooking.endTime || ''}
-                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all appearance-none cursor-pointer"
+                        className="w-full pl-4 pr-10 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all appearance-none cursor-pointer"
                         onChange={(e) => setNewBooking({ ...newBooking, endTime: e.target.value })}
                       >
                         <option value="">End</option>
@@ -4834,54 +4809,54 @@ export function MeetingRoomsPage() {
                 {!bookingTimeValidation.valid && (
                   <div className="p-4 bg-red-50 rounded-2xl flex items-start gap-3 border border-red-100">
                     <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
-                    <p className="text-[13px] text-red-800 font-bold">{bookingTimeValidation.reason}</p>
+                    <p className="text-[13px] text-red-800 font-pmedium">{bookingTimeValidation.reason}</p>
                   </div>
                 )}
                 {bookingTimeValidation.valid && roomDayStatus === 'available' && !newBooking.startTime && (
                   <div className="p-3.5 bg-emerald-50 rounded-2xl flex items-center gap-3 border border-emerald-100">
                     <CheckCircle2 className="text-emerald-500 shrink-0" size={16} />
-                    <p className="text-[12px] text-emerald-800 font-bold">Room is fully free on this date. Pick a slot.</p>
+                    <p className="text-[12px] text-emerald-800 font-pmedium">Room is fully free on this date. Pick a slot.</p>
                   </div>
                 )}
                 {bookingTimeValidation.valid && roomDayStatus === 'partial' && !newBooking.startTime && (
                   <div className="p-3.5 bg-amber-50 rounded-2xl flex items-center gap-3 border border-amber-100">
                     <AlertCircle className="text-amber-500 shrink-0" size={16} />
-                    <p className="text-[12px] text-amber-800 font-bold">Some slots taken on this date. Choose an open time.</p>
+                    <p className="text-[12px] text-amber-800 font-pmedium">Some slots taken on this date. Choose an open time.</p>
                   </div>
                 )}
                 {bookingTimeValidation.valid && roomDayStatus === 'full' && !newBooking.startTime && (
                   <div className="p-3.5 bg-red-50 rounded-2xl flex items-center gap-3 border border-red-100">
                     <AlertCircle className="text-red-500 shrink-0" size={16} />
-                    <p className="text-[12px] text-red-800 font-bold">Room fully booked on this date. Choose another date.</p>
+                    <p className="text-[12px] text-red-800 font-pmedium">Room fully booked on this date. Choose another date.</p>
                   </div>
                 )}
                 {bookingTimeValidation.valid && bookingStatus === 'available' && newBooking.startTime && newBooking.endTime && (
                   <div className="p-3.5 bg-emerald-50 rounded-2xl flex items-center gap-3 border border-emerald-100">
                     <CheckCircle2 className="text-emerald-500 shrink-0" size={16} />
-                    <p className="text-[12px] text-emerald-800 font-bold">Slot is available.</p>
+                    <p className="text-[12px] text-emerald-800 font-pmedium">Slot is available.</p>
                   </div>
                 )}
                 {bookingTimeValidation.valid && bookingStatus === 'capacity' && (
                   <div className="p-3.5 bg-amber-50 rounded-2xl flex items-center gap-3 border border-amber-100">
                     <AlertCircle className="text-amber-500 shrink-0" size={16} />
-                    <p className="text-[12px] text-amber-800 font-bold">Room capacity too small for this booking. Pick a bigger room.</p>
+                    <p className="text-[12px] text-amber-800 font-pmedium">Room capacity too small for this booking. Pick a bigger room.</p>
                   </div>
                 )}
                 {bookingTimeValidation.valid && bookingStatus === 'full' && (
                   <div className="p-3.5 bg-red-50 rounded-2xl flex items-center gap-3 border border-red-100">
                     <AlertCircle className="text-red-500 shrink-0" size={16} />
-                    <p className="text-[12px] text-red-800 font-bold">Room fully booked on this date. Choose another date.</p>
+                    <p className="text-[12px] text-red-800 font-pmedium">Room fully booked on this date. Choose another date.</p>
                   </div>
                 )}
                 {bookingTimeValidation.valid && bookingStatus === 'conflict' && (
                   <div className="p-3.5 bg-red-50 rounded-2xl border border-red-100 space-y-2.5">
                     <div className="flex items-center gap-3">
                       <AlertCircle className="text-red-500 shrink-0" size={16} />
-                      <p className="text-[12px] text-red-800 font-bold">Time conflict — slot already booked.</p>
+                      <p className="text-[12px] text-red-800 font-pmedium">Time conflict — slot already booked.</p>
                     </div>
                     {bookingSuggestions.length > 0 && (
                       <div className="space-y-1.5">
-                        <p className="text-[10px] font-black text-red-600 uppercase tracking-widest">Try these open slots:</p>
+                        <p className="text-[10px] font-pmedium text-red-600 uppercase tracking-widest">Try these open slots:</p>
                         <div className="flex flex-wrap gap-2">
                           {bookingSuggestions.map((slot: any) => (
                             <button
@@ -4901,7 +4876,7 @@ export function MeetingRoomsPage() {
                 {/* Recommended slots for the day (shown when room + date selected, no conflict) */}
                 {bookingTimeValidation.valid && newBooking.roomName && newBooking.date && newBooking.startTime && newBooking.endTime && bookingStatus === 'available' && bookingSuggestions.length > 0 && (
                   <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Other available slots today:</p>
+                    <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Other available slots today:</p>
                     <div className="flex flex-wrap gap-2">
                       {bookingSuggestions.map((slot: any) => (
                         <button
@@ -4919,12 +4894,12 @@ export function MeetingRoomsPage() {
 
                 {/* ── Purpose ── */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Purpose / Agenda</label>
+                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Purpose / Agenda</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Q3 Roadmap Review…"
-                    className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all"
+                    className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all"
                     onChange={(e) => setNewBooking({ ...newBooking, purpose: e.target.value })}
                   />
                 </div>
@@ -4932,24 +4907,24 @@ export function MeetingRoomsPage() {
                 {/* ── Invite Members (capacity-gated) ── */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Invite Members</label>
+                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Invite Members</label>
                     <div className="flex items-center gap-2">
                       {selectedRoomCapacity ? (
-                        <span className={`text-[11px] font-bold ${newBooking.inviteeUserIds.length >= Number(selectedRoomCapacity) - 1 ? 'text-rose-500' : 'text-slate-500'}`}>
+                        <span className={`text-[11px] font-pmedium ${newBooking.inviteeUserIds.length >= Number(selectedRoomCapacity) - 1 ? 'text-rose-500' : 'text-slate-500'}`}>
                           {newBooking.inviteeUserIds.length} / {Math.max(Number(selectedRoomCapacity) - 1, 0)} seats
                         </span>
                       ) : (
-                        <span className="text-[11px] font-bold text-slate-500">{newBooking.inviteeUserIds.length} selected</span>
+                        <span className="text-[11px] font-pmedium text-slate-500">{newBooking.inviteeUserIds.length} selected</span>
                       )}
                     </div>
                   </div>
                   {selectedRoomCapacity && Number(selectedRoomCapacity) <= 1 && (
-                    <p className="text-[11px] font-semibold text-amber-600">This room seats 1 — no additional members can be invited.</p>
+                    <p className="text-[11px] font-pmedium text-amber-600">This room seats 1 — no additional members can be invited.</p>
                   )}
                   <div className="max-h-60 overflow-y-auto space-y-3 pr-1">
                     {inviteDepartments.map((group: any) => (
                       <div key={group.department} className="rounded-2xl border border-slate-200/60 bg-slate-50/70 p-4">
-                        <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-3">
+                        <p className="text-[11px] font-pmedium uppercase tracking-widest text-slate-500 mb-3">
                           {group.label}
                         </p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -4989,8 +4964,8 @@ export function MeetingRoomsPage() {
                                   className="mt-1 h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
                                 />
                                 <div className="min-w-0">
-                                  <p className="text-[13px] font-bold text-[#0F172A] truncate">{resolveMemberName(member) || member.email || 'Member'}</p>
-                                  <p className="text-[11px] font-semibold text-slate-500">{sublabel}</p>
+                                  <p className="text-[13px] font-pmedium text-[#0F172A] truncate">{resolveMemberName(member) || member.email || 'Member'}</p>
+                                  <p className="text-[11px] font-pmedium text-slate-500">{sublabel}</p>
                                 </div>
                               </label>
                             );
@@ -4999,7 +4974,7 @@ export function MeetingRoomsPage() {
                       </div>
                     ))}
                     {inviteDepartments.length === 0 && (
-                      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[12px] font-semibold text-slate-400">
+                      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[12px] font-pmedium text-slate-400">
                         No inviteable members found.
                       </div>
                     )}
@@ -5047,38 +5022,38 @@ export function MeetingRoomsPage() {
               <div className="p-6 md:p-8 space-y-5">
                 {isAdministrationManagerProfile && normalize(viewingBooking.bookingType) === 'external' ? (
                   <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-5 text-center">
-                    <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">External booking</p>
-                    <p className="mt-2 text-lg font-black text-slate-950">Details hidden for administration manager.</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-500">This shared module keeps external booking details private in this view.</p>
+                    <p className="text-[10px] font-pmedium text-amber-500 uppercase tracking-widest">External booking</p>
+                    <p className="mt-2 text-lg font-pmedium text-slate-950">Details hidden for administration manager.</p>
+                    <p className="mt-2 text-sm font-pmedium text-slate-500">This shared module keeps external booking details private in this view.</p>
                   </div>
                 ) : (
                   <>
                     <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Location</span>
-                      <span className="font-bold text-[#2563EB] text-[13px] flex items-center gap-1.5"><Building size={14} /> {viewingBooking.roomName}</span>
+                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Location</span>
+                      <span className="font-pmedium text-[#2563EB] text-[13px] flex items-center gap-1.5"><Building size={14} /> {viewingBooking.roomName}</span>
                     </div>
                     <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Host / Dept</span>
+                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Host / Dept</span>
                       <div className="text-right">
-                        <p className="font-bold text-[#0F172A] text-[13px]">
+                        <p className="font-pmedium text-[#0F172A] text-[13px]">
                           {(viewingBooking as any).bookedForName || viewingBooking.bookedByName}
                         </p>
-                        {/* {viewingBooking.department && <p className="font-semibold text-slate-400 text-[11px]">{viewingBooking.department}</p>} */}
-                        <span className={`mt-2 inline-flex px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${getBookingTagBadge(viewingBooking)}`}>
+                        {/* {viewingBooking.department && <p className="font-pmedium text-slate-400 text-[11px]">{viewingBooking.department}</p>} */}
+                        <span className={`mt-2 inline-flex px-2.5 py-1 rounded-md text-[9px] font-pmedium uppercase tracking-wider border ${getBookingTagBadge(viewingBooking)}`}>
                           {getBookingTagLabel(viewingBooking)}
                         </span>
                       </div>
                     </div>
                     {(viewingBooking as any).bookedForName && normalize(viewingBooking.bookingType) === 'internal' && (
                       <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Booked By</span>
-                        <p className="font-semibold text-[#0F172A] text-[13px]">{viewingBooking.bookedByName}</p>
+                        <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Booked By</span>
+                        <p className="font-pmedium text-[#0F172A] text-[13px]">{viewingBooking.bookedByName}</p>
                       </div>
                     )}
                     {viewingBooking.isInvitedMeeting && (
                       <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meeting Type</span>
-                        <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${viewingBooking.currentInviteStatus === 'accepted'
+                        <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Meeting Type</span>
+                        <span className={`px-2.5 py-1 rounded-md text-[9px] font-pmedium uppercase tracking-wider border ${viewingBooking.currentInviteStatus === 'accepted'
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                           : viewingBooking.currentInviteStatus === 'rejected'
                             ? 'bg-red-50 text-red-700 border-red-200'
@@ -5089,14 +5064,14 @@ export function MeetingRoomsPage() {
                       </div>
                     )}
                     <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Schedule</span>
+                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Schedule</span>
                       <div className="text-right">
                         {renderScheduleSummary(viewingBooking)}
                       </div>
                     </div>
                     <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Attendees</span>
-                      <span className="font-bold text-[#0F172A] text-[13px] flex items-center gap-1.5">
+                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Attendees</span>
+                      <span className="font-pmedium text-[#0F172A] text-[13px] flex items-center gap-1.5">
                         <Users size={14} className="text-slate-400" />
                         {(() => {
                           // Host (1) + accepted invitees
@@ -5109,13 +5084,13 @@ export function MeetingRoomsPage() {
                       </span>
                     </div>
                     <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</span>
+                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Status</span>
                       <div className="flex flex-col items-end gap-1">
-                        <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider ${getStatusStyle(viewingBooking.liveStatus || viewingBooking.status || '')} border`}>
+                        <span className={statusPillClass(viewingBooking.liveStatus || viewingBooking.status || '')}>
                           {viewingBooking.liveStatus || viewingBooking.status}
                         </span>
                         {isRescheduledBooking(viewingBooking) && (
-                          <span className="inline-flex px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200">
+                          <span className="inline-flex px-2 py-0.5 rounded-md text-[9px] font-pmedium uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200">
                             Rescheduled
                           </span>
                         )}
@@ -5124,11 +5099,11 @@ export function MeetingRoomsPage() {
 
                     {(Number(viewingBooking.totalAmount || 0) > 0 || Number(viewingBooking.extensionAmount || 0) > 0) && (
                       <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Amount</span>
+                        <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Amount</span>
                         <div className="text-right">
-                          <p className="font-black text-[#0F172A] text-[13px]">{formatCurrency(viewingBooking.totalAmount || 0)}</p>
+                          <p className="font-pmedium text-[#0F172A] text-[13px]">{formatCurrency(viewingBooking.totalAmount || 0)}</p>
                           {Number(viewingBooking.extensionAmount || 0) > 0 && (
-                            <p className="text-[10px] font-bold text-slate-500">Extension: {formatCurrency(viewingBooking.extensionAmount)}</p>
+                            <p className="text-[10px] font-pmedium text-slate-500">Extension: {formatCurrency(viewingBooking.extensionAmount)}</p>
                           )}
                         </div>
                       </div>
@@ -5138,19 +5113,19 @@ export function MeetingRoomsPage() {
                     {!isAdministrationManagerProfile && normalize(viewingBooking.bookingType) === 'external' && (
                       <>
                         <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Client Name</span>
-                          <p className="font-semibold text-[#0F172A] text-[13px]">{(viewingBooking as any).bookedForName || '—'}</p>
+                          <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Client Name</span>
+                          <p className="font-pmedium text-[#0F172A] text-[13px]">{(viewingBooking as any).bookedForName || '—'}</p>
                         </div>
                         {(viewingBooking as any).paymentMode && (
                           <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Payment Mode</span>
-                            <p className="font-semibold text-[#0F172A] text-[13px]">{(viewingBooking as any).paymentMode}</p>
+                            <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Payment Mode</span>
+                            <p className="font-pmedium text-[#0F172A] text-[13px]">{(viewingBooking as any).paymentMode}</p>
                           </div>
                         )}
                         {(viewingBooking as any).paymentStatus && (
                           <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Payment Status</span>
-                            <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${
+                            <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Payment Status</span>
+                            <span className={`px-2.5 py-1 rounded-md text-[9px] font-pmedium uppercase tracking-wider border ${
                               (viewingBooking as any).paymentStatus === 'Paid'
                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                 : 'bg-amber-50 text-amber-700 border-amber-200'
@@ -5161,33 +5136,33 @@ export function MeetingRoomsPage() {
                         )}
                         {(viewingBooking as any).transactionId && (
                           <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Transaction ID</span>
-                            <p className="font-semibold text-[#0F172A] text-[13px] font-mono">{(viewingBooking as any).transactionId}</p>
+                            <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Transaction ID</span>
+                            <p className="font-pmedium text-[#0F172A] text-[13px] font-mono">{(viewingBooking as any).transactionId}</p>
                           </div>
                         )}
                         {(Number(viewingBooking.baseAmount || 0) > 0 || Number(viewingBooking.totalAmount || 0) > 0) && (
                           <div className="pb-4 border-b border-slate-100/60">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Pricing Breakdown</span>
+                            <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest block mb-2">Pricing Breakdown</span>
                             <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 space-y-1.5 text-[12px]">
                               <div className="flex justify-between">
-                                <span className="text-slate-500 font-semibold">Base Amount</span>
-                                <span className="font-bold text-[#0F172A]">{formatCurrency(viewingBooking.baseAmount || 0)}</span>
+                                <span className="text-slate-500 font-pmedium">Base Amount</span>
+                                <span className="font-pmedium text-[#0F172A]">{formatCurrency(viewingBooking.baseAmount || 0)}</span>
                               </div>
                               {Number((viewingBooking as any).discountValue || 0) > 0 && (
                                 <div className="flex justify-between text-emerald-700">
-                                  <span className="font-semibold">Discount</span>
-                                  <span className="font-bold">−{formatCurrency(Math.abs((viewingBooking as any).discountAmount || 0))}</span>
+                                  <span className="font-pmedium">Discount</span>
+                                  <span className="font-pmedium">−{formatCurrency(Math.abs((viewingBooking as any).discountAmount || 0))}</span>
                                 </div>
                               )}
                               {Number(viewingBooking.gstAmount || 0) > 0 && (
                                 <div className="flex justify-between">
-                                  <span className="text-slate-500 font-semibold">GST (18%)</span>
-                                  <span className="font-bold text-[#0F172A]">{formatCurrency(viewingBooking.gstAmount || 0)}</span>
+                                  <span className="text-slate-500 font-pmedium">GST (18%)</span>
+                                  <span className="font-pmedium text-[#0F172A]">{formatCurrency(viewingBooking.gstAmount || 0)}</span>
                                 </div>
                               )}
                               <div className="flex justify-between pt-1.5 border-t border-slate-200">
-                                <span className="font-black text-[#0F172A]">Total</span>
-                                <span className="font-black text-[#2563EB]">{formatCurrency(viewingBooking.totalAmount || 0)}</span>
+                                <span className="font-pmedium text-[#0F172A]">Total</span>
+                                <span className="font-pmedium text-[#2563EB]">{formatCurrency(viewingBooking.totalAmount || 0)}</span>
                               </div>
                             </div>
                           </div>
@@ -5197,8 +5172,8 @@ export function MeetingRoomsPage() {
 
                     {viewingBooking.currentInviteStatus && (
                       <div className="flex justify-between items-center pb-4 border-b border-slate-100/60">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Your Invite</span>
-                        <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${statusBadge(viewingBooking.currentInviteStatus)}`}>
+                        <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Your Invite</span>
+                        <span className={statusPillClass(statusLabel(viewingBooking.currentInviteStatus))}>
                           {statusLabel(viewingBooking.currentInviteStatus)}
                         </span>
                       </div>
@@ -5206,7 +5181,7 @@ export function MeetingRoomsPage() {
 
                     {Array.isArray(viewingBooking.invites) && viewingBooking.invites.length > 0 && (
                       <div className="space-y-3 pt-2">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Users size={12} /> Invited Members</span>
+                        <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Users size={12} /> Invited Members</span>
                         <div className="space-y-2">
                           {viewingBooking.invites.map((invite: any) => {
                             const inviteName = resolveInviteDisplayName(invite);
@@ -5215,15 +5190,15 @@ export function MeetingRoomsPage() {
                             return (
                               <div key={`${invite.invitedUserId}-${inviteName}`} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3">
                                 <div>
-                                  <p className="text-[13px] font-bold text-[#0F172A]">{inviteName}</p>
-                                  <p className="text-[11px] font-semibold text-slate-400">{formatInviteGroupLabel(inviteRole)}</p>
+                                  <p className="text-[13px] font-pmedium text-[#0F172A]">{inviteName}</p>
+                                  <p className="text-[11px] font-pmedium text-slate-400">{formatInviteGroupLabel(inviteRole)}</p>
                                 </div>
                                 <div className="text-right">
-                                  <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-wider border ${statusBadge(invite.status)}`}>
+                                  <span className={statusPillClass(statusLabel(invite.status))}>
                                     {statusLabel(invite.status)}
                                   </span>
                                   {invite.responseReason ? (
-                                    <p className="mt-1 text-[10px] font-semibold text-slate-500 max-w-[180px]">{invite.responseReason}</p>
+                                    <p className="mt-1 text-[10px] font-pmedium text-slate-500 max-w-[180px]">{invite.responseReason}</p>
                                   ) : null}
                                 </div>
                               </div>
@@ -5235,14 +5210,14 @@ export function MeetingRoomsPage() {
 
                     {viewingBooking.status === 'cancelled' && viewingBooking.cancelReason && (
                       <div className="space-y-2 pt-2">
-                        <span className="text-[10px] font-black text-red-400 uppercase tracking-widest flex items-center gap-1.5"><AlertCircle size={12} /> Cancellation Reason</span>
-                        <div className="p-4 bg-red-50/50 border border-red-100 rounded-2xl font-semibold text-red-900 text-[13px] leading-relaxed">"{viewingBooking.cancelReason}"</div>
+                        <span className="text-[10px] font-pmedium text-red-400 uppercase tracking-widest flex items-center gap-1.5"><AlertCircle size={12} /> Cancellation Reason</span>
+                        <div className="p-4 bg-red-50/50 border border-red-100 rounded-2xl font-pmedium text-red-900 text-[13px] leading-relaxed">"{viewingBooking.cancelReason}"</div>
                       </div>
                     )}
 
                     <div className="space-y-2 pt-2">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Eye size={12} /> Purpose</span>
-                      <div className="p-4 bg-slate-50 border border-slate-100/60 rounded-2xl italic font-semibold text-slate-700 text-[13px] leading-relaxed">"{viewingBooking.purpose}"</div>
+                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Eye size={12} /> Purpose</span>
+                      <div className="p-4 bg-slate-50 border border-slate-100/60 rounded-2xl italic font-pmedium text-slate-700 text-[13px] leading-relaxed">"{viewingBooking.purpose}"</div>
                     </div>
 
                     {(mainBookingTab === 'tenant_bookings' ? canManageOwnBooking(viewingBooking) : (isMyBooking(viewingBooking) && !viewingBooking.isInvitedMeeting && canManageOwnBooking(viewingBooking))) && (
@@ -5285,7 +5260,7 @@ export function MeetingRoomsPage() {
               <div className="px-6 py-4 md:p-8 border-b border-slate-100/60 flex justify-between items-center bg-white/95 backdrop-blur-sm sticky top-0 z-20">
                 <div>
                   <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight flex items-center gap-2">Extend Booking</h2>
-                  <p className="text-[11px] font-bold text-amber-600 uppercase tracking-widest mt-1">Meeting is in progress</p>
+                  <p className="text-[11px] font-pmedium text-amber-600 uppercase tracking-widest mt-1">Meeting is in progress</p>
                 </div>
                 <button onClick={closeExtendDialog} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
                   <X size={20} strokeWidth={2.5} />
@@ -5294,24 +5269,24 @@ export function MeetingRoomsPage() {
 
               <div className="p-6 md:p-8 space-y-6">
                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Current Slot</p>
+                  <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Current Slot</p>
                   <div className="mt-1">{renderScheduleSummary(extendBooking)}</div>
                 </div>
 
                 {extendBookingPreview?.available && (
                   extendBookingPreview.isTenant ? (
                     <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl space-y-2">
-                      <p className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">Extension Credits</p>
-                      <div className="flex items-center justify-between text-sm font-bold text-indigo-900">
+                      <p className="text-[10px] font-pmedium text-indigo-700 uppercase tracking-widest">Extension Credits</p>
+                      <div className="flex items-center justify-between text-sm font-pmedium text-indigo-900">
                         <span>Extra time</span>
                         <span>{extendForm.extraMinutes} minutes</span>
                       </div>
-                      <div className="flex items-center justify-between text-base font-black text-indigo-950 pt-2 border-t border-indigo-200">
+                      <div className="flex items-center justify-between text-base font-pmedium text-indigo-950 pt-2 border-t border-indigo-200">
                         <span>Credits to deduct</span>
                         <span>{(extendBookingPreview.creditsToDeduct || 0).toFixed(2)} CR</span>
                       </div>
                       {typeof extendBookingPreview.remainingCredits === 'number' && (
-                        <div className="flex items-center justify-between text-sm font-bold text-indigo-700">
+                        <div className="flex items-center justify-between text-sm font-pmedium text-indigo-700">
                           <span>Remaining after extension</span>
                           <span>{Math.max(0, extendBookingPreview.remainingCredits - (extendBookingPreview.creditsToDeduct || 0)).toFixed(2)} CR</span>
                         </div>
@@ -5319,20 +5294,20 @@ export function MeetingRoomsPage() {
                     </div>
                   ) : (
                     <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl space-y-2">
-                      <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Extension Charge</p>
-                      <div className="flex items-center justify-between text-sm font-bold text-amber-900">
+                      <p className="text-[10px] font-pmedium text-amber-700 uppercase tracking-widest">Extension Charge</p>
+                      <div className="flex items-center justify-between text-sm font-pmedium text-amber-900">
                         <span>Extra time</span>
                         <span>{extendForm.extraMinutes} minutes</span>
                       </div>
-                      <div className="flex items-center justify-between text-sm font-bold text-amber-900">
+                      <div className="flex items-center justify-between text-sm font-pmedium text-amber-900">
                         <span>Extension amount</span>
                         <span>{formatCurrency(extendBookingPreview.extensionAmount || 0)}</span>
                       </div>
-                      <div className="flex items-center justify-between text-sm font-bold text-amber-900">
+                      <div className="flex items-center justify-between text-sm font-pmedium text-amber-900">
                         <span>GST</span>
                         <span>{formatCurrency((extendBookingPreview.extensionTotal || 0) - (extendBookingPreview.extensionAmount || 0))}</span>
                       </div>
-                      <div className="flex items-center justify-between text-base font-black text-amber-950 pt-2 border-t border-amber-200">
+                      <div className="flex items-center justify-between text-base font-pmedium text-amber-950 pt-2 border-t border-amber-200">
                         <span>Total booking value</span>
                         <span>{formatCurrency(extendBookingPreview.nextTotalAmount || extendBooking.totalAmount || 0)}</span>
                       </div>
@@ -5341,8 +5316,8 @@ export function MeetingRoomsPage() {
                 )}
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Extend By</label>
-                  <select className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 shadow-sm transition-all" value={extendForm.extraMinutes} onChange={(e) => setExtendForm({ extraMinutes: e.target.value })}>
+                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Extend By</label>
+                  <select className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 shadow-sm transition-all" value={extendForm.extraMinutes} onChange={(e) => setExtendForm({ extraMinutes: e.target.value })}>
                     <option value="15">15 Minutes</option>
                     <option value="30">30 Minutes</option>
                     <option value="45">45 Minutes</option>
@@ -5353,15 +5328,15 @@ export function MeetingRoomsPage() {
                 </div>
 
                 <div className={`p-4 rounded-2xl border ${extendBookingPreview?.available ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
-                  <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${extendBookingPreview?.available ? 'text-emerald-700' : 'text-red-700'}`}>{extendBookingPreview?.available ? 'Availability Check' : 'Availability Blocked'}</p>
-                  <p className={`text-sm font-bold ${extendBookingPreview?.available ? 'text-emerald-700' : 'text-red-700'}`}>{extendBookingPreview?.reason || 'This booking can be extended.'}</p>
+                  <p className={`text-[10px] font-pmedium uppercase tracking-widest mb-1 ${extendBookingPreview?.available ? 'text-emerald-700' : 'text-red-700'}`}>{extendBookingPreview?.available ? 'Availability Check' : 'Availability Blocked'}</p>
+                  <p className={`text-sm font-pmedium ${extendBookingPreview?.available ? 'text-emerald-700' : 'text-red-700'}`}>{extendBookingPreview?.reason || 'This booking can be extended.'}</p>
                   {extendBookingPreview?.available && extendBookingPreview?.nextEndTime && (
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">New End Time: {formatTime12h(extendBookingPreview.nextEndTime)}</p>
+                    <p className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest mt-2">New End Time: {formatTime12h(extendBookingPreview.nextEndTime)}</p>
                   )}
                 </div>
 
                 {errorMessage && !extendBookingPreview?.available && (
-                  <div className="p-4 rounded-2xl bg-red-50 border border-red-100 text-sm font-bold text-red-700">{errorMessage}</div>
+                  <div className="p-4 rounded-2xl bg-red-50 border border-red-100 text-sm font-pmedium text-red-700">{errorMessage}</div>
                 )}
               </div>
 
@@ -5394,26 +5369,26 @@ export function MeetingRoomsPage() {
                 <div className="flex gap-4">
                   <div className="p-3 bg-red-100 text-red-600 rounded-2xl shadow-sm border border-red-200/50 hidden sm:flex items-center justify-center"><XCircle size={24} /></div>
                   <div>
-                    <h2 className="text-xl md:text-2xl font-black text-red-900 tracking-tight">Reject Meeting Invite</h2>
-                    <p className="text-[11px] font-bold text-red-600 uppercase tracking-widest mt-1.5">{inviteToReject.roomName}</p>
+                    <h2 className="text-xl md:text-2xl font-pmedium text-red-900 tracking-tight">Reject Meeting Invite</h2>
+                    <p className="text-[11px] font-pmedium text-red-600 uppercase tracking-widest mt-1.5">{inviteToReject.roomName}</p>
                   </div>
                 </div>
                 <button onClick={closeRejectInviteDialog} className="w-10 h-10 bg-white hover:bg-red-100 text-red-400 hover:text-red-600 rounded-full flex items-center justify-center transition-colors shadow-sm"><X size={18} strokeWidth={2.5} /></button>
               </div>
 
               <div className="p-6 md:p-8 space-y-6">
-                <div className="p-4 bg-white border border-slate-200/60 rounded-2xl text-[13px] font-medium text-slate-600 shadow-sm space-y-1.5">
+                <div className="p-4 bg-white border border-slate-200/60 rounded-2xl text-[13px] font-pmedium text-slate-600 shadow-sm space-y-1.5">
                   <p>
-                    You are rejecting the meeting invite on <span className="font-bold text-[#0F172A]">{inviteToReject.date}</span> at <span className="font-bold text-[#0F172A] whitespace-nowrap">{formatTimeSlot(inviteToReject.startTime, inviteToReject.endTime)}</span>.
+                    You are rejecting the meeting invite on <span className="font-pmedium text-[#0F172A]">{inviteToReject.date}</span> at <span className="font-pmedium text-[#0F172A] whitespace-nowrap">{formatTimeSlot(inviteToReject.startTime, inviteToReject.endTime)}</span>.
                   </p>
                   <p className="text-slate-500">
-                    This will notify <span className="font-bold text-[#0F172A]">{inviteToReject.bookedByName}</span> with your reason.
+                    This will notify <span className="font-pmedium text-[#0F172A]">{inviteToReject.bookedByName}</span> with your reason.
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reason for Rejection</label>
+                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Reason for Rejection</label>
                   <textarea
-                    className="w-full p-4 bg-white border border-slate-200 rounded-2xl font-semibold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none resize-none transition-all shadow-sm"
+                    className="w-full p-4 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none resize-none transition-all shadow-sm"
                     rows={3}
                     placeholder="Please share why you cannot attend this meeting..."
                     value={inviteRejectReason}
@@ -5450,27 +5425,27 @@ export function MeetingRoomsPage() {
                 <div className="flex gap-4">
                   <div className="p-3 bg-red-100 text-red-600 rounded-2xl shadow-sm border border-red-200/50 hidden sm:flex items-center justify-center"><XCircle size={24} /></div>
                   <div>
-                    <h2 className="text-xl md:text-2xl font-black text-red-900 tracking-tight">Cancel Meeting</h2>
-                    <p className="text-[11px] font-bold text-red-600 uppercase tracking-widest mt-1.5">{bookingToCancel.roomName}</p>
+                    <h2 className="text-xl md:text-2xl font-pmedium text-red-900 tracking-tight">Cancel Meeting</h2>
+                    <p className="text-[11px] font-pmedium text-red-600 uppercase tracking-widest mt-1.5">{bookingToCancel.roomName}</p>
                   </div>
                 </div>
                 <button onClick={() => setShowCancelDialog(false)} className="w-10 h-10 bg-white hover:bg-red-100 text-red-400 hover:text-red-600 rounded-full flex items-center justify-center transition-colors shadow-sm"><X size={18} strokeWidth={2.5} /></button>
               </div>
 
               <div className="p-6 md:p-8 space-y-6">
-                <div className="p-4 bg-white border border-slate-200/60 rounded-2xl text-[13px] font-medium text-slate-600 shadow-sm">
-                  You are cancelling the meeting on <span className="font-bold text-[#0F172A]">{bookingToCancel.date}</span> at <span className="font-bold text-[#0F172A]">{bookingToCancel.checkIn}</span>. This action cannot be undone.
+                <div className="p-4 bg-white border border-slate-200/60 rounded-2xl text-[13px] font-pmedium text-slate-600 shadow-sm">
+                  You are cancelling the meeting on <span className="font-pmedium text-[#0F172A]">{bookingToCancel.date}</span> at <span className="font-pmedium text-[#0F172A]">{bookingToCancel.checkIn}</span>. This action cannot be undone.
                 </div>
                 {normalize(bookingToCancel.bookingType) === 'tenant' && Number(bookingToCancel.bookingCredits || 0) > 0 && (
-                  <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-[13px] font-bold text-emerald-800 flex items-center gap-2 shadow-sm">
+                  <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-[13px] font-pmedium text-emerald-800 flex items-center gap-2 shadow-sm">
                     <CreditCard size={18} />
                     You will be refunded {Number(bookingToCancel.bookingCredits).toFixed(2)} CR for this booking.
                   </div>
                 )}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Reason for Cancellation</label>
+                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Reason for Cancellation</label>
                   <textarea
-                    className="w-full p-4 bg-white border border-slate-200 rounded-2xl font-semibold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none resize-none transition-all shadow-sm"
+                    className="w-full p-4 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none resize-none transition-all shadow-sm"
                     rows={3}
                     placeholder="Please inform attendees why this is cancelled..."
                     value={cancelReason}
@@ -5506,7 +5481,7 @@ export function MeetingRoomsPage() {
               <div className="px-6 py-4 md:p-8 border-b border-slate-100/60 flex justify-between items-center bg-white/95 backdrop-blur-sm sticky top-0 z-20">
                 <div>
                   <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight flex items-center gap-2">Reschedule</h2>
-                  <p className="text-[11px] font-bold text-[#2563EB] uppercase tracking-widest mt-1">Refining Schedule</p>
+                  <p className="text-[11px] font-pmedium text-[#2563EB] uppercase tracking-widest mt-1">Refining Schedule</p>
                 </div>
                 <button onClick={() => setShowRescheduleDialog(false)} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
                   <X size={20} strokeWidth={2.5} />
@@ -5516,9 +5491,9 @@ export function MeetingRoomsPage() {
               <div className="p-6 md:p-8 space-y-6">
                 {normalize(rescheduleData.bookingType) !== 'tenant' && (
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Update Location (Optional)</label>
+                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Update Location (Optional)</label>
                   <div className="relative">
-                    <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={rescheduleData.roomName || ''} onChange={(e) => setRescheduleData({ ...rescheduleData, roomName: e.target.value })}>
+                    <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={rescheduleData.roomName || ''} onChange={(e) => setRescheduleData({ ...rescheduleData, roomName: e.target.value })}>
                       {availableRooms.map((roomName) => (
                         <option key={roomName} value={roomName} disabled={isRoomOptionDisabled(roomName)}>
                           {getRoomOptionLabel(roomName)}
@@ -5532,12 +5507,12 @@ export function MeetingRoomsPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2 md:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">New Date</label>
-                    <input type="date" min={todayStr} value={rescheduleData.date || ''} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => setRescheduleData({ ...rescheduleData, date: e.target.value })} />
+                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">New Date</label>
+                    <input type="date" min={todayStr} value={rescheduleData.date || ''} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => setRescheduleData({ ...rescheduleData, date: e.target.value })} />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">New Check In</label>
-                    <select value={rescheduleData.startTime || ''} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => {
+                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">New Check In</label>
+                    <select value={rescheduleData.startTime || ''} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => {
                       const nextStartTime = e.target.value;
                       const minimumEndTime = minutesToTimeString((timeToMinutes(nextStartTime) || 0) + BOOKING_MIN_DURATION_MINUTES);
                       const currentEndMinutes = timeToMinutes(rescheduleData.endTime);
@@ -5555,8 +5530,8 @@ export function MeetingRoomsPage() {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">New Check Out</label>
-                    <select value={rescheduleData.endTime || ''} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => setRescheduleData({ ...rescheduleData, endTime: e.target.value })}>
+                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">New Check Out</label>
+                    <select value={rescheduleData.endTime || ''} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" onChange={(e) => setRescheduleData({ ...rescheduleData, endTime: e.target.value })}>
                       <option value="">Select end time</option>
                       {rescheduleEndTimeOptions.map((timeValue) => (
                         <option key={timeValue} value={timeValue}>{formatTimeOptionLabel(timeValue)}</option>
@@ -5572,27 +5547,27 @@ export function MeetingRoomsPage() {
                   const hasDiff = Math.abs(diff) > 0.01;
                   return (
                     <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl text-[13px] flex flex-col gap-2 shadow-sm">
-                      <div className="flex items-center gap-2 font-bold text-indigo-800">
+                      <div className="flex items-center gap-2 font-pmedium text-indigo-800">
                         <CreditCard size={16} />
                         Credit Summary
                       </div>
                       <div className="grid grid-cols-3 gap-3 text-center">
                         <div className="rounded-xl bg-white/70 px-2 py-2 border border-indigo-100">
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Current</p>
-                          <p className="text-sm font-black text-indigo-800 mt-0.5">{currentCredits.toFixed(2)} CR</p>
+                          <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Current</p>
+                          <p className="text-sm font-pmedium text-indigo-800 mt-0.5">{currentCredits.toFixed(2)} CR</p>
                         </div>
                         <div className="rounded-xl bg-white/70 px-2 py-2 border border-indigo-100">
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">New Estimate</p>
-                          <p className="text-sm font-black text-indigo-800 mt-0.5">{newCredits.toFixed(2)} CR</p>
+                          <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">New Estimate</p>
+                          <p className="text-sm font-pmedium text-indigo-800 mt-0.5">{newCredits.toFixed(2)} CR</p>
                         </div>
                         <div className={`rounded-xl px-2 py-2 border ${hasDiff && diff > 0 ? 'bg-red-50 border-red-200' : hasDiff && diff < 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-white/70 border-indigo-100'}`}>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{hasDiff && diff > 0 ? 'Extra Charge' : hasDiff && diff < 0 ? 'Refund' : 'Change'}</p>
+                          <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">{hasDiff && diff > 0 ? 'Extra Charge' : hasDiff && diff < 0 ? 'Refund' : 'Change'}</p>
                           {hasDiff && diff > 0 ? (
-                            <p className="text-sm font-black text-red-700 mt-0.5">+{diff.toFixed(2)} CR</p>
+                            <p className="text-sm font-pmedium text-red-700 mt-0.5">+{diff.toFixed(2)} CR</p>
                           ) : hasDiff && diff < 0 ? (
-                            <p className="text-sm font-black text-emerald-700 mt-0.5">{diff.toFixed(2)} CR</p>
+                            <p className="text-sm font-pmedium text-emerald-700 mt-0.5">{diff.toFixed(2)} CR</p>
                           ) : (
-                            <p className="text-sm font-black text-slate-500 mt-0.5">-</p>
+                            <p className="text-sm font-pmedium text-slate-500 mt-0.5">-</p>
                           )}
                         </div>
                       </div>
@@ -5604,19 +5579,19 @@ export function MeetingRoomsPage() {
                   <div className="space-y-4 border-t border-slate-100 pt-5">
                     <div className="flex items-center gap-2">
                       <div className="h-px flex-1 bg-slate-100" />
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Invite Members</span>
+                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest shrink-0">Invite Members</span>
                       <div className="h-px flex-1 bg-slate-100" />
                     </div>
 
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Select Members</span>
-                      <span className="text-[11px] font-bold text-slate-500">{rescheduleInviteeIds.length} selected</span>
+                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Select Members</span>
+                      <span className="text-[11px] font-pmedium text-slate-500">{rescheduleInviteeIds.length} selected</span>
                     </div>
 
                     <div className="max-h-48 overflow-y-auto space-y-3 pr-1">
                       {inviteDepartments.map((group: any) => (
                         <div key={group.department} className="rounded-xl border border-slate-200/60 bg-slate-50/70 p-3">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                          <p className="text-[10px] font-pmedium uppercase tracking-widest text-slate-500 mb-2">
                             {group.label}
                           </p>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -5641,16 +5616,16 @@ export function MeetingRoomsPage() {
                                     className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
                                   />
                                   <div className="min-w-0 flex-1">
-                                    <p className="text-[12px] font-bold text-[#0F172A] truncate">{resolveMemberName(member) || member.email || 'Member'}</p>
+                                    <p className="text-[12px] font-pmedium text-[#0F172A] truncate">{resolveMemberName(member) || member.email || 'Member'}</p>
                                     <div className="flex items-center gap-2 mt-0.5">
-                                      <span className="text-[10px] font-semibold text-slate-500">{sublabel}</span>
+                                      <span className="text-[10px] font-pmedium text-slate-500">{sublabel}</span>
                                       {existingStatus === 'accepted' && (
-                                        <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200">
+                                        <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-pmedium uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200">
                                           <CheckCircle2 size={10} /> Accepted
                                         </span>
                                       )}
                                       {existingStatus === 'pending' && (
-                                        <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200">Pending</span>
+                                        <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-pmedium uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200">Pending</span>
                                       )}
                                     </div>
                                   </div>
@@ -5661,7 +5636,7 @@ export function MeetingRoomsPage() {
                         </div>
                       ))}
                       {inviteDepartments.length === 0 && (
-                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-[11px] font-semibold text-slate-400">
+                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-[11px] font-pmedium text-slate-400">
                           No inviteable members found.
                         </div>
                       )}
@@ -5672,7 +5647,7 @@ export function MeetingRoomsPage() {
                 {!rescheduleTimeValidation.valid && (
                   <div className="p-4 bg-red-50 rounded-2xl flex items-start sm:items-center gap-3 border border-red-100 mt-2">
                     <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
-                    <p className="text-[13px] text-red-800 font-bold">{rescheduleTimeValidation.reason}</p>
+                    <p className="text-[13px] text-red-800 font-pmedium">{rescheduleTimeValidation.reason}</p>
                   </div>
                 )}
 
@@ -5688,32 +5663,32 @@ export function MeetingRoomsPage() {
                   const hasDiff = Math.abs(diff) > 0.5;
                   return (
                     <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl space-y-2">
-                      <div className="flex items-center gap-2 font-bold text-amber-800 text-[13px]">
+                      <div className="flex items-center gap-2 font-pmedium text-amber-800 text-[13px]">
                         <DollarSign size={15} />
                         Pricing Adjustment
                       </div>
                       <div className="grid grid-cols-3 gap-3 text-center">
                         <div className="rounded-xl bg-white/70 px-2 py-2 border border-amber-100">
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Original</p>
-                          <p className="text-sm font-black text-amber-800 mt-0.5">{formatCurrency(origTotal)}</p>
+                          <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">Original</p>
+                          <p className="text-sm font-pmedium text-amber-800 mt-0.5">{formatCurrency(origTotal)}</p>
                         </div>
                         <div className="rounded-xl bg-white/70 px-2 py-2 border border-amber-100">
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">New Estimate</p>
-                          <p className="text-sm font-black text-amber-800 mt-0.5">{formatCurrency(newTotal)}</p>
+                          <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">New Estimate</p>
+                          <p className="text-sm font-pmedium text-amber-800 mt-0.5">{formatCurrency(newTotal)}</p>
                         </div>
                         <div className={`rounded-xl px-2 py-2 border ${hasDiff && diff > 0 ? 'bg-red-50 border-red-200' : hasDiff && diff < 0 ? 'bg-emerald-50 border-emerald-200' : 'bg-white/70 border-amber-100'}`}>
-                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{hasDiff && diff > 0 ? 'Extra Charge' : hasDiff && diff < 0 ? 'Saving' : 'Change'}</p>
+                          <p className="text-[9px] font-pmedium text-slate-400 uppercase tracking-widest">{hasDiff && diff > 0 ? 'Extra Charge' : hasDiff && diff < 0 ? 'Saving' : 'Change'}</p>
                           {hasDiff && diff > 0 ? (
-                            <p className="text-sm font-black text-red-700 mt-0.5">+{formatCurrency(diff)}</p>
+                            <p className="text-sm font-pmedium text-red-700 mt-0.5">+{formatCurrency(diff)}</p>
                           ) : hasDiff && diff < 0 ? (
-                            <p className="text-sm font-black text-emerald-700 mt-0.5">{formatCurrency(diff)}</p>
+                            <p className="text-sm font-pmedium text-emerald-700 mt-0.5">{formatCurrency(diff)}</p>
                           ) : (
-                            <p className="text-sm font-black text-slate-500 mt-0.5">—</p>
+                            <p className="text-sm font-pmedium text-slate-500 mt-0.5">—</p>
                           )}
                         </div>
                       </div>
                       {pricePerHour > 0 && (
-                        <p className="text-[11px] font-semibold text-amber-700">Rate: {formatCurrency(pricePerHour)}/hr · GST included</p>
+                        <p className="text-[11px] font-pmedium text-amber-700">Rate: {formatCurrency(pricePerHour)}/hr · GST included</p>
                       )}
                     </div>
                   );
@@ -5722,13 +5697,13 @@ export function MeetingRoomsPage() {
                 {rescheduleTimeValidation.valid && rescheduleStatus === 'available' && (
                   <div className="p-4 bg-emerald-50 rounded-2xl flex items-start sm:items-center gap-3 border border-emerald-100 mt-2">
                     <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
-                    <p className="text-[13px] text-emerald-800 font-bold">Slot is available!</p>
+                    <p className="text-[13px] text-emerald-800 font-pmedium">Slot is available!</p>
                   </div>
                 )}
                 {rescheduleTimeValidation.valid && rescheduleStatus === 'conflict' && (
                   <div className="p-4 bg-red-50 rounded-2xl flex items-start sm:items-center gap-3 border border-red-100 mt-2">
                     <AlertCircle className="text-red-500 shrink-0 mt-0.5 sm:mt-0" size={20} />
-                    <p className="text-[13px] text-red-800 font-bold">Slot conflict detected. Please adjust time.</p>
+                    <p className="text-[13px] text-red-800 font-pmedium">Slot conflict detected. Please adjust time.</p>
                   </div>
                 )}
               </div>
@@ -5759,7 +5734,7 @@ export function MeetingRoomsPage() {
               <div className="px-6 py-4 md:p-8 flex justify-between items-center border-b border-slate-100/60 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
                 <div>
                   <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">External Booking</h2>
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Walk-in / External visitor</p>
+                  <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">Walk-in / External visitor</p>
                 </div>
               <button onClick={() => { setShowExternalBookingDialog(false); setExtClientSearch(''); setExtClientSearchResults([]); setExtClientSelected(null); }} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
                   <X size={20} strokeWidth={2.5} />
@@ -5786,7 +5761,7 @@ export function MeetingRoomsPage() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <div className="h-px flex-1 bg-slate-100" />
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Client Information</span>
+                    <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest shrink-0">Client Information</span>
                     <div className="h-px flex-1 bg-slate-100" />
                   </div>
 
@@ -5797,8 +5772,8 @@ export function MeetingRoomsPage() {
                       {extClientSelected && (
                         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center justify-between gap-3">
                           <div>
-                            <p className="text-[13px] font-bold text-emerald-800">{extClientSelected.name}</p>
-                            <p className="text-[11px] font-semibold text-emerald-600">{extClientSelected.phone}{extClientSelected.email ? ` · ${extClientSelected.email}` : ''}{extClientSelected.company ? ` · ${extClientSelected.company}` : ''}</p>
+                            <p className="text-[13px] font-pmedium text-emerald-800">{extClientSelected.name}</p>
+                            <p className="text-[11px] font-pmedium text-emerald-600">{extClientSelected.phone}{extClientSelected.email ? ` · ${extClientSelected.email}` : ''}{extClientSelected.company ? ` · ${extClientSelected.company}` : ''}</p>
                           </div>
                           <button type="button" onClick={() => { setExtClientSelected(null); setExternalBookingForm(f => ({ ...f, name: '', phone: '', email: '', company: '' })); }} className="w-7 h-7 flex items-center justify-center rounded-full bg-emerald-100 hover:bg-red-100 text-emerald-600 hover:text-red-500 transition-colors shrink-0">
                             <X size={13} strokeWidth={2.5} />
@@ -5829,7 +5804,7 @@ export function MeetingRoomsPage() {
                                 }, 350);
                               }}
                               placeholder="Search by name, phone, or email…"
-                              className="w-full pl-10 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all"
+                              className="w-full pl-10 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all"
                             />
                             {extClientSearchLoading && <div className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin" />}
                           </div>
@@ -5843,7 +5818,7 @@ export function MeetingRoomsPage() {
                                   setExternalBookingForm(f => ({ ...f, name: client.name, phone: client.phone, email: client.email || '', company: client.company || '' }));
                                   setExtClientSearch(''); setExtClientSearchResults([]);
                                 }} className="w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0">
-                                  <p className="text-[13px] font-bold text-[#0F172A]">{client.name}</p>
+                                  <p className="text-[13px] font-pmedium text-[#0F172A]">{client.name}</p>
                                   <p className="text-[11px] text-slate-500">{client.phone}{client.email ? ` · ${client.email}` : ''}{client.company ? ` · ${client.company}` : ''}</p>
                                 </button>
                               ))}
@@ -5858,7 +5833,7 @@ export function MeetingRoomsPage() {
                       {/* Recent 2 clients */}
                       {!extClientSelected && extClientSearch.length < 2 && existingExternalClients.slice(0, 2).length > 0 && (
                         <div className="space-y-2">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recent clients</p>
+                          <p className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Recent clients</p>
                           {existingExternalClients.slice(0, 2).map((client, idx) => (
                             <button key={idx} type="button" onClick={() => {
                               setExtClientSelected(client);
@@ -5866,15 +5841,15 @@ export function MeetingRoomsPage() {
                             }}
                               className="w-full flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white hover:bg-blue-50 hover:border-[#2563EB]/50 p-4 text-left transition-all">
                               <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-[#2563EB] font-black text-sm shrink-0">
+                                <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-[#2563EB] font-pmedium text-sm shrink-0">
                                   {client.name[0]?.toUpperCase()}
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="text-[13px] font-bold text-[#0F172A] truncate">{client.name}</p>
-                                  <p className="text-[11px] font-semibold text-slate-500 truncate">{client.phone}{client.company ? ` · ${client.company}` : ''}</p>
+                                  <p className="text-[13px] font-pmedium text-[#0F172A] truncate">{client.name}</p>
+                                  <p className="text-[11px] font-pmedium text-slate-500 truncate">{client.phone}{client.company ? ` · ${client.company}` : ''}</p>
                                 </div>
                               </div>
-                              <span className="text-[10px] font-black text-[#2563EB] uppercase tracking-widest shrink-0">Select</span>
+                              <span className="text-[10px] font-pmedium text-[#2563EB] uppercase tracking-widest shrink-0">Select</span>
                             </button>
                           ))}
                         </div>
@@ -5884,22 +5859,22 @@ export function MeetingRoomsPage() {
                     /* ── New Client tab ── */
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2 col-span-2 sm:col-span-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Full Name *</label>
-                        <input type="text" value={externalBookingForm.name} onChange={e => setExternalBookingForm(f => ({ ...f, name: e.target.value }))} placeholder="Client name" className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
+                        <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Full Name *</label>
+                        <input type="text" value={externalBookingForm.name} onChange={e => setExternalBookingForm(f => ({ ...f, name: e.target.value }))} placeholder="Client name" className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
                       </div>
                       <div className="space-y-2 col-span-2 sm:col-span-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phone *</label>
-                        <input type="tel" value={externalBookingForm.phone} onChange={e => setExternalBookingForm(f => ({ ...f, phone: e.target.value }))} placeholder="+91 XXXXX XXXXX" className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
+                        <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Phone *</label>
+                        <input type="tel" value={externalBookingForm.phone} onChange={e => setExternalBookingForm(f => ({ ...f, phone: e.target.value }))} placeholder="+91 XXXXX XXXXX" className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
                       </div>
                       <div className="space-y-2 col-span-2 sm:col-span-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                          Email <span className="text-slate-300 normal-case font-semibold">(for confirmation)</span>
+                        <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                          Email <span className="text-slate-300 normal-case font-pmedium">(for confirmation)</span>
                         </label>
-                        <input type="email" value={externalBookingForm.email} onChange={e => setExternalBookingForm(f => ({ ...f, email: e.target.value }))} placeholder="client@email.com" className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
+                        <input type="email" value={externalBookingForm.email} onChange={e => setExternalBookingForm(f => ({ ...f, email: e.target.value }))} placeholder="client@email.com" className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
                       </div>
                       <div className="space-y-2 col-span-2 sm:col-span-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Company <span className="text-slate-300 normal-case font-semibold">(optional)</span></label>
-                        <input type="text" value={externalBookingForm.company} onChange={e => setExternalBookingForm(f => ({ ...f, company: e.target.value }))} placeholder="Company / Agency" className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
+                        <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Company <span className="text-slate-300 normal-case font-pmedium">(optional)</span></label>
+                        <input type="text" value={externalBookingForm.company} onChange={e => setExternalBookingForm(f => ({ ...f, company: e.target.value }))} placeholder="Company / Agency" className="w-full px-4 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" />
                       </div>
                     </div>
                   )}
@@ -5909,7 +5884,7 @@ export function MeetingRoomsPage() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <div className="h-px flex-1 bg-slate-100" />
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Room Selection</span>
+                    <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest shrink-0">Room Selection</span>
                     <div className="h-px flex-1 bg-slate-100" />
                   </div>
                   {(() => {
@@ -5923,9 +5898,9 @@ export function MeetingRoomsPage() {
                       <>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Room Type</label>
+                            <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Room Type</label>
                             <div className="relative">
-                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.roomType} onChange={e => setExternalBookingForm(f => ({ ...f, roomType: e.target.value, floor: '', wing: '', roomName: '' }))}>
+                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.roomType} onChange={e => setExternalBookingForm(f => ({ ...f, roomType: e.target.value, floor: '', wing: '', roomName: '' }))}>
                                 <option value="">Select room type</option>
                                 {roomTypes.map(t => <option key={t} value={t}>{t}</option>)}
                               </select>
@@ -5933,9 +5908,9 @@ export function MeetingRoomsPage() {
                             </div>
                           </div>
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Floor</label>
+                            <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Floor</label>
                             <div className="relative">
-                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.floor} onChange={e => setExternalBookingForm(f => ({ ...f, floor: e.target.value, wing: '', roomName: '' }))}>
+                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.floor} onChange={e => setExternalBookingForm(f => ({ ...f, floor: e.target.value, wing: '', roomName: '' }))}>
                                 <option value="">Select floor</option>
                                 {floors.map(floor => <option key={floor} value={floor}>{floor}</option>)}
                               </select>
@@ -5945,9 +5920,9 @@ export function MeetingRoomsPage() {
                         </div>
                         {hasWings && (
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Wing (Optional)</label>
+                            <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Wing (Optional)</label>
                             <div className="relative">
-                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.wing} onChange={e => setExternalBookingForm(f => ({ ...f, wing: e.target.value, roomName: '' }))}>
+                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.wing} onChange={e => setExternalBookingForm(f => ({ ...f, wing: e.target.value, roomName: '' }))}>
                                 <option value="">Any wing</option>
                                 {wings.map(wing => <option key={wing} value={wing}>{wing}</option>)}
                               </select>
@@ -5956,9 +5931,9 @@ export function MeetingRoomsPage() {
                           </div>
                         )}
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meeting Room *</label>
+                          <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Meeting Room *</label>
                           <div className="relative">
-                            <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.roomName} onChange={e => setExternalBookingForm(f => ({ ...f, roomName: e.target.value }))}>
+                            <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.roomName} onChange={e => setExternalBookingForm(f => ({ ...f, roomName: e.target.value }))}>
                               <option value="">-- Choose a Room --</option>
                               {filteredRooms.map(room => <option key={room.name} value={room.name}>{room.name}{room.floor ? ` --- Floor ${room.floor}` : ''}{room.wing ? ` --- Wing ${room.wing}` : ''}{room.capacity ? ` --- ${room.capacity} seats` : ''}</option>)}
                               {filteredRooms.length === 0 && <option value="" disabled>No rooms match your filters</option>}
@@ -5975,18 +5950,18 @@ export function MeetingRoomsPage() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <div className="h-px flex-1 bg-slate-100" />
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Date & Time</span>
+                    <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest shrink-0">Date & Time</span>
                     <div className="h-px flex-1 bg-slate-100" />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date *</label>
-                      <input type="date" min={todayStr} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" value={externalBookingForm.date} onChange={e => setExternalBookingForm(f => ({ ...f, date: e.target.value }))} />
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Date *</label>
+                      <input type="date" min={todayStr} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" value={externalBookingForm.date} onChange={e => setExternalBookingForm(f => ({ ...f, date: e.target.value }))} />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Start Time *</label>
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Start Time *</label>
                       <div className="relative">
-                        <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.startTime} onChange={e => { const nextStart = e.target.value; const minEnd = minutesToTimeString((timeToMinutes(nextStart) || 0) + BOOKING_MIN_DURATION_MINUTES); setExternalBookingForm(f => ({ ...f, startTime: nextStart, endTime: !f.endTime || (timeToMinutes(f.endTime) || 0) < (timeToMinutes(minEnd) || 0) ? minEnd : f.endTime })); }}>
+                        <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.startTime} onChange={e => { const nextStart = e.target.value; const minEnd = minutesToTimeString((timeToMinutes(nextStart) || 0) + BOOKING_MIN_DURATION_MINUTES); setExternalBookingForm(f => ({ ...f, startTime: nextStart, endTime: !f.endTime || (timeToMinutes(f.endTime) || 0) < (timeToMinutes(minEnd) || 0) ? minEnd : f.endTime })); }}>
                           <option value="">Select time</option>
                           {externalStartTimeOptions.map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
                         </select>
@@ -5994,9 +5969,9 @@ export function MeetingRoomsPage() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">End Time *</label>
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">End Time *</label>
                       <div className="relative">
-                        <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.endTime} onChange={e => setExternalBookingForm(f => ({ ...f, endTime: e.target.value }))}>
+                        <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={externalBookingForm.endTime} onChange={e => setExternalBookingForm(f => ({ ...f, endTime: e.target.value }))}>
                           <option value="">Select time</option>
                           {buildTimeOptions(externalBookingForm.startTime ? minutesToTimeString((timeToMinutes(externalBookingForm.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES) : '08:30', '23:55').map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
                         </select>
@@ -6006,12 +5981,12 @@ export function MeetingRoomsPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-5">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Attendees</label>
-                      <input type="number" min="1" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={externalBookingForm.attendees} onChange={e => setExternalBookingForm(f => ({ ...f, attendees: Number(e.target.value) }))} />
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Attendees</label>
+                      <input type="number" min="1" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={externalBookingForm.attendees} onChange={e => setExternalBookingForm(f => ({ ...f, attendees: Number(e.target.value) }))} />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Purpose</label>
-                      <input type="text" placeholder="Meeting, Training, etc." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={externalBookingForm.purpose} onChange={e => setExternalBookingForm(f => ({ ...f, purpose: e.target.value }))} />
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Purpose</label>
+                      <input type="text" placeholder="Meeting, Training, etc." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={externalBookingForm.purpose} onChange={e => setExternalBookingForm(f => ({ ...f, purpose: e.target.value }))} />
                     </div>
                   </div>
                 </div>
@@ -6023,15 +5998,15 @@ export function MeetingRoomsPage() {
                     <div className="space-y-4">
                       <div className="flex items-center gap-2">
                         <div className="h-px flex-1 bg-slate-100" />
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Pricing & Discount</span>
+                        <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest shrink-0">Pricing & Discount</span>
                         <div className="h-px flex-1 bg-slate-100" />
                       </div>
                       <div className="rounded-2xl border border-blue-100 bg-blue-50/30 p-5">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div className="space-y-4">
                             <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Base Rate</span>
-                              <span className="text-[13px] font-bold text-slate-800">{hasExternalQuote ? formatCurrency(externalWalkInPricing.subtotalBeforeDiscount) : 'Pending'}</span>
+                              <span className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest">Base Rate</span>
+                              <span className="text-[13px] font-pmedium text-slate-800">{hasExternalQuote ? formatCurrency(externalWalkInPricing.subtotalBeforeDiscount) : 'Pending'}</span>
                             </div>
                             
                             <div className="space-y-3">
@@ -6039,27 +6014,27 @@ export function MeetingRoomsPage() {
                                 <button type="button" onClick={() => setExternalBookingForm(f => ({ ...f, discountType: 'amount' }))} className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${externalBookingForm.discountType === 'amount' ? 'bg-[#2563EB] text-white' : 'bg-white text-slate-500 border border-slate-200'}`}>Amount</button>
                                 <button type="button" onClick={() => setExternalBookingForm(f => ({ ...f, discountType: 'percent' }))} className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${externalBookingForm.discountType === 'percent' ? 'bg-[#2563EB] text-white' : 'bg-white text-slate-500 border border-slate-200'}`}>Percent</button>
                               </div>
-                              <input type="number" min="0" placeholder={externalBookingForm.discountType === 'percent' ? 'e.g. 10' : 'e.g. 500'} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-[12px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" value={externalBookingForm.discountValue} onChange={e => setExternalBookingForm(f => ({ ...f, discountValue: e.target.value }))} />
+                              <input type="number" min="0" placeholder={externalBookingForm.discountType === 'percent' ? 'e.g. 10' : 'e.g. 500'} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl font-pmedium text-[12px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none" value={externalBookingForm.discountValue} onChange={e => setExternalBookingForm(f => ({ ...f, discountValue: e.target.value }))} />
                             </div>
                           </div>
 
                           <div className="space-y-3 border-t md:border-t-0 md:border-l border-slate-200/60 pt-4 md:pt-0 md:pl-6 flex flex-col justify-end">
                             <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Discount</span>
-                              <span className="text-[12px] font-bold text-emerald-600">{hasExternalQuote ? `- ${formatCurrency(externalWalkInPricing.discountAmount)}` : 'Pending'}</span>
+                              <span className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest">Discount</span>
+                              <span className="text-[12px] font-pmedium text-emerald-600">{hasExternalQuote ? `- ${formatCurrency(externalWalkInPricing.discountAmount)}` : 'Pending'}</span>
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Taxable Amount</span>
-                              <span className="text-[12px] font-bold text-slate-600">{hasExternalQuote ? formatCurrency(externalWalkInPricing.taxableBaseAfterDiscount) : 'Pending'}</span>
+                              <span className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest">Taxable Amount</span>
+                              <span className="text-[12px] font-pmedium text-slate-600">{hasExternalQuote ? formatCurrency(externalWalkInPricing.taxableBaseAfterDiscount) : 'Pending'}</span>
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest">GST (18%)</span>
-                              <span className="text-[12px] font-bold text-slate-600">{hasExternalQuote ? formatCurrency(externalWalkInPricing.gst) : 'Pending'}</span>
+                              <span className="text-[11px] font-pmedium text-slate-500 uppercase tracking-widest">GST (18%)</span>
+                              <span className="text-[12px] font-pmedium text-slate-600">{hasExternalQuote ? formatCurrency(externalWalkInPricing.gst) : 'Pending'}</span>
                             </div>
                             <div className="h-px w-full bg-slate-200/80 my-1" />
                             <div className="flex items-center justify-between">
-                              <span className="text-[13px] font-black text-[#0F172A] uppercase tracking-widest">Total Due</span>
-                              <span className="text-[16px] font-black text-[#2563EB]">{hasExternalQuote ? formatCurrency(externalWalkInPricing.total) : 'Pending'}</span>
+                              <span className="text-[13px] font-pmedium text-[#0F172A] uppercase tracking-widest">Total Due</span>
+                              <span className="text-[16px] font-pmedium text-[#2563EB]">{hasExternalQuote ? formatCurrency(externalWalkInPricing.total) : 'Pending'}</span>
                             </div>
                           </div>
                         </div>
@@ -6072,7 +6047,7 @@ export function MeetingRoomsPage() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <div className="h-px flex-1 bg-slate-100" />
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Payment Collection</span>
+                    <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest shrink-0">Payment Collection</span>
                     <div className="h-px flex-1 bg-slate-100" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -6085,13 +6060,13 @@ export function MeetingRoomsPage() {
                   </div>
                   {externalBookingForm.paymentMode !== 'Cash' && (
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Transaction / UTR Number</label>
-                      <input type="text" placeholder="Enter GPay reference" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={externalBookingForm.transactionId} onChange={e => setExternalBookingForm(f => ({ ...f, transactionId: e.target.value }))} />
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Transaction / UTR Number</label>
+                      <input type="text" placeholder="Enter GPay reference" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={externalBookingForm.transactionId} onChange={e => setExternalBookingForm(f => ({ ...f, transactionId: e.target.value }))} />
                     </div>
                   )}
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Notes (Optional)</label>
-                    <textarea rows={2} placeholder="Any internal notes..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all resize-none" value={externalBookingForm.notes} onChange={e => setExternalBookingForm(f => ({ ...f, notes: e.target.value }))} />
+                    <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Notes (Optional)</label>
+                    <textarea rows={2} placeholder="Any internal notes..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all resize-none" value={externalBookingForm.notes} onChange={e => setExternalBookingForm(f => ({ ...f, notes: e.target.value }))} />
                   </div>
                 </div>
               </div>
@@ -6124,7 +6099,7 @@ export function MeetingRoomsPage() {
               <div className="px-6 py-4 md:p-8 flex justify-between items-center border-b border-slate-100/60 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
                 <div>
                   <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">Internal Booking</h2>
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Booking on behalf of a member</p>
+                  <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">Booking on behalf of a member</p>
                 </div>
                 <button onClick={() => setShowInternalBookingDialog(false)} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
                   <X size={20} strokeWidth={2.5} />
@@ -6136,15 +6111,15 @@ export function MeetingRoomsPage() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <div className="h-px flex-1 bg-slate-100" />
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Booking For</span>
+                    <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest shrink-0">Booking For</span>
                     <div className="h-px flex-1 bg-slate-100" />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Member *</label>
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Member *</label>
                       <div className="relative">
                         <select
-                          className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
+                          className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm"
                           value={internalBookingForm.bookedForUserId}
                           onChange={e => {
                             const selectedId = e.target.value;
@@ -6178,8 +6153,8 @@ export function MeetingRoomsPage() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Department / Role</label>
-                      <p className="px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-[13px] min-h-[48px] flex items-center">
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Department / Role</label>
+                      <p className="px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl font-pmedium text-[13px] min-h-[48px] flex items-center">
                         {(() => {
                           if (internalBookingForm.department) {
                             return <span className="text-[#0F172A]">{internalBookingForm.department}</span>;
@@ -6191,7 +6166,7 @@ export function MeetingRoomsPage() {
                               return <span className="text-[#0F172A]">{roleLabel}</span>;
                             }
                           }
-                          return <span className="text-slate-400 font-medium">Auto-filled from member</span>;
+                          return <span className="text-slate-400 font-pmedium">Auto-filled from member</span>;
                         })()}
                       </p>
                     </div>
@@ -6202,7 +6177,7 @@ export function MeetingRoomsPage() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <div className="h-px flex-1 bg-slate-100" />
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Room Selection</span>
+                    <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest shrink-0">Room Selection</span>
                     <div className="h-px flex-1 bg-slate-100" />
                   </div>
                   {(() => {
@@ -6216,9 +6191,9 @@ export function MeetingRoomsPage() {
                       <>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Room Type</label>
+                            <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Room Type</label>
                             <div className="relative">
-                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.roomType} onChange={e => setInternalBookingForm(f => ({ ...f, roomType: e.target.value, floor: '', wing: '', roomName: '' }))}>
+                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.roomType} onChange={e => setInternalBookingForm(f => ({ ...f, roomType: e.target.value, floor: '', wing: '', roomName: '' }))}>
                                 <option value="">Select room type</option>
                                 {roomTypes.map(t => <option key={t} value={t}>{t}</option>)}
                               </select>
@@ -6226,9 +6201,9 @@ export function MeetingRoomsPage() {
                             </div>
                           </div>
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Floor</label>
+                            <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Floor</label>
                             <div className="relative">
-                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.floor} onChange={e => setInternalBookingForm(f => ({ ...f, floor: e.target.value, wing: '', roomName: '' }))}>
+                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.floor} onChange={e => setInternalBookingForm(f => ({ ...f, floor: e.target.value, wing: '', roomName: '' }))}>
                                 <option value="">Select floor</option>
                                 {floors.map(floor => <option key={floor} value={floor}>{floor}</option>)}
                               </select>
@@ -6239,9 +6214,9 @@ export function MeetingRoomsPage() {
                         <div className={`grid gap-5 ${hasWings ? 'grid-cols-2' : 'grid-cols-1'}`}>
                           {hasWings && (
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Wing</label>
+                              <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Wing</label>
                               <div className="relative">
-                                <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.wing} onChange={e => setInternalBookingForm(f => ({ ...f, wing: e.target.value, roomName: '' }))}>
+                                <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.wing} onChange={e => setInternalBookingForm(f => ({ ...f, wing: e.target.value, roomName: '' }))}>
                                   <option value="">Any wing</option>
                                   {wings.map(wing => <option key={wing} value={wing}>{wing}</option>)}
                                 </select>
@@ -6250,9 +6225,9 @@ export function MeetingRoomsPage() {
                             </div>
                           )}
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meeting Room *</label>
+                            <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Meeting Room *</label>
                             <div className="relative">
-                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.roomName} onChange={e => setInternalBookingForm(f => ({ ...f, roomName: e.target.value }))}>
+                              <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.roomName} onChange={e => setInternalBookingForm(f => ({ ...f, roomName: e.target.value }))}>
                                 <option value="">-- Choose a Room --</option>
                                 {filteredRooms.map(room => <option key={room.name} value={room.name}>{room.name}{room.floor ? ` --- Floor ${room.floor}` : ''}{room.wing ? ` --- Wing ${room.wing}` : ''}{room.capacity ? ` --- ${room.capacity} seats` : ''}</option>)}
                                 {filteredRooms.length === 0 && <option value="" disabled>No rooms match your filters</option>}
@@ -6270,18 +6245,18 @@ export function MeetingRoomsPage() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <div className="h-px flex-1 bg-slate-100" />
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Date & Time</span>
+                    <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest shrink-0">Date & Time</span>
                     <div className="h-px flex-1 bg-slate-100" />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date *</label>
-                      <input type="date" min={todayStr} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" value={internalBookingForm.date} onChange={e => setInternalBookingForm(f => ({ ...f, date: e.target.value }))} />
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Date *</label>
+                      <input type="date" min={todayStr} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" value={internalBookingForm.date} onChange={e => setInternalBookingForm(f => ({ ...f, date: e.target.value }))} />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Start Time *</label>
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Start Time *</label>
                       <div className="relative">
-                        <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.startTime} onChange={e => { const nextStart = e.target.value; const minEnd = minutesToTimeString((timeToMinutes(nextStart) || 0) + BOOKING_MIN_DURATION_MINUTES); setInternalBookingForm(f => ({ ...f, startTime: nextStart, endTime: !f.endTime || (timeToMinutes(f.endTime) || 0) < (timeToMinutes(minEnd) || 0) ? minEnd : f.endTime })); }}>
+                        <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.startTime} onChange={e => { const nextStart = e.target.value; const minEnd = minutesToTimeString((timeToMinutes(nextStart) || 0) + BOOKING_MIN_DURATION_MINUTES); setInternalBookingForm(f => ({ ...f, startTime: nextStart, endTime: !f.endTime || (timeToMinutes(f.endTime) || 0) < (timeToMinutes(minEnd) || 0) ? minEnd : f.endTime })); }}>
                           <option value="">Select time</option>
                           {internalStartTimeOptions.map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
                         </select>
@@ -6289,9 +6264,9 @@ export function MeetingRoomsPage() {
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">End Time *</label>
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">End Time *</label>
                       <div className="relative">
-                        <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.endTime} onChange={e => setInternalBookingForm(f => ({ ...f, endTime: e.target.value }))}>
+                        <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={internalBookingForm.endTime} onChange={e => setInternalBookingForm(f => ({ ...f, endTime: e.target.value }))}>
                           <option value="">Select time</option>
                           {buildTimeOptions(internalBookingForm.startTime ? minutesToTimeString((timeToMinutes(internalBookingForm.startTime) || 0) + BOOKING_MIN_DURATION_MINUTES) : '08:30', '23:55').map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
                         </select>
@@ -6307,42 +6282,42 @@ export function MeetingRoomsPage() {
                     {!internalBookingTimeValidation.valid && (
                       <div className="p-4 bg-red-50 rounded-2xl flex items-start gap-3 border border-red-100">
                         <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
-                        <p className="text-[13px] text-red-800 font-bold">{internalBookingTimeValidation.reason}</p>
+                        <p className="text-[13px] text-red-800 font-pmedium">{internalBookingTimeValidation.reason}</p>
                       </div>
                     )}
                     {internalBookingTimeValidation.valid && internalRoomDayStatus === 'available' && !internalBookingForm.startTime && (
                       <div className="p-4 bg-emerald-50 rounded-2xl flex items-start gap-3 border border-emerald-100">
                         <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={18} />
-                        <p className="text-[13px] text-emerald-800 font-bold">Room is fully available on this date. Choose a time slot.</p>
+                        <p className="text-[13px] text-emerald-800 font-pmedium">Room is fully available on this date. Choose a time slot.</p>
                       </div>
                     )}
                     {internalBookingTimeValidation.valid && internalRoomDayStatus === 'partial' && !internalBookingForm.startTime && (
                       <div className="p-4 bg-amber-50 rounded-2xl flex items-start gap-3 border border-amber-100">
                         <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
-                        <p className="text-[13px] text-amber-800 font-bold">This room has some bookings on that date. Choose an open time slot.</p>
+                        <p className="text-[13px] text-amber-800 font-pmedium">This room has some bookings on that date. Choose an open time slot.</p>
                       </div>
                     )}
                     {internalBookingTimeValidation.valid && internalRoomDayStatus === 'full' && !internalBookingForm.startTime && (
                       <div className="p-4 bg-red-50 rounded-2xl flex items-start gap-3 border border-red-100">
                         <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
-                        <p className="text-[13px] text-red-800 font-bold">No slots available for this room on the selected date.</p>
+                        <p className="text-[13px] text-red-800 font-pmedium">No slots available for this room on the selected date.</p>
                       </div>
                     )}
                     {internalBookingTimeValidation.valid && internalBookingAvailability === 'available' && (
                       <div className="p-4 bg-emerald-50 rounded-2xl flex items-start gap-3 border border-emerald-100">
                         <CheckCircle2 className="text-emerald-500 shrink-0 mt-0.5" size={18} />
-                        <p className="text-[13px] text-emerald-800 font-bold">Room is available for the selected slot.</p>
+                        <p className="text-[13px] text-emerald-800 font-pmedium">Room is available for the selected slot.</p>
                       </div>
                     )}
                     {internalBookingTimeValidation.valid && internalBookingAvailability === 'conflict' && (
                       <div className="p-4 bg-red-50 rounded-2xl border border-red-100">
                         <div className="flex items-start gap-3 mb-2">
                           <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
-                          <p className="text-[13px] text-red-800 font-bold">Time conflict — this slot is already booked.</p>
+                          <p className="text-[13px] text-red-800 font-pmedium">Time conflict — this slot is already booked.</p>
                         </div>
                         {internalBookingSuggestions.length > 0 && (
                           <div className="mt-2">
-                            <p className="text-[11px] font-black text-red-700 uppercase tracking-widest mb-2">Available slots for selected duration:</p>
+                            <p className="text-[11px] font-pmedium text-red-700 uppercase tracking-widest mb-2">Available slots for selected duration:</p>
                             <div className="flex flex-wrap gap-2">
                               {internalBookingSuggestions.map((slot: any) => (
                                 <button
@@ -6358,14 +6333,14 @@ export function MeetingRoomsPage() {
                           </div>
                         )}
                         {internalBookingSuggestions.length === 0 && (
-                          <p className="text-[12px] font-semibold text-red-700 mt-1">No available slots found for this duration on this day.</p>
+                          <p className="text-[12px] font-pmedium text-red-700 mt-1">No available slots found for this duration on this day.</p>
                         )}
                       </div>
                     )}
                     {internalBookingTimeValidation.valid && internalBookingAvailability === 'full' && (
                       <div className="p-4 bg-red-50 rounded-2xl flex items-start gap-3 border border-red-100">
                         <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
-                        <p className="text-[13px] text-red-800 font-bold">Room is fully booked for this date. Please choose another date.</p>
+                        <p className="text-[13px] text-red-800 font-pmedium">Room is fully booked for this date. Please choose another date.</p>
                       </div>
                     )}
                   </>
@@ -6373,8 +6348,8 @@ export function MeetingRoomsPage() {
 
                 {/* Purpose */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Purpose / Agenda</label>
-                  <input type="text" placeholder="e.g. Q3 Review, Team Sync, Planning..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={internalBookingForm.purpose} onChange={e => setInternalBookingForm(f => ({ ...f, purpose: e.target.value }))} />
+                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Purpose / Agenda</label>
+                  <input type="text" placeholder="e.g. Q3 Review, Team Sync, Planning..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={internalBookingForm.purpose} onChange={e => setInternalBookingForm(f => ({ ...f, purpose: e.target.value }))} />
                 </div>
 
                 {/* Invite Participants */}
@@ -6382,17 +6357,17 @@ export function MeetingRoomsPage() {
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <div className="h-px w-8 bg-slate-100" />
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Invite Participants</span>
+                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Invite Participants</span>
                     </div>
                     {(() => {
                       const cap = getRoomCapacity(internalBookingForm.roomName);
                       const maxInvites = cap ? Math.max(0, Number(cap) - 1) : null;
                       return maxInvites !== null ? (
-                        <span className={`text-[11px] font-bold ${internalBookingForm.inviteParticipantIds.length >= maxInvites ? 'text-rose-500' : 'text-[#2563EB]'}`}>
+                        <span className={`text-[11px] font-pmedium ${internalBookingForm.inviteParticipantIds.length >= maxInvites ? 'text-rose-500' : 'text-[#2563EB]'}`}>
                           {internalBookingForm.inviteParticipantIds.length} / {maxInvites} seats
                         </span>
                       ) : (
-                        <span className="text-[11px] font-bold text-[#2563EB]">{internalBookingForm.inviteParticipantIds.length} selected</span>
+                        <span className="text-[11px] font-pmedium text-[#2563EB]">{internalBookingForm.inviteParticipantIds.length} selected</span>
                       );
                     })()}
                   </div>
@@ -6402,21 +6377,21 @@ export function MeetingRoomsPage() {
                     return (
                       <>
                         {internalBookingForm.roomName && cap && Number(cap) <= 1 && (
-                          <p className="text-[11px] font-semibold text-amber-600">This room seats 1 — no additional participants can be invited.</p>
+                          <p className="text-[11px] font-pmedium text-amber-600">This room seats 1 — no additional participants can be invited.</p>
                         )}
                         {internalBookingForm.roomName && cap && (
-                          <div className="rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-2.5 text-[12px] font-semibold text-blue-800 flex items-center justify-between">
+                          <div className="rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-2.5 text-[12px] font-pmedium text-blue-800 flex items-center justify-between">
                             <span>Capacity: <strong>{cap}</strong> seats</span>
                             <span>Invite slots left: <strong>{Math.max(0, Number(cap) - 1 - internalBookingForm.inviteParticipantIds.length)}</strong></span>
                           </div>
                         )}
                         <div className="max-h-64 overflow-y-auto space-y-4 pr-1">
                           {!internalBookingForm.bookedForUserId ? (
-                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[12px] font-semibold text-slate-400">
+                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[12px] font-pmedium text-slate-400">
                               Select a member above to see eligible participants.
                             </div>
                           ) : internalBookingEligibleParticipants.length === 0 ? (
-                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[12px] font-semibold text-slate-400">
+                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[12px] font-pmedium text-slate-400">
                               No inviteable participants found in this department.
                             </div>
                           ) : (
@@ -6455,8 +6430,8 @@ export function MeetingRoomsPage() {
                                       className="mt-1 h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
                                     />
                                     <div className="min-w-0">
-                                      <p className="text-[13px] font-bold text-[#0F172A] truncate">{resolveMemberName(member) || (member as any).email || 'Member'}</p>
-                                      <p className="text-[11px] font-semibold text-slate-500">{sublabel}</p>
+                                      <p className="text-[13px] font-pmedium text-[#0F172A] truncate">{resolveMemberName(member) || (member as any).email || 'Member'}</p>
+                                      <p className="text-[11px] font-pmedium text-slate-500">{sublabel}</p>
                                     </div>
                                   </label>
                                 );
@@ -6471,8 +6446,8 @@ export function MeetingRoomsPage() {
 
                 {/* Notes */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Notes (Optional)</label>
-                  <textarea rows={2} placeholder="Any additional context..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all resize-none" value={internalBookingForm.notes} onChange={e => setInternalBookingForm(f => ({ ...f, notes: e.target.value }))} />
+                  <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Notes (Optional)</label>
+                  <textarea rows={2} placeholder="Any additional context..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all resize-none" value={internalBookingForm.notes} onChange={e => setInternalBookingForm(f => ({ ...f, notes: e.target.value }))} />
                 </div>
               </div>
 
@@ -6504,7 +6479,7 @@ export function MeetingRoomsPage() {
               <div className="px-6 py-4 md:p-8 flex justify-between items-center border-b border-slate-100/60 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
                 <div>
                   <h2 className="text-xl md:text-2xl font-pmedium text-primary tracking-tight">Tenant Booking</h2>
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Book a meeting room for a tenant company</p>
+                  <p className="text-[11px] font-pmedium text-slate-400 uppercase tracking-widest mt-1">Book a meeting room for a tenant company</p>
                 </div>
                 <button onClick={() => { setShowTenantBookingDialog(false); setTenantBookingError(''); }} className="w-10 h-10 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
                   <X size={20} strokeWidth={2.5} />
@@ -6513,23 +6488,23 @@ export function MeetingRoomsPage() {
 
               <div className="p-5 sm:p-6 md:p-8 space-y-6 overflow-y-auto flex-1">
                 {tenantBookingError && (
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-semibold text-red-600">{tenantBookingError}</div>
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-pmedium text-red-600">{tenantBookingError}</div>
                 )}
 
                 {/* Tenant Company Selection */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <div className="h-px flex-1 bg-slate-100" />
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Select Tenant Company</span>
+                    <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest shrink-0">Select Tenant Company</span>
                     <div className="h-px flex-1 bg-slate-100" />
                   </div>
                   {isLoadingTenants ? (
-                    <div className="py-8 text-center text-xs font-bold text-slate-400">Loading tenant companies...</div>
+                    <div className="py-8 text-center text-xs font-pmedium text-slate-400">Loading tenant companies...</div>
                   ) : (
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Company *</label>
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Company *</label>
                       <div className="relative">
-                        <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.tenantCompanyId} onChange={e => {
+                        <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.tenantCompanyId} onChange={e => {
                           const selected = tenantCompanies.find(t => String(t.recordId || t._id) === e.target.value);
                           setTenantBookingForm(f => ({ ...f, tenantCompanyId: e.target.value, tenantCompanyName: selected?.companyName || selected?.name || '', inviteParticipantIds: [], attendees: 1 }));
                         }}>
@@ -6550,7 +6525,7 @@ export function MeetingRoomsPage() {
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
                       <div className="h-px flex-1 bg-slate-100" />
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Room Selection</span>
+                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest shrink-0">Room Selection</span>
                       <div className="h-px flex-1 bg-slate-100" />
                     </div>
                     {(() => {
@@ -6564,9 +6539,9 @@ export function MeetingRoomsPage() {
                         <>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Room Type</label>
+                              <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Room Type</label>
                               <div className="relative">
-                                <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.roomType} onChange={e => setTenantBookingForm(f => ({ ...f, roomType: e.target.value, floor: '', wing: '', roomName: '' }))}>
+                                <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.roomType} onChange={e => setTenantBookingForm(f => ({ ...f, roomType: e.target.value, floor: '', wing: '', roomName: '' }))}>
                                   <option value="">Select room type</option>
                                   {roomTypes.map(t => <option key={t} value={t}>{t}</option>)}
                                 </select>
@@ -6574,9 +6549,9 @@ export function MeetingRoomsPage() {
                               </div>
                             </div>
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Floor</label>
+                              <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Floor</label>
                               <div className="relative">
-                                <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.floor} onChange={e => setTenantBookingForm(f => ({ ...f, floor: e.target.value, wing: '', roomName: '' }))}>
+                                <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.floor} onChange={e => setTenantBookingForm(f => ({ ...f, floor: e.target.value, wing: '', roomName: '' }))}>
                                   <option value="">Select floor</option>
                                   {floors.map(floor => <option key={floor} value={floor}>{floor}</option>)}
                                 </select>
@@ -6585,9 +6560,9 @@ export function MeetingRoomsPage() {
                             </div>
                             {hasWings && (
                               <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Wing (Optional)</label>
+                                <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Wing (Optional)</label>
                                 <div className="relative">
-                                  <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.wing} onChange={e => setTenantBookingForm(f => ({ ...f, wing: e.target.value, roomName: '' }))}>
+                                  <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.wing} onChange={e => setTenantBookingForm(f => ({ ...f, wing: e.target.value, roomName: '' }))}>
                                     <option value="">Any wing</option>
                                     {wings.map(wing => <option key={wing} value={wing}>{wing}</option>)}
                                   </select>
@@ -6596,9 +6571,9 @@ export function MeetingRoomsPage() {
                               </div>
                             )}
                             <div className={`space-y-2${hasWings ? '' : ' md:col-span-2'}`}>
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Meeting Room *</label>
+                              <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Meeting Room *</label>
                               <div className="relative">
-                                <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.roomName} onChange={e => setTenantBookingForm(f => ({ ...f, roomName: e.target.value }))}>
+                                <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.roomName} onChange={e => setTenantBookingForm(f => ({ ...f, roomName: e.target.value }))}>
                                   <option value="">-- Choose a Room --</option>
                                   {filteredRooms.map(room => <option key={room.name} value={room.name}>{room.name}{room.floor ? ` --- Floor ${room.floor}` : ''}{room.wing ? ` --- Wing ${room.wing}` : ''}{room.capacity ? ` --- ${room.capacity} seats` : ''}</option>)}
                                   {filteredRooms.length === 0 && <option value="" disabled>No rooms match your filters</option>}
@@ -6636,19 +6611,19 @@ export function MeetingRoomsPage() {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
                           <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                             <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Capacity</p>
-                            <p className="text-base font-pbold text-slate-900 flex items-center gap-1.5"><Users size={14} className="text-blue-600" /> {room.capacity || 0} people</p>
+                            <p className="text-base font-pmedium text-slate-900 flex items-center gap-1.5"><Users size={14} className="text-blue-600" /> {room.capacity || 0} people</p>
                           </div>
                           <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                             <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Invite Slots</p>
-                            <p className="text-base font-pbold text-emerald-600 flex items-center gap-1.5"><CheckCircle2 size={14} /> {remainingSlots} {remainingSlots === 1 ? 'Slot' : 'Slots'}</p>
+                            <p className="text-base font-pmedium text-emerald-600 flex items-center gap-1.5"><CheckCircle2 size={14} /> {remainingSlots} {remainingSlots === 1 ? 'Slot' : 'Slots'}</p>
                           </div>
                           <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                             <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Remaining Credits</p>
-                            <p className="text-base font-pbold text-indigo-700 flex items-center gap-1.5"><Clock size={14} className="text-indigo-600" /> {companyCreditsRemaining.toFixed(2)} CR</p>
+                            <p className="text-base font-pmedium text-indigo-700 flex items-center gap-1.5"><Clock size={14} className="text-indigo-600" /> {companyCreditsRemaining.toFixed(2)} CR</p>
                           </div>
                           <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                             <p className="text-[9px] font-pmedium uppercase tracking-widest text-slate-400 mb-0.5">Estimated Credits</p>
-                            <p className="text-base font-pbold text-slate-900 flex items-center gap-1.5"><Clock size={14} className="text-indigo-600" />{selectedRoomCreditEstimate.toFixed(2)} CR</p>
+                            <p className="text-base font-pmedium text-slate-900 flex items-center gap-1.5"><Clock size={14} className="text-indigo-600" />{selectedRoomCreditEstimate.toFixed(2)} CR</p>
                           </div>
                         </div>
                       );
@@ -6661,18 +6636,18 @@ export function MeetingRoomsPage() {
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
                       <div className="h-px flex-1 bg-slate-100" />
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0">Date & Time</span>
+                      <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest shrink-0">Date & Time</span>
                       <div className="h-px flex-1 bg-slate-100" />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date *</label>
-                        <input type="date" min={todayStr} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" value={tenantBookingForm.date} onChange={e => setTenantBookingForm(f => ({ ...f, date: e.target.value }))} />
+                        <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Date *</label>
+                        <input type="date" min={todayStr} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all" value={tenantBookingForm.date} onChange={e => setTenantBookingForm(f => ({ ...f, date: e.target.value }))} />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Start Time *</label>
+                        <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Start Time *</label>
                         <div className="relative">
-                          <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.startTime} onChange={e => { const nextStart = e.target.value; const minEnd = minutesToTimeString((timeToMinutes(nextStart) || 0) + BOOKING_MIN_DURATION_MINUTES); setTenantBookingForm(f => ({ ...f, startTime: nextStart, endTime: !f.endTime || (timeToMinutes(f.endTime) || 0) < (timeToMinutes(minEnd) || 0) ? minEnd : f.endTime })); }}>
+                          <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.startTime} onChange={e => { const nextStart = e.target.value; const minEnd = minutesToTimeString((timeToMinutes(nextStart) || 0) + BOOKING_MIN_DURATION_MINUTES); setTenantBookingForm(f => ({ ...f, startTime: nextStart, endTime: !f.endTime || (timeToMinutes(f.endTime) || 0) < (timeToMinutes(minEnd) || 0) ? minEnd : f.endTime })); }}>
                             <option value="">Select time</option>
                             {tenantStartTimeOptions.map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
                           </select>
@@ -6680,9 +6655,9 @@ export function MeetingRoomsPage() {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">End Time *</label>
+                        <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">End Time *</label>
                         <div className="relative">
-                          <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.endTime} onChange={e => setTenantBookingForm(f => ({ ...f, endTime: e.target.value }))}>
+                          <select className="w-full pl-5 pr-12 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none appearance-none cursor-pointer transition-all shadow-sm" value={tenantBookingForm.endTime} onChange={e => setTenantBookingForm(f => ({ ...f, endTime: e.target.value }))}>
                             <option value="">Select time</option>
                             {tenantEndTimeOptions.map(t => <option key={t} value={t}>{formatTimeOptionLabel(t)}</option>)}
                           </select>
@@ -6692,17 +6667,17 @@ export function MeetingRoomsPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-5">
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Attendees</label>
-                        <input type="number" min="1" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={tenantBookingForm.attendees} onChange={e => setTenantBookingForm(f => ({ ...f, attendees: Number(e.target.value) }))} />
+                        <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Attendees</label>
+                        <input type="number" min="1" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={tenantBookingForm.attendees} onChange={e => setTenantBookingForm(f => ({ ...f, attendees: Number(e.target.value) }))} />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Purpose</label>
-                        <input type="text" placeholder="Client meeting, board meeting..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={tenantBookingForm.purpose} onChange={e => setTenantBookingForm(f => ({ ...f, purpose: e.target.value }))} />
+                        <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Purpose</label>
+                        <input type="text" placeholder="Client meeting, board meeting..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={tenantBookingForm.purpose} onChange={e => setTenantBookingForm(f => ({ ...f, purpose: e.target.value }))} />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Notes (Optional)</label>
-                      <textarea rows={2} placeholder="Any internal notes or requirements..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all resize-none" value={tenantBookingForm.notes} onChange={e => setTenantBookingForm(f => ({ ...f, notes: e.target.value }))} />
+                      <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Notes (Optional)</label>
+                      <textarea rows={2} placeholder="Any internal notes or requirements..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all resize-none" value={tenantBookingForm.notes} onChange={e => setTenantBookingForm(f => ({ ...f, notes: e.target.value }))} />
                     </div>
 
                     {/* Invite Employees */}
@@ -6718,15 +6693,15 @@ export function MeetingRoomsPage() {
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
                               <div className="h-px w-8 bg-slate-100" />
-                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Invite Employees</span>
+                              <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Invite Employees</span>
                             </div>
-                            <span className="text-[11px] font-bold text-[#2563EB]">{tenantBookingForm.inviteParticipantIds.length} selected</span>
+                            <span className="text-[11px] font-pmedium text-[#2563EB]">{tenantBookingForm.inviteParticipantIds.length} selected</span>
                           </div>
                           
                           {maxCapacity > 0 && remainingSlots <= 0 && (
                             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-center gap-2">
                               <AlertTriangle size={16} className="text-amber-600 shrink-0" />
-                              <span className="text-[11px] font-semibold text-amber-700">Invite limit reached. Select a bigger room with more capacity to invite more members.</span>
+                              <span className="text-[11px] font-pmedium text-amber-700">Invite limit reached. Select a bigger room with more capacity to invite more members.</span>
                             </div>
                           )}
 
@@ -6746,8 +6721,8 @@ export function MeetingRoomsPage() {
                                   <label key={empId} className={`flex items-start gap-3 rounded-xl border p-3 transition-colors ${checked ? 'border-[#2563EB] bg-blue-50 cursor-pointer' : isDisabled ? 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed' : 'border-slate-200 bg-white hover:bg-slate-50 cursor-pointer'}`}>
                                     <input type="checkbox" disabled={isDisabled} checked={checked} onChange={() => setTenantBookingForm(f => ({ ...f, inviteParticipantIds: checked ? f.inviteParticipantIds.filter(id => id !== empId) : [...f.inviteParticipantIds, empId], attendees: checked ? Math.max(1, f.attendees - 1) : f.attendees + 1 }))} className="mt-1 h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB] disabled:opacity-50" />
                                     <div className="min-w-0">
-                                      <p className="text-[13px] font-bold text-[#0F172A] truncate">{empName}</p>
-                                      <p className="text-[11px] font-semibold text-slate-500">{emp.designation || emp.role || 'Member'}</p>
+                                      <p className="text-[13px] font-pmedium text-[#0F172A] truncate">{empName}</p>
+                                      <p className="text-[11px] font-pmedium text-slate-500">{emp.designation || emp.role || 'Member'}</p>
                                     </div>
                                   </label>
                                 );
@@ -6759,20 +6734,20 @@ export function MeetingRoomsPage() {
                         <div className="space-y-4 pt-4">
                           <div className="flex items-center gap-2">
                             <div className="h-px w-8 bg-slate-100" />
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contact Details</span>
+                            <span className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Contact Details</span>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Booked By Name</label>
-                              <input type="text" placeholder="Contact person" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={tenantBookingForm.bookedByName} onChange={e => setTenantBookingForm(f => ({ ...f, bookedByName: e.target.value }))} />
+                              <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Booked By Name</label>
+                              <input type="text" placeholder="Contact person" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={tenantBookingForm.bookedByName} onChange={e => setTenantBookingForm(f => ({ ...f, bookedByName: e.target.value }))} />
                             </div>
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email</label>
-                              <input type="email" placeholder="email@company.com" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={tenantBookingForm.bookedByEmail} onChange={e => setTenantBookingForm(f => ({ ...f, bookedByEmail: e.target.value }))} />
+                              <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Email</label>
+                              <input type="email" placeholder="email@company.com" className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={tenantBookingForm.bookedByEmail} onChange={e => setTenantBookingForm(f => ({ ...f, bookedByEmail: e.target.value }))} />
                             </div>
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phone</label>
-                              <input type="tel" placeholder="+91..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-bold text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={tenantBookingForm.bookedByPhone} onChange={e => setTenantBookingForm(f => ({ ...f, bookedByPhone: e.target.value }))} />
+                              <label className="text-[10px] font-pmedium text-slate-400 uppercase tracking-widest">Phone</label>
+                              <input type="tel" placeholder="+91..." className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl font-pmedium text-[13px] text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm outline-none transition-all" value={tenantBookingForm.bookedByPhone} onChange={e => setTenantBookingForm(f => ({ ...f, bookedByPhone: e.target.value }))} />
                             </div>
                           </div>
                         </div>
@@ -6806,4 +6781,3 @@ export function MeetingRoomsPage() {
     </div>
   );
 }
-

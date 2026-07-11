@@ -16,6 +16,7 @@ const BASIC_IDS = [
   "website-builder",
   "tech-website-builder",
   "website-leads",
+  "website-review",
   "organization-management",
   "org_tab_users",
   "org_tab_departments",

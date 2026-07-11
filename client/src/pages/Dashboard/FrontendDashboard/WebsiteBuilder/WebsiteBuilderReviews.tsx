@@ -9,6 +9,7 @@ import { format, isValid } from "date-fns";
 import PageFrame from "../../../../components/Pages/PageFrame";
 import useAuth from "../../../../hooks/useAuth";
 import useAxiosPrivate from "../../../../hooks/useAxiosPrivate";
+import { statusPillClass } from '../../../../lib/status-pill';
 
 const STATUSES = ["pending", "approved", "rejected"];
 const REVIEW_CACHE_KEY = "wbr_review_cache";
@@ -255,17 +256,16 @@ export default function WebsiteBuilderReviews() {
           <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
             <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
               {/* STATUS FILTER PILLS */}
-              <div className="flex bg-slate-100/50 p-1 rounded-xl w-full relative border border-slate-200/50 overflow-x-auto mb-3">
+              <div className="w-full overflow-x-auto mb-3 [&::-webkit-scrollbar]:hidden">
                 <div className="flex items-center gap-1.5 overflow-x-auto">
                   <button onClick={() => setStageFilter("all")}
-                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${stageFilter === "all" ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200" : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"}`}
-                  >All ({reviews.length})</button>
+                    className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${stageFilter === "all" ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200" : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"}`}
+                  >All</button>
                   {STATUSES.map((status) => {
-                    const count = reviews.filter((r) => (r.status || "pending") === status).length;
                     return (
                       <button key={status} onClick={() => setStageFilter(status)}
-                        className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${stageFilter === status ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200" : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"}`}
-                      >{status.charAt(0).toUpperCase() + status.slice(1)} ({count})</button>
+                        className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${stageFilter === status ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200" : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"}`}
+                      >{status.charAt(0).toUpperCase() + status.slice(1)}</button>
                     );
                   })}
                 </div>
@@ -276,7 +276,7 @@ export default function WebsiteBuilderReviews() {
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
                   <input type="text" placeholder="Search by name, source, description..."
                     value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" />
+                    className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400" />
                 </div>
               </div>
             </div>
@@ -289,7 +289,7 @@ export default function WebsiteBuilderReviews() {
             ) : (
               <div className="overflow-x-auto flex-1">
                 <table className="w-full text-left min-w-[800px]">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Reviewer</th>
                       <th className="px-5 py-4">Rating</th>
@@ -311,9 +311,9 @@ export default function WebsiteBuilderReviews() {
                         <tr key={review._id} className="hover:bg-slate-50/50 transition-colors group">
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-2.5">
-                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-[10px] font-black text-white shadow-sm">{getInitials(review.name)}</div>
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-[10px] font-pmedium text-white shadow-sm">{getInitials(review.name)}</div>
                               <div>
-                                <p className="text-[12px] font-bold text-slate-900">{review.name || "—"}</p>
+                                <p className="text-[12px] font-pmedium text-slate-900">{review.name || "—"}</p>
                               </div>
                             </div>
                           </td>
@@ -321,18 +321,18 @@ export default function WebsiteBuilderReviews() {
                             <StarRating count={review.starCount} />
                           </td>
                           <td className="px-5 py-4 max-w-[260px]">
-                            <p className="text-[12px] font-semibold text-slate-600 truncate">{review.description || "—"}</p>
+                            <p className="text-[12px] font-pmedium text-slate-600 truncate">{review.description || "—"}</p>
                           </td>
                           <td className="px-5 py-4">
-                            <span className="text-[12px] font-bold text-slate-700">{review.reviewSource || "—"}</span>
+                            <span className="text-[12px] font-pmedium text-slate-700">{review.reviewSource || "—"}</span>
                           </td>
                           <td className="px-5 py-4">
-                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${statusTone}`}>
+                            <span className={statusPillClass(review.status || "pending")}>
                               {review.status || "pending"}
                             </span>
                           </td>
                           <td className="px-5 py-4">
-                            <p className="text-[12px] font-bold text-slate-700">{formatDate(review.createdAt)}</p>
+                            <p className="text-[12px] font-pmedium text-slate-700">{formatDate(review.createdAt)}</p>
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-center gap-1.5">
@@ -364,9 +364,9 @@ export default function WebsiteBuilderReviews() {
                     <div>
                       <h3 className="text-[13px] font-black leading-tight text-slate-900">{selectedReview.name || "Anonymous"}</h3>
                       <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                        <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest ${{ pending: "bg-amber-50 text-amber-700 border-amber-100", approved: "bg-emerald-50 text-emerald-700 border-emerald-100", rejected: "bg-rose-50 text-rose-700 border-rose-100" }[selectedReview.status || "pending"] || "bg-slate-50 text-slate-600 border-slate-200"}`}>{selectedReview.status || "pending"}</span>
+                        <span className={statusPillClass(selectedReview.status || "pending")}>{selectedReview.status || "pending"}</span>
                         {selectedReview.reviewSource && (
-                          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-slate-500">{selectedReview.reviewSource}</span>
+                          <span className={statusPillClass(selectedReview.reviewSource)}>{selectedReview.reviewSource}</span>
                         )}
                       </div>
                     </div>
@@ -380,7 +380,7 @@ export default function WebsiteBuilderReviews() {
                 <div className="overflow-y-auto flex-1 p-5 space-y-4">
                   {/* Rating */}
                   <div className="flex items-center gap-3">
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Rating</span>
+                    <span className={statusPillClass("Rating")}>Rating</span>
                     <StarRating count={selectedReview.starCount} />
                   </div>
 
@@ -428,7 +428,7 @@ export default function WebsiteBuilderReviews() {
                     </>
                   )}
                   {(selectedReview.status || "pending") !== "pending" && (
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">This review has already been {selectedReview.status}.</span>
+                    <span className={statusPillClass("This review has already been")}>This review has already been {selectedReview.status}.</span>
                   )}
                 </div>
 

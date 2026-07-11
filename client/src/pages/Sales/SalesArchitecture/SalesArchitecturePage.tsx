@@ -702,15 +702,14 @@ export default function SalesArchitecturePage() {
 
       <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
         <div className="p-3 sm:p-4 lg:p-1 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 bg-slate-50/50">
-          <div className="flex bg-slate-100/50 p-1 rounded-xl w-full xl:w-auto relative border border-slate-200/50 overflow-x-auto">
+          <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden w-full xl:w-auto">
             {[
               { key: "map", label: "Floor Map" },
               { key: "dashboard", label: "Dashboard" },
             ].map((tab) => (
               <button key={tab.key} onClick={() => setViewMode(tab.key)}
-                className={`px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-[11px] sm:text-[13px] font-bold transition-colors relative z-10 whitespace-nowrap ${viewMode === tab.key ? "text-[#0F172A]" : "text-slate-500 hover:text-slate-800"}`}
+                className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${viewMode === tab.key ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200" : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"}`}
               >
-                {viewMode === tab.key && <div className="absolute inset-0 bg-white rounded-lg shadow-sm border border-slate-200/60 z-[-1]" />}
                 {tab.label}
               </button>
             ))}
@@ -719,7 +718,7 @@ export default function SalesArchitecturePage() {
             <div className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
               <input type="text" placeholder="Search space, tenant..."
-                className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                 value={query} onChange={(e) => setQuery(e.target.value)} />
             </div>
             {assignableIds.length > 0 && (
@@ -876,7 +875,7 @@ export default function SalesArchitecturePage() {
 
         <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+              <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                 <tr>
                   <th className="px-5 py-4 text-left">Company</th>
                   <th className="px-5 py-4 text-left">Status</th>
@@ -901,11 +900,11 @@ export default function SalesArchitecturePage() {
                   return (
                     <tr key={tid} className={`hover:bg-slate-50/50 transition-colors group ${viewTenantId === tid ? "bg-indigo-50/40" : ""}`}>
                       <td className="px-5 py-4">
-                        <p className="text-[13px] font-bold text-slate-900">{t.companyName || t.name}</p>
-                        <p className="text-[10px] font-medium text-slate-500">{t.businessType || t.contactName || "--"}</p>
+                        <p className="text-[13px] font-pmedium text-slate-900">{t.companyName || t.name}</p>
+                        <p className="text-[10px] font-pmedium text-slate-500">{t.businessType || t.contactName || "--"}</p>
                       </td>
                       <td className="px-5 py-4">
-                        <span className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider ${
+                        <span className={`px-2.5 py-1 rounded-lg text-[9px] font-pmedium uppercase tracking-wider ${
                           String(t.status || "").toLowerCase() === "active" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
                           String(t.status || "").includes("Expir") ? "bg-amber-50 text-amber-700 border border-amber-200" :
                           "bg-slate-100 text-slate-600 border border-slate-200"
@@ -913,20 +912,20 @@ export default function SalesArchitecturePage() {
                       </td>
                       <td className="px-5 py-4">
                         {locationStr ? (
-                          <span className="text-[12px] font-semibold text-slate-700">{locationStr}</span>
+                          <span className="text-[12px] font-pmedium text-slate-700">{locationStr}</span>
                         ) : (
                           <span className="text-[12px] text-slate-400">Not assigned</span>
                         )}
                       </td>
                       <td className="px-5 py-4 text-center">
-                        <span className={`text-[15px] font-black ${assignedSeatCount > 0 ? "text-indigo-700" : "text-slate-400"}`}>
+                        <span className={`text-[15px] font-pmedium ${assignedSeatCount > 0 ? "text-indigo-700" : "text-slate-400"}`}>
                           {assignedSeatCount}
                         </span>
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex flex-wrap gap-1">
                           {assignedResources.slice(0, 4).map((r) => (
-                            <span key={r.recordId} className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[9px] font-bold">
+                            <span key={r.recordId} className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[9px] font-pmedium">
                               {r.name || r.resourceCode}
                             </span>
                           ))}
@@ -948,7 +947,7 @@ export default function SalesArchitecturePage() {
                   );
                 })}
                 {tenants.length === 0 && (
-                  <tr><td colSpan={6} className="text-center py-20 text-slate-400 font-semibold">No tenant companies found.</td></tr>
+                  <tr><td colSpan={6} className="text-center py-20 text-slate-400 font-pmedium">No tenant companies found.</td></tr>
                 )}
               </tbody>
             </table>
@@ -1106,7 +1105,7 @@ export default function SalesArchitecturePage() {
         <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col mt-4">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+              <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                 <tr>
                   <th className="px-5 py-4 text-left">Department</th>
                   <th className="px-5 py-4 text-center">Seats</th>
@@ -1122,7 +1121,7 @@ export default function SalesArchitecturePage() {
                   return (
                     <tr key={d.id || d.name} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-5 py-4">
-                        <p className="text-[13px] font-bold text-slate-900">{d.name}</p>
+                        <p className="text-[13px] font-pmedium text-slate-900">{d.name}</p>
                         {d.managerName && <p className="text-[10px] text-slate-500">Manager: {d.managerName}</p>}
                       </td>
                       <td className="px-5 py-4 text-center">
@@ -1131,14 +1130,14 @@ export default function SalesArchitecturePage() {
                       <td className="px-5 py-4">
                         <div className="flex flex-wrap gap-1">
                           {locs.slice(0, 3).map((l) => (
-                            <span key={l} className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded text-[9px] font-bold">{l}</span>
+                            <span key={l} className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded text-[9px] font-pmedium">{l}</span>
                           ))}
                           {locs.length > 3 && <span className="text-[9px] text-slate-500">+{locs.length - 3}</span>}
                           {locs.length === 0 && <span className="text-[11px] text-slate-400">No spaces</span>}
                         </div>
                       </td>
                       <td className="px-5 py-4 text-center">
-                        <span className="text-[12px] font-semibold text-slate-700">{assignment?.resources.length || 0}</span>
+                        <span className="text-[12px] font-pmedium text-slate-700">{assignment?.resources.length || 0}</span>
                       </td>
                       <td className="px-5 py-4 text-center">
                         <button onClick={() => {
@@ -1154,7 +1153,7 @@ export default function SalesArchitecturePage() {
                   );
                 })}
                 {availableDepartments.length === 0 && (
-                  <tr><td colSpan={5} className="text-center py-20 text-slate-400 font-semibold">No departments configured.</td></tr>
+                  <tr><td colSpan={5} className="text-center py-20 text-slate-400 font-pmedium">No departments configured.</td></tr>
                 )}
               </tbody>
             </table>
@@ -1226,9 +1225,9 @@ export default function SalesArchitecturePage() {
               </div>
               <div className="p-5 space-y-4 overflow-y-auto flex-1">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Assign to Tenant Company *</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Assign to Tenant Company *</label>
                   <select value={selectedCompanyId} onChange={(e) => setSelectedCompanyId(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-bold text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none cursor-pointer"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none cursor-pointer"
                   >
                     <option value="">-- Select Tenant Company --</option>
                     {tenants.map((t) => <option key={t.recordId || t.id} value={t.recordId || t.id}>{t.companyName || t.name}</option>)}
@@ -1358,9 +1357,9 @@ export default function SalesArchitecturePage() {
               <div className="p-5 space-y-4 overflow-y-auto flex-1">
                 {/* Department selector */}
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Select Department *</label>
+                  <label className="text-[10px] font-pmedium text-slate-500 uppercase tracking-widest">Select Department *</label>
                   <select value={deptAssignSelectedId} onChange={(e) => setDeptAssignSelectedId(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-bold text-slate-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none cursor-pointer"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[12px] font-pmedium text-slate-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none cursor-pointer"
                   >
                     <option value="">-- Select Department --</option>
                     {availableDepartments.map((d) => {

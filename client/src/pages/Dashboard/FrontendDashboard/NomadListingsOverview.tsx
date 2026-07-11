@@ -7,6 +7,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import useAuth from "../../../hooks/useAuth";
 import { toast } from "sonner";
 import { CheckCircle2, Edit3, Layers, Search, Target, XCircle } from "lucide-react";
+import { statusPillClass } from '../../../lib/status-pill';
 
 function formatDate(raw) {
   if (!raw) return "—";
@@ -127,7 +128,7 @@ export default function NomadListingsOverview() {
           {/* REQUEST BANNER */}
           {!isLinkedToExistingCompany && !!listings.length && (
             <div className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-blue-200 bg-blue-50">
-              <div className="text-sm text-gray-700">
+              <div className="font-pmedium text-gray-700">
                 {requestSent ? (
                   <>Your request is pending review by our team.</>
                 ) : (
@@ -202,19 +203,19 @@ export default function NomadListingsOverview() {
             <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col min-h-[400px]">
               {/* Toolbar */}
               <div className="p-3 sm:p-4 lg:p-5 border-b border-slate-100/60 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 sm:gap-4 bg-slate-50/50">
-                <div className="flex bg-slate-100/50 p-1 rounded-xl border border-slate-200/50 overflow-x-auto">
+                <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden">
                   {["all", "active", "inactive"].map((key) => (
                     <button
                       key={key}
                       type="button"
                       onClick={() => setStatusFilter(key)}
-                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-semibold whitespace-nowrap transition-all ${
+                      className={`px-3 py-1.5 rounded-lg text-[11px] sm:text-[12px] font-pmedium whitespace-nowrap transition-all ${
                         statusFilter === key
                           ? "bg-[#2563EB] text-white shadow-sm shadow-blue-200"
                           : "bg-slate-100/70 text-slate-500 hover:bg-slate-200/70 hover:text-slate-700"
                       }`}
                     >
-                      {key === "all" ? "All" : key.charAt(0).toUpperCase() + key.slice(1)} ({key === "all" ? totalListings : key === "active" ? activeListings : inactiveListings})
+                      {key === "all" ? "All" : key.charAt(0).toUpperCase() + key.slice(1)}
                     </button>
                   ))}
                 </div>
@@ -226,7 +227,7 @@ export default function NomadListingsOverview() {
                       placeholder="Search by name, type, city..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
+                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 rounded-lg text-[12px] font-pmedium text-[#0F172A] focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] outline-none transition-all placeholder:text-slate-400"
                     />
                   </div>
                   <button
@@ -242,7 +243,7 @@ export default function NomadListingsOverview() {
               {/* Table */}
               <div className="overflow-x-auto flex-1">
                 <table className="w-full text-left min-w-[700px]">
-                  <thead className="bg-slate-50/50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
+                  <thead className="bg-slate-50/50 text-[10px] font-pmedium text-slate-500 uppercase tracking-widest border-b border-slate-100/60">
                     <tr>
                       <th className="px-5 py-4">Sr No</th>
                       <th className="px-5 py-4">Company Name</th>
@@ -258,42 +259,38 @@ export default function NomadListingsOverview() {
                       <tr>
                         <td colSpan={7} className="px-5 py-16 text-center">
                           <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-400 mx-auto"><Target size={28} /></div>
-                          <p className="text-slate-400 font-semibold">No listings found.</p>
+                          <p className="text-slate-400 font-pmedium">No listings found.</p>
                         </td>
                       </tr>
                     ) : (
                       filteredListings.map((item, idx) => (
                         <tr key={item._id || idx} className="hover:bg-slate-50/50 transition-colors group">
                           <td className="px-5 py-4">
-                            <span className="text-[12px] font-bold text-slate-400">{idx + 1}</span>
+                            <span className="text-[12px] font-pmedium text-slate-400">{idx + 1}</span>
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center gap-2.5">
-                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-[9px] font-black text-white shadow-sm">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-[9px] font-pmedium text-white shadow-sm">
                                 {getInitials(item.companyName)}
                               </div>
                               <div>
-                                <p className="text-[12px] font-bold text-slate-900">{item.companyName || "—"}</p>
+                                <p className="text-[12px] font-pmedium text-slate-900">{item.companyName || "—"}</p>
                               </div>
                             </div>
                           </td>
                           <td className="px-5 py-4">
-                            <span className="text-[12px] font-semibold text-slate-600 capitalize">{item.companyType || "—"}</span>
+                            <span className="text-[12px] font-pmedium text-slate-600 capitalize">{item.companyType || "—"}</span>
                           </td>
                           <td className="px-5 py-4">
-                            <span className="text-[12px] font-semibold text-slate-600">{item.city || item.country || "—"}</span>
+                            <span className="text-[12px] font-pmedium text-slate-600">{item.city || item.country || "—"}</span>
                           </td>
                           <td className="px-5 py-4">
-                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest ${
-                              item.isActive
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                                : "bg-rose-50 text-rose-700 border-rose-100"
-                            }`}>
+                            <span className={statusPillClass(item.isActive ? "Active" : "Inactive")}>
                               {item.isActive ? "Active" : "Inactive"}
                             </span>
                           </td>
                           <td className="px-5 py-4">
-                            <p className="text-[12px] font-bold text-slate-700">{formatDate(item.createdAt)}</p>
+                            <p className="text-[12px] font-pmedium text-slate-700">{formatDate(item.createdAt)}</p>
                           </td>
                           <td className="px-5 py-4">
                             <div className="flex items-center justify-center gap-1.5">
