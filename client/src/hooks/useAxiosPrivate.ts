@@ -27,7 +27,7 @@ export default function useAxiosPrivate() {
         const errorCode = error?.response?.data?.code;
         const errorMessage = error?.response?.data?.message;
 
-        if (error?.response?.status === 403 && (errorCode === "ACCOUNT_DISABLED" || errorCode === "ACCESS_DENIED")) {
+        if (error?.response?.status === 403 && (errorCode === "ACCOUNT_DISABLED" || errorCode === "ACCESS_DENIED" || errorCode === "ACCOUNT_DELETED")) {
           setAuth((prevState) => ({
             ...prevState,
             accessToken: "",

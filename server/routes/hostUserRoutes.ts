@@ -2,6 +2,7 @@
 import { Router } from "express";
 import {
   changePassword,
+  deleteMyAccount,
   getMyProfile,
   updateCompanyLogo,
   updateProfile,
@@ -16,6 +17,7 @@ router.patch("/update-profile/:userId", updateProfile);
 router.patch("/company-logo", upload.single("logo"), updateCompanyLogo);
 router.patch("/verify-password/:userId", verifyPassword);
 router.patch("/change-password/:userId", changePassword);
+router.post("/delete-account", deleteMyAccount);
 
 export default router;
 

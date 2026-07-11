@@ -96,6 +96,14 @@ const hostUserSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
     inviteStatus: {
       type: String,
       enum: ["not_invited", "invite_sent", "registered", "joined"],

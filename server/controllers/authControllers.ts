@@ -417,6 +417,12 @@ export const login = async (req, res, next) => {
     const user = await HostUser.findOne({ email }).lean().exec();
 
     if (!user) return res.status(404).json({ message: "No user found" });
+    if (user?.isDeleted) {
+      return res.status(403).json({
+        code: "ACCOUNT_DELETED",
+        message: "This account has been deleted.",
+      });
+    }
     if (user?.isActive === false) {
       return res.status(403).json({
         code: "ACCOUNT_DISABLED",
@@ -1708,6 +1714,9 @@ export const consumeStaffViewToken = async (req, res, next) => {
 
     const user = await HostUser.findById(decoded.hostUserId).lean().exec();
     if (!user) return res.status(404).json({ message: "Host user not found." });
+    if (user?.isDeleted) {
+      return res.status(403).json({ message: "This account has been deleted." });
+    }
     if (user?.isActive === false) {
       return res.status(403).json({ message: "This account is disabled." });
     }

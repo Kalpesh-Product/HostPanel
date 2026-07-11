@@ -34,11 +34,18 @@ const verifyJwt = (req, res, next) => {
       // Only fetch the fields we need to check — isActive and hasCompletedWorkspaceSetup.
       // Previously this fetched the full user document on every request.
       const user = await HostUser.findById(userId)
-        .select("_id email isActive hasCompletedWorkspaceSetup primaryWorkspace company companyId")
+        .select("_id email isActive isDeleted hasCompletedWorkspaceSetup primaryWorkspace company companyId")
         .lean()
         .exec();
       if (!user) {
         return res.sendStatus(401);
+      }
+
+      if (user.isDeleted) {
+        return res.status(403).json({
+          code: "ACCOUNT_DELETED",
+          message: "This account has been deleted.",
+        });
       }
 
       if (user.isActive === false) {

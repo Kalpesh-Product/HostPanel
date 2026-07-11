@@ -143,6 +143,17 @@ const refreshTokenController = async (req, res, next) => {
       return res.sendStatus(401);
     }
     const user = await HostUser.findOne({ refreshToken }).lean().exec();
+    if (user?.isDeleted) {
+      res.clearCookie("clientCookie", {
+        httpOnly: true,
+        sameSite: "None",
+        secure: true,
+      });
+      return res.status(403).json({
+        code: "ACCOUNT_DELETED",
+        message: "This account has been deleted.",
+      });
+    }
     if (user?.isActive === false) {
       res.clearCookie("clientCookie", {
         httpOnly: true,

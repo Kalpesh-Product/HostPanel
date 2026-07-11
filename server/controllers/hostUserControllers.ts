@@ -496,3 +496,124 @@ export const updateCompanyLogo = async (req, res) => {
     });
   }
 };
+
+export const deleteMyAccount = async (req, res) => {
+  try {
+    const userId = req.user;
+    const { password, confirmText } = req.body;
+
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: "Password is required to delete your account.",
+      });
+    }
+
+    const user = await HostUser.findById(userId).select("+password");
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    if (user.isDeleted) {
+      return res.status(400).json({
+        success: false,
+        message: "This account has already been deleted.",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Incorrect password.",
+      });
+    }
+
+    const activeMembership = await resolveActiveWorkspaceMembership(user);
+    const roleName = String(
+      activeMembership?.role?.name || activeMembership?.role || "",
+    ).toLowerCase();
+    const isFounder = roleName === "founder";
+    const now = new Date();
+
+    // A founder is the sole owner of the company workspace — deleting their
+    // account cascades to every teammate (nobody should be left behind with
+    // no owner). Require an explicit typed confirmation server-side too,
+    // since this is destructive to accounts other than the caller's own.
+    if (isFounder) {
+      if (String(confirmText || "").trim().toUpperCase() !== "DELETE") {
+        return res.status(400).json({
+          success: false,
+          code: "CONFIRM_TEXT_REQUIRED",
+          message:
+            "Type DELETE to confirm — deleting a founder account also deletes every team member's account.",
+        });
+      }
+    }
+
+    if (isFounder && activeMembership?.workspace) {
+      const workspaceId = activeMembership.workspace;
+      const teamMemberships = await WorkspaceMember.find({ workspace: workspaceId })
+        .select("user")
+        .lean()
+        .exec();
+      const teamUserIds = teamMemberships.map((membership: any) => membership.user);
+      if (!teamUserIds.some((id: any) => String(id) === String(user._id))) {
+        teamUserIds.push(user._id);
+      }
+
+      await HostUser.updateMany(
+        { _id: { $in: teamUserIds } },
+        { isDeleted: true, deletedAt: now, refreshToken: "" },
+      ).exec();
+
+      await WorkspaceMember.updateMany(
+        { workspace: workspaceId, isActive: true },
+        { isActive: false },
+      ).exec();
+
+      res.clearCookie("clientCookie", {
+        httpOnly: true,
+        sameSite: "None",
+        secure: true,
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: `Your account and ${teamUserIds.length - 1} team member account(s) have been deleted.`,
+        data: { cascaded: true, affectedCount: teamUserIds.length },
+      });
+    }
+
+    user.isDeleted = true;
+    user.deletedAt = now;
+    user.refreshToken = "";
+    await user.save();
+
+    await WorkspaceMember.updateMany(
+      { user: user._id, isActive: true },
+      { isActive: false },
+    ).exec();
+
+    res.clearCookie("clientCookie", {
+      httpOnly: true,
+      sameSite: "None",
+      secure: true,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Your account has been deleted.",
+      data: { cascaded: false, affectedCount: 1 },
+    });
+  } catch (error) {
+    console.error("Delete My Account Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to delete account.",
+    });
+  }
+};

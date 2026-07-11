@@ -118,7 +118,7 @@ const hasVisitorAccess = ({
 }) => {
   if (!isWorkspaceVisitorModuleEnabled(workspace)) return false;
 
-  const role = normalizeRole(membership?.role || "");
+  const role = normalizeRole(membership?.role?.name || membership?.role || "");
   if (MODULE_ADMIN_ROLES.has(role)) return true;
 
   const grantedModules = Array.isArray(membership?.grantedModules)
